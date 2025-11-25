@@ -1,0 +1,49 @@
+{
+  "title": "ייבוא נתוני בנק",
+  "subtitle": "ייבא דפי חשבון בנק ועסקאות כרטיס אשראי להתאמה",
+  "manualUpload": {
+    "title": "העלאה ידנית",
+    "subtitle": "העלה דף חשבון בנק",
+    "description": "תמיכה בקבצי CSV, XLS, XLSX, OFX",
+    "selectFile": "בחר קובץ",
+    "importing": "מייבא..."
+  },
+  "transactionPreview": {
+    "title": "תצוגה מקדימה של עסקאות ({{count}} עסקאות)",
+    "subtitle": "סקור ואשר עסקאות לפני ייבוא",
+    "selected": "נבחרו",
+    "reviewWarning": "סקור בזהירות",
+    "warningText": "עסקאות כפולות מבוטלות אוטומטית. ציוני ודאות מציינים דיוק חילוץ נתונים.",
+    "selectAll": "בחר הכל",
+    "date": "תאריך",
+    "description": "תיאור",
+    "amount": "סכום",
+    "category": "קטגוריה",
+    "confidence": "רמת ודאות",
+    "actions": "פעולות",
+    "possibleDuplicate": "כפילות אפשרית",
+    "selectionSummary": "{{selected}} מתוך {{total}} עסקאות נבחרו",
+    "duplicatesDetected": "זוהו {{count}} כפילויות אפשריות",
+    "confirmImport": "אשר ויבא ({{count}})"
+  },
+  "importHistory": {
+    "title": "היסטוריית ייבוא",
+    "viewAll": "הצג הכל",
+    "fileName": "שם קובץ",
+    "bankSource": "בנק/מקור",
+    "date": "תאריך",
+    "transactions": "עסקאות",
+    "status": "סטטוס",
+    "actions": "פעולות",
+    "completed": "הושלם",
+    "processing": "בעיבוד"
+  },
+  "instructions": {
+    "title": "הנחיות ייבוא",
+    "step1": "העלה דפי חשבון בנק בפורמט CSV, XLS, XLSX או OFX",
+    "step2": "ודא שהדפים כוללים תאריך עסקה, תיאור ועמודות סכום",
+    "step3": "סקור עסקאות שחולצו ותקן שגיאות לפני אישור",
+    "step4": "עסקאות כפולות מזוהות אוטומטית לבדיקתך",
+    "step5": "עסקאות מאושרות יהיו זמינות להתאמה עם חשבוניות"
+  }
+}

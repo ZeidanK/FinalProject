@@ -1,0 +1,55 @@
+{
+  "accountant": {
+    "title": "Accountant Dashboard",
+    "welcomeBack": "Welcome back! Here's what's happening today.",
+    "stats": {
+      "totalClients": "Total Clients",
+      "pendingReconciliations": "Pending Reconciliations",
+      "unclassifiedInvoices": "Unclassified Invoices",
+      "anomalyAlerts": "Anomaly Alerts",
+      "today": "today",
+      "new": "new"
+    }
+  },
+  "businessOwner": {
+    "title": "Business Owner Dashboard",
+    "welcomeBack": "Welcome back! Here's what's happening today.",
+    "stats": {
+      "totalTransactions": "Total Transactions",
+      "pendingMatches": "Pending Matches",
+      "reconciledThisMonth": "Reconciled This Month",
+      "exceptions": "Exceptions",
+      "today": "today",
+      "fromLastWeek": "from last week"
+    }
+  },
+  "quickActions": {
+    "title": "Quick Actions",
+    "uploadInvoices": "Upload Invoices",
+    "importBankData": "Import Bank Data",
+    "matchTransactions": "Match Transactions",
+    "viewReports": "View Reports"
+  },
+  "recentActivity": {
+    "title": "Recent Activity",
+    "viewAll": "View All",
+    "minutesAgo": "{{count}} minutes ago",
+    "hourAgo": "{{count}} hour ago",
+    "hoursAgo": "{{count}} hours ago",
+    "invoiceUploaded": "Invoice #{{number}} uploaded",
+    "transactionsMatched": "{{count}} transactions matched automatically",
+    "anomalyDetected": "Anomaly detected in transaction #{{number}}",
+    "reportExported": "Monthly report exported",
+    "invoicesPending": "{{count}} invoices pending review"
+  },
+  "alerts": {
+    "title": "Alerts Summary",
+    "critical": "Critical",
+    "warning": "Warning",
+    "info": "Info",
+    "requireImmediate": "Require immediate attention",
+    "needReview": "Need review soon",
+    "forYourInfo": "For your information",
+    "viewAllAlerts": "View All Alerts"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "title": "העלאת חשבוניות",
+  "subtitle": "העלה חשבוניות דיגיטליות או סרוקות לעיבוד אוטומטי",
+  "dropzone": {
+    "title": "גרור קבצים לכאן או לחץ להעלאה",
+    "subtitle": "תמיכה בקבצי PDF, JPG, PNG עד 10MB",
+    "selectFiles": "בחר קבצים"
+  },
+  "uploadedFiles": "קבצים שהועלו ({{count}})",
+  "processAll": "עבד הכל",
+  "verify": "אמת",
+  "edit": "ערוך",
+  "status": {
+    "uploaded": "מוכן לעיבוד",
+    "processing": "מעבד...",
+    "completed": "מוכן לאימות",
+    "verified": "אומת ✓",
+    "error": "העיבוד נכשל"
+  },
+  "verification": {
+    "title": "אמת נתונים שחולצו",
+    "vendorName": "שם ספק",
+    "invoiceNumber": "מספר חשבונית",
+    "invoiceDate": "תאריך חשבונית",
+    "dueDate": "תאריך פירעון",
+    "currency": "מטבע",
+    "vatRate": "שיעור מע\"מ (%)",
+    "lineItems": "פריטי שורה",
+    "description": "תיאור",
+    "quantity": "כמות",
+    "unitPrice": "מחיר יחידה",
+    "total": "סה\"כ",
+    "confidence": "רמת ודאות",
+    "subtotal": "סכום ביניים",
+    "vatAmount": "סכום מע\"מ",
+    "totalAmount": "סכום כולל",
+    "saveConfirm": "שמור ואשר"
+  },
+  "instructions": {
+    "title": "הוראות העלאה",
+    "line1": "וודא שהחשבוניות סרוקות בבירור או בפורמט דיגיטלי באיכות גבוהה",
+    "line2": "פורמטים נתמכים: PDF, JPG, PNG (מקסימום 10MB לקובץ)",
+    "line3": "ה-AI יחלץ אוטומטית פרטי חשבונית כולל סכומים, תאריכים ומע\"מ",
+    "line4": "חשבוניות מעובדות יופיעו בעמוד סטטוס עיבוד"
+  }
+}

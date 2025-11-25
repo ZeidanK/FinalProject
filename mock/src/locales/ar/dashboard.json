@@ -1,0 +1,55 @@
+{
+  "accountant": {
+    "title": "لوحة تحكم المحاسب",
+    "welcomeBack": "مرحبًا بعودتك! إليك ما يحدث اليوم.",
+    "stats": {
+      "totalClients": "إجمالي العملاء",
+      "pendingReconciliations": "المراجعات المعلقة",
+      "unclassifiedInvoices": "الفواتير غير المصنفة",
+      "anomalyAlerts": "تنبيهات الحالات الشاذة",
+      "today": "اليوم",
+      "new": "جديد"
+    }
+  },
+  "businessOwner": {
+    "title": "لوحة تحكم صاحب العمل",
+    "welcomeBack": "مرحبًا بعودتك! إليك ما يحدث اليوم.",
+    "stats": {
+      "totalTransactions": "إجمالي المعاملات",
+      "pendingMatches": "المطابقات المعلقة",
+      "reconciledThisMonth": "تم التسوية هذا الشهر",
+      "exceptions": "الاستثناءات",
+      "today": "اليوم",
+      "fromLastWeek": "من الأسبوع الماضي"
+    }
+  },
+  "quickActions": {
+    "title": "إجراءات سريعة",
+    "uploadInvoices": "رفع الفواتير",
+    "importBankData": "استيراد بيانات البنك",
+    "matchTransactions": "مطابقة المعاملات",
+    "viewReports": "عرض التقارير"
+  },
+  "recentActivity": {
+    "title": "النشاط الأخير",
+    "viewAll": "عرض الكل",
+    "minutesAgo": "منذ {{count}} دقيقة",
+    "hourAgo": "منذ {{count}} ساعة",
+    "hoursAgo": "منذ {{count}} ساعات",
+    "invoiceUploaded": "تم رفع الفاتورة #{{number}}",
+    "transactionsMatched": "تم مطابقة {{count}} معاملة تلقائيًا",
+    "anomalyDetected": "تم اكتشاف حالة شاذة في المعاملة #{{number}}",
+    "reportExported": "تم تصدير التقرير الشهري",
+    "invoicesPending": "{{count}} فاتورة في انتظار المراجعة"
+  },
+  "alerts": {
+    "title": "ملخص التنبيهات",
+    "critical": "حرجة",
+    "warning": "تحذير",
+    "info": "معلومات",
+    "requireImmediate": "تتطلب اهتمامًا فوريًا",
+    "needReview": "تحتاج إلى مراجعة قريبًا",
+    "forYourInfo": "لمعلوماتك",
+    "viewAllAlerts": "عرض جميع التنبيهات"
+  }
+}

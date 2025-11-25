@@ -1,0 +1,48 @@
+{
+  "title": "Import Bank Data",
+  "subtitle": "Import bank statements and credit card transactions for reconciliation",
+  "manualUpload": {
+    "title": "Manual Upload",
+    "subtitle": "Upload Bank Statement",
+    "description": "Support for CSV, XLS, XLSX, OFX files",
+    "selectFile": "Select File",
+    "importing": "Importing..."
+  },
+  "transactionPreview": {
+    "title": "Review Transactions ({{count}})",
+    "subtitle": "Select transactions to import and verify categorization",
+    "selected": "Selected",
+    "reviewWarning": "Review Carefully",
+    "warningText": "Please verify the extracted data is correct before importing",
+    "date": "Date",
+    "description": "Description",
+    "amount": "Amount",
+    "category": "Category",
+    "confidence": "Confidence",
+    "actions": "Actions",
+    "possibleDuplicate": "Possible Duplicate",
+    "selectionSummary": "{{selected}} of {{total}} transactions selected",
+    "duplicatesDetected": "{{count}} potential duplicate(s) detected",
+    "confirmImport": "Confirm & Import ({{count}})"
+  },
+  "importHistory": {
+    "title": "Import History",
+    "viewAll": "View All",
+    "fileName": "File Name",
+    "bankSource": "Bank/Source",
+    "date": "Date",
+    "transactions": "Transactions",
+    "status": "Status",
+    "actions": "Actions",
+    "completed": "Completed",
+    "processing": "Processing"
+  },
+  "instructions": {
+    "title": "Import Guidelines",
+    "step1": "Upload bank statements in CSV, XLS, XLSX, or OFX format",
+    "step2": "Ensure statements include transaction date, description, and amount columns",
+    "step3": "Review extracted transactions and correct any errors before confirming",
+    "step4": "Duplicate transactions are automatically detected for your review",
+    "step5": "Confirmed transactions will be available for matching with invoices"
+  }
+}
