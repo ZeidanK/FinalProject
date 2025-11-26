@@ -11,7 +11,7 @@ import {
   Activity,
   Upload,
   GitCompare
-} from 'lucide-react';
+} from 'lucide-react'; 
 
 const Dashboard = ({ userRole }) => {
   const { t } = useTranslation(['dashboard', 'common']);

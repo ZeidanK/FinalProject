@@ -1,0 +1,476 @@
+@startuml Accountant Screen Layouts
+!define RECTANGLE class
+
+skinparam backgroundColor #FEFEFE
+skinparam roundcorner 5
+
+title Financial Reconciliation System - Accountant Screen Layouts (Mockups)
+
+' ============================================
+' Login Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>Login Screen (/login)</b>
+    ++ <i>UC: User Authentication</i>
+  }
+  ====
+  {
+    <size:20><&person> FinRecon
+    --
+    [Language Switcher: EN | HE | AR ]
+    --
+    Email: | "                    "
+    Password: | "                    "
+    --
+    Role Selection:
+    {
+      (*) Accountant
+      ( ) Business Owner
+      ( ) Admin
+    }
+    --
+    [ <b>Login</b>                      ]
+    --
+    <i>Forgot Password?</i> | <i>Don't have account? Register</i>
+  }
+  ====
+  <b>Actions:</b>
+  * Enter email & password
+  * Select role (Accountant)
+  * Submit login → Navigate to Dashboard
+}
+----
+' ============================================
+' Dashboard Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>Dashboard (/dashboard)</b>
+    ++ <i>UC: View Overview</i>
+  }
+  ====
+  {
+    {/ <b>Sidebar</b> | <b>Main Content</b>
+    {
+      <&home> Dashboard
+      --
+      <&briefcase> My Businesses
+      --
+      <b>Workflow</b>
+      <&cloud-upload> Upload Invoices
+      <&credit-card> Import Bank Data
+      <&activity> Processing Status
+      <&git-compare> Match & Reconcile
+      <&download> Export Data
+      --
+      <b>Reports</b>
+      <&file-text> Reports Dashboard
+      <&file-text> VAT Reports
+      <&alert-triangle> Anomaly Alerts
+      --
+      <b>Settings</b>
+      <&person> Profile
+      <&settings> AI Settings
+      --
+      <b>Help</b>
+      <&help-circle> Help & Support
+      <&book-open> Tutorial
+      --
+      <&log-out> Logout
+    } |
+    {
+      {
+        [Business Switcher ▼] | [🔔 Notifications] [Language: EN ▼]
+      }
+      --
+      <b><size:18>Dashboard Overview</size></b>
+      --
+      {#
+        <b>Total Invoices</b> | <b>Pending Matches</b> | <b>Processing</b> | <b>Completed</b>
+        <size:24><color:blue>156</color></size> | <size:24><color:orange>23</color></size> | <size:24><color:purple>8</color></size> | <size:24><color:green>125</color></size>
+      }
+      --
+      {#
+        <b>Recent Activity</b> | <b>Quick Actions</b>
+        {
+          • Invoice #1234 matched
+          • Bank import completed
+          • VAT report generated
+          • 3 new anomalies detected
+        } |
+        {
+          [ <&cloud-upload> Upload Invoice ]
+          [ <&credit-card> Import Bank Data ]
+          [ <&git-compare> Match Transactions ]
+          [ <&file-text> Generate Report ]
+        }
+      }
+      --
+      {#
+        <b>Alerts & Notifications</b>
+        ⚠ 5 unmatched transactions require attention
+        ⚠ VAT report due in 3 days
+        ✓ Monthly reconciliation complete
+      }
+    }
+    }
+  }
+  ====
+  <b>Actions:</b>
+  * View statistics and KPIs
+  * Check recent activity
+  * Access quick actions
+  * Review alerts
+  * Switch active business context
+}
+----
+' ============================================
+' Manage Businesses Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>Manage Businesses (/accountant/businesses)</b>
+    ++ <i>UC: Manage Business Accounts</i>
+  }
+  ====
+  {
+    {/ <b>Sidebar</b> | <b>Main Content</b>
+    {
+      [Navigation Menu]
+    } |
+    {
+      <b><size:18>My Businesses</size></b>
+      <i>Manage all business accounts you have access to</i>
+      --
+      {#
+        <b>Active Businesses</b> | <b>Access Requests</b>
+        <size:16>12</size> | <size:16><color:orange>3</color></size>
+      }
+      --
+      [ Search businesses...      ] [Filter ▼] [Sort ▼]
+      --
+      <b>Business List:</b>
+      {#
+        | <b>Business Name</b> | <b>Owner</b> | <b>Status</b> | <b>Last Active</b> | <b>Actions</b>
+        | ABC Corp | John Doe | <color:green>Active</color> | 2 hours ago | [Switch] [View]
+        | XYZ Ltd | Jane Smith | <color:green>Active</color> | 1 day ago | [Switch] [View]
+        | Tech Inc | Bob Wilson | <color:blue>Connected</color> | 3 days ago | [Switch] [View]
+      }
+      --
+      <b>Pending Access Requests:</b>
+      {#
+        | <b>Business</b> | <b>Owner</b> | <b>Requested</b> | <b>Actions</b>
+        | NewCo LLC | Sarah Johnson | 1 day ago | [Accept] [Decline]
+        | StartUp Inc | Mike Brown | 2 days ago | [Accept] [Decline]
+      }
+    }
+    }
+  }
+  ====
+  <b>Actions:</b>
+  * View all connected businesses
+  * Search and filter businesses
+  * Switch active business context
+  * Accept/decline access requests
+  * View business details
+}
+----
+' ============================================
+' Invoice Upload Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>Invoice Upload (/invoice-upload)</b>
+    ++ <i>UC: Upload Invoices</i>
+  }
+  ====
+  {
+    {/ <b>Sidebar</b> | <b>Main Content</b>
+    {
+      [Navigation Menu]
+    } |
+    {
+      <b><size:18>Upload Invoices</size></b>
+      <i>Upload and process expense invoices with AI extraction</i>
+      --
+      {
+        <size:14><&cloud-upload></size>
+        --
+        <b>Drag & drop files here</b>
+        <i>or click to browse</i>
+        --
+        Supported: PDF, JPG, PNG (Max 10MB)
+      }
+      --
+      <b>Uploaded Files:</b>
+      {#
+        | <b>Filename</b> | <b>Size</b> | <b>Status</b> | <b>Confidence</b> | <b>Actions</b>
+        | invoice_001.pdf | 245 KB | <color:green>✓ Completed</color> | 98% | [Verify] [View] [Delete]
+        | receipt_002.jpg | 156 KB | <color:blue>⟳ Processing</color> | - | [Cancel]
+        | invoice_003.pdf | 312 KB | <color:green>✓ Completed</color> | 92% | [Verify] [View] [Delete]
+      }
+      --
+      [ Process All Files ]
+    }
+    }
+  }
+  ====
+  <b>Actions:</b>
+  * Drag & drop or select files
+  * Upload multiple invoices
+  * Start AI processing
+  * View extraction progress
+  * Verify extracted data (opens modal)
+  * Remove files from queue
+}
+----
+' ============================================
+' Verification Modal Layout
+' ============================================
+salt
+{
+  {T
+    + <b>Data Verification Modal</b>
+    ++ <i>UC: Verify Extracted Data</i>
+  }
+  ====
+  {
+    <b><size:16>Verify Extracted Invoice Data</size></b>
+    <i>Review and edit AI-extracted information</i>
+    --
+    {#
+      | <b>Field</b> | <b>Extracted Value</b> | <b>Confidence</b> | <b>Edit</b>
+      | Vendor Name | Acme Corporation | <color:green>98%</color> | "Acme Corporation     "
+      | Invoice Number | INV-2024-1234 | <color:green>95%</color> | "INV-2024-1234       "
+      | Invoice Date | 2024-01-15 | <color:green>92%</color> | "2024-01-15          "
+      | Due Date | 2024-02-15 | <color:orange>88%</color> | "2024-02-15          "
+      | Subtotal | 1200.00 | <color:green>97%</color> | "1200.00             "
+      | VAT Rate | 20% | <color:green>90%</color> | "20                  "
+      | VAT Amount | 240.00 | <color:green>96%</color> | "240.00              "
+      | Total Amount | 1440.00 | <color:green>99%</color> | "1440.00             "
+    }
+    --
+    <b>Line Items:</b>
+    {#
+      | <b>Description</b> | <b>Qty</b> | <b>Unit Price</b> | <b>Total</b> | <b>Confidence</b>
+      | Consulting Services | 10 | 100.00 | 1000.00 | <color:green>94%</color>
+      | Materials | 1 | 200.00 | 200.00 | <color:orange>89%</color>
+    }
+    --
+    [ Cancel ] [ Save & Confirm ]
+  }
+  ====
+  <b>Actions:</b>
+  * Review extracted fields
+  * Edit incorrect values
+  * Check confidence scores
+  * Save verified data
+}
+----
+' ============================================
+' Matching & Reconciliation Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>Matching & Reconciliation (/matching)</b>
+    ++ <i>UC: Match Transactions</i>
+  }
+  ====
+  {
+    {/ <b>Sidebar</b> | <b>Main Content</b>
+    {
+      [Navigation Menu]
+    } |
+    {
+      <b><size:18>Match & Reconcile</size></b>
+      <i>Smart comparison and matching of invoices against bank transactions</i>
+      --
+      {#
+        <b>Pending Invoices</b> | <b>Unmatched Transactions</b> | <b>Matched Today</b> | <b>AI Suggestions</b>
+        <size:16><color:orange>4</color></size> | <size:16><color:orange>4</color></size> | <size:16><color:green>2</color></size> | <size:16><color:blue>2</color></size>
+      }
+      --
+      <b>🤖 AI-Suggested Matches:</b>
+      {
+        {#
+          | <b>Invoice</b> | <b>Transaction</b> | <b>Confidence</b> | <b>Reason</b> | <b>Actions</b>
+          | INV-1234 Acme Corp | ACME CORPORATION | <color:green>98%</color> | Exact amount & vendor match | [✓ Confirm] [✗ Reject]
+          | $1,250.00 | -$1,250.00 | | |
+          | INV-1235 Office Depot | OFFICE DEPOT #4521 | <color:green>95%</color> | Amount match, 1 day proximity | [✓ Confirm] [✗ Reject]
+          | $89.50 | -$89.50 | | |
+        }
+      }
+      --
+      {#
+        <b>Unmatched Invoices</b> | <b>Unmatched Transactions</b>
+        {
+          | <b>Select</b> | <b>Invoice</b> | <b>Vendor</b> | <b>Amount</b>
+          | ( ) | INV-1237 | Marketing Co | $2,100.00
+          | (*) | INV-1238 | City Utilities | $156.80
+        } |
+        {
+          | <b>Select</b> | <b>Transaction</b> | <b>Description</b> | <b>Amount</b>
+          | ( ) | 2024-01-16 | CREATIVE MARKETING | -$2,100.00
+          | (*) | 2024-01-06 | UTILITIES PAYMENT | -$156.80
+        }
+      }
+      --
+      [ <b>Create Manual Match</b> ]
+      --
+      <b>Recent Matches:</b>
+      {#
+        | <b>Invoice</b> | <b>Transaction</b> | <b>Matched At</b> | <b>Actions</b>
+        | INV-1234 → | ACME CORPORATION | 2 mins ago | [Unmatch] [View]
+      }
+    }
+    }
+  }
+  ====
+  <b>Actions:</b>
+  * View AI match suggestions
+  * Confirm/reject AI matches
+  * Select invoice and transaction
+  * Create manual match
+  * Unmatch incorrect pairs
+  * View match details
+}
+----
+' ============================================
+' VAT Report Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>VAT Report (/reports/vat)</b>
+    ++ <i>UC: Generate VAT Report</i>
+  }
+  ====
+  {
+    {/ <b>Sidebar</b> | <b>Main Content</b>
+    {
+      [Navigation Menu]
+    } |
+    {
+      <b><size:18>VAT Report</size></b>
+      <i>Detailed VAT breakdown and compliance reporting</i>
+      --
+      <b>Report Parameters:</b>
+      {
+        Period: | [January 2024 ▼]
+        Category: | [All Categories ▼]
+        Status: | [All Status ▼]
+      }
+      [ Generate Report ]
+      --
+      {#
+        <b>VAT Summary</b>
+        | <b>Metric</b> | <b>Amount</b>
+        | Total Sales | $45,678.00
+        | VAT Collected | $9,135.60
+        | Total Purchases | $23,456.00
+        | VAT Paid | $4,691.20
+        | <b>Net VAT Due</b> | <b><color:blue>$4,444.40</color></b>
+      }
+      --
+      <b>VAT by Rate:</b>
+      {#
+        | <b>Rate</b> | <b>Taxable Amount</b> | <b>VAT Amount</b> | <b>Transactions</b>
+        | 20% | $38,000.00 | $7,600.00 | 45
+        | 5% | $5,000.00 | $250.00 | 12
+        | 0% (Exempt) | $2,678.00 | $0.00 | 8
+      }
+      --
+      <b>VAT by Category:</b>
+      {#
+        | <b>Category</b> | <b>Net</b> | <b>VAT</b> | <b>Gross</b>
+        | Office Supplies | $1,200.00 | $240.00 | $1,440.00
+        | Professional Services | $15,000.00 | $3,000.00 | $18,000.00
+        | Utilities | $2,340.00 | $468.00 | $2,808.00
+      }
+      --
+      [ <&download> Export PDF ] [ <&download> Export Excel ] [ <&download> Export CSV ]
+    }
+    }
+  }
+  ====
+  <b>Actions:</b>
+  * Select reporting period
+  * Filter by category/status
+  * Generate VAT report
+  * View detailed breakdown
+  * Export in multiple formats
+}
+----
+' ============================================
+' AI Settings Screen Layout
+' ============================================
+salt
+{
+  {T
+    + <b>AI Settings (/ai-settings)</b>
+    ++ <i>UC: Configure AI</i>
+  }
+  ====
+  {
+    {/ <b>Sidebar</b> | <b>Main Content</b>
+    {
+      [Navigation Menu]
+    } |
+    {
+      <b><size:18>AI Configuration & Settings</size></b>
+      <i>Configure AI models and extraction parameters</i>
+      --
+      <b>AI Provider Selection:</b>
+      {
+        {
+          (*) OpenAI (GPT-4)
+          ( ) Google Cloud Vision
+          ( ) AWS Textract
+          ( ) Azure Form Recognizer
+        }
+      }
+      --
+      <b>Confidence Thresholds:</b>
+      {
+        Invoice Extraction: | [-----●----] 85%
+        Vendor Matching: | [------●---] 90%
+        Amount Detection: | [-------●--] 95%
+        Date Recognition: | [-----●----] 80%
+      }
+      --
+      <b>Auto-Matching Rules:</b>
+      {
+        [✓] Enable automatic matching
+        [✓] Auto-approve high confidence (>95%)
+        [ ] Auto-approve medium confidence (>80%)
+        [✓] Send notifications for low confidence
+      }
+      --
+      <b>AI Performance Metrics:</b>
+      {#
+        | <b>Metric</b> | <b>Value</b>
+        | Accuracy Rate | <color:green>96.5%</color>
+        | Processing Speed | 2.3 sec/invoice
+        | Auto-Match Success | <color:green>92%</color>
+        | Manual Review Rate | 8%
+      }
+      --
+      [ Reset to Defaults ] [ Save Settings ]
+    }
+    }
+  }
+  ====
+  <b>Actions:</b>
+  * Select AI provider
+  * Adjust confidence thresholds
+  * Configure auto-matching rules
+  * View AI performance metrics
+  * Save configuration changes
+}
+@enduml

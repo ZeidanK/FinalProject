@@ -1,0 +1,59 @@
+@startuml Admin Navigation Map
+
+skinparam backgroundColor #FEFEFE
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+title Financial Reconciliation System - Admin Navigation Map
+
+' Authentication Layer
+component "Login Screen\n/login\n\nUC: User Authentication" as Login #FFE0B2
+component "Register\n/register" as Register #FFE0B2
+component "Forgot Password\n/forgot-password" as ForgotPwd #FFE0B2
+
+' Main Dashboard
+component "Admin Dashboard\n/dashboard\n\nUC: System Overview & Monitoring" as Dashboard #D1C4E9
+
+' Admin Panel
+package "Admin Panel" #E1BEE7 {
+    component "Admin Panel\n/admin\n\nUC: System Administration" as AdminPanel
+}
+
+' Navigation Flows
+Login --> Dashboard : Admin Login Success
+Login --> Register
+Login --> ForgotPwd
+Register --> Login
+
+Dashboard --> AdminPanel
+
+legend right
+    **Screen Types**
+    <color:#FFE0B2>Authentication Screens</color>
+    <color:#D1C4E9>Admin Dashboard</color>
+    <color:#E1BEE7>Admin Panel</color>
+endlegend
+
+note bottom
+    **Admin View Features:**
+    - System-wide statistics (Total Users, Active Businesses, Transactions)
+    - User management and monitoring
+    - Business growth analytics
+    - System health monitoring
+    - Recent user activity tracking
+    - System alerts and notifications
+    - Top performing accountants
+    - Platform-wide reports
+    - Configuration and settings
+    - Security and access control
+    
+    **Key Differences from Other Roles:**
+    - No access to individual business workflows (Invoice Upload, Bank Import, etc.)
+    - No access to Reports & Compliance screens
+    - No access to Settings & Configuration screens
+    - Admin has only Dashboard and Admin Panel screens
+    - Focus on system administration and monitoring rather than business operations
+end note
+
+@enduml
