@@ -8,7 +8,6 @@ const UserProfile = () => {
     phone: '+1 (555) 123-4567',
     company: 'Acme Corporation',
     role: 'accountant',
-    jobTitle: 'Senior Accountant',
     address: '123 Business Street',
     city: 'New York',
     state: 'NY',
@@ -52,7 +51,7 @@ const UserProfile = () => {
               </button>
             </div>
             <p className="mt-4 font-semibold text-gray-900">{formData.name}</p>
-            <p className="text-sm text-gray-600">{formData.jobTitle}</p>
+            
             <p className="text-sm text-gray-500 mt-1">{formData.company}</p>
           </div>
 
@@ -130,18 +129,6 @@ const UserProfile = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Job Title
-              </label>
-              <input
-                type="text"
-                value={formData.jobTitle}
-                onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Company Name
               </label>
