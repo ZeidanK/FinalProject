@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn, Mail, Lock } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import api from '../../services/api';
 
 const Login = ({ onLogin }) => {
   const { t } = useTranslation(['auth', 'common']);
@@ -12,11 +13,23 @@ const Login = ({ onLogin }) => {
     password: '',
     role: 'accountant'
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin(formData.role);
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await api.login(formData.email, formData.password, formData.role);
+      onLogin(response.user.role);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,6 +53,14 @@ const Login = ({ onLogin }) => {
 
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-700">
+              <AlertCircle size={20} />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div>
@@ -129,10 +150,11 @@ const Login = ({ onLogin }) => {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 font-medium"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogIn size={20} />
-              <span>{t('login.signIn')}</span>
+              <span>{loading ? t('common.loading') || 'Loading...' : t('login.signIn')}</span>
             </button>
           </form>
 
