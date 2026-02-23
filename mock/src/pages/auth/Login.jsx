@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
-const Login = ({ onLogin }) => {
+const Login = () => {
+  const { login } = useAuth();
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -23,7 +25,7 @@ const Login = ({ onLogin }) => {
 
     try {
       const response = await api.login(formData.email, formData.password, formData.role);
-      onLogin(response.user.role);
+      login(response.token, response.user);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');

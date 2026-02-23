@@ -1,88 +1,35 @@
 import { Link } from 'react-router-dom';
 import { FileText, CheckCircle, Clock, AlertCircle, Eye, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCompany } from '../../context/CompanyContext';
+import api from '../../services/api';
 
 const ProcessingStatus = () => {
-  const [filter, setFilter] = useState('all'); // all, processing, completed, error
+  const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { activeCompany } = useCompany();
 
-  const documents = [
-    {
-      id: 'INV-2024-1234',
-      name: 'Invoice_Acme_Corp_Jan2024.pdf',
-      uploadDate: '2024-01-15 10:30',
-      status: 'completed',
-      vendor: 'Acme Corporation',
-      amount: '€1,250.00',
-      confidence: 98,
-      extractedData: {
-        invoiceNumber: 'INV-2024-1234',
-        date: '2024-01-10',
-        vat: '€250.00',
-        total: '€1,250.00'
-      }
-    },
-    {
-      id: 'INV-2024-1235',
-      name: 'Receipt_Office_Supplies.jpg',
-      uploadDate: '2024-01-15 11:45',
-      status: 'processing',
-      vendor: 'Office Depot',
-      amount: '€89.50',
-      confidence: null,
-      extractedData: null
-    },
-    {
-      id: 'INV-2024-1236',
-      name: 'Invoice_Tech_Services.pdf',
-      uploadDate: '2024-01-15 09:15',
-      status: 'completed',
-      vendor: 'Tech Services Ltd',
-      amount: '€3,450.00',
-      confidence: 95,
-      extractedData: {
-        invoiceNumber: 'TS-5678',
-        date: '2024-01-08',
-        vat: '€690.00',
-        total: '€3,450.00'
-      }
-    },
-    {
-      id: 'INV-2024-1237',
-      name: 'Scanned_Invoice_012.jpg',
-      uploadDate: '2024-01-15 14:20',
-      status: 'error',
-      vendor: null,
-      amount: null,
-      confidence: null,
-      extractedData: null
-    },
-    {
-      id: 'INV-2024-1238',
-      name: 'Invoice_Marketing_Agency.pdf',
-      uploadDate: '2024-01-15 15:00',
-      status: 'completed',
-      vendor: 'Creative Marketing Co',
-      amount: '€2,100.00',
-      confidence: 97,
-      extractedData: {
-        invoiceNumber: 'CMC-9012',
-        date: '2024-01-12',
-        vat: '€420.00',
-        total: '€2,100.00'
-      }
-    },
-    {
-      id: 'INV-2024-1239',
-      name: 'Utilities_Bill_January.pdf',
-      uploadDate: '2024-01-16 08:30',
-      status: 'processing',
-      vendor: 'City Utilities',
-      amount: '€156.80',
-      confidence: null,
-      extractedData: null
-    }
-  ];
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    api.getInvoices(activeCompany.id)
+      .then(invoices => {
+        setDocuments(invoices.map(inv => ({
+          id: inv.invoice_number || String(inv.id),
+          name: inv.file_path || `Invoice-${inv.id}`,
+          uploadDate: inv.created_at ? new Date(inv.created_at).toLocaleString() : '',
+          status: inv.status === 'matched' ? 'completed' : inv.status || 'uploaded',
+          vendor: inv.vendor_name || null,
+          amount: inv.total_amount != null ? `${inv.currency || ''}${Number(inv.total_amount).toFixed(2)}` : null,
+          confidence: null,
+          dbId: inv.id,
+        })));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [activeCompany?.id]);
 
   const filteredDocuments = documents.filter(doc => {
     const matchesFilter = filter === 'all' || doc.status === filter;
@@ -203,6 +150,12 @@ const ProcessingStatus = () => {
               </tr>
             </thead>
             <tbody>
+              {loading && (
+                <tr><td colSpan="8" className="text-center py-8 text-gray-500">Loading invoices…</td></tr>
+              )}
+              {!loading && filteredDocuments.length === 0 && (
+                <tr><td colSpan="8" className="text-center py-8 text-gray-500">No invoices found.</td></tr>
+              )}
               {filteredDocuments.map((doc) => (
                 <tr key={doc.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">
@@ -248,7 +201,7 @@ const ProcessingStatus = () => {
                   <td className="py-3 px-4 text-sm text-gray-700">{doc.uploadDate}</td>
                   <td className="py-3 px-4">
                     <Link
-                      to={`/invoice-detail/${doc.id}`}
+                      to={`/invoice-detail/${doc.dbId || doc.id}`}
                       className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-700"
                     >
                       <Eye size={18} />

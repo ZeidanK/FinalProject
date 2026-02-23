@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -11,33 +12,78 @@ import {
   Activity,
   Upload,
   GitCompare
-} from 'lucide-react'; 
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useCompany } from '../context/CompanyContext';
+import api from '../services/api';
 
-const Dashboard = ({ userRole }) => {
+const Dashboard = () => {
   const { t } = useTranslation(['dashboard', 'common']);
-  // Mock statistics
-  const stats = {
-    accountant: [
-      { nameKey: 'accountant.stats.totalClients', value: '24', change: '+12%', trend: 'up', icon: FileText },
-      { nameKey: 'accountant.stats.pendingReconciliations', value: '147', change: `23 ${t('accountant.stats.today')}`, trend: 'neutral', icon: Clock },
-      { nameKey: 'accountant.stats.unclassifiedInvoices', value: '89', change: '-15%', trend: 'down', icon: AlertTriangle },
-      { nameKey: 'accountant.stats.anomalyAlerts', value: '12', change: `3 ${t('accountant.stats.new')}`, trend: 'up', icon: AlertTriangle },
-    ],
-    'business-owner': [
-      { nameKey: 'businessOwner.stats.totalTransactions', value: '1,234', change: '+18%', trend: 'up', icon: DollarSign },
-      { nameKey: 'businessOwner.stats.pendingMatches', value: '56', change: `12 ${t('businessOwner.stats.today')}`, trend: 'neutral', icon: Clock },
-      { nameKey: 'businessOwner.stats.reconciledThisMonth', value: '892', change: '+24%', trend: 'up', icon: CheckCircle },
-      { nameKey: 'businessOwner.stats.exceptions', value: '8', change: `-3 ${t('businessOwner.stats.fromLastWeek')}`, trend: 'down', icon: AlertTriangle },
-    ]
+  const { user } = useAuth();
+  const { activeCompany } = useCompany();
+  const userRole = user?.role;
+
+  const [apiStats, setApiStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setStatsLoading(true);
+    api.getDashboardStats(activeCompany.id)
+      .then(setApiStats)
+      .catch(console.error)
+      .finally(() => setStatsLoading(false));
+  }, [activeCompany?.id]);
+
+  const buildStats = () => {
+    if (apiStats) {
+      const inv = apiStats.invoices || {};
+      const trx = apiStats.transactions || {};
+      const anom = apiStats.anomalies || {};
+      const match = apiStats.matches || {};
+
+      if (userRole === 'accountant') {
+        return [
+          { nameKey: 'accountant.stats.totalClients', value: String(inv.total_invoices ?? '—'), change: '', trend: 'neutral', icon: FileText },
+          { nameKey: 'accountant.stats.pendingReconciliations', value: String(trx.unmatched_transactions ?? '—'), change: '', trend: 'neutral', icon: Clock },
+          { nameKey: 'accountant.stats.unclassifiedInvoices', value: String(inv.pending_invoices ?? '—'), change: '', trend: 'neutral', icon: AlertTriangle },
+          { nameKey: 'accountant.stats.anomalyAlerts', value: String(anom.open_anomalies ?? '—'), change: `${anom.critical_anomalies ?? 0} ${t('accountant.stats.new')}`, trend: 'up', icon: AlertTriangle },
+        ];
+      }
+      return [
+        { nameKey: 'businessOwner.stats.totalTransactions', value: String(trx.total_transactions ?? '—'), change: '', trend: 'up', icon: DollarSign },
+        { nameKey: 'businessOwner.stats.pendingMatches', value: String(trx.unmatched_transactions ?? '—'), change: '', trend: 'neutral', icon: Clock },
+        { nameKey: 'businessOwner.stats.reconciledThisMonth', value: String(match.total_matches ?? '—'), change: '', trend: 'up', icon: CheckCircle },
+        { nameKey: 'businessOwner.stats.exceptions', value: String(anom.open_anomalies ?? '—'), change: '', trend: 'down', icon: AlertTriangle },
+      ];
+    }
+    // Fallback placeholders while loading or no company
+    const placeholder = { value: statsLoading ? '…' : '—', change: '', trend: 'neutral' };
+    if (userRole === 'accountant') {
+      return [
+        { nameKey: 'accountant.stats.totalClients', ...placeholder, icon: FileText },
+        { nameKey: 'accountant.stats.pendingReconciliations', ...placeholder, icon: Clock },
+        { nameKey: 'accountant.stats.unclassifiedInvoices', ...placeholder, icon: AlertTriangle },
+        { nameKey: 'accountant.stats.anomalyAlerts', ...placeholder, icon: AlertTriangle },
+      ];
+    }
+    return [
+      { nameKey: 'businessOwner.stats.totalTransactions', ...placeholder, icon: DollarSign },
+      { nameKey: 'businessOwner.stats.pendingMatches', ...placeholder, icon: Clock },
+      { nameKey: 'businessOwner.stats.reconciledThisMonth', ...placeholder, icon: CheckCircle },
+      { nameKey: 'businessOwner.stats.exceptions', ...placeholder, icon: AlertTriangle },
+    ];
   };
 
-  const recentActivity = [
-    { id: 1, type: 'upload', title: 'Invoice #INV-2024-1234 uploaded', time: '5 minutes ago', status: 'success' },
-    { id: 2, type: 'match', title: '23 transactions matched automatically', time: '1 hour ago', status: 'success' },
-    { id: 3, type: 'alert', title: 'Anomaly detected in transaction #TRX-8821', time: '2 hours ago', status: 'warning' },
-    { id: 4, type: 'export', title: 'Monthly report exported', time: '3 hours ago', status: 'success' },
-    { id: 5, type: 'match', title: '15 invoices pending review', time: '5 hours ago', status: 'pending' },
-  ];
+  const recentActivity = apiStats?.recentActivity || [];
+
+  const alertCounts = apiStats
+    ? {
+        critical: apiStats.anomalies?.critical_anomalies ?? 0,
+        warning: (apiStats.anomalies?.open_anomalies ?? 0) - (apiStats.anomalies?.critical_anomalies ?? 0),
+        info: apiStats.anomalies?.total_anomalies ?? 0,
+      }
+    : { critical: '—', warning: '—', info: '—' };
 
   const quickActions = [
     { nameKey: 'quickActions.uploadInvoices', href: '/invoice-upload', icon: Upload, color: 'blue' },
@@ -46,7 +92,7 @@ const Dashboard = ({ userRole }) => {
     { nameKey: 'quickActions.viewReports', href: '/reports', icon: Activity, color: 'orange' },
   ];
 
-  const currentStats = stats[userRole] || stats.accountant;
+  const currentStats = buildStats();
 
   return (
     <div className="space-y-6">
@@ -125,6 +171,12 @@ const Dashboard = ({ userRole }) => {
             </Link>
           </div>
           <div className="space-y-4">
+            {statsLoading && (
+              <p className="text-sm text-gray-500 text-center py-4">Loading activity…</p>
+            )}
+            {!statsLoading && recentActivity.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">No recent activity.</p>
+            )}
             {recentActivity.map((activity) => (
               <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0">
                 <div className={`p-2 rounded-lg ${
@@ -154,7 +206,7 @@ const Dashboard = ({ userRole }) => {
                 <AlertTriangle className="text-red-600" size={20} />
                 <span className="font-semibold text-red-900">{t('alerts.critical')}</span>
               </div>
-              <p className="text-2xl font-bold text-red-900">3</p>
+              <p className="text-2xl font-bold text-red-900">{alertCounts.critical}</p>
               <p className="text-sm text-red-700 mt-1">{t('alerts.requireImmediate')}</p>
             </div>
 
@@ -163,7 +215,7 @@ const Dashboard = ({ userRole }) => {
                 <AlertTriangle className="text-yellow-600" size={20} />
                 <span className="font-semibold text-yellow-900">{t('alerts.warning')}</span>
               </div>
-              <p className="text-2xl font-bold text-yellow-900">9</p>
+              <p className="text-2xl font-bold text-yellow-900">{alertCounts.warning}</p>
               <p className="text-sm text-yellow-700 mt-1">{t('alerts.needReview')}</p>
             </div>
 
@@ -172,7 +224,7 @@ const Dashboard = ({ userRole }) => {
                 <Activity className="text-blue-600" size={20} />
                 <span className="font-semibold text-blue-900">{t('alerts.info')}</span>
               </div>
-              <p className="text-2xl font-bold text-blue-900">24</p>
+              <p className="text-2xl font-bold text-blue-900">{alertCounts.info}</p>
               <p className="text-sm text-blue-700 mt-1">{t('alerts.forYourInfo')}</p>
             </div>
 

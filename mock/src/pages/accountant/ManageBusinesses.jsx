@@ -1,83 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Building, TrendingUp, Eye, Trash2, CheckCircle, Clock, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import api from '../../services/api';
 
 const ManageBusinesses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [businesses, setBusinesses] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [businesses] = useState([
-    {
-      id: 1,
-      companyName: 'Tech Innovations LLC',
-      contactPerson: 'John Smith',
-      email: 'john@techinnovations.com',
-      phone: '+1 (555) 123-4567',
-      accessGrantedDate: '2024-01-10',
-      pendingInvoices: 23,
-      unmatchedTransactions: 45,
-      totalTransactions: 1234,
-      lastActivity: '2024-01-16 14:30',
-      status: 'active',
-      accessLevel: 'full-access'
-    },
-    {
-      id: 2,
-      companyName: 'Green Energy Solutions',
-      contactPerson: 'Sarah Johnson',
-      email: 'sarah@greenenergy.com',
-      phone: '+1 (555) 234-5678',
-      accessGrantedDate: '2023-11-15',
-      pendingInvoices: 12,
-      unmatchedTransactions: 28,
-      totalTransactions: 892,
-      lastActivity: '2024-01-16 09:15',
-      status: 'active',
-      accessLevel: 'full-access'
-    },
-    {
-      id: 3,
-      companyName: 'Urban Retail Group',
-      contactPerson: 'Michael Chen',
-      email: 'michael@urbanretail.com',
-      phone: '+1 (555) 345-6789',
-      accessGrantedDate: '2024-01-05',
-      pendingInvoices: 8,
-      unmatchedTransactions: 15,
-      totalTransactions: 456,
-      lastActivity: '2024-01-15 16:45',
-      status: 'active',
-      accessLevel: 'view-only'
-    },
-    {
-      id: 4,
-      companyName: 'Coastal Construction Co.',
-      contactPerson: 'Emily Rodriguez',
-      email: 'emily@coastalconstruction.com',
-      phone: '+1 (555) 456-7890',
-      accessGrantedDate: '2024-01-12',
-      pendingInvoices: 0,
-      unmatchedTransactions: 3,
-      totalTransactions: 234,
-      lastActivity: '2024-01-14 11:20',
-      status: 'pending',
-      accessLevel: 'pending'
-    },
-    {
-      id: 5,
-      companyName: 'Digital Marketing Pro',
-      contactPerson: 'David Lee',
-      email: 'david@digitalmarketingpro.com',
-      phone: '+1 (555) 567-8901',
-      accessGrantedDate: '2023-09-20',
-      pendingInvoices: 34,
-      unmatchedTransactions: 67,
-      totalTransactions: 2156,
-      lastActivity: '2024-01-16 08:00',
-      status: 'active',
-      accessLevel: 'full-access'
-    }
-  ]);
+  useEffect(() => {
+    setLoading(true);
+    api.getCompanies()
+      .then(data => setBusinesses(data.map(c => ({
+        id: c.id,
+        companyName: c.company_name,
+        contactPerson: c.contact_person || c.owner_name || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        accessGrantedDate: c.created_at ? c.created_at.split('T')[0] : '',
+        pendingInvoices: 0,
+        unmatchedTransactions: 0,
+        totalTransactions: 0,
+        lastActivity: c.updated_at || c.created_at || '',
+        status: c.is_active ? 'active' : 'inactive',
+        accessLevel: 'full-access',
+      }))))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredBusinesses = businesses.filter(business => {
     const matchesSearch = business.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||

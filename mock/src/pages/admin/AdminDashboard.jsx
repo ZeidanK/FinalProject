@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   Building2,
@@ -18,69 +18,92 @@ import {
   PieChart,
   Settings
 } from 'lucide-react';
+import api from '../../services/api';
 
 const AdminDashboard = () => {
   const [dateRange, setDateRange] = useState('30days');
   const [activeTab, setActiveTab] = useState('overview');
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [systemLogs, setSystemLogs] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  useEffect(() => {
+    setLoadingStats(true);
+    Promise.all([
+      api.getAdminStats(),
+      api.getAdminUsers({ page: 1, limit: 5 }),
+      api.getSystemLogs({ limit: 4 }),
+    ]).then(([stats, users, logs]) => {
+      setAdminStats(stats);
+      setAdminUsers(users.users || users || []);
+      setSystemLogs(logs.logs || logs || []);
+    }).catch(console.error).finally(() => setLoadingStats(false));
+  }, []);
+
+  const s = adminStats || {};
 
   // System-wide statistics
   const systemStats = [
-    { 
-      name: 'Total Users', 
-      value: '1,284', 
-      change: '+12.5%', 
-      trend: 'up', 
+    {
+      name: 'Total Users',
+      value: loadingStats ? '…' : String(s.users ?? '—'),
+      change: '',
+      trend: 'up',
       icon: Users,
       color: 'blue',
-      breakdown: { accountants: 342, businesses: 942 }
+      breakdown: { accountants: s.accountants ?? '—', businesses: s.businesses ?? '—' }
     },
-    { 
-      name: 'Active Businesses', 
-      value: '942', 
-      change: '+8.2%', 
-      trend: 'up', 
+    {
+      name: 'Active Businesses',
+      value: loadingStats ? '…' : String(s.companies ?? '—'),
+      change: '',
+      trend: 'up',
       icon: Building2,
       color: 'green',
-      breakdown: { active: 892, pending: 50 }
+      breakdown: { active: s.companies ?? '—', pending: '—' }
     },
-    { 
-      name: 'Total Transactions', 
-      value: '₪2.4M', 
-      change: '+24.1%', 
-      trend: 'up', 
+    {
+      name: 'Total Transactions',
+      value: loadingStats ? '…' : String(s.transactions ?? '—'),
+      change: '',
+      trend: 'up',
       icon: DollarSign,
       color: 'purple',
-      breakdown: { processed: '₪2.2M', pending: '₪200K' }
+      breakdown: { processed: String(s.matches ?? '—'), pending: '—' }
     },
-    { 
-      name: 'System Health', 
-      value: '99.8%', 
-      change: 'Operational', 
-      trend: 'up', 
+    {
+      name: 'Anomalies',
+      value: loadingStats ? '…' : String(s.anomalies ?? '—'),
+      change: '',
+      trend: 'up',
       icon: Activity,
       color: 'orange',
-      breakdown: { uptime: '99.8%', errors: '0.2%' }
+      breakdown: { open: String(s.anomalies ?? '—'), resolved: '—' }
     }
   ];
 
-  // Recent users activity
-  const recentUsers = [
-    { id: 1, name: 'John Smith', email: 'john@acmecorp.com', role: 'Accountant', company: 'Acme Corp', lastActive: '2 min ago', status: 'online' },
-    { id: 2, name: 'Sarah Johnson', email: 'sarah@techstart.com', role: 'Business Owner', company: 'TechStart', lastActive: '15 min ago', status: 'online' },
-    { id: 3, name: 'Michael Chen', email: 'michael@accounting.com', role: 'Accountant', company: 'Multiple', lastActive: '1 hour ago', status: 'away' },
-    { id: 4, name: 'Emma Davis', email: 'emma@retail.com', role: 'Business Owner', company: 'Retail Masters', lastActive: '3 hours ago', status: 'offline' },
-    { id: 5, name: 'David Wilson', email: 'david@consulting.com', role: 'Accountant', company: 'Consulting Partners', lastActive: '5 hours ago', status: 'offline' }
-  ];
+  // Recent users from API
+  const recentUsers = adminUsers.map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role || 'User',
+    company: u.company_name || '—',
+    lastActive: u.last_login ? new Date(u.last_login).toLocaleString() : '—',
+    status: u.is_active ? 'online' : 'offline',
+  }));
 
-  // System alerts
-  const systemAlerts = [
-    { id: 1, type: 'critical', message: 'High API latency detected on server-03', time: '5 min ago', resolved: false },
-    { id: 2, type: 'warning', message: 'Database backup running longer than expected', time: '1 hour ago', resolved: false },
-    { id: 3, type: 'info', message: 'Scheduled maintenance completed successfully', time: '3 hours ago', resolved: true },
-    { id: 4, type: 'warning', message: '15 failed login attempts from IP 192.168.1.100', time: '6 hours ago', resolved: true }
-  ];
+  // System alerts from logs
+  const systemAlerts = systemLogs.map(l => ({
+    id: l.id,
+    type: l.level === 'error' ? 'critical' : l.level === 'warn' ? 'warning' : 'info',
+    message: l.message,
+    time: l.created_at ? new Date(l.created_at).toLocaleString() : '',
+    resolved: false,
+  }));
 
-  // Business growth data
+  // Business growth data — static placeholder until dedicated endpoint exists
   const businessGrowth = [
     { month: 'Jan', businesses: 720, revenue: 1.2 },
     { month: 'Feb', businesses: 750, revenue: 1.3 },
@@ -92,7 +115,7 @@ const AdminDashboard = () => {
     { month: 'Aug', businesses: 942, revenue: 2.4 }
   ];
 
-  // Top performing accountants
+  // Top performing accountants — static placeholder
   const topAccountants = [
     { id: 1, name: 'Michael Chen', clients: 28, transactions: 12450, accuracy: 98.5 },
     { id: 2, name: 'David Wilson', clients: 24, transactions: 11200, accuracy: 97.8 },

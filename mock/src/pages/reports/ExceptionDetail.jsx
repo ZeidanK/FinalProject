@@ -1,62 +1,52 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, CheckCircle, XCircle, FileText, DollarSign } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 const ExceptionDetail = () => {
   const { id } = useParams();
   const [resolution, setResolution] = useState('');
   const [notes, setNotes] = useState('');
+  const [exception, setException] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(false);
 
-  // Mock exception data
-  const exception = {
-    id: id,
-    severity: 'critical',
-    title: 'Duplicate Transaction Detected',
-    description: 'Invoice INV-2024-1234 matches transaction TRX-8821 and TRX-8822',
-    date: '2024-01-16 14:30',
-    status: 'open',
-    type: 'duplicate',
-    details: {
-      invoice: {
-        id: 'INV-2024-1234',
-        vendor: 'Acme Corporation',
-        date: '2024-01-10',
-        amount: 1250.00,
-        description: 'Professional Services - January'
-      },
-      transactions: [
-        {
-          id: 'TRX-8821',
-          date: '2024-01-11',
-          description: 'ACME CORP PAYMENT',
-          amount: -1250.00,
-          bank: 'Chase Business'
-        },
-        {
-          id: 'TRX-8822',
-          date: '2024-01-11',
-          description: 'ACME CORPORATION',
-          amount: -1250.00,
-          bank: 'Chase Business'
-        }
-      ]
-    },
-    timeline: [
-      { date: '2024-01-16 14:30', event: 'Anomaly detected by AI system', user: 'System' },
-      { date: '2024-01-16 14:31', event: 'Alert created and assigned', user: 'System' },
-      { date: '2024-01-16 15:00', event: 'Reviewed by John Doe', user: 'John Doe' }
-    ],
-    suggestedActions: [
-      'Verify if one transaction is a reversal or duplicate',
-      'Check bank statement for actual posting',
-      'Contact vendor to confirm payment status',
-      'Mark one transaction as duplicate and unmatch'
-    ]
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    api.getAnomaly(id)
+      .then(a => setException({
+        id:          a.id,
+        severity:    a.severity    || 'info',
+        title:       a.anomaly_type || 'Anomaly',
+        description: a.description || '',
+        date:        a.detected_at ? new Date(a.detected_at).toLocaleString() : '',
+        status:      a.status      || 'open',
+        type:        a.anomaly_type || '',
+        details:     { invoice: null, transactions: [] },
+        timeline:    [],
+        suggestedActions: [],
+      }))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleResolve = async (action) => {
+    if (!exception) return;
+    setResolving(true);
+    try {
+      await api.resolveAnomaly(exception.id, notes);
+      setException(prev => ({ ...prev, status: 'resolved' }));
+      alert(`Exception resolved: ${action}`);
+    } catch (err) {
+      alert('Failed to resolve: ' + (err.message || err));
+    } finally {
+      setResolving(false);
+    }
   };
 
-  const handleResolve = (action) => {
-    alert(`Exception marked as: ${action}\nResolution: ${resolution}\nNotes: ${notes}`);
-  };
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading exception…</div>;
+  if (!exception) return <div className="p-8 text-center text-red-500">Exception not found.</div>;
 
   return (
     <div className="space-y-6">

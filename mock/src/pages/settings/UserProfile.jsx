@@ -1,19 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Building, Phone, Save, Camera } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const UserProfile = () => {
+  const { user: authUser } = useAuth();
   const [formData, setFormData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    company: 'Acme Corporation',
-    role: 'accountant',
-    address: '123 Business Street',
-    city: 'New York',
-    state: 'NY',
-    zipCode: '10001',
-    country: 'United States'
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    role: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: ''
   });
+  const [saving, setSaving] = useState(false);
 
   const [notifications, setNotifications] = useState({
     emailAlerts: true,
@@ -23,8 +27,38 @@ const UserProfile = () => {
     marketingEmails: false
   });
 
-  const handleSave = () => {
-    alert('Profile updated successfully!');
+  useEffect(() => {
+    if (!authUser?.id) return;
+    api.getCurrentUser().then(u => {
+      setFormData({
+        name:    u.name    || '',
+        email:   u.email   || '',
+        phone:   u.phone   || '',
+        company: u.company_name || '',
+        role:    u.role    || '',
+        address: u.address || '',
+        city:    u.city    || '',
+        state:   u.state   || '',
+        zipCode: u.zip_code || '',
+        country: u.country || '',
+      });
+    }).catch(console.error);
+  }, [authUser?.id]);
+
+  const handleSave = async () => {
+    if (!authUser?.id) return;
+    setSaving(true);
+    try {
+      await api.updateUser(authUser.id, {
+        name:  formData.name,
+        phone: formData.phone,
+      });
+      alert('Profile updated successfully!');
+    } catch (err) {
+      alert('Failed to save: ' + (err.message || err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -232,10 +266,11 @@ const UserProfile = () => {
             </button>
             <button
               onClick={handleSave}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:bg-gray-400"
             >
               <Save size={18} />
-              <span>Save Changes</span>
+              <span>{saving ? 'Saving…' : 'Save Changes'}</span>
             </button>
           </div>
         </div>

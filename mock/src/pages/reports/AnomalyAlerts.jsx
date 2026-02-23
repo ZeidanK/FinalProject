@@ -1,113 +1,46 @@
 import { Link } from 'react-router-dom';
 import { AlertTriangle, AlertCircle, Info, Search, Filter, Eye } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCompany } from '../../context/CompanyContext';
+import api from '../../services/api';
 
 const AnomalyAlerts = () => {
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [anomalies, setAnomalies] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { activeCompany } = useCompany();
 
-  const anomalies = [
-    {
-      id: 1,
-      severity: 'critical',
-      title: 'Duplicate Transaction Detected',
-      description: 'Invoice INV-2024-1234 matches transaction TRX-8821 and TRX-8822',
-      date: '2024-01-16 14:30',
-      amount: 1250.00,
-      status: 'open',
-      invoiceId: 'INV-2024-1234',
-      type: 'duplicate'
-    },
-    {
-      id: 2,
-      severity: 'warning',
-      title: 'Amount Mismatch',
-      description: 'Invoice amount (€1,150.00) differs from transaction amount (€1,125.00)',
-      date: '2024-01-16 11:20',
-      amount: 1150.00,
-      status: 'open',
-      invoiceId: 'INV-2024-1237',
-      type: 'mismatch'
-    },
-    {
-      id: 3,
-      severity: 'critical',
-      title: 'Missing VAT Information',
-      description: 'Invoice INV-2024-1240 does not contain required VAT breakdown',
-      date: '2024-01-15 16:45',
-      amount: 3200.00,
-      status: 'open',
-      invoiceId: 'INV-2024-1240',
-      type: 'missing-data'
-    },
-    {
-      id: 4,
-      severity: 'warning',
-      title: 'Date Discrepancy',
-      description: 'Transaction date (2024-01-10) is 5 days after invoice date (2024-01-05)',
-      date: '2024-01-15 09:30',
-      amount: 780.00,
-      status: 'investigating',
-      invoiceId: 'INV-2024-1238',
-      type: 'date-mismatch'
-    },
-    {
-      id: 5,
-      severity: 'info',
-      title: 'Unusual Vendor Pattern',
-      description: 'First transaction with new vendor "Tech Solutions Inc"',
-      date: '2024-01-14 13:15',
-      amount: 4500.00,
-      status: 'resolved',
-      invoiceId: 'INV-2024-1235',
-      type: 'pattern'
-    },
-    {
-      id: 6,
-      severity: 'critical',
-      title: 'Unmatched Large Transaction',
-      description: 'Bank transaction of €12,500.00 has no corresponding invoice',
-      date: '2024-01-14 10:00',
-      amount: 12500.00,
-      status: 'open',
-      invoiceId: null,
-      type: 'unmatched'
-    },
-    {
-      id: 7,
-      severity: 'warning',
-      title: 'Low OCR Confidence',
-      description: 'Invoice data extracted with only 65% confidence - manual review needed',
-      date: '2024-01-13 15:40',
-      amount: 890.00,
-      status: 'open',
-      invoiceId: 'INV-2024-1233',
-      type: 'low-confidence'
-    },
-    {
-      id: 8,
-      severity: 'info',
-      title: 'Currency Conversion Applied',
-      description: 'Transaction in USD converted to EUR at rate 1.12',
-      date: '2024-01-13 11:20',
-      amount: 2240.00,
-      status: 'resolved',
-      invoiceId: 'INV-2024-1232',
-      type: 'currency'
-    }
-  ];
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    api.getAnomalies(activeCompany.id)
+      .then(data => setAnomalies(data.map(a => ({
+        id: a.id,
+        severity: a.severity || 'info',
+        title: a.anomaly_type || 'Anomaly',
+        description: a.description || '',
+        date: a.detected_at ? new Date(a.detected_at).toLocaleString() : '',
+        amount: parseFloat(a.amount) || 0,
+        status: a.status || 'open',
+        invoiceId: a.invoice_id ? String(a.invoice_id) : null,
+        type: a.anomaly_type || '',
+      }))))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [activeCompany?.id]);
 
   const stats = {
     total: anomalies.length,
     critical: anomalies.filter(a => a.severity === 'critical').length,
     warning: anomalies.filter(a => a.severity === 'warning').length,
     info: anomalies.filter(a => a.severity === 'info').length,
-    open: anomalies.filter(a => a.status === 'open').length
+    open: anomalies.filter(a => a.status === 'open').length,
   };
 
   const filteredAnomalies = anomalies.filter(anomaly => {
     const matchesSeverity = filterSeverity === 'all' || anomaly.severity === filterSeverity;
-    const matchesSearch = 
+    const matchesSearch =
       anomaly.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (anomaly.invoiceId && anomaly.invoiceId.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -225,6 +158,11 @@ const AnomalyAlerts = () => {
 
       {/* Alerts List */}
       <div className="space-y-3">
+        {loading && (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <p className="text-gray-500">Loading alerts…</p>
+          </div>
+        )}
         {filteredAnomalies.map((anomaly) => (
           <div
             key={anomaly.id}

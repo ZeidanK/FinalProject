@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { CompanyProvider } from './context/CompanyContext';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -29,6 +30,8 @@ import ExceptionDetail from './pages/reports/ExceptionDetail';
 // Settings & Configuration
 import UserProfile from './pages/settings/UserProfile';
 import AISettings from './pages/settings/AISettings';
+import BankAccounts from './pages/settings/BankAccounts';
+import AccountingIntegration from './pages/settings/AccountingIntegration';
 
 // Extra Features
 import HelpSupport from './pages/extra/HelpSupport';
@@ -41,79 +44,84 @@ import ManageAccountants from './pages/business/ManageAccountants';
 // Admin
 import AdminDashboard from './pages/admin/AdminDashboard';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState('accountant'); // 'accountant', 'business-owner', or 'admin'
+// ── Inner app (has access to AuthContext) ──────────────────────────────────
+function AppRoutes() {
+  const { isAuthenticated, loading, user, logout } = useAuth();
 
-  const handleLogin = (role) => {
-    setIsAuthenticated(true);
-    setUserRole(role);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUserRole('accountant');
-  };
+  // Show nothing while restoring session from localStorage
+  if (loading) return null;
 
   return (
-    <Router>
-      <Routes>
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Routes>
+      {/* Auth Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/*"
-          element={
-            isAuthenticated ? (
-              <Layout userRole={userRole} onLogout={handleLogout}>
-                <Routes>
-                  <Route path="/dashboard" element={
-                    userRole === 'admin' ? <AdminDashboard /> : <Dashboard userRole={userRole} />
-                  } />
-                  
-                  {/* Admin Routes */}
-                  {userRole === 'admin' && (
-                    <Route path="/admin" element={<AdminDashboard />} />
-                  )}
-                  
-                  {/* Account Management Routes */}
-                  <Route path="/accountant/businesses" element={<ManageBusinesses />} />
-                  <Route path="/business/accountants" element={<ManageAccountants />} />
-                  
-                  {/* Workflow Routes */}
-                  <Route path="/invoice-upload" element={<InvoiceUpload />} />
-                  <Route path="/bank-import" element={<BankImport />} />
-                  <Route path="/processing-status" element={<ProcessingStatus />} />
-                  <Route path="/invoice-detail/:id" element={<InvoiceDetail />} />
-                  <Route path="/matching" element={<MatchingReconciliation />} />
-                  <Route path="/export" element={<ConsolidatedExport />} />
-                  
-                  {/* Reports Routes */}
-                  <Route path="/reports" element={<ReportsDashboard />} />
-                  <Route path="/reports/vat" element={<VATReport />} />
-                  <Route path="/anomalies" element={<AnomalyAlerts />} />
-                  <Route path="/anomalies/:id" element={<ExceptionDetail />} />
-                  
-                  {/* Settings Routes */}
-                  <Route path="/profile" element={<UserProfile />} />
-                  <Route path="/ai-settings" element={<AISettings />} />
-                  
-                  {/* Extra Features */}
-                  <Route path="/help" element={<HelpSupport />} />
-                  <Route path="/tutorial" element={<Tutorial />} />
-                  
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-      </Routes>
+      {/* Protected Routes */}
+      <Route
+        path="/*"
+        element={
+          isAuthenticated ? (
+            <Layout>
+              <Routes>
+                <Route path="/dashboard" element={
+                  user?.role === 'admin' ? <AdminDashboard /> : <Dashboard />
+                } />
+
+                {/* Admin Routes */}
+                {user?.role === 'admin' && (
+                  <Route path="/admin" element={<AdminDashboard />} />
+                )}
+
+                {/* Account Management Routes */}
+                <Route path="/accountant/businesses" element={<ManageBusinesses />} />
+                <Route path="/business/accountants" element={<ManageAccountants />} />
+
+                {/* Workflow Routes */}
+                <Route path="/invoice-upload" element={<InvoiceUpload />} />
+                <Route path="/bank-import" element={<BankImport />} />
+                <Route path="/processing-status" element={<ProcessingStatus />} />
+                <Route path="/invoice-detail/:id" element={<InvoiceDetail />} />
+                <Route path="/matching" element={<MatchingReconciliation />} />
+                <Route path="/export" element={<ConsolidatedExport />} />
+
+                {/* Reports Routes */}
+                <Route path="/reports" element={<ReportsDashboard />} />
+                <Route path="/reports/vat" element={<VATReport />} />
+                <Route path="/anomalies" element={<AnomalyAlerts />} />
+                <Route path="/anomalies/:id" element={<ExceptionDetail />} />
+
+                {/* Settings Routes */}
+                <Route path="/profile" element={<UserProfile />} />
+                <Route path="/ai-settings" element={<AISettings />} />
+                <Route path="/settings/bank-accounts" element={<BankAccounts />} />
+                <Route path="/settings/integrations" element={<AccountingIntegration />} />
+
+                {/* Extra Features */}
+                <Route path="/help" element={<HelpSupport />} />
+                <Route path="/tutorial" element={<Tutorial />} />
+
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Layout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <CompanyProvider>
+          <AppRoutes />
+        </CompanyProvider>
+      </AuthProvider>
     </Router>
   );
 }

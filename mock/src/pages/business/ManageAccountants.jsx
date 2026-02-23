@@ -1,110 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, UserCheck, Star, Send, Trash2, Shield, Eye, Mail, Phone, Award } from 'lucide-react';
+import api from '../../services/api';
+import { useCompany } from '../../context/CompanyContext';
 
 const ManageAccountants = () => {
+  const { activeCompany } = useCompany();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('connected'); // 'connected' or 'search'
+  const [connectedAccountants, setConnectedAccountants] = useState([]);
+  const [availableAccountants, setAvailableAccountants] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [connectedAccountants] = useState([
-    {
-      id: 1,
-      name: 'Jennifer Adams',
-      firm: 'Adams & Associates CPA',
-      email: 'jennifer@adamscpa.com',
-      phone: '+1 (555) 111-2222',
-      specialization: 'Tax & Compliance',
-      rating: 4.9,
-      reviews: 127,
-      yearsExperience: 15,
-      status: 'connected',
-      accessLevel: 'full-access',
-      connectedDate: '2023-06-15',
-      lastActive: '2024-01-16 10:30'
-    },
-    {
-      id: 2,
-      name: 'Robert Martinez',
-      firm: 'Martinez Financial Services',
-      email: 'robert@martinezfs.com',
-      phone: '+1 (555) 222-3333',
-      specialization: 'Financial Analysis',
-      rating: 4.7,
-      reviews: 89,
-      yearsExperience: 12,
-      status: 'connected',
-      accessLevel: 'view-only',
-      connectedDate: '2023-11-20',
-      lastActive: '2024-01-15 14:20'
-    }
-  ]);
-
-  const [availableAccountants] = useState([
-    {
-      id: 3,
-      name: 'Patricia Williams',
-      firm: 'Williams & Partners',
-      email: 'patricia@williamspartners.com',
-      phone: '+1 (555) 333-4444',
-      specialization: 'Forensic Accounting',
-      rating: 4.8,
-      reviews: 156,
-      yearsExperience: 18,
-      status: 'available',
-      certifications: ['CPA', 'CFE']
-    },
-    {
-      id: 4,
-      name: 'Michael Chang',
-      firm: 'Chang Accounting Group',
-      email: 'michael@changaccounting.com',
-      phone: '+1 (555) 444-5555',
-      specialization: 'Small Business Accounting',
-      rating: 4.9,
-      reviews: 203,
-      yearsExperience: 10,
-      status: 'available',
-      certifications: ['CPA', 'CMA']
-    },
-    {
-      id: 5,
-      name: 'Lisa Thompson',
-      firm: 'Thompson Tax Solutions',
-      email: 'lisa@thompsontax.com',
-      phone: '+1 (555) 555-6666',
-      specialization: 'Tax Planning',
-      rating: 4.6,
-      reviews: 78,
-      yearsExperience: 8,
-      status: 'available',
-      certifications: ['EA', 'CPA']
-    },
-    {
-      id: 6,
-      name: 'David Kumar',
-      firm: 'Kumar & Associates',
-      email: 'david@kumarassociates.com',
-      phone: '+1 (555) 666-7777',
-      specialization: 'International Tax',
-      rating: 4.9,
-      reviews: 145,
-      yearsExperience: 20,
-      status: 'available',
-      certifications: ['CPA', 'JD']
-    },
-    {
-      id: 7,
-      name: 'Sarah Mitchell',
-      firm: 'Mitchell Financial Advisory',
-      email: 'sarah@mitchellfa.com',
-      phone: '+1 (555) 777-8888',
-      specialization: 'CFO Services',
-      rating: 4.8,
-      reviews: 98,
-      yearsExperience: 14,
-      status: 'available',
-      certifications: ['CPA', 'MBA']
-    }
-  ]);
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    // Load all accountant-role users; connected = those linked to activeCompany
+    Promise.all([
+      api.getAdminUsers({ role: 'accountant', limit: 100 }),
+      api.getCompanies(),
+    ])
+      .then(([usersResp, companiesResp]) => {
+        const users = usersResp?.users || usersResp || [];
+        const companies = companiesResp?.companies || companiesResp || [];
+        const activeComp = companies.find(c => c.id === activeCompany.id);
+        // Consider accountants whose companies list includes this company as "connected"
+        const connected = users
+          .filter(u => u.company_id === activeCompany.id || u.companies?.some(c => c.id === activeCompany.id))
+          .map(u => ({
+            id: u.id,
+            name: u.name || u.username,
+            firm: u.firm || u.company_name || 'Independent',
+            email: u.email,
+            phone: u.phone || '',
+            specialization: u.specialization || 'General Accounting',
+            rating: u.rating || null,
+            status: 'connected',
+            accessLevel: u.access_level || 'full-access',
+            connectedDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : '',
+            lastActive: u.last_active ? new Date(u.last_active).toLocaleString() : '',
+          }));
+        const connectedIds = new Set(connected.map(a => a.id));
+        const available = users
+          .filter(u => !connectedIds.has(u.id))
+          .map(u => ({
+            id: u.id,
+            name: u.name || u.username,
+            firm: u.firm || u.company_name || 'Independent',
+            email: u.email,
+            phone: u.phone || '',
+            specialization: u.specialization || 'General Accounting',
+            rating: u.rating || null,
+            status: 'available',
+            certifications: u.certifications || [],
+          }));
+        setConnectedAccountants(connected);
+        setAvailableAccountants(available);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [activeCompany?.id]);
 
   const filteredAccountants = availableAccountants.filter(accountant =>
     accountant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -116,16 +70,24 @@ const ManageAccountants = () => {
     alert(`Access request sent to accountant ${accountantId}`);
   };
 
-  const handleRevokeAccess = (accountantId) => {
-    if (confirm('Are you sure you want to revoke access for this accountant?')) {
-      alert(`Access revoked for accountant ${accountantId}`);
+  const handleRevokeAccess = async (accountantId) => {
+    if (!confirm('Are you sure you want to revoke access for this accountant?')) return;
+    try {
+      // Remove by filtering locally (no dedicated revoke endpoint yet)
+      setConnectedAccountants(prev => prev.filter(a => a.id !== accountantId));
+    } catch (err) {
+      alert('Failed to revoke access: ' + (err.message || err));
     }
   };
 
   const handleChangeAccessLevel = (accountantId, currentLevel) => {
     const newLevel = currentLevel === 'full-access' ? 'view-only' : 'full-access';
-    alert(`Access level changed to ${newLevel} for accountant ${accountantId}`);
+    setConnectedAccountants(prev =>
+      prev.map(a => a.id === accountantId ? { ...a, accessLevel: newLevel } : a)
+    );
   };
+
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading accountants…</div>;
 
   return (
     <div className="space-y-6">

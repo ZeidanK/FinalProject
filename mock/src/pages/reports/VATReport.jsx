@@ -1,18 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Calendar, FileText, TrendingUp, PieChart } from 'lucide-react';
+import { useCompany } from '../../context/CompanyContext';
+import api from '../../services/api';
 
 const VATReport = () => {
   const [period, setPeriod] = useState({
-    from: '2024-01-01',
-    to: '2024-01-31'
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    to: new Date().toISOString().split('T')[0],
   });
+  const [vatData, setVatData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { activeCompany } = useCompany();
 
-  const vatSummary = {
-    outputVAT: 12450.00,  // VAT on sales
-    inputVAT: 9046.90,     // VAT on purchases
-    netVAT: 3403.10        // Amount to pay/reclaim
-  };
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    api.getVATReport(activeCompany.id, { startDate: period.from, endDate: period.to })
+      .then(data => setVatData(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [activeCompany?.id, period.from, period.to]);
 
+  const vatSummary = vatData.reduce(
+    (acc, r) => ({
+      outputVAT: acc.outputVAT + (parseFloat(r.total_output_vat) || 0),
+      inputVAT:  acc.inputVAT  + (parseFloat(r.total_input_vat)  || 0),
+      netVAT:    acc.netVAT    + (parseFloat(r.net_vat_amount)    || 0),
+    }),
+    { outputVAT: 0, inputVAT: 0, netVAT: 0 }
+  );
+
+  // Keep static rate/category breakdowns as illustrative placeholders until a dedicated breakdown endpoint exists
   const vatRates = [
     { rate: '20%', transactions: 145, netAmount: 32500.00, vat: 6500.00, total: 39000.00 },
     { rate: '10%', transactions: 78, netAmount: 15600.00, vat: 1560.00, total: 17160.00 },
@@ -28,41 +46,17 @@ const VATReport = () => {
     { category: 'Utilities', netAmount: 4500.00, vat: 900.00, percentage: 8 }
   ];
 
-  const transactions = [
-    {
-      id: 1,
-      date: '2024-01-15',
-      invoice: 'INV-2024-1234',
-      vendor: 'Acme Corp',
-      description: 'Professional Services',
-      netAmount: 1250.00,
-      vatRate: '20%',
-      vatAmount: 250.00,
-      total: 1500.00
-    },
-    {
-      id: 2,
-      date: '2024-01-12',
-      invoice: 'INV-2024-1235',
-      vendor: 'Office Depot',
-      description: 'Office Supplies',
-      netAmount: 74.58,
-      vatRate: '20%',
-      vatAmount: 14.92,
-      total: 89.50
-    },
-    {
-      id: 3,
-      date: '2024-01-10',
-      invoice: 'INV-2024-1236',
-      vendor: 'Tech Services Ltd',
-      description: 'IT Consulting',
-      netAmount: 2875.00,
-      vatRate: '20%',
-      vatAmount: 575.00,
-      total: 3450.00
-    }
-  ];
+  const transactions = vatData.map(r => ({
+    id: r.id,
+    date: r.period_start ? r.period_start.split('T')[0] : '',
+    invoice: r.report_number || `VAT-${r.id}`,
+    vendor: '',
+    description: r.notes || '',
+    netAmount: parseFloat(r.total_input_vat) || 0,
+    vatRate: '',
+    vatAmount: parseFloat(r.net_vat_amount) || 0,
+    total: parseFloat(r.total_output_vat) || 0,
+  }));
 
   return (
     <div className="space-y-6">
@@ -108,7 +102,8 @@ const VATReport = () => {
             </div>
           </div>
           <div className="pt-7">
-            <button className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            <button disabled={loading} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400">
+              {loading ? 'Loading…' : 'Generate'}
               Generate
             </button>
           </div>

@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { testConnection } from './config/database.js';
+import { requireAuth } from './middleware/auth.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -12,12 +15,18 @@ import transactionsRoutes from './routes/transactions.js';
 import matchesRoutes from './routes/matches.js';
 import anomaliesRoutes from './routes/anomalies.js';
 import reportsRoutes from './routes/reports.js';
+import bankAccountsRoutes from './routes/bankAccounts.js';
+import adminRoutes from './routes/admin.js';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(cors({
@@ -27,13 +36,17 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded files
+const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+app.use('/uploads', express.static(uploadDir));
+
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// Health check endpoint
+// Health check endpoint (public)
 app.get('/api/health', async (req, res) => {
   try {
     const dbConnected = await testConnection();
@@ -51,8 +64,12 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// API Routes
+// ── Public routes (no auth required) ──────────────────────────────────────
 app.use('/api/auth', authRoutes);
+
+// ── Protected routes (JWT required) ───────────────────────────────────────
+app.use('/api', requireAuth);
+
 app.use('/api/users', usersRoutes);
 app.use('/api/companies', companiesRoutes);
 app.use('/api/invoices', invoicesRoutes);
@@ -60,6 +77,8 @@ app.use('/api/transactions', transactionsRoutes);
 app.use('/api/matches', matchesRoutes);
 app.use('/api/anomalies', anomaliesRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/bank-accounts', bankAccountsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {

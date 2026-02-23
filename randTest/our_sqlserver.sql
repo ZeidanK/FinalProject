@@ -1,32 +1,5 @@
 
 
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'street';
-GO
-
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'city';
-GO
-
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'country';
-GO
-
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'zip';
-GO
-
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'state';
-GO
-
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'id';
-GO
-
-EXECUTE sys.sp_addextendedproperty 'MS_Description',
-  '1', 'user', dbo, 'table', 'address', 'column', 'companies_id';
-GO
 
 CREATE TABLE ai_feedback
 (
@@ -319,11 +292,7 @@ CREATE TABLE invoices
 GO
 
 ALTER TABLE invoices
-  ADD CONSTRAINT UQ_company_id UNIQUE (company_id)
-GO
-
-ALTER TABLE invoices
-  ADD CONSTRAINT UQ_invoice_number UNIQUE (invoice_number)
+  ADD CONSTRAINT UQ_company_invoice_number UNIQUE (company_id, invoice_number)
 GO
 
 CREATE TABLE notifications
@@ -384,6 +353,25 @@ CREATE TABLE system_logs
 )
 GO
 
+CREATE TABLE bank_accounts
+(
+  id                    BIGINT        NOT NULL IDENTITY(1,1),
+  company_id            BIGINT        NOT NULL,
+  bank_name             VARCHAR(255)  NOT NULL,
+  account_name          VARCHAR(255)  NULL,
+  account_number_masked VARCHAR(50)   NULL,
+  account_type          VARCHAR(50)   NOT NULL,
+  currency              VARCHAR(3)    NOT NULL DEFAULT 'USD',
+  is_active             BIT           NOT NULL DEFAULT 1,
+  last_sync_at          DATETIME2     NULL,
+  balance               DECIMAL(15,2) NULL,
+  created_by_user_id    BIGINT        NOT NULL,
+  created_at            DATETIME2     NOT NULL DEFAULT GETDATE(),
+  updated_at            DATETIME2     NOT NULL DEFAULT GETDATE(),
+  CONSTRAINT PK_bank_accounts PRIMARY KEY (id)
+)
+GO
+
 CREATE TABLE transactions
 (
   id                  BIGINT                           NOT NULL IDENTITY(1,1),
@@ -430,11 +418,7 @@ CREATE TABLE user_company_access
 GO
 
 ALTER TABLE user_company_access
-  ADD CONSTRAINT UQ_user_id UNIQUE (user_id)
-GO
-
-ALTER TABLE user_company_access
-  ADD CONSTRAINT UQ_company_id UNIQUE (company_id)
+  ADD CONSTRAINT UQ_user_company UNIQUE (user_id, company_id)
 GO
 
 CREATE TABLE user_notification_settings
@@ -449,10 +433,6 @@ CREATE TABLE user_notification_settings
   updated_at        DATETIME2 NOT NULL DEFAULT GETDATE(),
   CONSTRAINT PK_user_notification_settings PRIMARY KEY (user_id)
 )
-GO
-
-ALTER TABLE user_notification_settings
-  ADD CONSTRAINT UQ_user_id UNIQUE (user_id)
 GO
 
 CREATE TABLE user_sessions
@@ -628,6 +608,12 @@ ALTER TABLE transactions
   ADD CONSTRAINT FK_users_TO_transactions
     FOREIGN KEY (created_by_user_id)
     REFERENCES users (id)
+GO
+
+ALTER TABLE transactions
+  ADD CONSTRAINT FK_bank_accounts_TO_transactions
+    FOREIGN KEY (bank_account_id)
+    REFERENCES bank_accounts (id)
 GO
 
 ALTER TABLE invoices
@@ -1075,4 +1061,12 @@ GO
 
 CREATE INDEX idx_system_logs_created_at
   ON system_logs (created_at ASC)
+GO
+
+CREATE INDEX idx_bank_accounts_company_id
+  ON bank_accounts (company_id ASC)
+GO
+
+CREATE INDEX idx_bank_accounts_active
+  ON bank_accounts (is_active ASC)
 GO

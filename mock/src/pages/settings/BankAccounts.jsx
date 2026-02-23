@@ -1,54 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Building2, Plus, CheckCircle, Trash2, RefreshCw } from 'lucide-react';
+import { useCompany } from '../../context/CompanyContext';
+import api from '../../services/api';
 
 const BankAccounts = () => {
-  const [accounts, setAccounts] = useState([
-    {
-      id: 1,
-      name: 'Chase Business Checking',
-      bankName: 'JPMorgan Chase',
-      accountNumber: '****4521',
-      accountType: 'Checking',
-      currency: 'USD',
-      connected: true,
-      lastSync: '2024-01-16 10:30',
-      balance: 45234.50
-    },
-    {
-      id: 2,
-      name: 'American Express Business',
-      bankName: 'American Express',
-      accountNumber: '****8892',
-      accountType: 'Credit Card',
-      currency: 'USD',
-      connected: true,
-      lastSync: '2024-01-16 09:15',
-      balance: -3421.30
-    },
-    {
-      id: 3,
-      name: 'Bank of America Savings',
-      bankName: 'Bank of America',
-      accountNumber: '****3344',
-      accountType: 'Savings',
-      currency: 'USD',
-      connected: false,
-      lastSync: null,
-      balance: null
-    }
-  ]);
-
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const { activeCompany } = useCompany();
+
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    api.getBankAccounts(activeCompany.id)
+      .then(data => setAccounts(data.map(a => ({
+        id: a.id,
+        name: a.account_name,
+        bankName: a.bank_name,
+        accountNumber: a.account_number ? `****${a.account_number.slice(-4)}` : '****',
+        accountType: a.account_type,
+        currency: a.currency || 'USD',
+        connected: Boolean(a.is_active),
+        lastSync: a.last_sync_date ? new Date(a.last_sync_date).toLocaleString() : null,
+        balance: a.balance != null ? parseFloat(a.balance) : null,
+      }))))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [activeCompany?.id]);
 
   const handleSync = (id) => {
-    alert(`Syncing account ${id}...`);
+    alert(`Syncing account ${id}…`);
   };
 
-  const handleDisconnect = (id) => {
-    if (confirm('Are you sure you want to disconnect this account?')) {
-      setAccounts(accounts.map(acc => 
-        acc.id === id ? { ...acc, connected: false } : acc
-      ));
+  const handleDisconnect = async (id) => {
+    if (!confirm('Are you sure you want to disconnect this account?')) return;
+    try {
+      await api.deleteBankAccount(id);
+      setAccounts(prev => prev.filter(acc => acc.id !== id));
+    } catch (err) {
+      alert('Failed to remove: ' + (err.message || err));
     }
   };
 
@@ -99,6 +89,14 @@ const BankAccounts = () => {
 
       {/* Accounts List */}
       <div className="space-y-4">
+        {loading && <p className="text-center text-gray-500 py-8">Loading bank accounts…</p>}
+        {!loading && accounts.length === 0 && (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <Building2 className="mx-auto text-gray-400 mb-4" size={48} />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No bank accounts</h3>
+            <p className="text-gray-600">Add your first bank account to get started.</p>
+          </div>
+        )}
         {accounts.map((account) => (
           <div
             key={account.id}
@@ -188,41 +186,15 @@ const BankAccounts = () => {
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Add Bank Account</h2>
-            <p className="text-gray-600 mb-6">
-              Connect your bank account for automatic transaction synchronization
-            </p>
-
-            <div className="space-y-4 mb-6">
-              <button className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left">
-                <p className="font-medium text-gray-900">JPMorgan Chase</p>
-                <p className="text-sm text-gray-600 mt-1">Personal & Business Banking</p>
-              </button>
-              <button className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left">
-                <p className="font-medium text-gray-900">Bank of America</p>
-                <p className="text-sm text-gray-600 mt-1">Checking, Savings, Credit Cards</p>
-              </button>
-              <button className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left">
-                <p className="font-medium text-gray-900">Wells Fargo</p>
-                <p className="text-sm text-gray-600 mt-1">Business & Personal Accounts</p>
-              </button>
-              <button className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left">
-                <p className="font-medium text-gray-900">Other Bank</p>
-                <p className="text-sm text-gray-600 mt-1">Search for your bank</p>
-              </button>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Continue
-              </button>
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add Bank Account</h2>
+            <AddAccountForm
+              companyId={activeCompany?.id}
+              onAdded={(newAcc) => {
+                setAccounts(prev => [...prev, newAcc]);
+                setShowAddModal(false);
+              }}
+              onCancel={() => setShowAddModal(false)}
+            />
           </div>
         </div>
       )}
@@ -240,3 +212,76 @@ const BankAccounts = () => {
 };
 
 export default BankAccounts;
+
+function AddAccountForm({ companyId, onAdded, onCancel }) {
+  const [form, setForm] = useState({
+    account_name: '',
+    bank_name: '',
+    account_number: '',
+    account_type: 'Checking',
+    currency: 'USD',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!companyId) { alert('No active company selected'); return; }
+    setSaving(true);
+    try {
+      const result = await api.createBankAccount({ ...form, company_id: companyId });
+      onAdded({
+        id:            result.id,
+        name:          form.account_name,
+        bankName:      form.bank_name,
+        accountNumber: form.account_number ? `****${form.account_number.slice(-4)}` : '****',
+        accountType:   form.account_type,
+        currency:      form.currency,
+        connected:     true,
+        lastSync:      null,
+        balance:       null,
+      });
+    } catch (err) {
+      alert('Failed to add account: ' + (err.message || err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {[
+        { label: 'Account Name',   key: 'account_name',   type: 'text',  placeholder: 'Chase Business Checking' },
+        { label: 'Bank Name',      key: 'bank_name',      type: 'text',  placeholder: 'JPMorgan Chase' },
+        { label: 'Account Number', key: 'account_number', type: 'text',  placeholder: '•••• 4521' },
+      ].map(({ label, key, type, placeholder }) => (
+        <div key={key}>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+          <input
+            required={key !== 'account_number'}
+            type={type}
+            placeholder={placeholder}
+            value={form[key]}
+            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      ))}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+        <select
+          value={form.account_type}
+          onChange={e => setForm(f => ({ ...f, account_type: e.target.value }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        >
+          {['Checking', 'Savings', 'Credit Card', 'Loan'].map(t => <option key={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="flex space-x-3 pt-2">
+        <button type="button" onClick={onCancel} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+        <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400">
+          {saving ? 'Adding…' : 'Add Account'}
+        </button>
+      </div>
+    </form>
+  );
+}

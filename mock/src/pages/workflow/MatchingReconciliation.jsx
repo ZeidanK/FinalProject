@@ -1,61 +1,98 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GitCompare, CheckCircle, X, AlertTriangle, Search, Filter } from 'lucide-react';
+import { useCompany } from '../../context/CompanyContext';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const MatchingReconciliation = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [matches, setMatches] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { activeCompany } = useCompany();
+  const { user } = useAuth();
 
-  const invoices = [
-    { id: 1, number: 'INV-2024-1234', vendor: 'Acme Corp', date: '2024-01-10', amount: 1250.00, status: 'unmatched' },
-    { id: 2, number: 'INV-2024-1235', vendor: 'Office Depot', date: '2024-01-12', amount: 89.50, status: 'unmatched' },
-    { id: 3, number: 'INV-2024-1236', vendor: 'Tech Services', date: '2024-01-08', amount: 3450.00, status: 'matched' },
-    { id: 4, number: 'INV-2024-1237', vendor: 'Marketing Co', date: '2024-01-15', amount: 2100.00, status: 'unmatched' },
-    { id: 5, number: 'INV-2024-1238', vendor: 'City Utilities', date: '2024-01-05', amount: 156.80, status: 'unmatched' },
-  ];
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [transactionSearch, setTransactionSearch] = useState('');
 
-  const transactions = [
-    { id: 101, date: '2024-01-11', description: 'ACME CORPORATION', amount: -1250.00, bank: 'Chase', status: 'unmatched' },
-    { id: 102, date: '2024-01-13', description: 'OFFICE DEPOT #4521', amount: -89.50, bank: 'Chase', status: 'unmatched' },
-    { id: 103, date: '2024-01-09', description: 'TECH SERVICES LTD', amount: -3450.00, bank: 'AmEx', status: 'matched' },
-    { id: 104, date: '2024-01-16', description: 'CREATIVE MARKETING', amount: -2100.00, bank: 'Chase', status: 'unmatched' },
-    { id: 105, date: '2024-01-06', description: 'UTILITIES PAYMENT', amount: -156.80, bank: 'Chase', status: 'unmatched' },
-  ];
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    Promise.all([
+      api.getInvoices(activeCompany.id, { is_matched: false }),
+      api.getTransactions(activeCompany.id, { is_matched: false }),
+      api.getMatches(activeCompany.id),
+    ]).then(([inv, trx, mat]) => {
+      setInvoices(inv.map(i => ({
+        id: i.id,
+        number: i.invoice_number,
+        vendor: i.vendor_name,
+        date: i.invoice_date ? i.invoice_date.split('T')[0] : '',
+        amount: parseFloat(i.total_amount) || 0,
+        status: i.is_matched ? 'matched' : 'unmatched',
+      })));
+      setTransactions(trx.map(t => ({
+        id: t.id,
+        date: t.transaction_date ? t.transaction_date.split('T')[0] : '',
+        description: t.description,
+        amount: parseFloat(t.amount) || 0,
+        bank: t.bank_account_id || '',
+        status: t.is_matched ? 'matched' : 'unmatched',
+      })));
+      setMatches(mat.filter(m => m.status === 'active').map(m => ({
+        id: m.id,
+        invoice:     { id: m.invoice_id,     number: m.invoice_number, vendor: m.vendor_name,      amount: parseFloat(m.invoice_amount) || 0 },
+        transaction: { id: m.transaction_id, description: m.transaction_description, amount: parseFloat(m.transaction_amount) || 0 },
+        matchedAt: m.created_at,
+      })));
+    }).catch(console.error).finally(() => setLoading(false));
+  }, [activeCompany?.id]);
 
-  const handleMatch = () => {
-    if (selectedInvoice && selectedTransaction) {
-      setMatches([
-        ...matches,
-        {
-          id: Date.now(),
-          invoice: invoices.find(i => i.id === selectedInvoice),
-          transaction: transactions.find(t => t.id === selectedTransaction),
-          matchedAt: new Date().toISOString()
-        }
-      ]);
+  const handleMatch = async () => {
+    if (!selectedInvoice || !selectedTransaction) return;
+    try {
+      const inv = invoices.find(i => i.id === selectedInvoice);
+      const trx = transactions.find(t => t.id === selectedTransaction);
+      const result = await api.createMatch({
+        invoice_id: inv.id,
+        transaction_id: trx.id,
+        matched_amount: Math.min(Math.abs(inv.amount), Math.abs(trx.amount)),
+        match_confidence: 1.0,
+        matched_by_user_id: user?.id,
+      });
+      setMatches(prev => [...prev, { id: result.id || Date.now(), invoice: inv, transaction: trx, matchedAt: new Date().toISOString() }]);
+      setInvoices(prev => prev.filter(i => i.id !== inv.id));
+      setTransactions(prev => prev.filter(t => t.id !== trx.id));
       setSelectedInvoice(null);
       setSelectedTransaction(null);
+    } catch (err) {
+      alert('Failed to create match: ' + (err.message || err));
     }
   };
 
-  const unmatch = (matchId) => {
-    setMatches(matches.filter(m => m.id !== matchId));
+  const unmatch = async (matchId) => {
+    try {
+      await api.updateMatch(matchId, { status: 'cancelled' });
+      setMatches(prev => prev.filter(m => m.id !== matchId));
+    } catch (err) {
+      alert('Failed to unmatch: ' + (err.message || err));
+    }
   };
 
-  const aiSuggestions = [
-    {
-      invoice: invoices[0],
-      transaction: transactions[0],
-      confidence: 98,
-      reason: 'Exact amount match and vendor name similarity'
-    },
-    {
-      invoice: invoices[1],
-      transaction: transactions[1],
-      confidence: 95,
-      reason: 'Amount match and date proximity (1 day)'
-    }
-  ];
+  const filteredInvoices = invoices.filter(i =>
+    i.status === 'unmatched' &&
+    (i.vendor?.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
+     i.number?.toLowerCase().includes(invoiceSearch.toLowerCase()))
+  );
+
+  const filteredTransactions = transactions.filter(t =>
+    t.status === 'unmatched' &&
+    t.description?.toLowerCase().includes(transactionSearch.toLowerCase())
+  );
+
+  const aiSuggestions = [];
 
   return (
     <div className="space-y-6">
@@ -152,12 +189,16 @@ const MatchingReconciliation = () => {
               <input
                 type="text"
                 placeholder="Search invoices..."
+                value={invoiceSearch}
+                onChange={e => setInvoiceSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
           <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
-            {invoices.filter(i => i.status === 'unmatched').map((invoice) => (
+            {loading && <p className="text-sm text-gray-500 text-center py-4">Loading…</p>}
+            {!loading && filteredInvoices.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No unmatched invoices.</p>}
+            {filteredInvoices.map((invoice) => (
               <div
                 key={invoice.id}
                 onClick={() => setSelectedInvoice(invoice.id)}
@@ -194,12 +235,16 @@ const MatchingReconciliation = () => {
               <input
                 type="text"
                 placeholder="Search transactions..."
+                value={transactionSearch}
+                onChange={e => setTransactionSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
           <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
-            {transactions.filter(t => t.status === 'unmatched').map((transaction) => (
+            {loading && <p className="text-sm text-gray-500 text-center py-4">Loading…</p>}
+            {!loading && filteredTransactions.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No unmatched transactions.</p>}
+            {filteredTransactions.map((transaction) => (
               <div
                 key={transaction.id}
                 onClick={() => setSelectedTransaction(transaction.id)}

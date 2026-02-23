@@ -23,11 +23,14 @@ import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from './LanguageSwitcher';
 import NotificationDropdown from './NotificationDropdown';
 import BusinessSwitcher from './BusinessSwitcher';
+import { useAuth } from '../context/AuthContext';
 
-const Layout = ({ children, userRole, onLogout }) => {
+const Layout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { t } = useTranslation();
+  const { user, logout: onLogout } = useAuth();
+  const userRole = user?.role;
 
   const navigation = userRole === 'admin' 
     ? [
@@ -177,7 +180,7 @@ const Layout = ({ children, userRole, onLogout }) => {
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           {userRole !== 'admin' && (
             <div>
-              <BusinessSwitcher userRole={userRole} />
+              <BusinessSwitcher />
             </div>
           )}
           {userRole === 'admin' && <div></div>}

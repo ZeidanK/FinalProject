@@ -1,107 +1,70 @@
 import { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, Download, Calendar, Edit3, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useCompany } from '../../context/CompanyContext';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const BankImport = () => {
   const { t } = useTranslation(['banking', 'common']);
   const [importing, setImporting] = useState(false);
   const [showTransactionTable, setShowTransactionTable] = useState(false);
   const [transactions, setTransactions] = useState([]);
-  const [importedFiles, setImportedFiles] = useState([
-    {
-      id: 1,
-      name: 'bank_statement_january_2024.csv',
-      bank: 'Manual Upload',
-      date: '2024-01-31',
-      transactions: 234,
-      status: 'completed'
-    },
-    {
-      id: 2,
-      name: 'credit_card_december_2023.xlsx',
-      bank: 'Manual Upload',
-      date: '2023-12-31',
-      transactions: 156,
-      status: 'completed'
-    }
-  ]);
+  const [importedFiles, setImportedFiles] = useState([]);
+  const [currentFileName, setCurrentFileName] = useState('');
+  const { activeCompany } = useCompany();
+  const { user } = useAuth();
 
-  const generateMockTransactions = () => {
-    const descriptions = [
-      'STARBUCKS COFFEE #234',
-      'OFFICE DEPOT SUPPLIES',
-      'AMAZON WEB SERVICES',
-      'VERIZON WIRELESS',
-      'CLIENT PAYMENT - INVOICE #1234',
-      'UBER RIDE',
-      'HILTON HOTEL',
-      'SHELL GAS STATION',
-      'FEDEX SHIPPING',
-      'MICROSOFT SUBSCRIPTION',
-      'LINKEDIN PREMIUM',
-      'GOOGLE ADS',
-      'ZOOM SUBSCRIPTION',
-      'DROPBOX BUSINESS'
-    ];
-    
-    const categories = [
-      'Meals & Entertainment',
-      'Office Supplies',
-      'Software & Subscriptions',
-      'Telecommunications',
-      'Income',
-      'Transportation',
-      'Travel & Lodging',
-      'Fuel',
-      'Shipping',
-      'Marketing',
-      'Professional Services'
-    ];
+  // Simple CSV → transaction row parser
+  const parseCsv = (text) => {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const find = (...keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
+    const dateIdx   = find('date');
+    const descIdx   = find('description', 'memo', 'details', 'narrative');
+    const amountIdx = find('amount');
+    const debitIdx  = find('debit');
+    const creditIdx = find('credit');
 
-    const mockTransactions = [];
-    const numTransactions = Math.floor(Math.random() * 50) + 30;
-    
-    for (let i = 0; i < numTransactions; i++) {
-      const isIncome = Math.random() > 0.8;
-      const amount = isIncome 
-        ? (Math.random() * 5000 + 500).toFixed(2)
-        : -(Math.random() * 500 + 10).toFixed(2);
-      
-      const date = new Date(2024, 0, Math.floor(Math.random() * 31) + 1);
-      const description = descriptions[Math.floor(Math.random() * descriptions.length)];
-      const category = isIncome ? 'Income' : categories[Math.floor(Math.random() * (categories.length - 1))];
-      const confidence = 0.7 + Math.random() * 0.3;
-      
-      // Simulate potential duplicates
-      const isDuplicate = i > 0 && Math.random() > 0.95;
-      
-      mockTransactions.push({
+    return lines.slice(1).map((line, i) => {
+      const cols = line.split(',').map(c => c.trim().replace(/"/g, ''));
+      let amount = 0;
+      if (amountIdx >= 0) {
+        amount = parseFloat((cols[amountIdx] || '0').replace(/[^0-9.-]/g, '')) || 0;
+      } else if (debitIdx >= 0 || creditIdx >= 0) {
+        const debit  = parseFloat((cols[debitIdx]  || '0').replace(/[^0-9.-]/g, '')) || 0;
+        const credit = parseFloat((cols[creditIdx] || '0').replace(/[^0-9.-]/g, '')) || 0;
+        amount = credit - debit;
+      }
+      return {
         id: i + 1,
-        date: date.toISOString().split('T')[0],
-        description: description,
-        amount: parseFloat(amount),
-        category: category,
-        confidence: confidence,
-        isDuplicate: isDuplicate,
-        selected: !isDuplicate,
-        editable: false
-      });
-    }
-    
-    return mockTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        date: dateIdx >= 0 ? cols[dateIdx] : '',
+        description: descIdx >= 0 ? cols[descIdx] : `Transaction ${i + 1}`,
+        amount,
+        category: '',
+        confidence: 0.8,
+        isDuplicate: false,
+        selected: true,
+        editable: false,
+      };
+    }).filter(t => t.date || t.description);
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImporting(true);
-      setTimeout(() => {
-        const mockTransactions = generateMockTransactions();
-        setTransactions(mockTransactions);
-        setShowTransactionTable(true);
-        setImporting(false);
-      }, 2000);
-    }
+    if (!file) return;
+    setCurrentFileName(file.name);
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const parsed = parseCsv(ev.target.result);
+      setTransactions(parsed);
+      setShowTransactionTable(true);
+      setImporting(false);
+    };
+    reader.onerror = () => setImporting(false);
+    reader.readAsText(file);
   };
 
   const toggleSelectAll = () => {
@@ -130,26 +93,37 @@ const BankImport = () => {
     ));
   };
 
-  const handleConfirmTransactions = () => {
-    const selectedCount = transactions.filter(t => t.selected).length;
-    if (selectedCount === 0) {
+  const handleConfirmTransactions = async () => {
+    const selected = transactions.filter(t => t.selected);
+    if (selected.length === 0) {
       alert('Please select at least one transaction to import');
       return;
     }
-    
-    const newFile = {
-      id: Date.now(),
-      name: `bank_import_${new Date().toISOString().split('T')[0]}.csv`,
-      bank: 'Manual Upload',
-      date: new Date().toISOString().split('T')[0],
-      transactions: selectedCount,
-      status: 'completed'
-    };
-    
-    setImportedFiles([newFile, ...importedFiles]);
-    setShowTransactionTable(false);
-    setTransactions([]);
-    alert(`${selectedCount} transactions imported successfully! Redirecting to Matching & Reconciliation...`);
+
+    const rows = selected.map(t => ({
+      transaction_date: t.date,
+      description: t.description,
+      amount: t.amount,
+      category: t.category || null,
+    }));
+
+    try {
+      await api.bulkCreateTransactions(activeCompany?.id, rows, user?.id);
+      const newFile = {
+        id: Date.now(),
+        name: currentFileName || `bank_import_${new Date().toISOString().split('T')[0]}.csv`,
+        bank: 'Manual Upload',
+        date: new Date().toISOString().split('T')[0],
+        transactions: selected.length,
+        status: 'completed',
+      };
+      setImportedFiles([newFile, ...importedFiles]);
+      setShowTransactionTable(false);
+      setTransactions([]);
+      alert(`${selected.length} transactions imported successfully!`);
+    } catch (err) {
+      alert('Failed to import transactions: ' + (err.message || err));
+    }
   };
 
   return (

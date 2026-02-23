@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { Upload, FileText, X, CheckCircle, AlertCircle, Edit3, Save } from 'lucide-react';
+import { useCompany } from '../../context/CompanyContext';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const InvoiceUpload = () => {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [currentVerification, setCurrentVerification] = useState(null);
+  const { activeCompany } = useCompany();
+  const { user } = useAuth();
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -21,7 +26,6 @@ const InvoiceUpload = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFiles(e.dataTransfer.files);
     }
@@ -34,35 +38,38 @@ const InvoiceUpload = () => {
     }
   };
 
-  const generateMockExtraction = (fileName) => {
-    return {
-      vendorName: { value: 'Acme Corporation', confidence: 0.98 },
-      invoiceNumber: { value: `INV-2024-${Math.floor(Math.random() * 9999)}`, confidence: 0.95 },
-      invoiceDate: { value: '2024-01-15', confidence: 0.92 },
-      dueDate: { value: '2024-02-15', confidence: 0.88 },
-      subtotal: { value: 1200.00, confidence: 0.97 },
-      vatRate: { value: 20, confidence: 0.90 },
-      vatAmount: { value: 240.00, confidence: 0.96 },
-      totalAmount: { value: 1440.00, confidence: 0.99 },
-      currency: { value: 'USD', confidence: 0.99 },
-      lineItems: [
-        { description: 'Consulting Services', qty: 10, unitPrice: 100.00, total: 1000.00, confidence: 0.94 },
-        { description: 'Materials', qty: 1, unitPrice: 200.00, total: 200.00, confidence: 0.89 }
-      ]
-    };
-  };
+  // Map OCR server response to the editable extraction format used by the modal
+  const mapOcrToExtracted = (extracted) => ({
+    vendorName:    { value: extracted.vendor_name    || '',   confidence: 0.85 },
+    invoiceNumber: { value: extracted.invoice_number || '',   confidence: 0.90 },
+    invoiceDate:   { value: extracted.invoice_date   || '',   confidence: 0.85 },
+    dueDate:       { value: extracted.due_date       || '',   confidence: 0.80 },
+    subtotal:      { value: extracted.subtotal        ?? '',  confidence: 0.85 },
+    vatRate:       { value: extracted.vat_rate        ?? '',  confidence: extracted.vat_rate != null ? 0.85 : 0.50 },
+    vatAmount:     { value: extracted.vat_amount      ?? '',  confidence: 0.85 },
+    totalAmount:   { value: extracted.total_amount    ?? '',  confidence: 0.90 },
+    currency:      { value: 'USD',                            confidence: 0.99 },
+    lineItems: (extracted.line_items || []).map(item => ({
+      description: item.description || '',
+      qty:         item.qty         ?? 1,
+      unitPrice:   item.unitPrice   ?? 0,
+      total:       item.total       ?? 0,
+      confidence:  item.confidence  ?? 0.70,
+    }))
+  });
 
   const handleFiles = (fileList) => {
     const newFiles = Array.from(fileList).map((file, index) => ({
       id: Date.now() + index,
+      file,                          // keep the real File object for upload
       name: file.name,
       size: (file.size / 1024).toFixed(2) + ' KB',
       type: file.type,
-      status: 'uploaded', // uploaded, processing, completed, error
+      status: 'uploaded',
       progress: 100,
       extractedData: null
     }));
-    setFiles([...files, ...newFiles]);
+    setFiles(prev => [...prev, ...newFiles]);
   };
 
   const removeFile = (id) => {
@@ -70,58 +77,116 @@ const InvoiceUpload = () => {
   };
 
   const processFiles = () => {
-    setFiles(files.map(file => ({
-      ...file,
-      status: 'processing',
-      progress: 0
-    })));
+    const unprocessed = files.filter(f => f.status === 'uploaded');
+    if (!unprocessed.length) return;
 
-    // Simulate processing with data extraction
-    files.forEach((file, index) => {
-      setTimeout(() => {
-        const extractedData = generateMockExtraction(file.name);
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { 
-            ...f, 
-            status: 'completed', 
-            progress: 100,
-            extractedData: extractedData
-          } : f
-        ));
-      }, (index + 1) * 1500);
+    // Mark all as processing
+    setFiles(prev => prev.map(f =>
+      f.status === 'uploaded' ? { ...f, status: 'processing', progress: 0 } : f
+    ));
+
+    unprocessed.forEach((fileEntry) => {
+      api.uploadInvoiceFile(fileEntry.file)
+        .then((response) => {
+          const extractedData = response.ocr_skipped
+            ? mapOcrToExtracted({})   // PDF: no OCR data
+            : mapOcrToExtracted(response.extracted || {});
+          setFiles(prev => prev.map(f =>
+            f.id === fileEntry.id
+              ? { ...f, status: 'completed', progress: 100, extractedData, serverFile: response.file }
+              : f
+          ));
+        })
+        .catch(() => {
+          setFiles(prev => prev.map(f =>
+            f.id === fileEntry.id ? { ...f, status: 'error', progress: 0 } : f
+          ));
+        });
     });
   };
+      progress: 0
 
   const handleVerifyFile = (file) => {
     setCurrentVerification({
       ...file,
-      editableData: JSON.parse(JSON.stringify(file.extractedData)) // Deep copy for editing
+      editableData: JSON.parse(JSON.stringify(file.extractedData))
     });
     setShowVerificationModal(true);
   };
 
-  const handleSaveVerification = () => {
-    setFiles(files.map(f => 
-      f.id === currentVerification.id 
-        ? { ...f, extractedData: currentVerification.editableData, verified: true }
-        : f
-    ));
-    setShowVerificationModal(false);
-    setCurrentVerification(null);
-    alert('Invoice data verified and saved successfully!');
+  const handleSaveVerification = async () => {
+    if (activeCompany?.id) {
+      const d = currentVerification.editableData;
+      try {
+        await api.createInvoice({
+          company_id:           activeCompany.id,
+          invoice_number:       d.invoiceNumber?.value || '',
+          vendor_name:          d.vendorName?.value    || '',
+          invoice_date:         d.invoiceDate?.value   || null,
+          due_date:             d.dueDate?.value        || null,
+          subtotal:             parseFloat(d.subtotal?.value)    || 0,
+          vat_rate:             parseFloat(d.vatRate?.value)     || null,
+          vat_amount:           parseFloat(d.vatAmount?.value)   || 0,
+          total_amount:         parseFloat(d.totalAmount?.value) || 0,
+          currency:             d.currency?.value       || 'USD',
+          file_path:            currentVerification.serverFile?.filename || '',
+          status:               'uploaded',
+          uploaded_by_user_id:  user?.id,
+          line_items: (d.lineItems || []).map((item, idx) => ({
+            line_number:  idx + 1,
+            description:  item.description || '',
+            quantity:     item.qty         ?? 1,
+            unit_price:   item.unitPrice   ?? 0,
+            total_amount: item.total       ?? 0,
+          })),
+        });
+
+        setFiles(files.map(f =>
+          f.id === currentVerification.id
+            ? { ...f, extractedData: currentVerification.editableData, verified: true }
+            : f
+        ));
+        setShowVerificationModal(false);
+        setCurrentVerification(null);
+        alert('Invoice saved successfully!');
+      } catch (err) {
+        console.error('Failed to save invoice:', err);
+        alert('Failed to save invoice. Please try again.');
+      }
+    } else {
+      alert('No active company selected. Please select a company first.');
+    }
   };
 
   const updateVerificationField = (field, value) => {
-    setCurrentVerification(prev => ({
-      ...prev,
-      editableData: {
+    setCurrentVerification(prev => {
+      const updated = {
         ...prev.editableData,
-        [field]: {
-          ...prev.editableData[field],
-          value: value
+        [field]: { ...prev.editableData[field], value }
+      };
+
+      // When vatRate changes, recompute vatAmount and totalAmount from subtotal
+      if (field === 'vatRate') {
+        const sub = parseFloat(updated.subtotal?.value) || 0;
+        const rate = parseFloat(value) || 0;
+        if (sub > 0 && rate > 0) {
+          const computedVat = (sub * rate / 100).toFixed(2);
+          updated.vatAmount = { ...updated.vatAmount, value: computedVat };
+          updated.totalAmount = { ...updated.totalAmount, value: (sub + parseFloat(computedVat)).toFixed(2) };
         }
       }
-    }));
+
+      // When subtotal or vatAmount changes, recompute totalAmount
+      if (field === 'subtotal' || field === 'vatAmount') {
+        const sub = parseFloat(field === 'subtotal' ? value : updated.subtotal?.value) || 0;
+        const vat = parseFloat(field === 'vatAmount' ? value : updated.vatAmount?.value) || 0;
+        if (sub > 0 || vat > 0) {
+          updated.totalAmount = { ...updated.totalAmount, value: (sub + vat).toFixed(2) };
+        }
+      }
+
+      return { ...prev, editableData: updated };
+    });
   };
 
   const updateLineItem = (index, field, value) => {

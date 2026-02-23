@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, Building, AlertCircle, CheckCircle } from 'lucide-react';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -36,14 +38,14 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await api.register({
+      const response = await api.register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
         role: formData.role,
         company: formData.company
       });
-      
+      login(response.token, response.user);
       // Registration successful, redirect to dashboard
       navigate('/dashboard');
     } catch (err) {
@@ -159,7 +161,7 @@ const Register = () => {
               {/* Company Name */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Company Name
+                  {formData.role === 'business-owner' ? 'Company Name' : 'Company / Firm Name (optional)'}
                 </label>
                 <div className="relative">
                   <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -168,10 +170,13 @@ const Register = () => {
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Your Company Ltd."
-                    required
+                    placeholder={formData.role === 'business-owner' ? 'Your Company Ltd.' : 'Your Accounting Firm (optional)'}
+                    required={formData.role === 'business-owner'}
                   />
                 </div>
+                {formData.role === 'business-owner' && (
+                  <p className="text-xs text-gray-500 mt-1">This will create your company profile automatically.</p>
+                )}
               </div>
 
               {/* Password */}

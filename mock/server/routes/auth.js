@@ -50,7 +50,36 @@ router.post('/register', async (req, res) => {
       `);
     
     const user = result.recordset[0];
-    
+
+    // For business owners: auto-create their company and link it
+    if (role === 'business-owner' && company) {
+      try {
+        const companyResult = await pool.request()
+          .input('name', sql.VarChar(255), company)
+          .input('created_by_user_id', sql.BigInt, user.id)
+          .query(`
+            INSERT INTO companies (name, created_by_user_id, is_active)
+            OUTPUT INSERTED.id
+            VALUES (@name, @created_by_user_id, 1)
+          `);
+
+        const companyId = companyResult.recordset[0].id;
+
+        await pool.request()
+          .input('user_id', sql.BigInt, user.id)
+          .input('company_id', sql.BigInt, companyId)
+          .input('access_level', sql.VarChar(50), 'full')
+          .input('status', sql.VarChar(50), 'active')
+          .query(`
+            INSERT INTO user_company_access (user_id, company_id, access_level, status)
+            VALUES (@user_id, @company_id, @access_level, @status)
+          `);
+      } catch (companyErr) {
+        // Non-fatal: user is created, company setup failed — log it
+        console.error('Failed to auto-create company for business owner:', companyErr.message);
+      }
+    }
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },

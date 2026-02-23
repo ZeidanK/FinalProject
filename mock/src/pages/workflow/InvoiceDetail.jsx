@@ -1,37 +1,47 @@
 import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, FileText, Calendar, DollarSign, Building, Download, Edit } from 'lucide-react';
+import api from '../../services/api';
 
 const InvoiceDetail = () => {
   const { id } = useParams();
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock invoice data
-  const invoice = {
-    id: id,
-    fileName: 'Invoice_Acme_Corp_Jan2024.pdf',
-    vendor: {
-      name: 'Acme Corporation',
-      address: '123 Business St, New York, NY 10001',
-      taxId: 'US123456789',
-      email: 'billing@acmecorp.com'
-    },
-    invoiceNumber: 'INV-2024-1234',
-    date: '2024-01-10',
-    dueDate: '2024-02-10',
-    items: [
-      { description: 'Professional Services - January', quantity: 1, unitPrice: 1000.00, total: 1000.00 },
-      { description: 'Consulting Hours (10 hours)', quantity: 10, unitPrice: 150.00, total: 1500.00 }
-    ],
-    subtotal: 2500.00,
-    vatRate: 20,
-    vatAmount: 500.00,
-    total: 3000.00,
-    currency: '€',
-    notes: 'Payment due within 30 days. Bank transfer preferred.',
-    extractedConfidence: 98,
-    status: 'completed',
-    uploadDate: '2024-01-15 10:30',
-    processedDate: '2024-01-15 10:32'
-  };
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    api.getInvoice(id)
+      .then(inv => setInvoice({
+        id: inv.id,
+        fileName: inv.file_path || `Invoice-${inv.id}`,
+        vendor: {
+          name:    inv.vendor_name || '',
+          address: inv.vendor_address || '',
+          taxId:   inv.vendor_tax_id || '',
+          email:   inv.vendor_email || '',
+        },
+        invoiceNumber:       inv.invoice_number  || '',
+        date:                inv.invoice_date    ? inv.invoice_date.split('T')[0] : '',
+        dueDate:             inv.due_date        ? inv.due_date.split('T')[0]     : '',
+        items:               inv.line_items      || [],
+        subtotal:            parseFloat(inv.subtotal)    || 0,
+        vatRate:             parseFloat(inv.vat_rate)    || 0,
+        vatAmount:           parseFloat(inv.vat_amount)  || 0,
+        total:               parseFloat(inv.total_amount)|| 0,
+        currency:            inv.currency        || '',
+        notes:               inv.notes           || '',
+        extractedConfidence: inv.ocr_confidence  || null,
+        status:              inv.status          || '',
+        uploadDate:          inv.created_at      ? new Date(inv.created_at).toLocaleString()    : '',
+        processedDate:       inv.updated_at      ? new Date(inv.updated_at).toLocaleString()    : '',
+      }))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading invoice…</div>;
+  if (!invoice) return <div className="p-8 text-center text-red-500">Invoice not found.</div>;
 
   return (
     <div className="space-y-6">

@@ -1,34 +1,39 @@
 import { useState } from 'react';
 import { Building2, Check, ChevronDown } from 'lucide-react';
+import { useCompany } from '../context/CompanyContext';
+import { useAuth } from '../context/AuthContext';
 
-const BusinessSwitcher = ({ userRole }) => {
+const BusinessSwitcher = () => {
   const [showBusinesses, setShowBusinesses] = useState(false);
-  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const { companies, activeCompany, setActiveCompany, loading } = useCompany();
+  const { user } = useAuth();
 
-  // Mock businesses data - in production this would come from API
-  const businesses = [
-    { id: 1, name: 'Acme Corporation', status: 'active', type: 'LLC' },
-    { id: 2, name: 'TechStart Solutions', status: 'active', type: 'Inc' },
-    { id: 3, name: 'Green Energy Co.', status: 'active', type: 'Corp' },
-    { id: 4, name: 'Retail Masters Ltd', status: 'active', type: 'Ltd' },
-    { id: 5, name: 'Consulting Partners', status: 'pending', type: 'Partnership' },
-    { id: 6, name: 'Global Traders Inc', status: 'active', type: 'Inc' }
-  ];
+  // For business owners: show their active company name as a read-only badge (no switching)
+  if (user?.role === 'business-owner') {
+    if (!activeCompany) return null;
+    return (
+      <div className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-gray-200 bg-gray-50">
+        <Building2 size={20} className="text-gray-600" />
+        <div className="text-left">
+          <p className="text-xs text-gray-500">Company</p>
+          <p className="text-sm font-semibold text-gray-900">{activeCompany.name}</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Only show for accountants
-  if (userRole !== 'accountant') {
+  // Only show switcher for accountants
+  if (user?.role !== 'accountant') {
     return null;
   }
 
-  const handleSelectBusiness = (business) => {
-    setSelectedBusiness(business);
+  const handleSelectBusiness = (company) => {
+    setActiveCompany(company);
     setShowBusinesses(false);
-    // Here you would typically trigger a context update or state change
-    // to filter all data by the selected business
   };
 
-  const activeBusinesses = businesses.filter(b => b.status === 'active');
-  const currentBusiness = selectedBusiness || { name: 'All Businesses', id: null };
+  const activeCompanies = companies.filter(c => c.is_active);
+  const currentDisplay = activeCompany ? activeCompany.name : 'Select Company';
 
   return (
     <div className="relative">
@@ -36,19 +41,20 @@ const BusinessSwitcher = ({ userRole }) => {
         onClick={() => setShowBusinesses(!showBusinesses)}
         className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
         title="Switch Business"
+        disabled={loading}
       >
         <Building2 size={20} className="text-gray-600" />
         <div className="text-left">
           <p className="text-xs text-gray-500">Viewing</p>
-          <p className="text-sm font-semibold text-gray-900">{currentBusiness.name}</p>
+          <p className="text-sm font-semibold text-gray-900">{currentDisplay}</p>
         </div>
         <ChevronDown size={16} className="text-gray-400" />
       </button>
 
       {showBusinesses && (
         <>
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setShowBusinesses(false)}
           />
           <div className="absolute top-full mt-2 ltr:left-0 rtl:right-0 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-h-96 overflow-hidden flex flex-col">
@@ -56,55 +62,35 @@ const BusinessSwitcher = ({ userRole }) => {
             <div className="p-4 border-b border-gray-200">
               <h3 className="text-sm font-semibold text-gray-900">Select Business</h3>
               <p className="text-xs text-gray-500 mt-1">
-                {activeBusinesses.length} active businesses
+                {activeCompanies.length} active businesses
               </p>
-            </div>
-
-            {/* All Businesses Option */}
-            <div className="border-b border-gray-200">
-              <button
-                onClick={() => handleSelectBusiness(null)}
-                className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${
-                  !selectedBusiness ? 'bg-blue-50' : ''
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                    <Building2 size={20} className="text-white" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-gray-900">All Businesses</p>
-                    <p className="text-xs text-gray-500">View consolidated data</p>
-                  </div>
-                </div>
-                {!selectedBusiness && (
-                  <Check size={20} className="text-blue-600" />
-                )}
-              </button>
             </div>
 
             {/* Business List */}
             <div className="overflow-y-auto flex-1">
-              {activeBusinesses.map((business) => (
+              {activeCompanies.length === 0 && (
+                <p className="p-4 text-sm text-gray-500 text-center">No companies found</p>
+              )}
+              {activeCompanies.map((company) => (
                 <button
-                  key={business.id}
-                  onClick={() => handleSelectBusiness(business)}
+                  key={company.id}
+                  onClick={() => handleSelectBusiness(company)}
                   className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${
-                    selectedBusiness?.id === business.id ? 'bg-blue-50' : ''
+                    activeCompany?.id === company.id ? 'bg-blue-50' : ''
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
                       <span className="text-lg font-bold text-gray-600">
-                        {business.name.charAt(0)}
+                        {company.name.charAt(0)}
                       </span>
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-medium text-gray-900">{business.name}</p>
-                      <p className="text-xs text-gray-500">{business.type}</p>
+                      <p className="text-sm font-medium text-gray-900">{company.name}</p>
+                      <p className="text-xs text-gray-500">{company.currency || 'USD'}</p>
                     </div>
                   </div>
-                  {selectedBusiness?.id === business.id && (
+                  {activeCompany?.id === company.id && (
                     <Check size={20} className="text-blue-600" />
                   )}
                 </button>
@@ -116,7 +102,6 @@ const BusinessSwitcher = ({ userRole }) => {
               <button
                 onClick={() => {
                   setShowBusinesses(false);
-                  // Navigate to manage businesses page
                   window.location.href = '/accountant/businesses';
                 }}
                 className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium"

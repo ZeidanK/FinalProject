@@ -1,9 +1,27 @@
 import { Link } from 'react-router-dom';
 import { FileText, TrendingUp, TrendingDown, Calendar, Download, BarChart } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCompany } from '../../context/CompanyContext';
+import api from '../../services/api';
 
 const ReportsDashboard = () => {
   const [period, setPeriod] = useState('monthly');
+  const [reconciliationData, setReconciliationData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { activeCompany } = useCompany();
+
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    setLoading(true);
+    api.getReconciliationReport(activeCompany.id)
+      .then(data => setReconciliationData(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [activeCompany?.id]);
+
+  const totalExpenses  = reconciliationData.reduce((s, r) => s + (parseFloat(r.invoice_amount) || 0), 0);
+  const totalMatched   = reconciliationData.filter(r => r.is_matched).length;
+  const totalUnmatched = reconciliationData.filter(r => !r.is_matched).length;
 
   const reportTypes = [
     {
@@ -49,10 +67,10 @@ const ReportsDashboard = () => {
   ];
 
   const metrics = [
-    { label: 'Total Expenses', value: '€45,234.50', change: '+12.5%', trend: 'up' },
-    { label: 'VAT Collected', value: '€9,046.90', change: '+8.3%', trend: 'up' },
-    { label: 'Invoices Processed', value: '234', change: '+15', trend: 'up' },
-    { label: 'Pending Items', value: '12', change: '-5', trend: 'down' }
+    { label: 'Total Expenses',     value: loading ? '…' : `€${totalExpenses.toFixed(2)}`,   change: '', trend: 'up' },
+    { label: 'Invoices Processed', value: loading ? '…' : String(reconciliationData.length), change: '', trend: 'up' },
+    { label: 'Matched',            value: loading ? '…' : String(totalMatched),               change: '', trend: 'up' },
+    { label: 'Pending Items',      value: loading ? '…' : String(totalUnmatched),             change: '', trend: 'down' },
   ];
 
   const recentReports = [
