@@ -1,0 +1,7 @@
+# Uploads Directory
+
+This directory is used to temporarily store uploaded files during processing.
+
+Files are automatically deleted after OCR extraction is complete.
+
+**Note**: This directory should exist but should not be committed to Git (except this .gitkeep file).
