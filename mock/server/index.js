@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { testConnection } from './config/database.js';
+import { testConnection, getPool } from './config/database.js';
 import { requireAuth } from './middleware/auth.js';
 
 // Import routes
@@ -30,7 +30,9 @@ const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production'
+    ? (process.env.CORS_ORIGIN || 'http://localhost:5173')
+    : true, // allow all origins in development
   credentials: true
 }));
 app.use(express.json());
@@ -60,6 +62,28 @@ app.get('/api/health', async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: error.message
+    });
+  }
+});
+
+// DB test endpoint (public) – queries dbo.Apartments row count
+app.get('/api/db-test', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query('SELECT COUNT(*) AS rowCount FROM dbo.Apartments');
+    res.json({
+      success: true,
+      rowCount: result.recordset[0].rowCount,
+      server: process.env.DB_SERVER,
+      database: process.env.DB_DATABASE
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: error.code || null,
+      server: process.env.DB_SERVER,
+      database: process.env.DB_DATABASE
     });
   }
 });

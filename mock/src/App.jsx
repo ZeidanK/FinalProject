@@ -44,6 +44,9 @@ import ManageAccountants from './pages/business/ManageAccountants';
 // Admin
 import AdminDashboard from './pages/admin/AdminDashboard';
 
+// DB Test
+import DbTest from './pages/DbTest';
+
 // ── Inner app (has access to AuthContext) ──────────────────────────────────
 function AppRoutes() {
   const { isAuthenticated, loading, user, logout } = useAuth();
@@ -53,6 +56,9 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* Public utility routes */}
+      <Route path="/db-test" element={<DbTest />} />
+
       {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />

@@ -6,7 +6,6 @@ dotenv.config();
 // SQL Server configuration
 const config = {
   server: process.env.DB_SERVER || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 50115,
   database: process.env.DB_DATABASE || 'FP',
   options: {
     encrypt: process.env.DB_ENCRYPT === 'true',

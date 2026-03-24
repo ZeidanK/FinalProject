@@ -1,0 +1,65 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// CORS – allow the React frontend (and any localhost port during dev)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "https://localhost:5173",
+                "http://localhost:3000"
+              )
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// JWT Authentication – mirrors the NewsSitePro setup
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var key = jwtSettings["Key"]!;
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer           = true,
+        ValidateAudience         = true,
+        ValidateLifetime         = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer              = jwtSettings["Issuer"],
+        ValidAudience            = jwtSettings["Audience"],
+        IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+        ClockSkew                = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+// Always show Swagger (useful in dev/staging)
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
