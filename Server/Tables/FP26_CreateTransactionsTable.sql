@@ -30,7 +30,7 @@ CREATE TABLE dbo.FP26_transactions
     updated_at           DATETIME2       NOT NULL DEFAULT GETDATE(),
     CONSTRAINT PK_FP26_transactions PRIMARY KEY (id),
     CONSTRAINT FK_FP26_transactions_company      FOREIGN KEY (company_id)         REFERENCES dbo.FP26_companies     (id) ON DELETE CASCADE,
-    CONSTRAINT FK_FP26_transactions_bank_account FOREIGN KEY (bank_account_id)    REFERENCES dbo.FP26_bank_accounts (id) ON DELETE SET NULL,
+    CONSTRAINT FK_FP26_transactions_bank_account FOREIGN KEY (bank_account_id)    REFERENCES dbo.FP26_bank_accounts (id) ON DELETE NO ACTION,
     CONSTRAINT FK_FP26_transactions_creator      FOREIGN KEY (created_by_user_id) REFERENCES dbo.FP26_users         (id) ON DELETE SET NULL
 );
 GO

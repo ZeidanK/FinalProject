@@ -48,7 +48,7 @@ BEGIN
     -- 4. Match stats
     SELECT
         COUNT(*)                          AS total_matches,
-        ISNULL(SUM(matched_amount), 0)    AS total_matched_amount
+        ISNULL(SUM(m.matched_amount), 0)  AS total_matched_amount
     FROM dbo.FP26_invoice_transaction_matches m
     INNER JOIN dbo.FP26_invoices i ON i.id = m.invoice_id AND i.company_id = @CompanyId;
 END
