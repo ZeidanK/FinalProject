@@ -37,7 +37,6 @@ namespace FinalProjectAuthAPI.Controllers
         {
             "business_owner",
             "accountant",
-            "admin",
             "accountant_business_owner"
         };
 
