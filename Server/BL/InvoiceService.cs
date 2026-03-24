@@ -32,9 +32,10 @@ namespace FinalProjectAuthAPI.BL
                 req.CompanyId, req.InvoiceNumber.Trim(), req.VendorName.Trim(),
                 req.InvoiceDate, req.TotalAmount, uploadedByUserId,
                 req.VendorTaxId, req.DueDate, req.PaymentDate,
-                req.Subtotal ?? req.TotalAmount, req.VatRate, req.VatAmount,
-                req.Currency ?? "USD", req.FileOriginalName, req.FilePath,
-                req.FileType, req.FileSize, req.AiExtractionConfidence,
+                req.Subtotal == 0 ? req.TotalAmount : req.Subtotal,
+                req.VatRate, req.VatAmount,
+                string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
+                null, null, null, null, null,   // file fields set after upload/OCR
                 req.LastFourDigitsCard);
 
             if (invoiceId <= 0)
@@ -45,7 +46,7 @@ namespace FinalProjectAuthAPI.BL
                 foreach (var li in req.LineItems)
                     _db.CreateLineItem(
                         invoiceId, li.Description, li.UnitPrice, li.TotalAmount,
-                        li.LineNumber, li.Category, li.Quantity ?? 1,
+                        li.LineNumber, li.Category, li.Quantity,
                         li.VatRate, li.AiConfidenceScore);
 
             return (true, invoiceId, string.Empty);

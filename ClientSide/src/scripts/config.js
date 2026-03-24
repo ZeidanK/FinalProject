@@ -1,7 +1,7 @@
 // Configuration Constants
 const CONFIG = {
   localhost: {
-    authBaseURL: "http://localhost:5050/api/Auth",
+    authBaseURL: "/api/Auth", // relative → proxied by Vite to http://localhost:5050
     usersBaseURL: `https://localhost:${7259}/api/Users`,
     newsBaseURL: `https://localhost:${7259}/api/News`,
     tagsBaseURL: `https://localhost:${7259}/api/Tags`,
