@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 
@@ -6,7 +7,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for invoice-transaction matching.
     /// </summary>
-    public class MatchService
+    public class MatchService : IMatchService
     {
         private readonly DBservices _db = new();
 

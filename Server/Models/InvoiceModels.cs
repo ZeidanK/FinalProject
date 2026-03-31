@@ -83,4 +83,44 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(50)]
         public string Status { get; set; } = string.Empty;
     }
+
+    // ── PDF Upload & Extraction Models ────────────────────────────────────
+
+    public class ExtractedLineItem
+    {
+        public string Description { get; set; } = string.Empty;
+        public decimal Quantity { get; set; } = 1;
+        public decimal UnitPrice { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal? VatRate { get; set; }
+        public string? Category { get; set; }
+        public decimal? AiConfidenceScore { get; set; }
+    }
+
+    public class PdfExtractionResult
+    {
+        public string? VendorName { get; set; }
+        public string? InvoiceNumber { get; set; }
+        public DateTime? InvoiceDate { get; set; }
+        public decimal? TotalAmount { get; set; }
+        public decimal? Subtotal { get; set; }
+        public decimal? VatRate { get; set; }
+        public decimal? VatAmount { get; set; }
+        public string? Currency { get; set; }
+        public string? VendorTaxId { get; set; }
+        public string? LastFourDigitsCard { get; set; }
+        public List<ExtractedLineItem> LineItems { get; set; } = new();
+        public decimal ExtractionConfidence { get; set; }
+        public string ExtractionMethod { get; set; } = "text"; // "text" or "ocr"
+        public string? RawText { get; set; }
+    }
+
+    public class UploadInvoicePdfResponse
+    {
+        public string FileOriginalName { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public string FileType { get; set; } = "application/pdf";
+        public PdfExtractionResult ExtractedData { get; set; } = new();
+    }
 }

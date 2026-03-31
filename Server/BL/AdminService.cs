@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 
 namespace FinalProjectAuthAPI.BL
@@ -5,7 +6,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for admin operations (stats, user management, logs).
     /// </summary>
-    public class AdminService
+    public class AdminService : IAdminService
     {
         private readonly DBservices _db = new();
 

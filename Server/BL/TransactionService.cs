@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 
@@ -6,7 +7,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for transaction management.
     /// </summary>
-    public class TransactionService
+    public class TransactionService : ITransactionService
     {
         private readonly DBservices _db = new();
 

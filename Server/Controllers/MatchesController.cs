@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class MatchesController : ControllerBase
     {
-        private readonly MatchService _svc = new();
+        private readonly IMatchService _svc;
+
+        public MatchesController(IMatchService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/matches/company/{companyId}
         [HttpGet("company/{companyId:long}")]

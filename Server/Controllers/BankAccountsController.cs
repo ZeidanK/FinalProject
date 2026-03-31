@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class BankAccountsController : ControllerBase
     {
-        private readonly BankAccountService _svc = new();
+        private readonly IBankAccountService _svc;
+
+        public BankAccountsController(IBankAccountService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/bankaccounts/company/{companyId}
         [HttpGet("company/{companyId:long}")]

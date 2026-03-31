@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 
@@ -6,7 +7,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for invoice management.
     /// </summary>
-    public class InvoiceService
+    public class InvoiceService : IInvoiceService
     {
         private readonly DBservices _db = new();
 
@@ -20,6 +21,12 @@ namespace FinalProjectAuthAPI.BL
 
         public (bool Success, long Id, string Error) Create(
             CreateInvoiceRequest req, long uploadedByUserId)
+            => Create(req, uploadedByUserId, null, null, null, null, null);
+
+        public (bool Success, long Id, string Error) Create(
+            CreateInvoiceRequest req, long uploadedByUserId,
+            string? fileOriginalName, string? filePath, string? fileType,
+            long? fileSize, decimal? aiConfidence)
         {
             if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
                 return (false, 0, "Invoice number is required.");
@@ -35,7 +42,7 @@ namespace FinalProjectAuthAPI.BL
                 req.Subtotal == 0 ? req.TotalAmount : req.Subtotal,
                 req.VatRate, req.VatAmount,
                 string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
-                null, null, null, null, null,   // file fields set after upload/OCR
+                fileOriginalName, filePath, fileType, fileSize, aiConfidence,
                 req.LastFourDigitsCard);
 
             if (invoiceId <= 0)
@@ -61,6 +68,13 @@ namespace FinalProjectAuthAPI.BL
                 return false;
 
             return _db.UpdateInvoiceStatus(id, status);
+        }
+
+        public bool UpdateFileInfo(long id, string? fileOriginalName, string? filePath,
+            string? fileType, long? fileSize, decimal? aiConfidence)
+        {
+            return _db.UpdateInvoiceFileInfo(id, fileOriginalName, filePath,
+                fileType, fileSize, aiConfidence);
         }
     }
 }

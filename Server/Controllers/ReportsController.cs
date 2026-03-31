@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +9,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class ReportsController : ControllerBase
     {
-        private readonly ReportService _svc = new();
+        private readonly IReportService _svc;
+
+        public ReportsController(IReportService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/reports/dashboard/{companyId}
         [HttpGet("dashboard/{companyId:long}")]

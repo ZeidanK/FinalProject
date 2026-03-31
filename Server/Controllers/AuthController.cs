@@ -1,5 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,18 +10,19 @@ namespace FinalProjectAuthAPI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _config;
+        private readonly IAuthService _authSvc;
 
-        public AuthController(IConfiguration config)
+        public AuthController(IConfiguration config, IAuthService authSvc)
         {
             _config = config;
+            _authSvc = authSvc;
         }
 
         // POST api/auth/login
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            var user  = new User();
-            var token = user.LogIn(request.Email, request.Password, _config);
+            var (token, id, name, email, role) = _authSvc.LogIn(request.Email, request.Password, _config);
 
             if (token == null)
                 return Unauthorized(new { message = "Invalid credentials or account is inactive." });
@@ -29,7 +30,7 @@ namespace FinalProjectAuthAPI.Controllers
             return Ok(new
             {
                 token,
-                user = new { id = user.Id, name = user.Name, email = user.Email, role = user.Role }
+                user = new { id, name, email, role }
             });
         }
 
@@ -49,13 +50,12 @@ namespace FinalProjectAuthAPI.Controllers
 
             try
             {
-                var user    = new User();
-                bool success = user.Register(request.Name, request.Email, request.Password, request.Role);
+                var (success, userId, error) = _authSvc.Register(request.Name, request.Email, request.Password, request.Role);
 
                 if (!success)
-                    return BadRequest(new { message = "Registration failed. A user with this email may already exist." });
+                    return BadRequest(new { message = error });
 
-                return Ok(new { message = "Registration successful.", userId = user.Id });
+                return StatusCode(201, new { message = "Registration successful.", userId });
             }
             catch (System.Data.SqlClient.SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
             {

@@ -1,192 +1,68 @@
-// Configuration Constants
-const CONFIG = {
-  localhost: {
-    authBaseURL: "/api/Auth", // relative → proxied by Vite to http://localhost:5050
-    usersBaseURL: `https://localhost:${7259}/api/Users`,
-    newsBaseURL: `https://localhost:${7259}/api/News`,
-    tagsBaseURL: `https://localhost:${7259}/api/Tags`,
-    savedArticlesBaseURL: `https://localhost:${7259}/api/SavedArticles`,
-    sharedContentBaseURL: `https://localhost:${7259}/api/SharedContent`,
-    userSettingsBaseURL: `https://localhost:${7259}/api/UserSettings`,
-    adminBaseURL: `https://localhost:${7259}/api/Admin`,
-  },
-  production: {
-    authBaseURL: "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/Auth",
-    usersBaseURL: "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/Users",
-    newsBaseURL: "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/News",
-    tagsBaseURL: "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/Tags",
-    savedArticlesBaseURL:
-      "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/SavedArticles",
-    sharedContentBaseURL:
-      "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/SharedContent",
-    userSettingsBaseURL:
-      "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/UserSettings",
-    adminBaseURL: "https://proj.ruppin.ac.il/cgroup10/test2/tar1/api/Admin",
-  },
-};
+const normalizeBaseUrl = (value) => {
+  if (!value) return '/api'
+  return value.endsWith('/') ? value.slice(0, -1) : value
+}
 
-const isLocalHost =
-  ["localhost", "127.0.0.1"].includes(location.hostname) ||
-  location.protocol === "file:";
-const USERS_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.usersBaseURL
-  : CONFIG.production.usersBaseURL;
-const AUTH_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.authBaseURL
-  : CONFIG.production.authBaseURL;
-const NEWS_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.newsBaseURL
-  : CONFIG.production.newsBaseURL;
-const TAGS_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.tagsBaseURL
-  : CONFIG.production.tagsBaseURL;
-const SAVED_ARTICLES_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.savedArticlesBaseURL
-  : CONFIG.production.savedArticlesBaseURL;
-const SHARED_CONTENT_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.sharedContentBaseURL
-  : CONFIG.production.sharedContentBaseURL;
-const USER_SETTINGS_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.userSettingsBaseURL
-  : CONFIG.production.userSettingsBaseURL;
-const ADMIN_SERVER_PATH = isLocalHost
-  ? CONFIG.localhost.adminBaseURL
-  : CONFIG.production.adminBaseURL;
+const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '/api')
 
-// News Endpoints
-const NEWS_ENDPOINTS = {
-  BASE: () => `${NEWS_SERVER_PATH}`,
-  SPECIFIC_NEWS: () => `${NEWS_ENDPOINTS.BASE()}/SpecificNews`,
-  SPECIFIC_NEWS_WITH_SENTIMENT: () =>
-    `${NEWS_ENDPOINTS.BASE()}/SpecificNewsWithSentiment`,
-  TOP_HEADLINES: () => `${NEWS_ENDPOINTS.BASE()}/TopHeadlines`,
-  TOP_HEADLINES_WITH_SENTIMENT: () =>
-    `${NEWS_ENDPOINTS.BASE()}/TopHeadlinesWithSentiment`,
-  SEARCH_BY_TAGS: () => `${NEWS_ENDPOINTS.BASE()}/SearchByTags`,
-  SEARCH_BY_TAGS_WITH_SENTIMENT: () =>
-    `${NEWS_ENDPOINTS.BASE()}/SearchByTagsWithSentiment`,
-  DAILY_SUMMARY: () => `${NEWS_ENDPOINTS.BASE()}/DailySummary`,
-};
+const buildApiPath = (path = '') => `${API_BASE_URL}${path}`
 
-// User Endpoints
-const USER_ENDPOINTS = {
-  BASE: () => `${USERS_SERVER_PATH}`,
-  REGISTER: () => `${USER_ENDPOINTS.BASE()}/register`,
-  LOGIN: () => `${USER_ENDPOINTS.BASE()}/login`,
-  LOGOUT: () => `${USER_ENDPOINTS.BASE()}/logout`,
-  VALIDATE: () => `${USER_ENDPOINTS.BASE()}/validate`,
-};
+export const APP_CONFIG = {
+  apiBaseUrl: API_BASE_URL,
+}
 
-// Auth Endpoints
-const AUTH_ENDPOINTS = {
-  BASE: () => `${AUTH_SERVER_PATH}`,
-  REGISTER: () => `${AUTH_ENDPOINTS.BASE()}/register`,
-  LOGIN: () => `${AUTH_ENDPOINTS.BASE()}/login`,
-};
-
-// Tags Endpoints
-const TAGS_ENDPOINTS = {
-  BASE: () => `${TAGS_SERVER_PATH}`,
-  GET_ALL_TAGS: () => `${TAGS_ENDPOINTS.BASE()}/tags`,
-};
-
-// Saved Articles Endpoints
-const SAVED_ARTICLES_ENDPOINTS = {
-  BASE: () => `${SAVED_ARTICLES_SERVER_PATH}`,
-  USER_SAVED_ARTICLES: () => `${SAVED_ARTICLES_ENDPOINTS.BASE()}/user`,
-  SEARCH_SAVED_ARTICLES: () => `${SAVED_ARTICLES_ENDPOINTS.BASE()}/user/search`,
-  SAVE_ARTICLE: () => `${SAVED_ARTICLES_ENDPOINTS.BASE()}`,
-  REMOVE_SAVED_ARTICLE: () => `${SAVED_ARTICLES_ENDPOINTS.BASE()}/article`,
-};
-
-// Shared Content Endpoints
-const SHARED_CONTENT_ENDPOINTS = {
-  BASE: () => `${SHARED_CONTENT_SERVER_PATH}`,
-  GET_SHARED_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}/user`,
-  SHARE_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}`,
-  REPORT_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}/report`,
-  LIKE_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}/like`,
-  UNLIKE_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}/unlike`,
-  DISLIKE_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}/dislike`,
-  UNDISLIKE_CONTENT: () => `${SHARED_CONTENT_ENDPOINTS.BASE()}/undislike`,
-};
-
-// User Settings Endpoints
-const USER_SETTINGS_ENDPOINTS = {
-  BASE: () => `${USER_SETTINGS_SERVER_PATH}`,
-  GET_USER_SETTINGS: () => `${USER_SETTINGS_ENDPOINTS.BASE()}`,
-  BLOCK_USER: () => `${USER_SETTINGS_ENDPOINTS.BASE()}/block`,
-  UNBLOCK_USER: () => `${USER_SETTINGS_ENDPOINTS.BASE()}/unblock`,
-};
-
-// Admin Endpoints
-const ADMIN_ENDPOINTS = {
-  BASE: () => `${ADMIN_SERVER_PATH}`,
-  DAILY_STATS: () => `${ADMIN_ENDPOINTS.BASE()}/stats/daily`,
-  STATS_RANGE: () => `${ADMIN_ENDPOINTS.BASE()}/stats/range`,
-  GET_ALL_USERS: () => `${ADMIN_ENDPOINTS.BASE()}/users`,
-  TOGGLE_USER_STATUS: (userId) =>
-    `${ADMIN_ENDPOINTS.BASE()}/users/${userId}/status`,
-  GET_REPORTED_CONTENT: () => `${ADMIN_ENDPOINTS.BASE()}/reported-content`,
-  HANDLE_REPORTED_CONTENT: (contentId) =>
-    `${ADMIN_ENDPOINTS.BASE()}/reported-content/${contentId}/handle`,
-};
-
-// URL Constants
 export const URLS = {
   auth: {
-    base: AUTH_ENDPOINTS.BASE(),
-    register: AUTH_ENDPOINTS.REGISTER(),
-    login: AUTH_ENDPOINTS.LOGIN(),
-  },
-  news: {
-    base: NEWS_ENDPOINTS.BASE(),
-    specificNews: NEWS_ENDPOINTS.SPECIFIC_NEWS(),
-    specificNewsWithSentiment: NEWS_ENDPOINTS.SPECIFIC_NEWS_WITH_SENTIMENT(),
-    topHeadlines: NEWS_ENDPOINTS.TOP_HEADLINES(),
-    topHeadlinesWithSentiment: NEWS_ENDPOINTS.TOP_HEADLINES_WITH_SENTIMENT(),
-    searchByTags: NEWS_ENDPOINTS.SEARCH_BY_TAGS(),
-    searchByTagsWithSentiment: NEWS_ENDPOINTS.SEARCH_BY_TAGS_WITH_SENTIMENT(),
-    dailySummary: NEWS_ENDPOINTS.DAILY_SUMMARY(),
+    base: buildApiPath('/Auth'),
+    register: buildApiPath('/Auth/register'),
+    login: buildApiPath('/Auth/login'),
+    validate: buildApiPath('/Auth/validate'),
   },
   users: {
-    base: USER_ENDPOINTS.BASE(),
-    register: USER_ENDPOINTS.REGISTER(),
-    login: USER_ENDPOINTS.LOGIN(),
-    logout: USER_ENDPOINTS.LOGOUT(),
+    base: buildApiPath('/Users'),
+    byId: (id) => buildApiPath(`/Users/${id}`),
   },
-  tags: {
-    base: TAGS_ENDPOINTS.BASE(),
-    getAllTags: TAGS_ENDPOINTS.GET_ALL_TAGS(),
+  companies: {
+    base: buildApiPath('/Companies'),
+    byId: (id) => buildApiPath(`/Companies/${id}`),
+    byUser: (userId) => buildApiPath(`/Companies/user/${userId}`),
   },
-  savedArticles: {
-    base: SAVED_ARTICLES_ENDPOINTS.BASE(),
-    userSavedArticles: SAVED_ARTICLES_ENDPOINTS.USER_SAVED_ARTICLES(),
-    searchSavedArticles: SAVED_ARTICLES_ENDPOINTS.SEARCH_SAVED_ARTICLES(),
-    saveArticle: SAVED_ARTICLES_ENDPOINTS.SAVE_ARTICLE(),
-    removeSavedArticle: SAVED_ARTICLES_ENDPOINTS.REMOVE_SAVED_ARTICLE(),
+  invoices: {
+    base: buildApiPath('/Invoices'),
+    byId: (id) => buildApiPath(`/Invoices/${id}`),
+    byCompany: (companyId) => buildApiPath(`/Invoices/company/${companyId}`),
+    status: (id) => buildApiPath(`/Invoices/${id}/status`),
+    uploadPdf: buildApiPath('/Invoices/upload-pdf'),
   },
-  sharedContent: {
-    base: SHARED_CONTENT_ENDPOINTS.BASE(),
-    getSharedContent: SHARED_CONTENT_ENDPOINTS.GET_SHARED_CONTENT(),
-    shareContent: SHARED_CONTENT_ENDPOINTS.SHARE_CONTENT(),
-    reportContent: SHARED_CONTENT_ENDPOINTS.REPORT_CONTENT(),
-    likeContent: SHARED_CONTENT_ENDPOINTS.LIKE_CONTENT(),
-    unlikeContent: SHARED_CONTENT_ENDPOINTS.UNLIKE_CONTENT(),
-    dislikeContent: SHARED_CONTENT_ENDPOINTS.DISLIKE_CONTENT(),
-    undislikeContent: SHARED_CONTENT_ENDPOINTS.UNDISLIKE_CONTENT(),
+  bankAccounts: {
+    base: buildApiPath('/BankAccounts'),
+    byId: (id) => buildApiPath(`/BankAccounts/${id}`),
+    byCompany: (companyId) => buildApiPath(`/BankAccounts/company/${companyId}`),
   },
-  userSettings: {
-    base: USER_SETTINGS_ENDPOINTS.BASE(),
-    getUserSettings: USER_SETTINGS_ENDPOINTS.GET_USER_SETTINGS(),
-    blockUser: USER_SETTINGS_ENDPOINTS.BLOCK_USER(),
-    unblockUser: USER_SETTINGS_ENDPOINTS.UNBLOCK_USER(),
+  transactions: {
+    base: buildApiPath('/Transactions'),
+    byId: (id) => buildApiPath(`/Transactions/${id}`),
+    byCompany: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
+    bulk: buildApiPath('/Transactions/bulk'),
+    previewExcel: buildApiPath('/Transactions/preview-excel'),
   },
-  admin: {
-    base: ADMIN_ENDPOINTS.BASE(),
-    dailyStats: ADMIN_ENDPOINTS.DAILY_STATS(),
-    statsRange: ADMIN_ENDPOINTS.STATS_RANGE(),
-    getAllUsers: ADMIN_ENDPOINTS.GET_ALL_USERS(),
-    getReportedContent: ADMIN_ENDPOINTS.GET_REPORTED_CONTENT(),
+  matches: {
+    base: buildApiPath('/Matches'),
+    byId: (id) => buildApiPath(`/Matches/${id}`),
+    byCompany: (companyId) => buildApiPath(`/Matches/company/${companyId}`),
+    suggestions: (invoiceId) => buildApiPath(`/Matches/suggestions/${invoiceId}`),
   },
-};
+  anomalies: {
+    base: buildApiPath('/Anomalies'),
+    byId: (id) => buildApiPath(`/Anomalies/${id}`),
+    byCompany: (companyId) => buildApiPath(`/Anomalies/company/${companyId}`),
+    stats: (companyId) => buildApiPath(`/Anomalies/stats/${companyId}`),
+    resolve: (id) => buildApiPath(`/Anomalies/${id}/resolve`),
+  },
+  reports: {
+    base: buildApiPath('/Reports'),
+    dashboard: (companyId) => buildApiPath(`/Reports/dashboard/${companyId}`),
+    vat: (companyId) => buildApiPath(`/Reports/vat/${companyId}`),
+    reconciliation: (companyId) => buildApiPath(`/Reports/reconciliation/${companyId}`),
+  },
+}

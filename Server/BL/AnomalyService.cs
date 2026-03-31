@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 
@@ -6,7 +7,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for anomaly detection and resolution.
     /// </summary>
-    public class AnomalyService
+    public class AnomalyService : IAnomalyService
     {
         private readonly DBservices _db = new();
 

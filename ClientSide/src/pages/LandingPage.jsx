@@ -7,37 +7,45 @@ import {
   CardContent,
   Chip,
   Container,
+  Divider,
   Grid,
+  LinearProgress,
   Stack,
   Toolbar,
   Typography,
 } from '@mui/material'
-import SendRoundedIcon from '@mui/icons-material/SendRounded'
+import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded'
 import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded'
-import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded'
+import HubRoundedIcon from '@mui/icons-material/HubRounded'
+import FindInPageRoundedIcon from '@mui/icons-material/FindInPageRounded'
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
+import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded'
+import SpeedRoundedIcon from '@mui/icons-material/SpeedRounded'
+import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded'
 import { Link as RouterLink } from 'react-router-dom'
-import heroImage from '../assets/hero.png'
 
 const steps = [
   {
     title: 'Upload',
-    text: 'Bring in invoice and statement files quickly from your finance team.',
+    text: 'Import invoices as PDFs or images. Our AI automatically extracts amounts, dates, vendors, and VAT details in seconds.',
     icon: <UploadFileRoundedIcon sx={{ color: 'primary.main' }} />,
   },
   {
-    title: 'Send',
-    text: 'Share requests and supporting data with stakeholders in one flow.',
-    icon: <SendRoundedIcon sx={{ color: 'primary.main' }} />,
+    title: 'Match',
+    text: 'Invoices are intelligently matched to bank and credit card transactions using AI-powered confidence scoring.',
+    icon: <HubRoundedIcon sx={{ color: 'primary.main' }} />,
   },
   {
-    title: 'Compare',
-    text: 'Review differences and align records before reconciliation closes.',
-    icon: <CompareArrowsRoundedIcon sx={{ color: 'primary.main' }} />,
+    title: 'Review',
+    text: 'Anomalies and exceptions are flagged automatically. Review, approve, or correct matches with a single click.',
+    icon: <FindInPageRoundedIcon sx={{ color: 'primary.main' }} />,
   },
   {
     title: 'Report',
-    text: 'Track status and progress through clear reconciliation dashboards.',
+    text: 'Generate VAT summaries, reconciliation reports, and compliance exports ready for filing.',
     icon: <AssessmentRoundedIcon sx={{ color: 'primary.main' }} />,
   },
 ]
@@ -108,8 +116,13 @@ function LandingPage() {
                   borderRadius: '10px',
                   bgcolor: 'primary.main',
                   boxShadow: '0 10px 28px rgba(88, 166, 255, 0.42)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
+              >
+                <AccountBalanceWalletRoundedIcon sx={{ fontSize: 20, color: '#fff' }} />
+              </Box>
               <Typography variant="h6" fontWeight={700}>
                 ReconFlow
               </Typography>
@@ -139,7 +152,7 @@ function LandingPage() {
               }}
             >
               <Chip
-                label="Reconciliation Management"
+                label="Financial Reconciliation Platform"
                 sx={{
                   alignSelf: 'flex-start',
                   fontWeight: 600,
@@ -156,9 +169,9 @@ function LandingPage() {
                   maxWidth: 760,
                 }}
               >
-                It is not rocket science.
+                Match invoices to transactions.
                 <br />
-                Not with us anyway.
+                Automatically.
               </Typography>
               <Typography
                 variant="body1"
@@ -168,9 +181,10 @@ function LandingPage() {
                   fontSize: { xs: '1rem', md: '1.07rem' },
                 }}
               >
-                Create a clean pre-login experience for accountants and business teams.
-                Start with a clear value proposition, show your workflow in simple steps,
-                and guide visitors into authentication when they are ready.
+                ReconFlow uses AI to extract invoice data, match it to your bank
+                and credit card movements, detect anomalies, and generate
+                tax-ready reports — so accountants and business owners can close
+                the books faster with full confidence.
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <Button
@@ -185,6 +199,8 @@ function LandingPage() {
                   Start Free Trial
                 </Button>
                 <Button
+                  component={RouterLink}
+                  to="/login"
                   size="large"
                   variant="outlined"
                   color="secondary"
@@ -199,7 +215,7 @@ function LandingPage() {
                     },
                   }}
                 >
-                  Talk to Sales
+                  Sign In
                 </Button>
               </Stack>
             </Stack>
@@ -243,44 +259,128 @@ function LandingPage() {
                   },
                 }}
               >
-                <Box
-                  component="img"
-                  src={heroImage}
-                  alt="ReconFlow dashboard preview"
-                  sx={{
-                    width: '100%',
-                    height: { xs: 280, sm: 360, md: 420 },
-                    objectFit: 'cover',
-                    objectPosition: 'center top',
-                    display: 'block',
-                    filter: 'saturate(1.08) contrast(1.03)',
-                  }}
-                />
+                {/* Mini dashboard illustration */}
+                <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  {/* Title bar */}
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <AccountBalanceWalletRoundedIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                      <Typography variant="caption" sx={{ color: '#a8b7d6', fontWeight: 700, letterSpacing: 0.5 }}>
+                        RECONFLOW DASHBOARD
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={0.5}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#37d67a' }} />
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#58a6ff' }} />
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2b3651' }} />
+                    </Stack>
+                  </Stack>
 
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    background:
-                      'linear-gradient(180deg, rgba(5, 10, 19, 0.08) 30%, rgba(5, 10, 19, 0.78) 100%)',
-                  }}
-                />
+                  {/* KPI row */}
+                  <Grid container spacing={1} sx={{ mb: 2 }}>
+                    {[
+                      { label: 'Invoices', value: '1,248', icon: <ReceiptLongRoundedIcon sx={{ fontSize: 16, color: 'primary.main' }} /> },
+                      { label: 'Matched', value: '1,134', icon: <CheckCircleRoundedIcon sx={{ fontSize: 16, color: '#37d67a' }} /> },
+                      { label: 'Exceptions', value: '23', icon: <NotificationsActiveRoundedIcon sx={{ fontSize: 16, color: '#ffa857' }} /> },
+                    ].map((kpi) => (
+                      <Grid key={kpi.label} size={{ xs: 4 }}>
+                        <Box
+                          sx={{
+                            p: 1.2,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'rgba(43, 54, 81, 0.7)',
+                            bgcolor: 'rgba(7, 11, 20, 0.5)',
+                          }}
+                        >
+                          <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.3 }}>
+                            {kpi.icon}
+                            <Typography variant="caption" sx={{ color: '#a8b7d6', fontSize: 10 }}>
+                              {kpi.label}
+                            </Typography>
+                          </Stack>
+                          <Typography variant="body2" sx={{ fontWeight: 800, color: '#edf4ff' }}>
+                            {kpi.value}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+
+                  <Divider sx={{ borderColor: 'rgba(43, 54, 81, 0.5)', mb: 1.5 }} />
+
+                  {/* Recent matches table */}
+                  <Typography variant="caption" sx={{ color: '#a8b7d6', fontWeight: 700, mb: 1, display: 'block', letterSpacing: 0.3 }}>
+                    RECENT MATCHES
+                  </Typography>
+                  <Stack spacing={0.8}>
+                    {[
+                      { invoice: 'INV-2024-0847', vendor: 'Office Depot', amount: '₪ 3,420', confidence: 98, status: 'Matched' },
+                      { invoice: 'INV-2024-0846', vendor: 'AWS Services', amount: '₪ 12,750', confidence: 95, status: 'Matched' },
+                      { invoice: 'INV-2024-0845', vendor: 'Bezeq Intl.', amount: '₪ 890', confidence: 72, status: 'Review' },
+                    ].map((row) => (
+                      <Stack
+                        key={row.invoice}
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        sx={{
+                          px: 1.2,
+                          py: 0.8,
+                          borderRadius: 1.5,
+                          bgcolor: 'rgba(14, 22, 40, 0.7)',
+                          border: '1px solid',
+                          borderColor: 'rgba(43, 54, 81, 0.4)',
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, flex: 1 }}>
+                          <ReceiptLongRoundedIcon sx={{ fontSize: 14, color: '#58a6ff', flexShrink: 0 }} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" sx={{ color: '#edf4ff', fontWeight: 600, display: 'block', lineHeight: 1.3, fontSize: 11 }}>
+                              {row.invoice}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#6b7fa3', fontSize: 10 }}>
+                              {row.vendor}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                        <Typography variant="caption" sx={{ color: '#edf4ff', fontWeight: 600, mx: 1, fontSize: 11, flexShrink: 0 }}>
+                          {row.amount}
+                        </Typography>
+                        <Stack alignItems="flex-end" spacing={0.2} sx={{ flexShrink: 0 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={row.confidence}
+                            sx={{
+                              width: 40,
+                              height: 3,
+                              borderRadius: 2,
+                              bgcolor: 'rgba(43, 54, 81, 0.6)',
+                              '& .MuiLinearProgress-bar': {
+                                bgcolor: row.confidence >= 90 ? '#37d67a' : '#ffa857',
+                                borderRadius: 2,
+                              },
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: 9, color: row.status === 'Matched' ? '#37d67a' : '#ffa857', fontWeight: 700 }}>
+                            {row.confidence}% · {row.status}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Box>
 
                 <Stack
                   direction="row"
                   spacing={1}
                   alignItems="center"
                   sx={{
-                    position: 'absolute',
-                    bottom: 16,
-                    left: 16,
-                    px: 1.2,
-                    py: 0.8,
-                    borderRadius: 999,
-                    border: '1px solid',
-                    borderColor: 'rgba(145, 183, 244, 0.34)',
-                    bgcolor: 'rgba(7, 14, 28, 0.72)',
-                    backdropFilter: 'blur(6px)',
+                    px: 1.5,
+                    py: 1,
+                    borderTop: '1px solid',
+                    borderColor: 'rgba(43, 54, 81, 0.5)',
+                    bgcolor: 'rgba(7, 14, 28, 0.5)',
                   }}
                 >
                   <Avatar
@@ -291,10 +391,10 @@ function LandingPage() {
                       fontSize: 12,
                     }}
                   >
-                    OK
+                    <CheckCircleRoundedIcon sx={{ fontSize: 14 }} />
                   </Avatar>
                   <Typography variant="caption" sx={{ color: '#d3e9ff', fontWeight: 700 }}>
-                    Reconciliation runs updated in real-time
+                    All systems operational · Last sync 2 min ago
                   </Typography>
                 </Stack>
               </Card>
@@ -304,7 +404,7 @@ function LandingPage() {
 
         <Box sx={{ mt: { xs: 5, md: 7 } }}>
           <Typography variant="h4" sx={{ mb: 2.5, fontSize: { xs: '1.5rem', md: '2rem' } }}>
-            Reconciliation in four clear steps
+            How it works
           </Typography>
           <Grid container spacing={2}>
             {steps.map((step) => (
@@ -355,17 +455,29 @@ function LandingPage() {
         >
           <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
             <Typography variant="h6" fontWeight={700} gutterBottom>
-              Why teams choose this approach
+              Why finance teams choose ReconFlow
             </Typography>
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={2}
               justifyContent="space-between"
             >
-              <Typography color="text.secondary">Fast onboarding for finance users</Typography>
-              <Typography color="text.secondary">Simple workflow communication</Typography>
-              <Typography color="text.secondary">Clear progress visibility</Typography>
-              <Typography color="text.secondary">Built for gradual rollout</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AutoAwesomeRoundedIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                <Typography color="text.secondary">AI-powered invoice data extraction</Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <SpeedRoundedIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                <Typography color="text.secondary">Automatic transaction matching</Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ShieldRoundedIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                <Typography color="text.secondary">Real-time anomaly detection</Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AssessmentRoundedIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                <Typography color="text.secondary">One-click VAT & compliance reports</Typography>
+              </Stack>
             </Stack>
           </CardContent>
         </Card>

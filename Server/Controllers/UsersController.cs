@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class UsersController : ControllerBase
     {
-        private readonly UserService _svc = new();
+        private readonly IUserService _svc;
+
+        public UsersController(IUserService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/users
         [HttpGet]

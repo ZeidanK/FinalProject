@@ -1,47 +1,28 @@
 import { URLS } from '../scripts/config'
+import { apiRequest } from './httpClient'
 
 const AUTH_TOKEN_KEY = 'authToken'
 const AUTH_USER_KEY = 'authUser'
 
-async function parseResponse(response) {
-  let data = null
-  try {
-    data = await response.json()
-  } catch {
-    data = null
-  }
-
-  if (!response.ok) {
-    throw new Error(data?.message || 'Request failed. Please try again.')
-  }
-
-  return data
-}
-
 export async function registerUser(payload) {
-  const response = await fetch(URLS.auth.register, {
+  return apiRequest(URLS.auth.register, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: '*/*',
-    },
-    body: JSON.stringify(payload),
+    body: payload,
   })
-
-  return parseResponse(response)
 }
 
 export async function loginUser(payload) {
-  const response = await fetch(URLS.auth.login, {
+  return apiRequest(URLS.auth.login, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: '*/*',
-    },
-    body: JSON.stringify(payload),
+    body: payload,
   })
+}
 
-  return parseResponse(response)
+export async function validateSession(token) {
+  return apiRequest(URLS.auth.validate, {
+    method: 'POST',
+    token,
+  })
 }
 
 export function saveAuthSession(token, user) {
@@ -57,6 +38,7 @@ export function clearAuthSession() {
 export function getStoredAuthSession() {
   const token = localStorage.getItem(AUTH_TOKEN_KEY)
   const userRaw = localStorage.getItem(AUTH_USER_KEY)
+
   if (!token || !userRaw) {
     return null
   }
@@ -64,6 +46,7 @@ export function getStoredAuthSession() {
   try {
     return { token, user: JSON.parse(userRaw) }
   } catch {
+    clearAuthSession()
     return null
   }
 }

@@ -1,16 +1,71 @@
-# React + Vite
+# ReconFlow ClientSide
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend application for the reconciliation workflow.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React + Vite
+- Material UI + Framer Motion
+- React Router (protected routes)
+- Context-based auth state
 
-## React Compiler
+## Run Locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies:
+	 - `npm install`
+2. Start development server:
+	 - `npm run dev`
+3. Build production assets:
+	 - `npm run build`
+4. Lint:
+	 - `npm run lint`
 
-## Expanding the ESLint configuration
+## Environment Variables
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Create a `.env` file in `ClientSide` as needed:
+
+- `VITE_API_BASE_URL=/api`
+
+Notes:
+- `VITE_API_BASE_URL` defaults to `/api`.
+- With default Vite proxy, `/api/*` forwards to `http://localhost:5050`.
+
+## Current Route Map
+
+Public routes:
+- `/`
+- `/login`
+- `/register`
+
+Protected routes:
+- `/dashboard`
+- `/invoices` (accountant roles)
+- `/matches` (accountant roles)
+- `/anomalies` (accountant roles)
+- `/reports` (business owner roles)
+
+## Client Architecture
+
+- `src/context/AuthContext.jsx`
+	- Centralized auth session source of truth
+	- `login`, `logout`, and session state
+
+- `src/services/httpClient.js`
+	- Shared request utility
+	- Query serialization
+	- Auth header injection
+	- Normalized API errors
+
+- `src/scripts/config.js`
+	- Endpoint map aligned to reconciliation backend controllers
+	- App flags (`apiBaseUrl`, `useMockApi`)
+
+- `src/services/*`
+	- Domain service modules: auth, invoices, bank accounts, transactions, matches, anomalies, reports, dashboard, companies
+
+## Immediate Next Frontend Tasks
+
+1. Add company-selection context so pages no longer use fallback company id.
+2. Wire each feature page to its service module with loading/empty/error states.
+3. Add notification provider for global success/error toasts.
+4. Introduce test setup (Vitest + RTL + MSW) for auth + protected routes.

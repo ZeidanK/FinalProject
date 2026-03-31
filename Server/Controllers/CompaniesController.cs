@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class CompaniesController : ControllerBase
     {
-        private readonly CompanyService _svc = new();
+        private readonly ICompanyService _svc;
+
+        public CompaniesController(ICompanyService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/companies
         [HttpGet]

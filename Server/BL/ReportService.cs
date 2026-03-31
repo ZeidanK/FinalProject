@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 
 namespace FinalProjectAuthAPI.BL
@@ -5,7 +6,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for reports and dashboard stats.
     /// </summary>
-    public class ReportService
+    public class ReportService : IReportService
     {
         private readonly DBservices _db = new();
 

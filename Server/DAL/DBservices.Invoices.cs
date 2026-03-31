@@ -200,6 +200,30 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
+        public bool UpdateInvoiceFileInfo(long id, string? fileOriginalName, string? filePath,
+            string? fileType, long? fileSize, decimal? aiConfidence)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Invoices_UpdateFileInfo", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id",                     id               },
+                        { "@FileOriginalName",       fileOriginalName },
+                        { "@FilePath",               filePath         },
+                        { "@FileType",               fileType         },
+                        { "@FileSize",               fileSize         },
+                        { "@AiExtractionConfidence", aiConfidence     }
+                    });
+
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         // ── Mapping helpers ───────────────────────────────────────────────────
 
         private static InvoiceRow MapInvoice(SqlDataReader r) => new()

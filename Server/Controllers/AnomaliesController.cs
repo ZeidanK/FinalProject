@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class AnomaliesController : ControllerBase
     {
-        private readonly AnomalyService _svc = new();
+        private readonly IAnomalyService _svc;
+
+        public AnomaliesController(IAnomalyService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/anomalies/company/{companyId}?status=&severity=&type=
         [HttpGet("company/{companyId:long}")]

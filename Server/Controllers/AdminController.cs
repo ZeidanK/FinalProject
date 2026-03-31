@@ -1,4 +1,4 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +9,12 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize(Roles = "admin")]
     public class AdminController : ControllerBase
     {
-        private readonly AdminService _svc = new();
+        private readonly IAdminService _svc;
+
+        public AdminController(IAdminService svc)
+        {
+            _svc = svc;
+        }
 
         // GET api/admin/stats
         [HttpGet("stats")]

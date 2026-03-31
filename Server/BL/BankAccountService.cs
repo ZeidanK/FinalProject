@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 
 namespace FinalProjectAuthAPI.BL
@@ -5,7 +6,7 @@ namespace FinalProjectAuthAPI.BL
     /// <summary>
     /// Business logic for bank account management.
     /// </summary>
-    public class BankAccountService
+    public class BankAccountService : IBankAccountService
     {
         private readonly DBservices _db = new();
 

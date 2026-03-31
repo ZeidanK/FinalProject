@@ -1,0 +1,131 @@
+using System.Text.RegularExpressions;
+using FinalProjectAuthAPI.BL.Interfaces;
+
+namespace FinalProjectAuthAPI.BL
+{
+    public class FileStorageService : IFileStorageService
+    {
+        private readonly string _uploadsRoot;
+        private readonly string _excelUploadsRoot;
+
+        private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".pdf" };
+        private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "application/pdf"
+        };
+
+        private static readonly HashSet<string> AllowedExcelExtensions = new(StringComparer.OrdinalIgnoreCase) { ".xlsx", ".xls" };
+        private static readonly HashSet<string> AllowedExcelContentTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel"
+        };
+
+        private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+
+        public FileStorageService(IWebHostEnvironment env)
+        {
+            var wwwroot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+            _uploadsRoot = Path.Combine(wwwroot, "uploads", "invoices");
+            _excelUploadsRoot = Path.Combine(wwwroot, "uploads", "transactions");
+        }
+
+        public async Task<(string RelativePath, string FullPath)> SaveAsync(IFormFile file, long companyId)
+        {
+            // Validate file
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("No file provided.");
+
+            if (file.Length > MaxFileSize)
+                throw new ArgumentException($"File size exceeds the maximum allowed size of {MaxFileSize / (1024 * 1024)} MB.");
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedExtensions.Contains(extension))
+                throw new ArgumentException($"File type '{extension}' is not allowed. Only PDF files are accepted.");
+
+            if (!AllowedContentTypes.Contains(file.ContentType))
+                throw new ArgumentException($"Content type '{file.ContentType}' is not allowed.");
+
+            // Sanitize the original file name
+            var sanitizedName = SanitizeFileName(Path.GetFileNameWithoutExtension(file.FileName));
+            var uniqueName = $"{Guid.NewGuid():N}_{sanitizedName}{extension}";
+
+            // Build directory path
+            var companyDir = Path.Combine(_uploadsRoot, companyId.ToString());
+            Directory.CreateDirectory(companyDir);
+
+            // Save file
+            var fullPath = Path.Combine(companyDir, uniqueName);
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var relativePath = Path.Combine("uploads", "invoices", companyId.ToString(), uniqueName)
+                                   .Replace("\\", "/");
+
+            return (relativePath, fullPath);
+        }
+
+        public async Task<(string RelativePath, string FullPath)> SaveExcelAsync(IFormFile file, long companyId)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("No file provided.");
+
+            if (file.Length > MaxFileSize)
+                throw new ArgumentException($"File size exceeds the maximum allowed size of {MaxFileSize / (1024 * 1024)} MB.");
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedExcelExtensions.Contains(extension))
+                throw new ArgumentException($"File type '{extension}' is not allowed. Only Excel files (.xlsx, .xls) are accepted.");
+
+            if (!AllowedExcelContentTypes.Contains(file.ContentType))
+                throw new ArgumentException($"Content type '{file.ContentType}' is not allowed.");
+
+            var sanitizedName = SanitizeFileName(Path.GetFileNameWithoutExtension(file.FileName));
+            var uniqueName = $"{Guid.NewGuid():N}_{sanitizedName}{extension}";
+
+            var companyDir = Path.Combine(_excelUploadsRoot, companyId.ToString());
+            Directory.CreateDirectory(companyDir);
+
+            var fullPath = Path.Combine(companyDir, uniqueName);
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var relativePath = Path.Combine("uploads", "transactions", companyId.ToString(), uniqueName)
+                                   .Replace("\\", "/");
+
+            return (relativePath, fullPath);
+        }
+
+        public bool Delete(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return false;
+
+            // Prevent path traversal
+            if (relativePath.Contains(".."))
+                return false;
+
+            var fullPath = Path.Combine(
+                Directory.GetParent(_uploadsRoot)!.Parent!.FullName,
+                relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+                return true;
+            }
+            return false;
+        }
+
+        private static string SanitizeFileName(string fileName)
+        {
+            // Remove invalid chars and limit length
+            var sanitized = Regex.Replace(fileName, @"[^\w\-.]", "_");
+            return sanitized.Length > 50 ? sanitized[..50] : sanitized;
+        }
+    }
+}

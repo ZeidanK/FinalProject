@@ -12,28 +12,63 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
+import HubRoundedIcon from '@mui/icons-material/HubRounded'
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
+import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import { motion } from 'framer-motion'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { useTheme } from '@mui/material/styles'
-import { clearAuthSession, getStoredAuthSession } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 
 const sidebarWidth = 272
+const ALL_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
 
 const navItems = [
   {
     label: 'Dashboard',
     to: '/dashboard',
     icon: <DashboardRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
+  },
+  {
+    label: 'Invoices',
+    to: '/invoices',
+    icon: <ReceiptLongRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
+  },
+  {
+    label: 'Transactions',
+    to: '/transactions',
+    icon: <AccountBalanceRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
+  },
+  {
+    label: 'Matches',
+    to: '/matches',
+    icon: <HubRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
+  },
+  {
+    label: 'Anomalies',
+    to: '/anomalies',
+    icon: <ErrorOutlineRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
+  },
+  {
+    label: 'Reports',
+    to: '/reports',
+    icon: <AssessmentRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
   },
 ]
 
-function SidebarContent({ onNavigate }) {
+function SidebarContent({ onNavigate, user, onLogout }) {
   const navigate = useNavigate()
-  const session = getStoredAuthSession()
-  const user = session?.user
 
   const roleLabel = useMemo(() => {
     if (!user?.role) return 'Unknown role'
@@ -44,9 +79,17 @@ function SidebarContent({ onNavigate }) {
   }, [user?.role])
 
   const handleLogout = () => {
-    clearAuthSession()
+    onLogout()
     navigate('/login', { replace: true })
   }
+
+  const visibleNavItems = useMemo(() => {
+    if (!user?.role) {
+      return navItems
+    }
+
+    return navItems.filter((item) => item.roles.includes(user.role))
+  }, [user?.role])
 
   return (
     <Stack
@@ -123,10 +166,11 @@ function SidebarContent({ onNavigate }) {
       </Stack>
 
       <Stack spacing={0.8} sx={{ mt: 2.2 }}>
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <Button
             key={item.to}
             component={NavLink}
+            className={({ isActive }) => (isActive ? 'active' : undefined)}
             to={item.to}
             onClick={onNavigate}
             startIcon={item.icon}
@@ -165,6 +209,7 @@ function SidebarContent({ onNavigate }) {
 }
 
 function AuthenticatedLayout() {
+  const { user, logout } = useAuth()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -212,11 +257,15 @@ function AuthenticatedLayout() {
             sx={{
               width: sidebarWidth,
               flexShrink: 0,
+              position: 'sticky',
+              top: 0,
+              height: '100vh',
               borderRight: '1px solid',
               borderColor: 'divider',
+              overflow: 'auto',
             }}
           >
-            <SidebarContent />
+            <SidebarContent user={user} onLogout={logout} />
           </Box>
         )}
 
@@ -236,7 +285,7 @@ function AuthenticatedLayout() {
             },
           }}
         >
-          <SidebarContent onNavigate={handleClose} />
+          <SidebarContent onNavigate={handleClose} user={user} onLogout={logout} />
         </Drawer>
 
         <Box

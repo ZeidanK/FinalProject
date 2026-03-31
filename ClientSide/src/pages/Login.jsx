@@ -12,10 +12,11 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
-import { clearAuthSession, loginUser, saveAuthSession } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 
 function Login() {
   const navigate = useNavigate()
+  const { login, logout } = useAuth()
   const location = useLocation()
   const successMessage = location.state?.registrationSuccess || ''
   const [submitting, setSubmitting] = useState(false)
@@ -45,15 +46,14 @@ function Login() {
     }
 
     setSubmitting(true)
-    clearAuthSession()
+    logout()
 
     try {
-      const data = await loginUser({
+      await login({
         email: formData.email.trim(),
         password: formData.password,
       })
 
-      saveAuthSession(data.token, data.user)
       navigate('/dashboard', { replace: true })
     } catch (error) {
       setErrorMessage(error.message || 'Login failed. Please try again.')

@@ -1,8 +1,7 @@
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -11,7 +10,16 @@ namespace FinalProjectAuthAPI.Controllers
     [Authorize]
     public class InvoicesController : ControllerBase
     {
-        private readonly InvoiceService _svc = new();
+        private readonly IInvoiceService _svc;
+        private readonly IPdfExtractionService _pdfSvc;
+        private readonly IFileStorageService _fileSvc;
+
+        public InvoicesController(IInvoiceService svc, IPdfExtractionService pdfSvc, IFileStorageService fileSvc)
+        {
+            _svc = svc;
+            _pdfSvc = pdfSvc;
+            _fileSvc = fileSvc;
+        }
 
         // GET api/invoices/company/{companyId}?status=&startDate=&endDate=&isMatched=
         [HttpGet("company/{companyId:long}")]
@@ -49,6 +57,130 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var ok = _svc.UpdateStatus(id, request.Status);
             return ok ? Ok(new { message = "Invoice status updated." }) : BadRequest(new { message = "Invalid status or invoice not found." });
+        }
+
+        // POST api/invoices/upload-pdf
+        // Uploads a PDF, saves the file, extracts data, and returns extracted fields for review.
+        [HttpPost("upload-pdf")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
+        public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] long companyId)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file provided." });
+
+            if (companyId <= 0)
+                return BadRequest(new { message = "Company ID is required." });
+
+            try
+            {
+                // Save the file to disk
+                var (relativePath, fullPath) = await _fileSvc.SaveAsync(file, companyId);
+
+                // Extract data from the PDF
+                PdfExtractionResult extractedData;
+                using (var stream = file.OpenReadStream())
+                {
+                    extractedData = _pdfSvc.Extract(stream, file.FileName);
+                }
+
+                var response = new UploadInvoicePdfResponse
+                {
+                    FileOriginalName = file.FileName,
+                    FileSize = file.Length,
+                    FilePath = relativePath,
+                    FileType = file.ContentType,
+                    ExtractedData = extractedData
+                };
+
+                return Ok(response);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to process the uploaded file." });
+            }
+        }
+
+        // POST api/invoices/upload-and-create
+        // Uploads a PDF, extracts data, and creates the invoice record in one step.
+        [HttpPost("upload-and-create")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
+        public async Task<IActionResult> UploadAndCreate(IFormFile file, [FromForm] long companyId)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file provided." });
+
+            if (companyId <= 0)
+                return BadRequest(new { message = "Company ID is required." });
+
+            try
+            {
+                // Save the file
+                var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
+
+                // Extract data
+                PdfExtractionResult extracted;
+                using (var stream = file.OpenReadStream())
+                {
+                    extracted = _pdfSvc.Extract(stream, file.FileName);
+                }
+
+                // Build a CreateInvoiceRequest from extracted data
+                var request = new CreateInvoiceRequest
+                {
+                    CompanyId = companyId,
+                    InvoiceNumber = extracted.InvoiceNumber ?? $"PDF-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    VendorName = extracted.VendorName ?? "Unknown Vendor",
+                    InvoiceDate = extracted.InvoiceDate ?? DateTime.UtcNow,
+                    TotalAmount = extracted.TotalAmount ?? 0,
+                    Subtotal = extracted.Subtotal ?? 0,
+                    VatRate = extracted.VatRate,
+                    VatAmount = extracted.VatAmount,
+                    Currency = extracted.Currency ?? "USD",
+                    VendorTaxId = extracted.VendorTaxId,
+                    LastFourDigitsCard = extracted.LastFourDigitsCard,
+                    LineItems = extracted.LineItems.Select((li, idx) => new CreateLineItemRequest
+                    {
+                        Description = li.Description,
+                        Quantity = li.Quantity,
+                        UnitPrice = li.UnitPrice,
+                        TotalAmount = li.TotalAmount,
+                        VatRate = li.VatRate,
+                        Category = li.Category,
+                        LineNumber = idx + 1,
+                        AiConfidenceScore = li.AiConfidenceScore
+                    }).ToList()
+                };
+
+                var userId = GetCurrentUserId();
+                var (success, id, error) = _svc.Create(request, userId,
+                    file.FileName, relativePath, file.ContentType,
+                    file.Length, extracted.ExtractionConfidence);
+
+                if (!success)
+                    return BadRequest(new { message = error });
+
+                // Update status to "extracted" since AI processed it
+                _svc.UpdateStatus(id, "extracted");
+
+                return CreatedAtAction(nameof(GetById), new { id }, new
+                {
+                    id,
+                    message = "Invoice created from PDF.",
+                    extractedData = extracted
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to process and create invoice from PDF." });
+            }
         }
 
         private long GetCurrentUserId()

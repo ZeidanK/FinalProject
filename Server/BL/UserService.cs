@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 
 namespace FinalProjectAuthAPI.BL
@@ -6,7 +7,7 @@ namespace FinalProjectAuthAPI.BL
     /// User management operations (profile reads/updates).
     /// Authentication operations remain in User.cs.
     /// </summary>
-    public class UserService
+    public class UserService : IUserService
     {
         private readonly DBservices _db = new();
 
