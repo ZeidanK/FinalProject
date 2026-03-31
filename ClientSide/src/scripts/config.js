@@ -21,6 +21,8 @@ export const URLS = {
   users: {
     base: buildApiPath('/Users'),
     byId: (id) => buildApiPath(`/Users/${id}`),
+    changePassword: (id) => buildApiPath(`/Users/${id}/password`),
+    profilePicture: (id) => buildApiPath(`/Users/${id}/profile-picture`),
   },
   companies: {
     base: buildApiPath('/Companies'),

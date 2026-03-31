@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "XmEAUmSA75HycJ8tt22rfOlIpe9hUtqqiuKbZUnJhwo=",
+  "Hash": "Y1rM8RH4DFocCsixBqPzELgqJ80v/2Kp6dIt+2vCDn4=",
   "Source": "FinalProjectAuthAPI",
   "BasePath": "_content/FinalProjectAuthAPI",
   "Mode": "Default",
@@ -16,6 +16,27 @@
     }
   ],
   "Assets": [
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.pdf"
+    },
     {
       "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\24f21d9e79bf42b4a04656266da808c5_Invoice-917C7AA3-0002_1_.pdf",
       "SourceId": "FinalProjectAuthAPI",
@@ -59,6 +80,153 @@
       "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\2a5d1e4634d8434d8dd4da5b0bd40461_Invoice-917C7AA3-0002_1_.pdf"
     },
     {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/5eafa4750bb64288916eea0dccac4dec_RC259001426_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "n7tdpaf5ly",
+      "Integrity": "3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "n7tdpaf5ly",
+      "Integrity": "3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\715968320e7441008abd686f20179b13_RC259001426_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/715968320e7441008abd686f20179b13_RC259001426_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "n7tdpaf5ly",
+      "Integrity": "3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\715968320e7441008abd686f20179b13_RC259001426_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/9033a128e1d040cea1632721bc062a78_RC259001426_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "n7tdpaf5ly",
+      "Integrity": "3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf"
+    },
+    {
       "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\926a1690684c4dbba7e11e880c69e606_Invoice-917C7AA3-0002_1_.pdf",
       "SourceId": "FinalProjectAuthAPI",
       "SourceType": "Discovered",
@@ -99,9 +267,175 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\98e26263e2b64e5e991cf13fe17a1b02_invoice_2866377_with_receipt_for_order_26566245_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/acaf5111794342b890545afdb3fd059a_D324057617_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "poweih3fm4",
+      "Integrity": "Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/invoices/1/fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_#[.{fingerprint}]?.pdf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "7rt93kzkes",
+      "Integrity": "HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\invoices\\1\\fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf"
     }
   ],
   "Endpoints": [
+    {
+      "Route": "uploads/invoices/1/222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:20:14 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\222793f56ee54332a3eefd24946f1a79_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:20:14 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
     {
       "Route": "uploads/invoices/1/24f21d9e79bf42b4a04656266da808c5_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
       "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\24f21d9e79bf42b4a04656266da808c5_Invoice-917C7AA3-0002_1_.pdf",
@@ -267,6 +601,580 @@
       ]
     },
     {
+      "Route": "uploads/invoices/1/349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 10:53:59 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 10:53:59 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.n7tdpaf5ly.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:33:06 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "n7tdpaf5ly"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\5eafa4750bb64288916eea0dccac4dec_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:33:06 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.n7tdpaf5ly.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:31:28 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "n7tdpaf5ly"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\610e7e37a23c4ef28d06ffbba6cfc9ca_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:31:28 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/715968320e7441008abd686f20179b13_RC259001426_1_.n7tdpaf5ly.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\715968320e7441008abd686f20179b13_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:27:44 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "n7tdpaf5ly"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/715968320e7441008abd686f20179b13_RC259001426_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/715968320e7441008abd686f20179b13_RC259001426_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\715968320e7441008abd686f20179b13_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:27:44 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 09:50:06 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\8892872c976149b8881d63373ab2d550_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 09:50:06 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:25:43 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:25:43 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/9033a128e1d040cea1632721bc062a78_RC259001426_1_.n7tdpaf5ly.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:36:44 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "n7tdpaf5ly"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "67179"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:36:44 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-3dm0orlTI3LyaHKq3sOITzcFC3EuTKxMSLvM+1LAR0Y="
+        }
+      ]
+    },
+    {
       "Route": "uploads/invoices/1/926a1690684c4dbba7e11e880c69e606_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
       "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\926a1690684c4dbba7e11e880c69e606_Invoice-917C7AA3-0002_1_.pdf",
       "Selectors": [],
@@ -427,6 +1335,334 @@
         {
           "Name": "integrity",
           "Value": "sha256-0mCYz+MCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "138247"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:26:07 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/acaf5111794342b890545afdb3fd059a_D324057617_1_.poweih3fm4.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "138247"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 12:26:07 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "poweih3fm4"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 09:51:24 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 09:51:24 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 09:47:59 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\cc152f0ee3eb49dbbf1c08c451a7ffff_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 09:47:59 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 08:49:29 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7rt93kzkes"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/invoices/1/fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/invoices/1/fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\invoices\\1\\fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "24576"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/pdf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 31 Mar 2026 08:49:29 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="
         }
       ]
     }

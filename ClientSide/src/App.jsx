@@ -8,6 +8,7 @@ import MatchesPage from './pages/Matches'
 import AnomaliesPage from './pages/Anomalies'
 import ReportsPage from './pages/Reports'
 import TransactionsPage from './pages/Transactions'
+import ProfilePage from './pages/ProfilePage'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
 import { useAuth } from './context/AuthContext'
 
@@ -52,6 +53,7 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route
             path="/invoices"
             element={

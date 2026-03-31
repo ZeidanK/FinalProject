@@ -25,6 +25,12 @@ builder.Services.AddScoped<IPdfExtractionService, PdfExtractionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IExcelExtractionService, ExcelExtractionService>();
 
+// Gemini AI configuration and service
+var geminiSettings = new GeminiSettings();
+builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettings);
+builder.Services.AddSingleton(geminiSettings);
+builder.Services.AddScoped<IGeminiExtractionService, GeminiExtractionService>();
+
 // CORS – allow the React frontend (and any localhost port during dev)
 builder.Services.AddCors(options =>
 {
@@ -74,6 +80,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("AllowFrontend");
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 

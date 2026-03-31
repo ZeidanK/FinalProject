@@ -13,12 +13,14 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class User
     {
-        public long   Id           { get; set; }
-        public string Email        { get; set; } = string.Empty;
-        public string PasswordHash { get; set; } = string.Empty;
-        public string Name         { get; set; } = string.Empty;
-        public string Role         { get; set; } = "business_owner";
-        public bool   IsActive     { get; set; } = true;
+        public long    Id             { get; set; }
+        public string  Email          { get; set; } = string.Empty;
+        public string  PasswordHash   { get; set; } = string.Empty;
+        public string  Name           { get; set; } = string.Empty;
+        public string  Role           { get; set; } = "business_owner";
+        public string? Phone          { get; set; }
+        public string? ProfilePicture { get; set; }
+        public bool    IsActive       { get; set; } = true;
 
         // ── Register ─────────────────────────────────────────────────────────
 

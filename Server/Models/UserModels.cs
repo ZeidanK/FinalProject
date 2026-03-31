@@ -13,4 +13,14 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(500)]
         public string? ProfilePicture { get; set; }
     }
+
+    public class ChangePasswordRequest
+    {
+        [Required]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
+        public string NewPassword { get; set; } = string.Empty;
+    }
 }

@@ -19,6 +19,7 @@ import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import { motion } from 'framer-motion'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
@@ -63,6 +64,12 @@ const navItems = [
     label: 'Reports',
     to: '/reports',
     icon: <AssessmentRoundedIcon fontSize="small" />,
+    roles: ALL_ROLES,
+  },
+  {
+    label: 'Profile',
+    to: '/profile',
+    icon: <PersonRoundedIcon fontSize="small" />,
     roles: ALL_ROLES,
   },
 ]

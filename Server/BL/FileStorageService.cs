@@ -14,6 +14,16 @@ namespace FinalProjectAuthAPI.BL
             "application/pdf"
         };
 
+        private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".webp"
+        };
+        private static readonly HashSet<string> AllowedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/jpeg", "image/png", "image/gif", "image/webp"
+        };
+        private const long MaxImageSize = 5 * 1024 * 1024; // 5 MB
+
         private static readonly HashSet<string> AllowedExcelExtensions = new(StringComparer.OrdinalIgnoreCase) { ".xlsx", ".xls" };
         private static readonly HashSet<string> AllowedExcelContentTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -127,5 +137,34 @@ namespace FinalProjectAuthAPI.BL
             var sanitized = Regex.Replace(fileName, @"[^\w\-.]", "_");
             return sanitized.Length > 50 ? sanitized[..50] : sanitized;
         }
-    }
+        public async Task<(string RelativePath, string FullPath)> SaveProfilePictureAsync(IFormFile file, long userId)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("No file provided.");
+
+            if (file.Length > MaxImageSize)
+                throw new ArgumentException($"File size exceeds the maximum allowed size of {MaxImageSize / (1024 * 1024)} MB.");
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!AllowedImageExtensions.Contains(extension))
+                throw new ArgumentException($"File type '{extension}' is not allowed. Only image files (jpg, png, gif, webp) are accepted.");
+
+            if (!AllowedImageContentTypes.Contains(file.ContentType))
+                throw new ArgumentException($"Content type '{file.ContentType}' is not allowed.");
+
+            var uniqueName = $"{userId}_{Guid.NewGuid():N}{extension}";
+
+            var wwwroot = Directory.GetParent(_uploadsRoot)!.Parent!.FullName;
+            var profileDir = Path.Combine(wwwroot, "uploads", "profiles");
+            Directory.CreateDirectory(profileDir);
+
+            var fullPath = Path.Combine(profileDir, uniqueName);
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var relativePath = $"uploads/profiles/{uniqueName}";
+            return (relativePath, fullPath);
+        }    }
 }

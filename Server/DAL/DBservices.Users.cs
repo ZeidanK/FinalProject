@@ -68,15 +68,57 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
+        // ── Password operations ─────────────────────────────────────────────
+
+        public string? GetPasswordHash(long id)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_GetPasswordHash", con,
+                    new Dictionary<string, object?> { { "@Id", id } });
+
+                reader = cmd.ExecuteReader();
+                if (reader.Read())
+                    return reader["password_hash"]?.ToString();
+                return null;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+        public bool ChangePassword(long id, string newPasswordHash)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_ChangePassword", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id",              id              },
+                        { "@NewPasswordHash", newPasswordHash }
+                    });
+
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static User MapUser(SqlDataReader r) => new()
         {
-            Id       = Convert.ToInt64(r["id"]),
-            Email    = r["email"]?.ToString()!,
-            Name     = r["name"]?.ToString()!,
-            Role     = r["role"]?.ToString() ?? "business_owner",
-            IsActive = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"])
+            Id             = Convert.ToInt64(r["id"]),
+            Email          = r["email"]?.ToString()!,
+            Name           = r["name"]?.ToString()!,
+            Role           = r["role"]?.ToString() ?? "business_owner",
+            Phone          = r["phone"] != DBNull.Value ? r["phone"]?.ToString() : null,
+            ProfilePicture = r["profile_picture"] != DBNull.Value ? r["profile_picture"]?.ToString() : null,
+            IsActive       = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"])
         };
     }
 }

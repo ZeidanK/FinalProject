@@ -22,5 +22,17 @@ namespace FinalProjectAuthAPI.BL
 
             return _db.UpdateUser(id, name?.Trim(), phone?.Trim(), profilePicture);
         }
+
+        public bool ChangePassword(long id, string currentPassword, string newPassword)
+        {
+            var storedHash = _db.GetPasswordHash(id);
+            if (storedHash == null)
+                return false;
+
+            if (storedHash != User.HashPassword(currentPassword))
+                return false;
+
+            return _db.ChangePassword(id, User.HashPassword(newPassword));
+        }
     }
 }

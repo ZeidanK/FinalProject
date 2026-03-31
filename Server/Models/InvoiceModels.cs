@@ -112,6 +112,7 @@ namespace FinalProjectAuthAPI.Models
         public List<ExtractedLineItem> LineItems { get; set; } = new();
         public decimal ExtractionConfidence { get; set; }
         public string ExtractionMethod { get; set; } = "text"; // "text" or "ocr"
+        public string ExtractionSource { get; set; } = "regex"; // "gemini" or "regex"
         public string? RawText { get; set; }
     }
 

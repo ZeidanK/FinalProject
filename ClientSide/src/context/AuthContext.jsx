@@ -54,6 +54,16 @@ export function AuthProvider({ children }) {
     [setSession],
   )
 
+  const updateUser = useCallback(
+    (updatedFields) => {
+      if (!session?.token || !session?.user) return
+      const newUser = { ...session.user, ...updatedFields }
+      saveAuthSession(session.token, newUser)
+      setSessionState({ token: session.token, user: newUser })
+    },
+    [session],
+  )
+
   const value = useMemo(
     () => ({
       session,
@@ -63,8 +73,9 @@ export function AuthProvider({ children }) {
       login,
       logout,
       setSession,
+      updateUser,
     }),
-    [login, logout, session, setSession],
+    [login, logout, session, setSession, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
