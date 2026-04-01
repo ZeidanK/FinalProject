@@ -34,7 +34,7 @@ namespace FinalProjectAuthAPI.BL
             }
         }
 
-        public async Task<PdfExtractionResult> ParseInvoiceTextAsync(string rawText)
+        public async Task<PdfExtractionResult?> ParseInvoiceTextAsync(string rawText)
         {
             Console.WriteLine("\n========== GEMINI EXTRACTION ATTEMPT ==========");
             
@@ -127,12 +127,24 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
 8. For Currency, use 3-letter code (USD, EUR, ILS, GBP)
 9. Extract vendor tax ID / business number if present (like מס׳ עוסק, Tax ID, VAT number, etc.)
 10. Extract last 4 digits of credit card if payment method mentioned
+11. **Extract item count**: Total number of distinct items/products in the invoice
+12. **Extract payment plan information**: If the invoice mentions installments, payment plans, or split payments
+
+**PAYMENT PLAN DETECTION:**
+Look for phrases like:
+- ""Payment 3 of 10"" or ""3/10"" → totalInstallments: 10, currentInstallment: 3
+- ""Paid in 5 installments of $200 each"" → totalInstallments: 5, installmentAmount: 200
+- ""Monthly payment plan - 12 months"" → totalInstallments: 12, frequency: ""monthly""
+- ""Split into 4 equal payments"" → totalInstallments: 4
+- ""תשלום 3 מתוך 10"" (Hebrew) → totalInstallments: 10, currentInstallment: 3
+- ""תשלומים 6"" (Hebrew) → totalInstallments: 6
 
 **JSON SCHEMA:**
 {{
   ""vendorName"": ""string or null"",
   ""invoiceNumber"": ""string or null"",
   ""invoiceDate"": ""yyyy-MM-dd or null"",
+  ""dueDate"": ""yyyy-MM-dd or null"",
   ""totalAmount"": number or null,
   ""subtotal"": number or null,
   ""vatRate"": number or null (percentage),
@@ -140,6 +152,14 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
   ""currency"": ""string or null (3-letter code)"",
   ""vendorTaxId"": ""string or null"",
   ""lastFourDigitsCard"": ""string or null (4 digits)"",
+  ""itemCount"": number or null,
+  ""paymentPlan"": {{
+    ""totalInstallments"": number or null,
+    ""installmentAmount"": number or null,
+    ""frequency"": ""monthly"" | ""weekly"" | ""biweekly"" | ""one-time"" | null,
+    ""currentInstallment"": number or null,
+    ""description"": ""string or null""
+  }} or null,
   ""lineItems"": [
     {{
       ""description"": ""string"",
@@ -160,7 +180,7 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
 **OUTPUT (JSON only):**";
         }
 
-        private PdfExtractionResult ParseGeminiResponse(string responseText)
+        private PdfExtractionResult? ParseGeminiResponse(string responseText)
         {
             try
             {
@@ -200,6 +220,7 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
                     VendorName = geminiData.VendorName,
                     InvoiceNumber = geminiData.InvoiceNumber,
                     InvoiceDate = geminiData.InvoiceDate,
+                    DueDate = geminiData.DueDate,
                     TotalAmount = geminiData.TotalAmount,
                     Subtotal = geminiData.Subtotal,
                     VatRate = geminiData.VatRate,
@@ -207,6 +228,15 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
                     Currency = geminiData.Currency ?? "USD",
                     VendorTaxId = geminiData.VendorTaxId,
                     LastFourDigitsCard = geminiData.LastFourDigitsCard,
+                    ItemCount = geminiData.ItemCount,
+                    PaymentPlan = geminiData.PaymentPlan != null ? new PaymentPlanInfo
+                    {
+                        TotalInstallments = geminiData.PaymentPlan.TotalInstallments,
+                        InstallmentAmount = geminiData.PaymentPlan.InstallmentAmount,
+                        Frequency = geminiData.PaymentPlan.Frequency,
+                        CurrentInstallment = geminiData.PaymentPlan.CurrentInstallment,
+                        Description = geminiData.PaymentPlan.Description
+                    } : null,
                     LineItems = geminiData.LineItems?.Select(li => new ExtractedLineItem
                     {
                         Description = li.Description ?? "",
@@ -242,6 +272,9 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
             [JsonPropertyName("invoiceDate")]
             public DateTime? InvoiceDate { get; set; }
 
+            [JsonPropertyName("dueDate")]
+            public DateTime? DueDate { get; set; }
+
             [JsonPropertyName("totalAmount")]
             public decimal? TotalAmount { get; set; }
 
@@ -262,6 +295,12 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
 
             [JsonPropertyName("lastFourDigitsCard")]
             public string? LastFourDigitsCard { get; set; }
+
+            [JsonPropertyName("itemCount")]
+            public int? ItemCount { get; set; }
+
+            [JsonPropertyName("paymentPlan")]
+            public GeminiPaymentPlan? PaymentPlan { get; set; }
 
             [JsonPropertyName("lineItems")]
             public List<GeminiLineItem>? LineItems { get; set; }
@@ -292,6 +331,24 @@ The invoice may be in Hebrew or English. Extract all available fields with high 
 
             [JsonPropertyName("aiConfidenceScore")]
             public decimal? AiConfidenceScore { get; set; }
+        }
+
+        private class GeminiPaymentPlan
+        {
+            [JsonPropertyName("totalInstallments")]
+            public int? TotalInstallments { get; set; }
+
+            [JsonPropertyName("installmentAmount")]
+            public decimal? InstallmentAmount { get; set; }
+
+            [JsonPropertyName("frequency")]
+            public string? Frequency { get; set; }
+
+            [JsonPropertyName("currentInstallment")]
+            public int? CurrentInstallment { get; set; }
+
+            [JsonPropertyName("description")]
+            public string? Description { get; set; }
         }
     }
 }

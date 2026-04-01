@@ -4,6 +4,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
 {
     public interface IGeminiExtractionService
     {
-        Task<PdfExtractionResult> ParseInvoiceTextAsync(string rawText);
+        Task<PdfExtractionResult?> ParseInvoiceTextAsync(string rawText);
     }
 }

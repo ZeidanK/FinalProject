@@ -19,6 +19,8 @@ CREATE TABLE dbo.FP26_invoice_transaction_matches
     match_confidence     DECIMAL(5,4)        NULL,
     match_reason         VARCHAR(500)        NULL,
     matched_by_user_id   BIGINT              NULL,
+    installment_number   INT                 NULL,
+    installment_note     VARCHAR(200)        NULL,
     created_at           DATETIME2       NOT NULL DEFAULT GETDATE(),
     updated_at           DATETIME2       NOT NULL DEFAULT GETDATE(),
     CONSTRAINT PK_FP26_matches PRIMARY KEY (id),

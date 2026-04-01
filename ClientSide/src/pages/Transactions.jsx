@@ -510,7 +510,6 @@ function TransactionsPage() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
         py: { xs: 4, md: 6 },
         background:
           'radial-gradient(circle at 0% 5%, rgba(88,166,255,0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66,130,255,0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',

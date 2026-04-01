@@ -25,7 +25,12 @@ CREATE PROCEDURE dbo.FP26_sp_Invoices_Insert
     @FileType           VARCHAR(50)   = NULL,
     @FileSize           BIGINT        = NULL,
     @AiExtractionConfidence DECIMAL(5,4) = NULL,
-    @LastFourDigitsCard VARCHAR(4)    = NULL
+    @LastFourDigitsCard VARCHAR(4)    = NULL,
+    @ItemCount          INT           = NULL,
+    @PaymentPlanTotalInstallments INT = NULL,
+    @PaymentPlanInstallmentAmount DECIMAL(15,2) = NULL,
+    @PaymentPlanFrequency VARCHAR(50) = NULL,
+    @PaymentPlanDescription VARCHAR(500) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -37,7 +42,10 @@ BEGIN
          file_original_name, file_path, file_type, file_size,
          status, ai_extraction_confidence, ai_processed,
          is_verified, is_matched, matched_amount,
-         last_four_digits_card, uploaded_by_user_id,
+         last_four_digits_card, item_count,
+         payment_plan_total_installments, payment_plan_installment_amount,
+         payment_plan_frequency, payment_plan_description,
+         uploaded_by_user_id,
          created_at, updated_at)
     VALUES
         (@CompanyId, @InvoiceNumber, @VendorName, @VendorTaxId,
@@ -46,7 +54,10 @@ BEGIN
          @FileOriginalName, @FilePath, @FileType, @FileSize,
          'uploaded', @AiExtractionConfidence, 0,
          0, 0, 0,
-         @LastFourDigitsCard, @UploadedByUserId,
+         @LastFourDigitsCard, @ItemCount,
+         @PaymentPlanTotalInstallments, @PaymentPlanInstallmentAmount,
+         @PaymentPlanFrequency, @PaymentPlanDescription,
+         @UploadedByUserId,
          GETDATE(), GETDATE());
 
     SELECT SCOPE_IDENTITY() AS id;

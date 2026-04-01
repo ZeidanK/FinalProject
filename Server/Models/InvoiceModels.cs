@@ -19,7 +19,6 @@ namespace FinalProjectAuthAPI.Models
         public DateTime InvoiceDate { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue)]
         public decimal TotalAmount { get; set; }
 
         public long? UploadedByUserId { get; set; }
@@ -31,13 +30,11 @@ namespace FinalProjectAuthAPI.Models
 
         public DateTime? PaymentDate { get; set; }
 
-        [Range(0, double.MaxValue)]
         public decimal Subtotal { get; set; } = 0;
 
         [Range(0, 100)]
         public decimal? VatRate { get; set; }
 
-        [Range(0, double.MaxValue)]
         public decimal? VatAmount { get; set; }
 
         [StringLength(3)]
@@ -45,6 +42,18 @@ namespace FinalProjectAuthAPI.Models
 
         [StringLength(4)]
         public string? LastFourDigitsCard { get; set; }
+
+        public int? ItemCount { get; set; }
+        
+        public int? PaymentPlanTotalInstallments { get; set; }
+        
+        public decimal? PaymentPlanInstallmentAmount { get; set; }
+        
+        [StringLength(50)]
+        public string? PaymentPlanFrequency { get; set; }
+        
+        [StringLength(500)]
+        public string? PaymentPlanDescription { get; set; }
 
         public List<CreateLineItemRequest> LineItems { get; set; } = new();
     }
@@ -55,11 +64,9 @@ namespace FinalProjectAuthAPI.Models
         public string Description { get; set; } = string.Empty;
 
         [Required]
-        [Range(0, double.MaxValue)]
         public decimal UnitPrice { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue)]
         public decimal TotalAmount { get; set; }
 
         public int? LineNumber { get; set; }
@@ -67,7 +74,6 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(100)]
         public string? Category { get; set; }
 
-        [Range(0, double.MaxValue)]
         public decimal Quantity { get; set; } = 1;
 
         [Range(0, 100)]
@@ -102,6 +108,7 @@ namespace FinalProjectAuthAPI.Models
         public string? VendorName { get; set; }
         public string? InvoiceNumber { get; set; }
         public DateTime? InvoiceDate { get; set; }
+        public DateTime? DueDate { get; set; }
         public decimal? TotalAmount { get; set; }
         public decimal? Subtotal { get; set; }
         public decimal? VatRate { get; set; }
@@ -109,13 +116,24 @@ namespace FinalProjectAuthAPI.Models
         public string? Currency { get; set; }
         public string? VendorTaxId { get; set; }
         public string? LastFourDigitsCard { get; set; }
+        public int? ItemCount { get; set; }
+        public PaymentPlanInfo? PaymentPlan { get; set; }
         public List<ExtractedLineItem> LineItems { get; set; } = new();
         public decimal ExtractionConfidence { get; set; }
         public string ExtractionMethod { get; set; } = "text"; // "text" or "ocr"
         public string ExtractionSource { get; set; } = "regex"; // "gemini" or "regex"
         public string? RawText { get; set; }
     }
-
+    public class PaymentPlanInfo
+    {
+        public int? TotalInstallments { get; set; }
+        public decimal? InstallmentAmount { get; set; }
+        [StringLength(50)]
+        public string? Frequency { get; set; }
+        public int? CurrentInstallment { get; set; }
+        [StringLength(500)]
+        public string? Description { get; set; }
+    }
     public class UploadInvoicePdfResponse
     {
         public string FileOriginalName { get; set; } = string.Empty;

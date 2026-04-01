@@ -28,6 +28,11 @@ namespace FinalProjectAuthAPI.Models
 
         [StringLength(500)]
         public string? MatchReason { get; set; }
+        
+        public int? InstallmentNumber { get; set; }
+        
+        [StringLength(200)]
+        public string? InstallmentNote { get; set; }
     }
 
     public class UpdateMatchRequest

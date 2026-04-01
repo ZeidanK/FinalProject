@@ -32,8 +32,6 @@ namespace FinalProjectAuthAPI.BL
                 return (false, 0, "Invoice number is required.");
             if (string.IsNullOrWhiteSpace(req.VendorName))
                 return (false, 0, "Vendor name is required.");
-            if (req.TotalAmount <= 0)
-                return (false, 0, "Total amount must be greater than zero.");
 
             var invoiceId = _db.CreateInvoice(
                 req.CompanyId, req.InvoiceNumber.Trim(), req.VendorName.Trim(),
@@ -43,7 +41,12 @@ namespace FinalProjectAuthAPI.BL
                 req.VatRate, req.VatAmount,
                 string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
                 fileOriginalName, filePath, fileType, fileSize, aiConfidence,
-                req.LastFourDigitsCard);
+                req.LastFourDigitsCard,
+                req.ItemCount,
+                req.PaymentPlanTotalInstallments,
+                req.PaymentPlanInstallmentAmount,
+                req.PaymentPlanFrequency,
+                req.PaymentPlanDescription);
 
             if (invoiceId <= 0)
                 return (false, 0, "Failed to create invoice.");

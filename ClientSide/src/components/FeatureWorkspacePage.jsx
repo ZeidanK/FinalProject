@@ -36,7 +36,6 @@ function FeatureWorkspacePage({
   return (
     <Box
       sx={{
-        minHeight: '100vh',
         py: { xs: 1, md: 2 },
       }}
     >

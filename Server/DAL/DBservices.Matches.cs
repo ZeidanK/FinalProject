@@ -23,6 +23,8 @@ namespace FinalProjectAuthAPI.DAL
         public string?  MatchReason                 { get; set; }
         public long?    MatchedByUserId             { get; set; }
         public string?  MatchedByName               { get; set; }
+        public int?     InstallmentNumber           { get; set; }
+        public string?  InstallmentNote             { get; set; }
         public DateTime CreatedAt                   { get; set; }
         public DateTime UpdatedAt                   { get; set; }
     }
@@ -36,6 +38,8 @@ namespace FinalProjectAuthAPI.DAL
         public string   TransactionType  { get; set; } = string.Empty;
         public string?  ReferenceNumber  { get; set; }
         public decimal  AmountDifference { get; set; }
+        public decimal  MatchScore       { get; set; } // 0-100 scoring
+        public int      DaysDifference   { get; set; }
     }
 
     public partial class DBservices
@@ -82,7 +86,8 @@ namespace FinalProjectAuthAPI.DAL
         public long CreateMatch(
             long invoiceId, long transactionId, decimal matchedAmount,
             string matchMethod, long? matchedByUserId,
-            string matchType, decimal? matchConfidence, string? matchReason)
+            string matchType, decimal? matchConfidence, string? matchReason,
+            int? installmentNumber = null, string? installmentNote = null)
         {
             SqlConnection? con = null;
             try
@@ -99,7 +104,9 @@ namespace FinalProjectAuthAPI.DAL
                         { "@MatchedByUserId", matchedByUserId },
                         { "@MatchType",       matchType       },
                         { "@MatchConfidence", matchConfidence },
-                        { "@MatchReason",     matchReason     }
+                        { "@MatchReason",     matchReason     },
+                        { "@InstallmentNumber", installmentNumber },
+                        { "@InstallmentNote",   installmentNote   }
                     });
 
                 var result = cmd.ExecuteScalar();
@@ -147,8 +154,52 @@ namespace FinalProjectAuthAPI.DAL
                         TransactionType  = reader["transaction_type"]?.ToString()!,
                         ReferenceNumber  = reader["reference_number"] as string,
                         AmountDifference = Convert.ToDecimal(reader["amount_difference"]),
+                        MatchScore       = Convert.ToDecimal(reader["match_score"]),
+                        DaysDifference   = Convert.ToInt32(reader["days_difference"])
                     });
                 }
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+        public List<MatchRow> GetMatchesByInvoice(long invoiceId)
+        {
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            var list = new List<MatchRow>();
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    @"SELECT
+                        m.id,
+                        m.invoice_id,
+                        m.transaction_id,
+                        m.match_type,
+                        m.matched_amount,
+                        m.match_method,
+                        m.match_confidence,
+                        m.match_reason,
+                        m.matched_by_user_id,
+                        m.installment_number,
+                        m.installment_note,
+                        m.created_at,
+                        m.updated_at,
+                        t.transaction_date,
+                        t.description AS transaction_description,
+                        t.amount AS transaction_amount,
+                        t.transaction_type
+                      FROM dbo.FP26_invoice_transaction_matches m
+                      INNER JOIN dbo.FP26_transactions t ON m.transaction_id = t.id
+                      WHERE m.invoice_id = @InvoiceId
+                      ORDER BY m.created_at ASC", con);
+                
+                cmd.Parameters.AddWithValue("@InvoiceId", invoiceId);
+                reader = cmd.ExecuteReader();
+                
+                while (reader.Read())
+                    list.Add(MapMatch(reader));
                 return list;
             }
             finally { reader?.Close(); con?.Close(); }
@@ -175,6 +226,8 @@ namespace FinalProjectAuthAPI.DAL
             MatchReason            = r["match_reason"]      as string,
             MatchedByUserId        = r["matched_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["matched_by_user_id"]) : null,
             MatchedByName          = r.HasColumn("matched_by_name") ? r["matched_by_name"] as string : null,
+            InstallmentNumber      = r.HasColumn("installment_number") && r["installment_number"] != DBNull.Value ? Convert.ToInt32(r["installment_number"]) : null,
+            InstallmentNote        = r.HasColumn("installment_note") ? r["installment_note"] as string : null,
             CreatedAt              = Convert.ToDateTime(r["created_at"]),
             UpdatedAt              = r.HasColumn("updated_at") && r["updated_at"] != DBNull.Value
                                         ? Convert.ToDateTime(r["updated_at"]) : DateTime.MinValue,

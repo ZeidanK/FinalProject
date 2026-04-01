@@ -68,7 +68,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // POST api/transactions/preview-excel
         [HttpPost("preview-excel")]
-        public async Task<IActionResult> PreviewExcel(
+        public IActionResult PreviewExcel(
             IFormFile file,
             [FromForm] long companyId)
         {

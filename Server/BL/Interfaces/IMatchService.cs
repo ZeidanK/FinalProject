@@ -10,5 +10,9 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         List<MatchSuggestionRow> GetSuggestions(long invoiceId);
         (bool Success, long Id, string Error) Create(CreateMatchRequest req, long matchedByUserId);
         bool Delete(long id);
+        (bool Success, long? MatchId, string Message, decimal? MatchScore) AutoMatch(
+            long invoiceId, long userId, decimal minConfidenceThreshold = 70m);
+        AutoMatchBatchResult AutoMatchBatch(
+            long companyId, long userId, decimal minConfidenceThreshold = 70m);
     }
 }

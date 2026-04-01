@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -45,6 +46,54 @@ namespace FinalProjectAuthAPI.Controllers
             return success
                 ? CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Match created." })
                 : BadRequest(new { message = error });
+        }
+
+        // POST api/matches/auto-match/{invoiceId}
+        /// <summary>
+        /// Automatically match an invoice with the best transaction candidate.
+        /// Query params: minConfidence (default: 70)
+        /// </summary>
+        [HttpPost("auto-match/{invoiceId:long}")]
+        public IActionResult AutoMatch(long invoiceId, [FromQuery] decimal? minConfidence)
+        {
+            var userId = GetCurrentUserId();
+            var threshold = minConfidence ?? 70m;
+            
+            var (success, matchId, message, score) = _svc.AutoMatch(invoiceId, userId, threshold);
+            
+            if (success)
+                return Ok(new { 
+                    matchId, 
+                    message, 
+                    matchScore = score,
+                    confidenceLevel = MatchService.GetConfidenceCategory(score ?? 0)
+                });
+            
+            return BadRequest(new { message, matchScore = score });
+        }
+
+        // POST api/matches/auto-match-batch/{companyId}
+        /// <summary>
+        /// Batch auto-match all unmatched invoices for a company.
+        /// Query params: minConfidence (default: 70)
+        /// </summary>
+        [HttpPost("auto-match-batch/{companyId:long}")]
+        public IActionResult AutoMatchBatch(long companyId, [FromQuery] decimal? minConfidence)
+        {
+            var userId = GetCurrentUserId();
+            var threshold = minConfidence ?? 70m;
+            
+            var result = _svc.AutoMatchBatch(companyId, userId, threshold);
+            
+            return Ok(new { 
+                successfulMatches = result.SuccessfulMatches,
+                skippedInvoices = result.SkippedInvoices,
+                totalProcessed = result.SuccessfulMatches + result.SkippedInvoices,
+                matchDetails = result.MatchDetails,
+                suggestionsForReview = result.SuggestionsForReview,
+                message = $"Auto-matched {result.SuccessfulMatches} invoices. " +
+                         $"{result.SuggestionsForReview.Count} require manual review."
+            });
         }
 
         // DELETE api/matches/{id}

@@ -30,6 +30,11 @@ namespace FinalProjectAuthAPI.DAL
         public bool      IsMatched                { get; set; }
         public decimal   MatchedAmount            { get; set; }
         public string?   LastFourDigitsCard       { get; set; }
+        public int?      ItemCount                { get; set; }
+        public int?      PaymentPlanTotalInstallments { get; set; }
+        public decimal?  PaymentPlanInstallmentAmount { get; set; }
+        public string?   PaymentPlanFrequency     { get; set; }
+        public string?   PaymentPlanDescription   { get; set; }
         public long?     UploadedByUserId         { get; set; }
         public string?   UploadedByName           { get; set; }
         public long?     VerifiedByUserId         { get; set; }
@@ -118,7 +123,11 @@ namespace FinalProjectAuthAPI.DAL
             decimal subtotal, decimal? vatRate, decimal? vatAmount,
             string currency, string? fileOriginalName, string? filePath,
             string? fileType, long? fileSize, decimal? aiConfidence,
-            string? lastFourDigitsCard)
+            string? lastFourDigitsCard, int? itemCount = null,
+            int? paymentPlanTotalInstallments = null,
+            decimal? paymentPlanInstallmentAmount = null,
+            string? paymentPlanFrequency = null,
+            string? paymentPlanDescription = null)
         {
             SqlConnection? con = null;
             try
@@ -146,7 +155,12 @@ namespace FinalProjectAuthAPI.DAL
                         { "@FileType",                 fileType           },
                         { "@FileSize",                 fileSize           },
                         { "@AiExtractionConfidence",   aiConfidence       },
-                        { "@LastFourDigitsCard",       lastFourDigitsCard }
+                        { "@LastFourDigitsCard",       lastFourDigitsCard },
+                        { "@ItemCount",                itemCount          },
+                        { "@PaymentPlanTotalInstallments",  paymentPlanTotalInstallments  },
+                        { "@PaymentPlanInstallmentAmount", paymentPlanInstallmentAmount },
+                        { "@PaymentPlanFrequency",          paymentPlanFrequency         },
+                        { "@PaymentPlanDescription",        paymentPlanDescription       }
                     });
 
                 var result = cmd.ExecuteScalar();
@@ -222,6 +236,14 @@ namespace FinalProjectAuthAPI.DAL
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
             finally { con?.Close(); }
+        }
+
+        /// <summary>
+        /// Get all unmatched invoices for a company (for batch auto-matching).
+        /// </summary>
+        public List<InvoiceRow> GetUnmatchedInvoicesByCompany(long companyId)
+        {
+            return GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
         }
 
         // ── Mapping helpers ───────────────────────────────────────────────────

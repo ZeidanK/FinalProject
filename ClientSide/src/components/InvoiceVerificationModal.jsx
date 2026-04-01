@@ -53,6 +53,7 @@ export function mapExtractedToForm(ext, overallConfidence) {
     currency: { value: 'USD', confidence: 0 },
     vatRate: { value: '', confidence: 0 },
     vendorTaxId: { value: '', confidence: 0 },
+    lastFourDigitsCard: { value: '', confidence: 0 },
     subtotal: { value: '', confidence: 0 },
     vatAmount: { value: '', confidence: 0 },
     totalAmount: { value: '', confidence: 0 },
@@ -85,6 +86,7 @@ export function mapExtractedToForm(ext, overallConfidence) {
     currency: { value: ext.currency || 'USD', confidence: fieldConf(ext.currency) },
     vatRate: { value: ext.vatRate != null ? ext.vatRate : '', confidence: fieldConf(ext.vatRate) },
     vendorTaxId: { value: ext.vendorTaxId || '', confidence: fieldConf(ext.vendorTaxId) },
+    lastFourDigitsCard: { value: ext.lastFourDigitsCard || '', confidence: fieldConf(ext.lastFourDigitsCard) },
     subtotal: { value: ext.subtotal != null ? ext.subtotal : '', confidence: fieldConf(ext.subtotal) },
     vatAmount: { value: ext.vatAmount != null ? ext.vatAmount : '', confidence: fieldConf(ext.vatAmount) },
     totalAmount: { value: ext.totalAmount != null ? ext.totalAmount : '', confidence: fieldConf(ext.totalAmount) },
@@ -196,7 +198,7 @@ export default function InvoiceVerificationModal(props) {
 
   var overallConfidence = useMemo(function () {
     if (!initialData) return 0
-    var fields = ['vendorName', 'invoiceNumber', 'invoiceDate', 'totalAmount', 'subtotal', 'vatAmount', 'currency', 'vendorTaxId']
+    var fields = ['vendorName', 'invoiceNumber', 'invoiceDate', 'totalAmount', 'subtotal', 'vatAmount', 'currency', 'vendorTaxId', 'lastFourDigitsCard']
     var total = 0
     for (var i = 0; i < fields.length; i++) {
       var f = initialData[fields[i]]
@@ -328,6 +330,17 @@ export default function InvoiceVerificationModal(props) {
                 fullWidth size="small" sx={fieldSx}
                 value={(form.vendorTaxId && form.vendorTaxId.value) || ''}
                 onChange={function (e) { updateField('vendorTaxId', e.target.value) }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FieldLabel label="Last 4 Digits Card" confidence={form.lastFourDigitsCard && form.lastFourDigitsCard.confidence} />
+              <TextField
+                fullWidth size="small" sx={fieldSx}
+                inputProps={{ maxLength: 4 }}
+                value={(form.lastFourDigitsCard && form.lastFourDigitsCard.value) || ''}
+                onChange={function (e) { updateField('lastFourDigitsCard', e.target.value) }}
+                placeholder="e.g., 1234"
               />
             </Grid>
           </Grid>
