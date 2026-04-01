@@ -10,6 +10,13 @@ namespace FinalProjectAuthAPI.BL
     public class InvoiceService : IInvoiceService
     {
         private readonly DBservices _db = new();
+        private readonly IMatchService? _matchService;
+
+        // Constructor for DI (optional IMatchService to avoid circular dependency issues)
+        public InvoiceService(IMatchService? matchService = null)
+        {
+            _matchService = matchService;
+        }
 
         public List<InvoiceRow> GetByCompany(
             long companyId, string? status = null,
@@ -78,6 +85,19 @@ namespace FinalProjectAuthAPI.BL
         {
             return _db.UpdateInvoiceFileInfo(id, fileOriginalName, filePath,
                 fileType, fileSize, aiConfidence);
+        }
+
+        /// <summary>
+        /// Attempts to automatically match a newly created invoice with transactions.
+        /// Returns match result with count of matches found.
+        /// </summary>
+        public async Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAfterCreateAsync(
+            long invoiceId, long userId, decimal minConfidenceThreshold = 70m)
+        {
+            if (_matchService == null)
+                return (false, null, "Match service not available.", null);
+
+            return await _matchService.AutoMatchAsync(invoiceId, userId, minConfidenceThreshold);
         }
     }
 }

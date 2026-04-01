@@ -19,7 +19,8 @@ CREATE PROCEDURE dbo.FP26_sp_Transactions_Insert
     @PostedDate        DATE          = NULL,
     @BalanceAfter      DECIMAL(15,2) = NULL,
     @Category          VARCHAR(100)  = NULL,
-    @ReferenceNumber   VARCHAR(100)  = NULL
+    @ReferenceNumber   VARCHAR(100)  = NULL,
+    @VendorName        VARCHAR(255)  = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -27,12 +28,12 @@ BEGIN
     INSERT INTO dbo.FP26_transactions
         (company_id, bank_account_id, transaction_date, posted_date,
          description, amount, balance_after, transaction_type,
-         category, reference_number, is_matched, is_duplicate,
+         category, reference_number, vendor_name, is_matched, is_duplicate,
          status, created_by_user_id, created_at, updated_at)
     VALUES
         (@CompanyId, @BankAccountId, @TransactionDate, @PostedDate,
          @Description, @Amount, @BalanceAfter, @TransactionType,
-         @Category, @ReferenceNumber, 0, 0,
+         @Category, @ReferenceNumber, @VendorName, 0, 0,
          'confirmed', @CreatedByUserId, GETDATE(), GETDATE());
 
     SELECT SCOPE_IDENTITY() AS id;

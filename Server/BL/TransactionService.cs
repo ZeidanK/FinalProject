@@ -10,6 +10,13 @@ namespace FinalProjectAuthAPI.BL
     public class TransactionService : ITransactionService
     {
         private readonly DBservices _db = new();
+        private readonly IMatchService? _matchService;
+
+        // Constructor for DI (optional IMatchService to avoid circular dependency issues)
+        public TransactionService(IMatchService? matchService = null)
+        {
+            _matchService = matchService;
+        }
 
         public List<TransactionRow> GetByCompany(
             long companyId, string? type = null, bool? isMatched = null,
@@ -30,7 +37,7 @@ namespace FinalProjectAuthAPI.BL
                 req.CompanyId, req.TransactionDate, req.Description.Trim(),
                 req.Amount, req.TransactionType ?? "debit", createdByUserId,
                 req.BankAccountId, req.PostedDate, req.BalanceAfter,
-                req.Category, req.ReferenceNumber);
+                req.Category, req.ReferenceNumber, req.VendorName?.Trim());
 
             return id > 0
                 ? (true, id, string.Empty)
@@ -52,11 +59,25 @@ namespace FinalProjectAuthAPI.BL
                 t.PostedDate,
                 t.BalanceAfter,
                 t.Category,
-                t.ReferenceNumber
+                t.ReferenceNumber,
+                t.VendorName
             ));
 
             var ids = _db.BulkCreateTransactions(req.CompanyId, createdByUserId, rows);
             return (true, ids, string.Empty);
+        }
+
+        /// <summary>
+        /// Attempts to automatically match all unmatched invoices after bulk transaction import.
+        /// Returns batch match results with counts and details.
+        /// </summary>
+        public async Task<AutoMatchBatchResult?> AutoMatchBatchAfterImportAsync(
+            long companyId, long userId, decimal minConfidenceThreshold = 70m)
+        {
+            if (_matchService == null)
+                return null;
+
+            return await _matchService.AutoMatchBatchAsync(companyId, userId, minConfidenceThreshold);
         }
     }
 }

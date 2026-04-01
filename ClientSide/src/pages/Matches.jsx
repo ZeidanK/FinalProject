@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -40,6 +40,7 @@ import {
   getMatchSuggestions,
   createMatch,
   deleteMatch,
+  autoMatchOnLoad,
 } from '../services/matches'
 
 const containerVariants = {
@@ -104,21 +105,27 @@ function MatchesPage() {
   // ----- Unmatch confirmation dialog -----
   const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null })
 
+  // ----- Prevent double auto-match in StrictMode -----
+  const autoMatchRanRef = useRef(false)
+
   // ===================== Data Fetching =====================
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
+      console.log('[MATCH] Loading data for companyId:', companyId)
       const [inv, trx, mat] = await Promise.all([
         getInvoicesByCompany(companyId, { isMatched: false }, token),
         getTransactionsByCompany(companyId, { isMatched: false }, token),
         getMatchesByCompany(companyId, token),
       ])
+      console.log(`[MATCH] Loaded: ${Array.isArray(inv) ? inv.length : 0} invoices, ${Array.isArray(trx) ? trx.length : 0} transactions, ${Array.isArray(mat) ? mat.length : 0} matches`)
       setInvoices(Array.isArray(inv) ? inv : [])
       setTransactions(Array.isArray(trx) ? trx : [])
       setMatches(Array.isArray(mat) ? mat : [])
     } catch (err) {
+      console.error('[MATCH] Failed to load data:', err)
       setError(err.message || 'Failed to load data.')
     } finally {
       setLoading(false)
@@ -129,6 +136,31 @@ function MatchesPage() {
     loadData()
   }, [loadData])
 
+  // Auto-match once on mount
+  useEffect(() => {
+    if (autoMatchRanRef.current) return
+    autoMatchRanRef.current = true
+
+    const runAutoMatch = async () => {
+      try {
+        console.log('[MATCH] Starting auto-match on load...')
+        const matchResult = await autoMatchOnLoad(companyId, 70, token)
+        console.log('[MATCH] Auto-match result:', matchResult)
+        if (matchResult?.successfulMatches > 0) {
+          setSnack({
+            open: true,
+            message: `✓ ${matchResult.successfulMatches} automatic match(es) found`,
+            severity: 'success',
+          })
+          await loadData()
+        }
+      } catch (matchErr) {
+        console.warn('[MATCH] Auto-match on load failed:', matchErr)
+      }
+    }
+    runAutoMatch()
+  }, [companyId, token, loadData])
+
   // ---- Fetch suggestions when an invoice is selected ----
   useEffect(() => {
     if (!selectedInvoiceId) {
@@ -138,9 +170,17 @@ function MatchesPage() {
     let cancelled = false
     ;(async () => {
       try {
+        console.log('[MATCH] Fetching suggestions for invoiceId:', selectedInvoiceId)
         const data = await getMatchSuggestions(selectedInvoiceId, token)
+        console.log('[MATCH] Raw suggestions response:', JSON.stringify(data, null, 2))
+        console.log('[MATCH] Suggestions count:', Array.isArray(data) ? data.length : 'not an array')
+        if (Array.isArray(data) && data.length > 0) {
+          console.log('[MATCH] First suggestion fields:', Object.keys(data[0]))
+          console.log('[MATCH] First suggestion:', data[0])
+        }
         if (!cancelled) setSuggestions(Array.isArray(data) ? data : [])
-      } catch {
+      } catch (err) {
+        console.error('[MATCH] Suggestions fetch error:', err)
         if (!cancelled) setSuggestions([])
       }
     })()
@@ -363,10 +403,14 @@ function MatchesPage() {
                 </Stack>
                 <Stack spacing={1.5}>
                   {suggestions.map((s) => {
-                    const trxId = s.transaction_id ?? s.transactionId
-                    const confidence = Number(s.match_confidence ?? s.matchConfidence ?? 0)
-                    const desc = s.transaction_description ?? s.transactionDescription ?? `Transaction #${trxId}`
-                    const amt = Number(s.transaction_amount ?? s.transactionAmount ?? 0)
+                    const trxId = s.id ?? s.transaction_id ?? s.transactionId
+                    const rawScore = Number(s.matchScore ?? s.match_score ?? s.match_confidence ?? s.matchConfidence ?? 0)
+                    // matchScore from backend is 0-100 (Gemini similarity %)
+                    const confidence = rawScore > 1 ? rawScore / 100 : rawScore
+                    const desc = s.description ?? s.transaction_description ?? s.transactionDescription ?? `Transaction #${trxId}`
+                    const amt = Number(s.amount ?? s.transaction_amount ?? s.transactionAmount ?? 0)
+                    const reasons = s.matchReasons ?? s.match_reasons ?? []
+                    console.log(`[MATCH] Rendering suggestion: trxId=${trxId} confidence=${confidence} desc="${desc}" amount=${amt} reasons=`, reasons)
                     return (
                       <Stack
                         key={trxId}

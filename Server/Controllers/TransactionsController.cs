@@ -152,6 +152,7 @@ namespace FinalProjectAuthAPI.Controllers
                         TransactionType = t.TransactionType,
                         Category = t.Category,
                         ReferenceNumber = t.ReferenceNumber,
+                        VendorName = t.VendorName,
                         BankAccountId = bankAccountId,
                         CreatedByUserId = userId
                     }).ToList()

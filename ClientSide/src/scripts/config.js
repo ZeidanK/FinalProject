@@ -32,6 +32,7 @@ export const URLS = {
   invoices: {
     base: buildApiPath('/Invoices'),
     byId: (id) => buildApiPath(`/Invoices/${id}`),
+    download: (id) => buildApiPath(`/Invoices/${id}/download`),
     byCompany: (companyId) => buildApiPath(`/Invoices/company/${companyId}`),
     status: (id) => buildApiPath(`/Invoices/${id}/status`),
     uploadPdf: buildApiPath('/Invoices/upload-pdf'),
@@ -53,6 +54,9 @@ export const URLS = {
     byId: (id) => buildApiPath(`/Matches/${id}`),
     byCompany: (companyId) => buildApiPath(`/Matches/company/${companyId}`),
     suggestions: (invoiceId) => buildApiPath(`/Matches/suggestions/${invoiceId}`),
+    autoMatch: (invoiceId) => buildApiPath(`/Matches/auto-match/${invoiceId}`),
+    autoMatchBatch: (companyId) => buildApiPath(`/Matches/auto-match-batch/${companyId}`),
+    autoMatchOnLoad: (companyId) => buildApiPath(`/Matches/auto-match-on-load/${companyId}`),
   },
   anomalies: {
     base: buildApiPath('/Anomalies'),

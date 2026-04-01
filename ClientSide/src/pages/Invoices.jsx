@@ -32,9 +32,11 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import {
   createInvoice,
+  downloadInvoicePdf,
   getInvoicesByCompany,
   uploadInvoicePdf,
 } from '../services/invoices'
+import { autoMatchInvoice } from '../services/matches'
 import InvoiceVerificationModal, {
   mapExtractedToForm,
 } from '../components/InvoiceVerificationModal'
@@ -86,6 +88,7 @@ function InvoicesPage() {
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const [openingInvoiceId, setOpeningInvoiceId] = useState(null)
 
   // ===================== Data Fetching =====================
 
@@ -215,6 +218,13 @@ function InvoicesPage() {
     async (formData) => {
       setSaving(true)
       try {
+        const serverResponse = modal.file?.serverResponse || {}
+        const fileOriginalName = serverResponse.fileOriginalName || serverResponse.FileOriginalName || modal.file?.name || null
+        const filePath = serverResponse.filePath || serverResponse.FilePath || null
+        const fileType = serverResponse.fileType || serverResponse.FileType || modal.file?.file?.type || null
+        const fileSize = serverResponse.fileSize || serverResponse.FileSize || modal.file?.file?.size || null
+        const aiConfidence = formData?.confidence?.value ?? serverResponse?.extractedData?.extractionConfidence ?? serverResponse?.ExtractedData?.ExtractionConfidence ?? null
+
         const payload = {
           companyId,
           invoiceNumber: formData.invoiceNumber?.value || '',
@@ -228,6 +238,11 @@ function InvoicesPage() {
           vendorTaxId: formData.vendorTaxId?.value || null,
           lastFourDigitsCard: formData.lastFourDigitsCard?.value || null,
           dueDate: formData.dueDate?.value || null,
+          fileOriginalName,
+          filePath,
+          fileType,
+          fileSize,
+          aiExtractionConfidence: aiConfidence,
           lineItems: (formData.lineItems || []).map((li, idx) => ({
             description: li.description || 'Item',
             unitPrice: parseFloat(li.unitPrice) || 0,
@@ -239,7 +254,7 @@ function InvoicesPage() {
           })),
         }
 
-        await createInvoice(payload, token)
+        const result = await createInvoice(payload, true, token)
 
         // Mark file as verified
         setFiles((prev) =>
@@ -249,7 +264,19 @@ function InvoicesPage() {
         )
 
         setModal({ open: false, file: null })
-        setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+        
+        // Show success message with auto-match result
+        const autoMatchResult = result?.autoMatchResult
+        if (autoMatchResult?.matched) {
+          setSnack({ 
+            open: true, 
+            message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`, 
+            severity: 'success' 
+          })
+        } else {
+          setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+        }
+        
         loadInvoices()
       } catch (err) {
         setSnack({
@@ -262,6 +289,33 @@ function InvoicesPage() {
       }
     },
     [companyId, token, modal.file, loadInvoices],
+  )
+
+  const handleOpenInvoice = useCallback(
+    async (invoice) => {
+      const invoiceId = invoice?.id
+      if (!invoiceId) return
+
+      setOpeningInvoiceId(invoiceId)
+      try {
+        const { blob } = await downloadInvoicePdf(invoiceId, token)
+        const objectUrl = URL.createObjectURL(blob)
+        window.open(objectUrl, '_blank', 'noopener,noreferrer')
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+      } catch (err) {
+        let message = err.message || 'Unable to open this invoice file.'
+        if (err.status === 404) {
+          message = 'No saved file was found for this invoice.'
+        }
+        if (err.status === 403) {
+          message = 'You are not allowed to open this invoice file.'
+        }
+        setSnack({ open: true, message, severity: 'error' })
+      } finally {
+        setOpeningInvoiceId(null)
+      }
+    },
+    [token],
   )
 
   // ===================== Render =====================
@@ -516,6 +570,7 @@ function InvoicesPage() {
                         <TableCell align="center">Currency</TableCell>
                         <TableCell align="center">Status</TableCell>
                         <TableCell align="center">Confidence</TableCell>
+                        <TableCell align="center">File</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -551,6 +606,17 @@ function InvoicesPage() {
                             {(inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) != null
                               ? `${Math.round((inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) * 100)}%`
                               : '—'}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
+                              onClick={() => handleOpenInvoice(inv)}
+                              disabled={openingInvoiceId === inv.id}
+                            >
+                              Open
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -12,6 +12,7 @@ namespace FinalProjectAuthAPI.DAL
         public DateTime  TransactionDate     { get; set; }
         public DateTime? PostedDate          { get; set; }
         public string    Description         { get; set; } = string.Empty;
+        public string?   VendorName          { get; set; }
         public decimal   Amount              { get; set; }
         public decimal?  BalanceAfter        { get; set; }
         public string    TransactionType     { get; set; } = string.Empty;
@@ -80,7 +81,7 @@ namespace FinalProjectAuthAPI.DAL
             long companyId, DateTime transactionDate, string description,
             decimal amount, string transactionType, long? createdByUserId,
             long? bankAccountId, DateTime? postedDate, decimal? balanceAfter,
-            string? category, string? referenceNumber)
+            string? category, string? referenceNumber, string? vendorName)
         {
             SqlConnection? con = null;
             try
@@ -100,7 +101,8 @@ namespace FinalProjectAuthAPI.DAL
                         { "@PostedDate",      postedDate      },
                         { "@BalanceAfter",    balanceAfter    },
                         { "@Category",        category        },
-                        { "@ReferenceNumber", referenceNumber }
+                        { "@ReferenceNumber", referenceNumber },
+                        { "@VendorName",      vendorName      }
                     });
 
                 var result = cmd.ExecuteScalar();
@@ -117,7 +119,8 @@ namespace FinalProjectAuthAPI.DAL
             long companyId, long? createdByUserId,
             IEnumerable<(DateTime date, string description, decimal amount,
                          string type, long? bankAccountId, DateTime? postedDate,
-                         decimal? balanceAfter, string? category, string? referenceNumber)> rows)
+                         decimal? balanceAfter, string? category, string? referenceNumber,
+                         string? vendorName)> rows)
         {
             SqlConnection? con = null;
             SqlTransaction? tx = null;
@@ -145,6 +148,7 @@ namespace FinalProjectAuthAPI.DAL
                     cmd.Parameters.AddWithValue("@BalanceAfter",    (object?)row.balanceAfter  ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Category",        (object?)row.category      ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ReferenceNumber", (object?)row.referenceNumber ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@VendorName",      (object?)row.vendorName    ?? DBNull.Value);
 
                     var result = cmd.ExecuteScalar();
                     ids.Add(result != null ? Convert.ToInt64(result) : 0);
@@ -171,6 +175,7 @@ namespace FinalProjectAuthAPI.DAL
             TransactionDate = Convert.ToDateTime(r["transaction_date"]),
             PostedDate      = r["posted_date"]       != DBNull.Value ? Convert.ToDateTime(r["posted_date"]) : null,
             Description     = r["description"]?.ToString()!,
+            VendorName      = r.HasColumn("vendor_name") && r["vendor_name"] != DBNull.Value ? r["vendor_name"] as string : null,
             Amount          = Convert.ToDecimal(r["amount"]),
             BalanceAfter    = r["balance_after"]     != DBNull.Value ? Convert.ToDecimal(r["balance_after"]) : null,
             TransactionType = r["transaction_type"]?.ToString()!,

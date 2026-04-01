@@ -40,6 +40,20 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(3)]
         public string Currency { get; set; } = "USD";
 
+        [StringLength(255)]
+        public string? FileOriginalName { get; set; }
+
+        [StringLength(1000)]
+        public string? FilePath { get; set; }
+
+        [StringLength(100)]
+        public string? FileType { get; set; }
+
+        public long? FileSize { get; set; }
+
+        [Range(0, 1)]
+        public decimal? AiExtractionConfidence { get; set; }
+
         [StringLength(4)]
         public string? LastFourDigitsCard { get; set; }
 

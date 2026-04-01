@@ -27,3 +27,27 @@ export function deleteMatch(matchId, token) {
     token,
   })
 }
+
+export function autoMatchInvoice(invoiceId, minConfidence = 70, token) {
+  return apiRequest(URLS.matches.autoMatch(invoiceId), {
+    method: 'POST',
+    query: { minConfidence },
+    token,
+  })
+}
+
+export function autoMatchBatch(companyId, minConfidence = 70, token) {
+  return apiRequest(URLS.matches.autoMatchBatch(companyId), {
+    method: 'POST',
+    query: { minConfidence },
+    token,
+  })
+}
+
+export function autoMatchOnLoad(companyId, minConfidence = 70, token) {
+  return apiRequest(URLS.matches.autoMatchOnLoad(companyId), {
+    method: 'POST',
+    query: { minConfidence },
+    token,
+  })
+}

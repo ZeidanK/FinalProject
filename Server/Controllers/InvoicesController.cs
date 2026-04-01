@@ -2,6 +2,7 @@ using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -13,12 +14,14 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IInvoiceService _svc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IFileStorageService _fileSvc;
+        private readonly IWebHostEnvironment _env;
 
-        public InvoicesController(IInvoiceService svc, IPdfExtractionService pdfSvc, IFileStorageService fileSvc)
+        public InvoicesController(IInvoiceService svc, IPdfExtractionService pdfSvc, IFileStorageService fileSvc, IWebHostEnvironment env)
         {
             _svc = svc;
             _pdfSvc = pdfSvc;
             _fileSvc = fileSvc;
+            _env = env;
         }
 
         // GET api/invoices/company/{companyId}?status=&startDate=&endDate=&isMatched=
@@ -41,14 +44,38 @@ namespace FinalProjectAuthAPI.Controllers
 
         // POST api/invoices
         [HttpPost]
-        public IActionResult Create([FromBody] CreateInvoiceRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateInvoiceRequest request, [FromQuery] bool autoMatch = false)
         {
             var userId = GetCurrentUserId();
-            var (success, id, error) = _svc.Create(request, userId);
+            var (success, id, error) = _svc.Create(
+                request,
+                userId,
+                request.FileOriginalName,
+                request.FilePath,
+                request.FileType,
+                request.FileSize,
+                request.AiExtractionConfidence);
 
-            return success
-                ? CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Invoice created." })
-                : BadRequest(new { message = error });
+            if (!success)
+                return BadRequest(new { message = error });
+
+            // Optionally attempt automatic matching
+            if (autoMatch)
+            {
+                var matchResult = await _svc.AutoMatchAfterCreateAsync(id, userId, 70m);
+                return CreatedAtAction(nameof(GetById), new { id }, new { 
+                    id, 
+                    message = "Invoice created.",
+                    autoMatchResult = new {
+                        matched = matchResult.Success,
+                        matchId = matchResult.MatchId,
+                        matchScore = matchResult.MatchScore,
+                        matchMessage = matchResult.Message
+                    }
+                });
+            }
+
+            return CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Invoice created." });
         }
 
         // PATCH api/invoices/{id}/status
@@ -57,6 +84,43 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var ok = _svc.UpdateStatus(id, request.Status);
             return ok ? Ok(new { message = "Invoice status updated." }) : BadRequest(new { message = "Invalid status or invoice not found." });
+        }
+
+        // GET api/invoices/{id}/download
+        // Returns the stored invoice file content for viewing/downloading.
+        [HttpGet("{id:long}/download")]
+        public IActionResult Download(long id)
+        {
+            var invoice = _svc.GetById(id);
+            if (invoice is null)
+                return NotFound(new { message = "Invoice not found." });
+
+            if (string.IsNullOrWhiteSpace(invoice.FilePath))
+                return NotFound(new { message = "No saved file was found for this invoice." });
+
+            var normalizedRelativePath = invoice.FilePath
+                .Replace('\\', '/')
+                .TrimStart('/');
+
+            if (normalizedRelativePath.Contains("..") || !normalizedRelativePath.StartsWith("uploads/invoices/", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Invalid file path." });
+
+            var expectedCompanyPrefix = $"uploads/invoices/{invoice.CompanyId}/";
+            if (!normalizedRelativePath.StartsWith(expectedCompanyPrefix, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Invoice file path does not match the invoice company." });
+
+            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+            var fullPath = Path.Combine(webRoot, normalizedRelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+            if (!System.IO.File.Exists(fullPath))
+                return NotFound(new { message = "Invoice file could not be found on disk." });
+
+            var contentType = string.IsNullOrWhiteSpace(invoice.FileType) ? "application/pdf" : invoice.FileType;
+            var fileName = string.IsNullOrWhiteSpace(invoice.FileOriginalName)
+                ? Path.GetFileName(fullPath)
+                : invoice.FileOriginalName;
+
+            return PhysicalFile(fullPath, contentType, fileName);
         }
 
         // POST api/invoices/upload-pdf

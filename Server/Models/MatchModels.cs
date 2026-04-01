@@ -41,4 +41,10 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(50)]
         public string? Status { get; set; }
     }
+
+    public class VendorComparisonResult
+    {
+        public string TransactionDescription { get; set; } = string.Empty;
+        public decimal SimilarityScore { get; set; }
+    }
 }

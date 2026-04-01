@@ -13,5 +13,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         bool UpdateStatus(long id, string status);
         bool UpdateFileInfo(long id, string? fileOriginalName, string? filePath, string? fileType,
             long? fileSize, decimal? aiConfidence);
+        Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAfterCreateAsync(
+            long invoiceId, long userId, decimal minConfidenceThreshold = 70m);
     }
 }

@@ -108,21 +108,51 @@ const BankImport = () => {
     }));
 
     try {
+      setImporting(true);
       await api.bulkCreateTransactions(activeCompany?.id, rows, user?.id);
-      const newFile = {
-        id: Date.now(),
-        name: currentFileName || `bank_import_${new Date().toISOString().split('T')[0]}.csv`,
-        bank: 'Manual Upload',
-        date: new Date().toISOString().split('T')[0],
-        transactions: selected.length,
-        status: 'completed',
-      };
-      setImportedFiles([newFile, ...importedFiles]);
-      setShowTransactionTable(false);
-      setTransactions([]);
-      alert(`${selected.length} transactions imported successfully!`);
+      
+      // Attempt batch auto-matching after successful import
+      try {
+        const matchResult = await api.autoMatchBatch(activeCompany?.id, 70);
+        const matchedCount = matchResult?.successfulMatches || 0;
+        
+        const newFile = {
+          id: Date.now(),
+          name: currentFileName || `bank_import_${new Date().toISOString().split('T')[0]}.csv`,
+          bank: 'Manual Upload',
+          date: new Date().toISOString().split('T')[0],
+          transactions: selected.length,
+          status: 'completed',
+        };
+        setImportedFiles([newFile, ...importedFiles]);
+        setShowTransactionTable(false);
+        setTransactions([]);
+        
+        if (matchedCount > 0) {
+          alert(`✓ ${selected.length} transactions imported and ${matchedCount} invoice(s) automatically matched!`);
+        } else {
+          alert(`${selected.length} transactions imported successfully!`);
+        }
+      } catch (matchErr) {
+        // Auto-match failed, but import succeeded - show import success
+        console.warn('Auto-match failed:', matchErr);
+        const newFile = {
+          id: Date.now(),
+          name: currentFileName || `bank_import_${new Date().toISOString().split('T')[0]}.csv`,
+          bank: 'Manual Upload',
+          date: new Date().toISOString().split('T')[0],
+          transactions: selected.length,
+          status: 'completed',
+        };
+        setImportedFiles([newFile, ...importedFiles]);
+        setShowTransactionTable(false);
+        setTransactions([]);
+        alert(`${selected.length} transactions imported successfully!`);
+      }
     } catch (err) {
       alert('Failed to import transactions: ' + (err.message || err));
+    } finally {
+      setImporting(false);
     }
   };
 

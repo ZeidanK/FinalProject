@@ -350,5 +350,125 @@ Look for phrases like:
             [JsonPropertyName("description")]
             public string? Description { get; set; }
         }
+
+        // ── Vendor name translation for matching ──────────────────────────
+
+        private static readonly Dictionary<string, List<string>> _vendorNameCache = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly SemaphoreSlim _cacheLock = new(1, 1);
+
+        public async Task<List<string>> TranslateVendorNameAsync(string vendorName)
+        {
+            if (string.IsNullOrWhiteSpace(vendorName))
+                return new List<string> { vendorName };
+
+            // Check app-level cache first
+            await _cacheLock.WaitAsync();
+            try
+            {
+                if (_vendorNameCache.TryGetValue(vendorName, out var cached))
+                    return cached;
+            }
+            finally { _cacheLock.Release(); }
+
+            // If Gemini is unavailable, return original only
+            if (_model == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
+                return new List<string> { vendorName };
+
+            try
+            {
+                var prompt = @$"Given this company/vendor name: ""{vendorName}""
+
+Return a JSON array of all likely name variants that might appear in a bank transaction description.
+Include:
+- The original name
+- English translation (if the name is in Hebrew or another language)
+- Hebrew version (if the name is in English)
+- Common abbreviations
+- Name without legal suffixes (Ltd, בע""מ, Inc, etc.)
+
+Return ONLY a JSON array of strings, nothing else. Example: [""Original Name"", ""Translated Name"", ""Abbreviation""]
+If you cannot translate, just return the original name in an array.";
+
+                var response = await _model.GenerateContent(prompt);
+                var text = response?.Text?.Trim();
+
+                if (string.IsNullOrWhiteSpace(text))
+                    return CacheAndReturn(vendorName, new List<string> { vendorName });
+
+                // Clean markdown fencing if present
+                if (text.StartsWith("```"))
+                {
+                    text = text.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```")).Aggregate("", (a, b) => a + b);
+                }
+
+                var variants = JsonSerializer.Deserialize<List<string>>(text);
+                if (variants == null || variants.Count == 0)
+                    return CacheAndReturn(vendorName, new List<string> { vendorName });
+
+                // Always include the original
+                if (!variants.Contains(vendorName, StringComparer.OrdinalIgnoreCase))
+                    variants.Insert(0, vendorName);
+
+                return CacheAndReturn(vendorName, variants);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Gemini vendor name translation failed for: {Name}", vendorName);
+                return CacheAndReturn(vendorName, new List<string> { vendorName });
+            }
+        }
+
+        private static List<string> CacheAndReturn(string key, List<string> values)
+        {
+            _cacheLock.Wait();
+            try { _vendorNameCache[key] = values; }
+            finally { _cacheLock.Release(); }
+            return values;
+        }
+
+        public async Task<List<VendorComparisonResult>> CompareVendorNamesAsync(string invoiceVendorName, List<string> transactionDescriptions)
+        {
+            if (_model == null || string.IsNullOrWhiteSpace(_settings.ApiKey) || transactionDescriptions.Count == 0)
+                return new List<VendorComparisonResult>();
+
+            try
+            {
+                var descriptionsJson = JsonSerializer.Serialize(transactionDescriptions);
+                var prompt = @$"You are a vendor name matching expert. Compare the invoice vendor name against each transaction description and rate their similarity.
+
+Invoice vendor name: ""{invoiceVendorName}""
+
+Transaction descriptions (JSON array):
+{descriptionsJson}
+
+For each transaction description, assess how likely it refers to the same vendor as the invoice vendor name.
+Consider: abbreviations, translations between Hebrew and English, common name variants, partial matches.
+
+Return ONLY a JSON array with one object per transaction (same order), each with:
+- ""transactionDescription"": the original transaction description string
+- ""similarityScore"": integer from 0 to 100 (100 = definitely same vendor, 0 = definitely different)
+
+Example output: [{{""transactionDescription"":""AMAZON"",""similarityScore"":95}}]
+Return ONLY the JSON array, no markdown, no explanation.";
+
+                var response = await _model.GenerateContent(prompt);
+                var text = response?.Text?.Trim();
+
+                if (string.IsNullOrWhiteSpace(text))
+                    return new List<VendorComparisonResult>();
+
+                if (text.StartsWith("```"))
+                    text = string.Join("\n", text.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```")));
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var results = JsonSerializer.Deserialize<List<VendorComparisonResult>>(text.Trim(), options);
+                return results ?? new List<VendorComparisonResult>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Gemini vendor name comparison failed for: {Name}", invoiceVendorName);
+                return new List<VendorComparisonResult>();
+            }
+        }
     }
 }

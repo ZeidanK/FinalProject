@@ -39,6 +39,10 @@ namespace FinalProjectAuthAPI.BL
         private static readonly string[] CategoryHeaders =
             { "category", "קטגוריה" };
 
+        private static readonly string[] VendorNameHeaders =
+            { "vendor name", "vendor", "supplier", "supplier name", "business name",
+              "שם בית העסק", "שם בית עסק", "שם ספק", "שם עסק", "בית עסק" };
+
         public ExcelExtractionResult Extract(Stream excelStream, string fileName)
         {
             var result = new ExcelExtractionResult { FileName = fileName };
@@ -166,6 +170,8 @@ namespace FinalProjectAuthAPI.BL
                     map["type"] = c;
                 else if (MatchesAny(lower, CategoryHeaders) && !map.ContainsKey("category"))
                     map["category"] = c;
+                else if (MatchesAny(lower, VendorNameHeaders) && !map.ContainsKey("vendorName"))
+                    map["vendorName"] = c;
             }
 
             return map;
@@ -242,6 +248,10 @@ namespace FinalProjectAuthAPI.BL
                 ? NullIfEmpty(sheet.Cell(row, map["category"]).GetString().Trim())
                 : null;
 
+            string? vendorName = map.ContainsKey("vendorName")
+                ? NullIfEmpty(sheet.Cell(row, map["vendorName"]).GetString().Trim())
+                : null;
+
             // Type column overrides auto-detected type
             if (map.ContainsKey("type"))
             {
@@ -259,7 +269,8 @@ namespace FinalProjectAuthAPI.BL
                 BalanceAfter = balanceAfter,
                 TransactionType = transactionType,
                 Category = category,
-                ReferenceNumber = reference
+                ReferenceNumber = reference,
+                VendorName = vendorName
             };
         }
 

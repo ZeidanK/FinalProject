@@ -233,6 +233,27 @@ class ApiService {
     });
   }
 
+  /** Auto-match a single invoice with transactions */
+  async autoMatchInvoice(invoiceId, minConfidence = 70) {
+    return this.request(`/matches/auto-match/${invoiceId}?minConfidence=${minConfidence}`, {
+      method: 'POST',
+    });
+  }
+
+  /** Batch auto-match all unmatched invoices for a company */
+  async autoMatchBatch(companyId, minConfidence = 70) {
+    return this.request(`/matches/auto-match-batch/${companyId}?minConfidence=${minConfidence}`, {
+      method: 'POST',
+    });
+  }
+
+  /** Auto-match on page load (same as batch but with different response format) */
+  async autoMatchOnLoad(companyId, minConfidence = 70) {
+    return this.request(`/matches/auto-match-on-load/${companyId}?minConfidence=${minConfidence}`, {
+      method: 'POST',
+    });
+  }
+
   // ── Anomalies ──────────────────────────────────────────────────────────
 
   async getAnomalies(companyId, filters = {}) {

@@ -7,12 +7,12 @@ namespace FinalProjectAuthAPI.BL.Interfaces
     {
         List<MatchRow> GetByCompany(long companyId);
         MatchRow? GetById(long id);
-        List<MatchSuggestionRow> GetSuggestions(long invoiceId);
+        Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId);
         (bool Success, long Id, string Error) Create(CreateMatchRequest req, long matchedByUserId);
         bool Delete(long id);
-        (bool Success, long? MatchId, string Message, decimal? MatchScore) AutoMatch(
+        Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAsync(
             long invoiceId, long userId, decimal minConfidenceThreshold = 70m);
-        AutoMatchBatchResult AutoMatchBatch(
+        Task<AutoMatchBatchResult> AutoMatchBatchAsync(
             long companyId, long userId, decimal minConfidenceThreshold = 70m);
     }
 }

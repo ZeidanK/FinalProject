@@ -19,6 +19,7 @@ BEGIN
         t.transaction_date,
         t.posted_date,
         t.description,
+        t.vendor_name,
         t.amount,
         t.balance_after,
         t.transaction_type,

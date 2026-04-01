@@ -33,6 +33,9 @@ namespace FinalProjectAuthAPI.Models
 
         [StringLength(100)]
         public string? ReferenceNumber { get; set; }
+
+        [StringLength(255)]
+        public string? VendorName { get; set; }
     }
 
     public class BulkCreateTransactionsRequest
@@ -59,6 +62,7 @@ namespace FinalProjectAuthAPI.Models
         public string TransactionType { get; set; } = "debit";
         public string? Category { get; set; }
         public string? ReferenceNumber { get; set; }
+        public string? VendorName { get; set; }
         public string SheetName { get; set; } = string.Empty;
         public int RowNumber { get; set; }
     }

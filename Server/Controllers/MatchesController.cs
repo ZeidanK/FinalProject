@@ -33,8 +33,8 @@ namespace FinalProjectAuthAPI.Controllers
 
         // GET api/matches/suggestions/{invoiceId}
         [HttpGet("suggestions/{invoiceId:long}")]
-        public IActionResult GetSuggestions(long invoiceId) =>
-            Ok(_svc.GetSuggestions(invoiceId));
+        public async Task<IActionResult> GetSuggestions(long invoiceId) =>
+            Ok(await _svc.GetSuggestionsAsync(invoiceId));
 
         // POST api/matches
         [HttpPost]
@@ -54,12 +54,12 @@ namespace FinalProjectAuthAPI.Controllers
         /// Query params: minConfidence (default: 70)
         /// </summary>
         [HttpPost("auto-match/{invoiceId:long}")]
-        public IActionResult AutoMatch(long invoiceId, [FromQuery] decimal? minConfidence)
+        public async Task<IActionResult> AutoMatch(long invoiceId, [FromQuery] decimal? minConfidence)
         {
             var userId = GetCurrentUserId();
             var threshold = minConfidence ?? 70m;
             
-            var (success, matchId, message, score) = _svc.AutoMatch(invoiceId, userId, threshold);
+            var (success, matchId, message, score) = await _svc.AutoMatchAsync(invoiceId, userId, threshold);
             
             if (success)
                 return Ok(new { 
@@ -78,12 +78,12 @@ namespace FinalProjectAuthAPI.Controllers
         /// Query params: minConfidence (default: 70)
         /// </summary>
         [HttpPost("auto-match-batch/{companyId:long}")]
-        public IActionResult AutoMatchBatch(long companyId, [FromQuery] decimal? minConfidence)
+        public async Task<IActionResult> AutoMatchBatch(long companyId, [FromQuery] decimal? minConfidence)
         {
             var userId = GetCurrentUserId();
             var threshold = minConfidence ?? 70m;
             
-            var result = _svc.AutoMatchBatch(companyId, userId, threshold);
+            var result = await _svc.AutoMatchBatchAsync(companyId, userId, threshold);
             
             return Ok(new { 
                 successfulMatches = result.SuccessfulMatches,
@@ -93,6 +93,30 @@ namespace FinalProjectAuthAPI.Controllers
                 suggestionsForReview = result.SuggestionsForReview,
                 message = $"Auto-matched {result.SuccessfulMatches} invoices. " +
                          $"{result.SuggestionsForReview.Count} require manual review."
+            });
+        }
+
+        // POST api/matches/auto-match-on-load/{companyId}
+        /// <summary>
+        /// Trigger automatic batch matching on page load.
+        /// Used when user navigates to the matches page to automatically find new matches.
+        /// Query params: minConfidence (default: 70)
+        /// </summary>
+        [HttpPost("auto-match-on-load/{companyId:long}")]
+        public async Task<IActionResult> AutoMatchOnLoad(long companyId, [FromQuery] decimal? minConfidence)
+        {
+            var userId = GetCurrentUserId();
+            var threshold = minConfidence ?? 70m;
+            
+            var result = await _svc.AutoMatchBatchAsync(companyId, userId, threshold);
+            
+            return Ok(new { 
+                successfulMatches = result.SuccessfulMatches,
+                skippedInvoices = result.SkippedInvoices,
+                totalProcessed = result.SuccessfulMatches + result.SkippedInvoices,
+                message = result.SuccessfulMatches > 0 
+                    ? $"✓ {result.SuccessfulMatches} automatic match(es) found"
+                    : "No automatic matches found"
             });
         }
 

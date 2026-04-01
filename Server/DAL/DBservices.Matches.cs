@@ -40,6 +40,30 @@ namespace FinalProjectAuthAPI.DAL
         public decimal  AmountDifference { get; set; }
         public decimal  MatchScore       { get; set; } // 0-100 scoring
         public int      DaysDifference   { get; set; }
+        public List<string> MatchReasons { get; set; } = new();
+    }
+
+    public class TransactionCandidate
+    {
+        public long     Id              { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string   Description     { get; set; } = string.Empty;
+        public decimal  Amount          { get; set; }
+        public string   TransactionType { get; set; } = string.Empty;
+        public string?  ReferenceNumber { get; set; }
+        public string?  VendorName      { get; set; }
+    }
+
+    public class VendorAlias
+    {
+        public long    Id                     { get; set; }
+        public long    CompanyId              { get; set; }
+        public string  VendorName             { get; set; } = string.Empty;
+        public string  TransactionPattern     { get; set; } = string.Empty;
+        public int     ConfirmationCount       { get; set; }
+        public int     RejectionCount          { get; set; }
+        public bool    IsActive               { get; set; } = true;
+        public DateTime CreatedAt             { get; set; }
     }
 
     public partial class DBservices
@@ -232,5 +256,168 @@ namespace FinalProjectAuthAPI.DAL
             UpdatedAt              = r.HasColumn("updated_at") && r["updated_at"] != DBNull.Value
                                         ? Convert.ToDateTime(r["updated_at"]) : DateTime.MinValue,
         };
+
+        // ── Candidate transactions for C# scoring ────────────────────────────
+
+        public List<TransactionCandidate> GetCandidateTransactions(long companyId)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            var list = new List<TransactionCandidate>();
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    @"SELECT id, transaction_date, description, amount,
+                             transaction_type, reference_number, vendor_name
+                      FROM dbo.FP26_transactions
+                      WHERE company_id = @CompanyId AND is_matched = 0",
+                    con);
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new TransactionCandidate
+                    {
+                        Id              = Convert.ToInt64(reader["id"]),
+                        TransactionDate = Convert.ToDateTime(reader["transaction_date"]),
+                        Description     = reader["description"]?.ToString() ?? string.Empty,
+                        Amount          = Convert.ToDecimal(reader["amount"]),
+                        TransactionType = reader["transaction_type"]?.ToString() ?? string.Empty,
+                        ReferenceNumber = reader["reference_number"] as string,
+                        VendorName      = reader["vendor_name"] as string
+                    });
+                }
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+        // ── Vendor aliases ────────────────────────────────────────────────────
+
+        public List<VendorAlias> GetVendorAliases(long companyId)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            var list = new List<VendorAlias>();
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    @"SELECT id, company_id, vendor_name, transaction_pattern,
+                             confirmation_count, rejection_count, is_active, created_at
+                      FROM dbo.FP26_vendor_aliases
+                      WHERE company_id = @CompanyId AND is_active = 1
+                        AND confirmation_count >= 2",
+                    con);
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new VendorAlias
+                    {
+                        Id                 = Convert.ToInt64(reader["id"]),
+                        CompanyId          = Convert.ToInt64(reader["company_id"]),
+                        VendorName         = reader["vendor_name"]?.ToString() ?? string.Empty,
+                        TransactionPattern = reader["transaction_pattern"]?.ToString() ?? string.Empty,
+                        ConfirmationCount  = Convert.ToInt32(reader["confirmation_count"]),
+                        RejectionCount     = Convert.ToInt32(reader["rejection_count"]),
+                        IsActive           = Convert.ToBoolean(reader["is_active"]),
+                        CreatedAt          = Convert.ToDateTime(reader["created_at"])
+                    });
+                }
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+        public void RecordVendorAlias(long companyId, string vendorName, string transactionDescription)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                // Extract the meaningful part of the description (strip common prefixes)
+                var pattern = StripTransactionBoilerplate(transactionDescription);
+                if (string.IsNullOrWhiteSpace(pattern)) return;
+
+                var cmd = new SqlCommand(
+                    @"IF EXISTS (SELECT 1 FROM dbo.FP26_vendor_aliases
+                                 WHERE company_id = @CompanyId
+                                   AND vendor_name = @VendorName
+                                   AND transaction_pattern = @Pattern)
+                      BEGIN
+                          UPDATE dbo.FP26_vendor_aliases
+                          SET confirmation_count = confirmation_count + 1,
+                              is_active = 1
+                          WHERE company_id = @CompanyId
+                            AND vendor_name = @VendorName
+                            AND transaction_pattern = @Pattern;
+                      END
+                      ELSE
+                      BEGIN
+                          INSERT INTO dbo.FP26_vendor_aliases
+                              (company_id, vendor_name, transaction_pattern,
+                               confirmation_count, rejection_count, is_active, created_at)
+                          VALUES
+                              (@CompanyId, @VendorName, @Pattern, 1, 0, 1, GETDATE());
+                      END", con);
+
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                cmd.Parameters.AddWithValue("@VendorName", vendorName);
+                cmd.Parameters.AddWithValue("@Pattern", pattern);
+                cmd.ExecuteNonQuery();
+            }
+            finally { con?.Close(); }
+        }
+
+        public void RejectVendorAlias(long companyId, string vendorName, string transactionDescription)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var pattern = StripTransactionBoilerplate(transactionDescription);
+                if (string.IsNullOrWhiteSpace(pattern)) return;
+
+                var cmd = new SqlCommand(
+                    @"UPDATE dbo.FP26_vendor_aliases
+                      SET rejection_count = rejection_count + 1,
+                          is_active = CASE WHEN rejection_count + 1 >= 2 THEN 0 ELSE is_active END
+                      WHERE company_id = @CompanyId
+                        AND vendor_name = @VendorName
+                        AND transaction_pattern = @Pattern", con);
+
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                cmd.Parameters.AddWithValue("@VendorName", vendorName);
+                cmd.Parameters.AddWithValue("@Pattern", pattern);
+                cmd.ExecuteNonQuery();
+            }
+            finally { con?.Close(); }
+        }
+
+        private static string StripTransactionBoilerplate(string description)
+        {
+            if (string.IsNullOrWhiteSpace(description)) return string.Empty;
+            var stripped = description.Trim();
+            // Remove common prefixes in English & Hebrew
+            string[] prefixes = {
+                "payment to ", "bank transfer - ", "transfer to ", "payment - ",
+                "customer payment - ", "wire transfer - ", "direct debit - ",
+                "העברה ל-", "העברה ל", "תשלום עבור ", "תשלום ל-", "תשלום ל",
+                "העברת כספים - ", "חיוב - "
+            };
+            foreach (var p in prefixes)
+            {
+                if (stripped.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                {
+                    stripped = stripped[p.Length..].Trim();
+                    break;
+                }
+            }
+            return stripped;
+        }
     }
 }

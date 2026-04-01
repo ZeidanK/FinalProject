@@ -39,10 +39,12 @@ import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded
 import FileUploadRoundedIcon from '@mui/icons-material/FileUploadRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
 import { useAuth } from '../context/AuthContext'
 import {
+  getTransactionById,
   getTransactionsByCompany,
   createTransactionsBulk,
   previewExcel,
@@ -51,6 +53,7 @@ import {
   getBankAccountsByCompany,
   createBankAccount,
 } from '../services/bankAccounts'
+import TransactionDetailsModal from '../components/TransactionDetailsModal'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -78,7 +81,7 @@ const typeColors = {
 // ==================== CSV Helpers ====================
 
 const EXPECTED_HEADERS = ['date', 'description', 'amount', 'type']
-const OPTIONAL_HEADERS = ['category', 'reference', 'posteddate']
+const OPTIONAL_HEADERS = ['category', 'reference', 'posteddate', 'vendorname']
 
 function normalizeHeader(raw) {
   return raw
@@ -91,6 +94,7 @@ function normalizeHeader(raw) {
     .replace(/desc/, 'description')
     .replace(/amt/, 'amount')
     .replace(/cat/, 'category')
+    .replace(/vendorname|vendor|suppliername|supplier/, 'vendorname')
 }
 
 function parseCSVData(text) {
@@ -125,6 +129,7 @@ function parseCSVData(text) {
       category: row.category || '',
       referenceNumber: row.reference || '',
       postedDate: row.posteddate || '',
+      vendorName: row.vendorname || '',
       _valid: !!(row.date && row.description && !isNaN(amount) && amount !== 0),
     }
   })
@@ -268,6 +273,12 @@ function TransactionsPage() {
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const [detailsModal, setDetailsModal] = useState({
+    open: false,
+    loading: false,
+    error: '',
+    transaction: null,
+  })
 
   // ===================== Data Fetching =====================
 
@@ -355,6 +366,7 @@ function TransactionsPage() {
             category: t.category || '',
             referenceNumber: t.referenceNumber || '',
             postedDate: t.postedDate || '',
+            vendorName: t.vendorName || '',
             _valid: !!(t.transactionDate && t.description && t.amount && t.amount !== 0),
           }))
           setParsedRows(rows)
@@ -446,6 +458,7 @@ function TransactionsPage() {
           postedDate: r.postedDate || null,
           category: r.category || null,
           referenceNumber: r.referenceNumber || null,
+          vendorName: r.vendorName || null,
         })),
       }
 
@@ -501,6 +514,32 @@ function TransactionsPage() {
     },
     [companyId, user, token, loadBankAccounts],
   )
+
+  const openTransactionDetails = useCallback(
+    async (tx) => {
+      const transactionId = tx?.id ?? tx?.transactionId
+      if (!transactionId) return
+
+      setDetailsModal({ open: true, loading: true, error: '', transaction: null })
+
+      try {
+        const transaction = await getTransactionById(transactionId, token)
+        setDetailsModal({ open: true, loading: false, error: '', transaction })
+      } catch (err) {
+        setDetailsModal({
+          open: true,
+          loading: false,
+          error: err.message || 'Failed to load transaction details.',
+          transaction: tx || null,
+        })
+      }
+    },
+    [token],
+  )
+
+  const closeTransactionDetails = useCallback(() => {
+    setDetailsModal({ open: false, loading: false, error: '', transaction: null })
+  }, [])
 
   // ===================== Render =====================
 
@@ -743,6 +782,7 @@ function TransactionsPage() {
                         <TableCell padding="checkbox" />
                         <TableCell>Date</TableCell>
                         <TableCell>Description</TableCell>
+                        <TableCell>Vendor</TableCell>
                         <TableCell align="right">Amount</TableCell>
                         <TableCell align="center">Type</TableCell>
                         <TableCell>Category</TableCell>
@@ -771,6 +811,11 @@ function TransactionsPage() {
                           <TableCell>
                             <Typography variant="body2" noWrap sx={{ maxWidth: 220 }}>
                               {row.description || '—'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
+                              {row.vendorName || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -898,17 +943,20 @@ function TransactionsPage() {
                         <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
                           <TableCell>Date</TableCell>
                           <TableCell>Description</TableCell>
+                          <TableCell>Vendor</TableCell>
                           <TableCell align="right">Amount</TableCell>
                           <TableCell align="center">Type</TableCell>
                           <TableCell>Category</TableCell>
                           <TableCell>Reference</TableCell>
                           <TableCell align="center">Matched</TableCell>
+                          <TableCell align="center">Action</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {transactions.map((tx) => {
                           const date = tx.transaction_date || tx.transactionDate
                           const desc = tx.description || '—'
+                          const vendor = tx.vendor_name || tx.vendorName || '—'
                           const amount = tx.amount ?? 0
                           const type = (
                             tx.transaction_type ||
@@ -929,6 +977,11 @@ function TransactionsPage() {
                               <TableCell>
                                 <Typography variant="body2" noWrap sx={{ maxWidth: 240 }}>
                                   {desc}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
+                                  {vendor}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
@@ -970,6 +1023,16 @@ function TransactionsPage() {
                                   variant="outlined"
                                 />
                               </TableCell>
+                              <TableCell align="center">
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<VisibilityRoundedIcon />}
+                                  onClick={() => openTransactionDetails(tx)}
+                                >
+                                  View
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           )
                         })}
@@ -989,6 +1052,14 @@ function TransactionsPage() {
         onClose={() => setShowAddAccount(false)}
         onSave={handleAddAccount}
         saving={addingAccount}
+      />
+
+      <TransactionDetailsModal
+        open={detailsModal.open}
+        loading={detailsModal.loading}
+        error={detailsModal.error}
+        transaction={detailsModal.transaction}
+        onClose={closeTransactionDetails}
       />
 
       {/* ---- Snackbar ---- */}
