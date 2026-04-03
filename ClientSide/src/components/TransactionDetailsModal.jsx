@@ -1,5 +1,6 @@
 import { Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, Stack, Typography, Button } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import PropTypes from 'prop-types'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -62,6 +63,108 @@ function DetailRow({ label, value }) {
   )
 }
 
+DetailRow.propTypes = {
+  label: PropTypes.node.isRequired,
+  value: PropTypes.node,
+}
+
+function TransactionStatusContent({ loading, error, data }) {
+  if (loading) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Loading transaction details…
+      </Typography>
+    )
+  }
+
+  if (error) {
+    return (
+      <Stack spacing={2}>
+        <Typography variant="body2" color="error.main">
+          {error}
+        </Typography>
+        {data ? (
+          <Typography variant="body2" color="text.secondary">
+            Showing the row data that was already loaded in the list.
+          </Typography>
+        ) : null}
+      </Stack>
+    )
+  }
+
+  return null
+}
+
+TransactionStatusContent.propTypes = {
+  loading: PropTypes.bool,
+  error: PropTypes.string,
+  data: PropTypes.object,
+}
+
+function TransactionDetailsContent({ data }) {
+  return (
+    <Stack spacing={3} sx={{ mt: 2 }}>
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Chip label={data.transactionType} color={data.transactionType === 'credit' ? 'success' : 'error'} variant="outlined" />
+        <Chip label={data.isMatched ? 'Matched' : 'Unmatched'} color={data.isMatched ? 'success' : 'default'} variant="outlined" />
+        <Chip label={data.isDuplicate ? 'Duplicate' : 'Unique'} color={data.isDuplicate ? 'warning' : 'default'} variant="outlined" />
+        <Chip label={data.status || 'confirmed'} color={chipColorForStatus(data.status)} variant="outlined" />
+      </Stack>
+
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Transaction Date" value={formatDate(data.transactionDate)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Posted Date" value={formatDate(data.postedDate)} />
+        </Grid>
+        <Grid size={{ xs: 12 }}>
+          <DetailRow label="Description" value={data.description || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <DetailRow label="Amount" value={formatNumber(data.amount)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <DetailRow label="Balance After" value={data.balanceAfter == null ? '—' : formatNumber(data.balanceAfter)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <DetailRow label="Bank Account Id" value={data.bankAccountId == null ? '—' : String(data.bankAccountId)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Category" value={data.category || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Reference Number" value={data.referenceNumber || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Created At" value={formatDate(data.createdAt)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Updated At" value={formatDate(data.updatedAt)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Created By User" value={data.createdByUserId == null ? '—' : String(data.createdByUserId)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Transaction Id" value={data.id == null ? '—' : String(data.id)} />
+        </Grid>
+      </Grid>
+
+      <Divider />
+
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Typography variant="body2" color="text.secondary">
+          This view is read-only and uses the saved transaction record for reference.
+        </Typography>
+      </Stack>
+    </Stack>
+  )
+}
+
+TransactionDetailsContent.propTypes = {
+  data: PropTypes.object.isRequired,
+}
+
 export default function TransactionDetailsModal({ open, loading, error, transaction, onClose }) {
   const data = normalizeTransaction(transaction)
 
@@ -71,12 +174,14 @@ export default function TransactionDetailsModal({ open, loading, error, transact
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 3,
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 3,
+          },
         },
       }}
     >
@@ -102,80 +207,8 @@ export default function TransactionDetailsModal({ open, loading, error, transact
       </DialogTitle>
 
       <DialogContent dividers sx={{ py: 3 }}>
-        {loading ? (
-          <Typography variant="body2" color="text.secondary">
-            Loading transaction details…
-          </Typography>
-        ) : error ? (
-          <Stack spacing={2}>
-            <Typography variant="body2" color="error.main">
-              {error}
-            </Typography>
-            {data ? (
-              <Typography variant="body2" color="text.secondary">
-                Showing the row data that was already loaded in the list.
-              </Typography>
-            ) : null}
-          </Stack>
-        ) : null}
-
-        {data ? (
-          <Stack spacing={3} sx={{ mt: loading || error ? 2 : 0 }}>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Chip label={data.transactionType} color={data.transactionType === 'credit' ? 'success' : 'error'} variant="outlined" />
-              <Chip label={data.isMatched ? 'Matched' : 'Unmatched'} color={data.isMatched ? 'success' : 'default'} variant="outlined" />
-              <Chip label={data.isDuplicate ? 'Duplicate' : 'Unique'} color={data.isDuplicate ? 'warning' : 'default'} variant="outlined" />
-              <Chip label={data.status || 'confirmed'} color={chipColorForStatus(data.status)} variant="outlined" />
-            </Stack>
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Transaction Date" value={formatDate(data.transactionDate)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Posted Date" value={formatDate(data.postedDate)} />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <DetailRow label="Description" value={data.description || '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <DetailRow label="Amount" value={formatNumber(data.amount)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <DetailRow label="Balance After" value={data.balanceAfter != null ? formatNumber(data.balanceAfter) : '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <DetailRow label="Bank Account Id" value={data.bankAccountId != null ? String(data.bankAccountId) : '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Category" value={data.category || '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Reference Number" value={data.referenceNumber || '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Created At" value={formatDate(data.createdAt)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Updated At" value={formatDate(data.updatedAt)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Created By User" value={data.createdByUserId != null ? String(data.createdByUserId) : '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <DetailRow label="Transaction Id" value={data.id != null ? String(data.id) : '—'} />
-              </Grid>
-            </Grid>
-
-            <Divider />
-
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Typography variant="body2" color="text.secondary">
-                This view is read-only and uses the saved transaction record for reference.
-              </Typography>
-            </Stack>
-          </Stack>
-        ) : null}
+        <TransactionStatusContent loading={loading} error={error} data={data} />
+        {data && <TransactionDetailsContent data={data} />}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
@@ -185,4 +218,12 @@ export default function TransactionDetailsModal({ open, loading, error, transact
       </DialogActions>
     </Dialog>
   )
+}
+
+TransactionDetailsModal.propTypes = {
+  open: PropTypes.bool.isRequired,
+  loading: PropTypes.bool,
+  error: PropTypes.string,
+  transaction: PropTypes.object,
+  onClose: PropTypes.func.isRequired,
 }
