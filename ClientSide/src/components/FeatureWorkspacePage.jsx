@@ -1,5 +1,6 @@
 import { Box, Card, CardContent, Chip, Container, Grid, Stack, Typography } from '@mui/material'
 import { motion } from 'framer-motion'
+import PropTypes from 'prop-types'
 import EmptyState from './EmptyState'
 import { useAuth } from '../context/useAuth'
 
@@ -131,6 +132,22 @@ function FeatureWorkspacePage({
       </Container>
     </Box>
   )
+}
+
+FeatureWorkspacePage.propTypes = {
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  statusLabel: PropTypes.string.isRequired,
+  highlights: PropTypes.arrayOf(
+    PropTypes.shape({
+      title: PropTypes.string.isRequired,
+      text: PropTypes.string.isRequired,
+      icon: PropTypes.node,
+    })
+  ).isRequired,
+  emptyTitle: PropTypes.string.isRequired,
+  emptyDescription: PropTypes.string.isRequired,
+  emptyActionLabel: PropTypes.string.isRequired,
 }
 
 export default FeatureWorkspacePage

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import PropTypes from 'prop-types'
 import {
   Box,
   Button,
@@ -41,104 +42,99 @@ function FieldLabel({ label, confidence }) {
       <Chip
         label={confidenceLabel(confidence)}
         size="small"
-        color={confidenceColor(confidence != null ? confidence : 0)}
+        color={confidenceColor(confidence ?? 0)}
       />
     </Stack>
   )
 }
 
+FieldLabel.propTypes = {
+  label: PropTypes.string.isRequired,
+  confidence: PropTypes.number,
+}
+
 export default function InvoiceVerificationModal(props) {
-  var open = props.open
-  var onClose = props.onClose
-  var onSave = props.onSave
-  var initialData = props.initialData
-  var fileName = props.fileName
-  var extractionMethod = props.extractionMethod
-  var saving = props.saving
+  const open = props.open
+  const onClose = props.onClose
+  const onSave = props.onSave
+  const initialData = props.initialData
+  const fileName = props.fileName
+  const extractionMethod = props.extractionMethod
+  const saving = props.saving
 
   const [form, setForm] = useState(function () {
-    return initialData ? JSON.parse(JSON.stringify(initialData)) : {}
+    return initialData ? structuredClone(initialData) : {}
   })
 
-  useEffect(function () {
-    if (initialData) {
-      setForm(JSON.parse(JSON.stringify(initialData)))
-    }
-  }, [initialData])
-
-  var updateField = useCallback(function (field, value) {
+  const updateField = useCallback(function (field, value) {
     setForm(function (prev) {
-      var next = Object.assign({}, prev)
-      next[field] = Object.assign({}, prev[field], { value: value })
+      const next = { ...prev}
+      next[field] = { ...prev[field], value: value}
 
       if (field === 'vatRate') {
-        var sub = parseFloat(next.subtotal && next.subtotal.value) || 0
-        var rate = parseFloat(value) || 0
+        const sub = Number.parseFloat(next.subtotal?.value) || 0
+        const rate = Number.parseFloat(value) || 0
         if (sub > 0 && rate > 0) {
-          var vat = +(sub * rate / 100).toFixed(2)
-          next.vatAmount = Object.assign({}, next.vatAmount, { value: vat })
-          next.totalAmount = Object.assign({}, next.totalAmount, { value: +(sub + vat).toFixed(2) })
+          const vat = +(sub * rate / 100).toFixed(2)
+          next.vatAmount = { ...next.vatAmount, value: vat}
+          next.totalAmount = { ...next.totalAmount, value: +(sub + vat).toFixed(2)}
         }
       }
 
       if (field === 'subtotal' || field === 'vatAmount') {
-        var s = parseFloat(field === 'subtotal' ? value : (next.subtotal && next.subtotal.value)) || 0
-        var v = parseFloat(field === 'vatAmount' ? value : (next.vatAmount && next.vatAmount.value)) || 0
-        next.totalAmount = Object.assign({}, next.totalAmount, { value: +(s + v).toFixed(2) })
+        const s = Number.parseFloat(field === 'subtotal' ? value : (next.subtotal?.value)) || 0
+        const v = Number.parseFloat(field === 'vatAmount' ? value : (next.vatAmount?.value)) || 0
+        next.totalAmount = { ...next.totalAmount, value: +(s + v).toFixed(2)}
       }
 
       return next
     })
   }, [])
 
-  var updateLineItem = useCallback(function (index, key, value) {
+  const updateLineItem = useCallback(function (index, key, value) {
     setForm(function (prev) {
-      var items = prev.lineItems.slice()
-      items[index] = Object.assign({}, items[index])
+      const items = prev.lineItems.slice()
+      items[index] = { ...items[index]}
       items[index][key] = value
       if (key === 'quantity' || key === 'unitPrice') {
-        var qty = key === 'quantity' ? (parseFloat(value) || 0) : (parseFloat(items[index].quantity) || 0)
-        var up = key === 'unitPrice' ? (parseFloat(value) || 0) : (parseFloat(items[index].unitPrice) || 0)
+        const qty = key === 'quantity' ? (Number.parseFloat(value) || 0) : (Number.parseFloat(items[index].quantity) || 0)
+        const up = key === 'unitPrice' ? (Number.parseFloat(value) || 0) : (Number.parseFloat(items[index].unitPrice) || 0)
         items[index].totalAmount = +(qty * up).toFixed(2)
       }
-      return Object.assign({}, prev, { lineItems: items })
+      return { ...prev, lineItems: items}
     })
   }, [])
 
-  var addLineItem = useCallback(function () {
+  const addLineItem = useCallback(function () {
     setForm(function (prev) {
-      return Object.assign({}, prev, {
-        lineItems: prev.lineItems.concat([
+      return { ...prev, lineItems: prev.lineItems.concat([
           { id: Date.now(), description: '', quantity: 1, unitPrice: 0, totalAmount: 0, confidence: null }
-        ])
-      })
+        ])}
     })
   }, [])
 
-  var removeLineItem = useCallback(function (index) {
+  const removeLineItem = useCallback(function (index) {
     setForm(function (prev) {
-      return Object.assign({}, prev, {
-        lineItems: prev.lineItems.filter(function (_, i) { return i !== index })
-      })
+      return { ...prev, lineItems: prev.lineItems.filter(function (_, i) { return i !== index })}
     })
   }, [])
 
-  var handleSave = useCallback(function () {
+  const handleSave = useCallback(function () {
     onSave(form)
   }, [form, onSave])
 
-  var overallConfidence = useMemo(function () {
+  const overallConfidence = useMemo(function () {
     if (!initialData) return 0
-    var fields = ['vendorName', 'invoiceNumber', 'invoiceDate', 'totalAmount', 'subtotal', 'vatAmount', 'currency', 'vendorTaxId', 'lastFourDigitsCard']
-    var total = 0
-    for (var i = 0; i < fields.length; i++) {
-      var f = initialData[fields[i]]
-      total += (f && f.confidence != null) ? f.confidence : 0
+    const fields = ['vendorName', 'invoiceNumber', 'invoiceDate', 'totalAmount', 'subtotal', 'vatAmount', 'currency', 'vendorTaxId', 'lastFourDigitsCard']
+    let total = 0
+    for (const element of fields) {
+      const f = initialData[element]
+      total += (f?.confidence == null) ? 0 : f.confidence
     }
     return total / fields.length
   }, [initialData])
 
-  var lineItems = form.lineItems || []
+  const lineItems = form.lineItems || []
 
   return (
     <Dialog
@@ -146,12 +142,14 @@ export default function InvoiceVerificationModal(props) {
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 3,
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 3,
+          },
         },
       }}
     >
@@ -195,48 +193,48 @@ export default function InvoiceVerificationModal(props) {
         <Stack spacing={3}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Vendor Name" confidence={form.vendorName && form.vendorName.confidence} />
+              <FieldLabel label="Vendor Name" confidence={form.vendorName?.confidence} />
               <TextField
                 fullWidth size="small" sx={fieldSx}
-                value={(form.vendorName && form.vendorName.value) || ''}
+                value={(form.vendorName?.value) || ''}
                 onChange={function (e) { updateField('vendorName', e.target.value) }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Invoice Number" confidence={form.invoiceNumber && form.invoiceNumber.confidence} />
+              <FieldLabel label="Invoice Number" confidence={form.invoiceNumber?.confidence} />
               <TextField
                 fullWidth size="small" sx={fieldSx}
-                value={(form.invoiceNumber && form.invoiceNumber.value) || ''}
+                value={(form.invoiceNumber?.value) || ''}
                 onChange={function (e) { updateField('invoiceNumber', e.target.value) }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Invoice Date" confidence={form.invoiceDate && form.invoiceDate.confidence} />
+              <FieldLabel label="Invoice Date" confidence={form.invoiceDate?.confidence} />
               <TextField
                 fullWidth size="small" type="date" sx={fieldSx}
-                value={(form.invoiceDate && form.invoiceDate.value) || ''}
+                value={(form.invoiceDate?.value) || ''}
                 onChange={function (e) { updateField('invoiceDate', e.target.value) }}
                 slotProps={{ inputLabel: { shrink: true } }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Due Date" confidence={form.dueDate && form.dueDate.confidence} />
+              <FieldLabel label="Due Date" confidence={form.dueDate?.confidence} />
               <TextField
                 fullWidth size="small" type="date" sx={fieldSx}
-                value={(form.dueDate && form.dueDate.value) || ''}
+                value={(form.dueDate?.value) || ''}
                 onChange={function (e) { updateField('dueDate', e.target.value) }}
                 slotProps={{ inputLabel: { shrink: true } }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Currency" confidence={form.currency && form.currency.confidence} />
+              <FieldLabel label="Currency" confidence={form.currency?.confidence} />
               <TextField
                 fullWidth size="small" select sx={fieldSx}
-                value={(form.currency && form.currency.value) || 'USD'}
+                value={(form.currency?.value) || 'USD'}
                 onChange={function (e) { updateField('currency', e.target.value) }}
               >
                 {CURRENCIES.map(function (c) {
@@ -246,30 +244,30 @@ export default function InvoiceVerificationModal(props) {
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="VAT Rate (%)" confidence={form.vatRate && form.vatRate.confidence} />
+              <FieldLabel label="VAT Rate (%)" confidence={form.vatRate?.confidence} />
               <TextField
                 fullWidth size="small" type="number" sx={fieldSx}
-                value={form.vatRate != null && form.vatRate.value != null ? form.vatRate.value : ''}
+                value={form.vatRate?.value == null ? '' : form.vatRate.value}
                 onChange={function (e) { updateField('vatRate', e.target.value) }}
                 slotProps={{ htmlInput: { min: 0, max: 100, step: 0.01 } }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Vendor Tax ID" confidence={form.vendorTaxId && form.vendorTaxId.confidence} />
+              <FieldLabel label="Vendor Tax ID" confidence={form.vendorTaxId?.confidence} />
               <TextField
                 fullWidth size="small" sx={fieldSx}
-                value={(form.vendorTaxId && form.vendorTaxId.value) || ''}
+                value={(form.vendorTaxId?.value) || ''}
                 onChange={function (e) { updateField('vendorTaxId', e.target.value) }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FieldLabel label="Last 4 Digits Card" confidence={form.lastFourDigitsCard && form.lastFourDigitsCard.confidence} />
+              <FieldLabel label="Last 4 Digits Card" confidence={form.lastFourDigitsCard?.confidence} />
               <TextField
                 fullWidth size="small" sx={fieldSx}
-                inputProps={{ maxLength: 4 }}
-                value={(form.lastFourDigitsCard && form.lastFourDigitsCard.value) || ''}
+                slotProps={{ htmlInput: { maxLength: 4 } }}
+                value={(form.lastFourDigitsCard?.value) || ''}
                 onChange={function (e) { updateField('lastFourDigitsCard', e.target.value) }}
                 placeholder="e.g., 1234"
               />
@@ -299,7 +297,7 @@ export default function InvoiceVerificationModal(props) {
                   {lineItems.length > 0 ? (
                     lineItems.map(function (item, idx) {
                       return (
-                        <TableRow key={item.id != null ? item.id : idx}>
+                        <TableRow key={item.id == null ? idx : item.id}>
                           <TableCell>
                             <TextField
                               fullWidth size="small" variant="standard"
@@ -331,13 +329,13 @@ export default function InvoiceVerificationModal(props) {
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
-                            {item.confidence != null ? (
+                            {item.confidence == null ? null : (
                               <Chip
                                 label={confidenceLabel(item.confidence)}
                                 size="small"
                                 color={confidenceColor(item.confidence)}
                               />
-                            ) : null}
+                            )}
                           </TableCell>
                           <TableCell>
                             <IconButton size="small" onClick={function () { removeLineItem(idx) }}>
@@ -366,10 +364,10 @@ export default function InvoiceVerificationModal(props) {
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color="text.secondary">Subtotal</Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={confidenceLabel(form.subtotal && form.subtotal.confidence)} size="small" color={confidenceColor((form.subtotal && form.subtotal.confidence) || 0)} />
+                  <Chip label={confidenceLabel(form.subtotal?.confidence)} size="small" color={confidenceColor((form.subtotal?.confidence) || 0)} />
                   <TextField
-                    size="small" type="number" sx={Object.assign({}, fieldSx, { width: 140 })}
-                    value={form.subtotal != null && form.subtotal.value != null ? form.subtotal.value : ''}
+                    size="small" type="number" sx={({ ...fieldSx, width: 140})}
+                    value={form.subtotal?.value == null ? '' : form.subtotal.value}
                     onChange={function (e) { updateField('subtotal', e.target.value) }}
                     slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right' } } }}
                   />
@@ -379,10 +377,10 @@ export default function InvoiceVerificationModal(props) {
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color="text.secondary">VAT Amount</Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={confidenceLabel(form.vatAmount && form.vatAmount.confidence)} size="small" color={confidenceColor((form.vatAmount && form.vatAmount.confidence) || 0)} />
+                  <Chip label={confidenceLabel(form.vatAmount?.confidence)} size="small" color={confidenceColor((form.vatAmount?.confidence) || 0)} />
                   <TextField
-                    size="small" type="number" sx={Object.assign({}, fieldSx, { width: 140 })}
-                    value={form.vatAmount != null && form.vatAmount.value != null ? form.vatAmount.value : ''}
+                    size="small" type="number" sx={({ ...fieldSx, width: 140})}
+                    value={form.vatAmount?.value == null ? '' : form.vatAmount.value}
                     onChange={function (e) { updateField('vatAmount', e.target.value) }}
                     slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right' } } }}
                   />
@@ -395,10 +393,10 @@ export default function InvoiceVerificationModal(props) {
               >
                 <Typography variant="subtitle1" fontWeight={700}>Total Amount</Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={confidenceLabel(form.totalAmount && form.totalAmount.confidence)} size="small" color={confidenceColor((form.totalAmount && form.totalAmount.confidence) || 0)} />
+                  <Chip label={confidenceLabel(form.totalAmount?.confidence)} size="small" color={confidenceColor((form.totalAmount?.confidence) || 0)} />
                   <TextField
-                    size="small" type="number" sx={Object.assign({}, fieldSx, { width: 140 })}
-                    value={form.totalAmount != null && form.totalAmount.value != null ? form.totalAmount.value : ''}
+                    size="small" type="number" sx={({ ...fieldSx, width: 140})}
+                    value={form.totalAmount?.value == null ? '' : form.totalAmount.value}
                     onChange={function (e) { updateField('totalAmount', e.target.value) }}
                     slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right', fontWeight: 700 } } }}
                   />
@@ -424,4 +422,14 @@ export default function InvoiceVerificationModal(props) {
       </DialogActions>
     </Dialog>
   )
+}
+
+InvoiceVerificationModal.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  initialData: PropTypes.object,
+  fileName: PropTypes.string,
+  extractionMethod: PropTypes.string,
+  saving: PropTypes.bool,
 }

@@ -6,7 +6,7 @@ export default [
       "**/build/**",
       "**/bin/**",
       "**/obj/**",
-      "Server/**",
+      "mock/**",
       "new/**",
       "randTest/**",
       "uploads/**",
@@ -14,7 +14,7 @@ export default [
     ]
   },
   {
-    files: ["ClientSide/**/*.{js,jsx}", "mock/**/*.{js,jsx}"],
+    files: ["ClientSide/**/*.{js,jsx}", "Server/**"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

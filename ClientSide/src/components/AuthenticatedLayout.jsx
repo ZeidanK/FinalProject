@@ -24,6 +24,7 @@ import { motion } from 'framer-motion'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useTheme } from '@mui/material/styles'
+import PropTypes from 'prop-types'
 import { useAuth } from '../context/useAuth'
 
 const sidebarWidth = 272
@@ -212,6 +213,16 @@ function SidebarContent({ onNavigate, user, onLogout }) {
       </Button>
     </Stack>
   )
+}
+
+SidebarContent.propTypes = {
+  onNavigate: PropTypes.func,
+  onLogout: PropTypes.func.isRequired,
+  user: PropTypes.shape({
+    name: PropTypes.string,
+    email: PropTypes.string,
+    role: PropTypes.string,
+  }),
 }
 
 function AuthenticatedLayout() {

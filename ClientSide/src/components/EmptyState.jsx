@@ -1,5 +1,6 @@
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { Button, Card, CardContent, Stack, Typography } from '@mui/material'
+import PropTypes from 'prop-types'
 
 function EmptyState({ title, description, actionLabel, onAction, icon }) {
   return (
@@ -28,6 +29,14 @@ function EmptyState({ title, description, actionLabel, onAction, icon }) {
       </CardContent>
     </Card>
   )
+}
+
+EmptyState.propTypes = {
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  actionLabel: PropTypes.string,
+  onAction: PropTypes.func,
+  icon: PropTypes.node,
 }
 
 export default EmptyState
