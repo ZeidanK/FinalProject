@@ -29,17 +29,15 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import { motion } from 'framer-motion'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import {
   createInvoice,
   downloadInvoicePdf,
   getInvoicesByCompany,
   uploadInvoicePdf,
 } from '../services/invoices'
-import { autoMatchInvoice } from '../services/matches'
-import InvoiceVerificationModal, {
-  mapExtractedToForm,
-} from '../components/InvoiceVerificationModal'
+import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
+import { mapExtractedToForm } from '../utils/invoiceExtraction'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 

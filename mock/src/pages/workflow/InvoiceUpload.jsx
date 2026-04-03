@@ -104,7 +104,7 @@ const InvoiceUpload = () => {
         });
     });
   };
-      progress: 0
+      0
 
   const handleVerifyFile = (file) => {
     setCurrentVerification({

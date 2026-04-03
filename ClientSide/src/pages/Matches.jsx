@@ -32,7 +32,7 @@ import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { getInvoicesByCompany } from '../services/invoices'
 import { getTransactionsByCompany } from '../services/transactions'
 import {

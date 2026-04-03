@@ -23,7 +23,7 @@ import { motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { getDashboardStats, getRecentActivity, mapDashboardStatsToKpis } from '../services/dashboard'
 
 const quickActions = [

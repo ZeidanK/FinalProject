@@ -42,7 +42,7 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import {
   getTransactionById,
   getTransactionsByCompany,
@@ -141,6 +141,7 @@ function parseCSVData(text) {
 
 const ACCOUNT_TYPES = ['checking', 'savings', 'credit_card', 'other']
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'ILS']
+const EXCEL_EXTENSIONS = ['xlsx', 'xls']
 
 const emptyAccount = {
   bankName: '',
@@ -161,12 +162,13 @@ function AddBankAccountDialog({ open, onClose, onSave, saving }) {
     onSave(form)
   }
 
-  useEffect(() => {
-    if (open) setForm(emptyAccount)
-  }, [open])
+  const handleClose = () => {
+    setForm(emptyAccount)
+    onClose()
+  }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>Add Bank Account</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -221,7 +223,7 @@ function AddBankAccountDialog({ open, onClose, onSave, saving }) {
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={saving}>
+        <Button onClick={handleClose} disabled={saving}>
           Cancel
         </Button>
         <Button
@@ -324,14 +326,13 @@ function TransactionsPage() {
 
   // ===================== File Handlers =====================
 
-  const EXCEL_EXTENSIONS = ['xlsx', 'xls']
-
-  const validateFile = (file) => {
+  const validateFile = useCallback((file) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'csv' && !EXCEL_EXTENSIONS.includes(ext)) return 'Only CSV and Excel (.xlsx, .xls) files are accepted.'
+    if (ext !== 'csv' && !EXCEL_EXTENSIONS.includes(ext))
+      return 'Only CSV and Excel (.xlsx, .xls) files are accepted.'
     if (file.size > MAX_FILE_SIZE) return 'File exceeds 10 MB limit.'
     return null
-  }
+  }, [])
 
   const handleCSVFile = useCallback((file) => {
     const error = validateFile(file)
@@ -397,7 +398,7 @@ function TransactionsPage() {
       setParseError('Failed to read file.')
     }
     reader.readAsText(file)
-  }, [companyId, token])
+  }, [companyId, token, validateFile])
 
   const handleDrag = useCallback((e) => {
     e.preventDefault()

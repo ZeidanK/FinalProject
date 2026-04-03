@@ -22,9 +22,9 @@ import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import { motion } from 'framer-motion'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTheme } from '@mui/material/styles'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 
 const sidebarWidth = 272
 const ALL_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
@@ -77,26 +77,25 @@ const navItems = [
 function SidebarContent({ onNavigate, user, onLogout }) {
   const navigate = useNavigate()
 
-  const roleLabel = useMemo(() => {
+  const getRoleLabel = () => {
     if (!user?.role) return 'Unknown role'
     if (user.role === 'accountant_business_owner') return 'Accountant + Business Owner'
     if (user.role === 'business_owner') return 'Business Owner'
     if (user.role === 'accountant') return 'Accountant'
     return user.role
-  }, [user?.role])
+  }
+
+  const roleLabel = getRoleLabel()
 
   const handleLogout = () => {
     onLogout()
     navigate('/login', { replace: true })
   }
 
-  const visibleNavItems = useMemo(() => {
-    if (!user?.role) {
-      return navItems
-    }
-
-    return navItems.filter((item) => item.roles.includes(user.role))
-  }, [user?.role])
+  const visibleNavItems = navItems.filter((item) => {
+    if (!user?.role) return true
+    return item.roles.includes(user.role)
+  })
 
   return (
     <Stack

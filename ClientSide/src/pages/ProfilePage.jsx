@@ -28,7 +28,7 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import { motion } from 'framer-motion'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { getUserById, updateUser, changePassword, uploadProfilePicture } from '../services/users'
 import { getCompaniesByUser, createCompany, updateCompany } from '../services/companies'
 

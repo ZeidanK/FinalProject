@@ -1,7 +1,7 @@
 import { Box, Card, CardContent, Chip, Container, Grid, Stack, Typography } from '@mui/material'
 import { motion } from 'framer-motion'
 import EmptyState from './EmptyState'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 
 const roleLabels = {
   accountant: 'Accountant',

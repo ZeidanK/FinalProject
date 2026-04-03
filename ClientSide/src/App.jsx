@@ -10,7 +10,7 @@ import ReportsPage from './pages/Reports'
 import TransactionsPage from './pages/Transactions'
 import ProfilePage from './pages/ProfilePage'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
-import { useAuth } from './context/AuthContext'
+import { useAuth } from './context/useAuth'
 
 const ROLE_RULES = {
   accountantOnly: ['accountant', 'accountant_business_owner'],

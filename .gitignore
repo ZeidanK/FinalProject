@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Environment files (keep committed templates)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Frontend test/build caches
+coverage/
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -20,8 +30,8 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
+Thumbs.db
 
 # C# / .NET
 .vs/
@@ -33,3 +43,8 @@ obj/
 *.lock.json
 [Dd]ebug/
 [Rr]elease/
+
+# Runtime-generated content
+mock/uploads/
+mock/server/uploads/*
+!mock/server/uploads/.gitkeep

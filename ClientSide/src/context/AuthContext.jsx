@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   clearAuthSession,
   getStoredAuthSession,
@@ -6,8 +6,7 @@ import {
   saveAuthSession,
 } from '../services/auth'
 import { getCompaniesByUser } from '../services/companies'
-
-const AuthContext = createContext(undefined)
+import { AuthContext } from './AuthContextProvider'
 
 export function AuthProvider({ children }) {
   const [session, setSessionState] = useState(() => getStoredAuthSession())
@@ -79,14 +78,4 @@ export function AuthProvider({ children }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-
-  if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider.')
-  }
-
-  return context
 }
