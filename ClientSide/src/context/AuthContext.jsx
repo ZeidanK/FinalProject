@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import PropTypes from 'prop-types'
 import {
   clearAuthSession,
   getStoredAuthSession,
@@ -9,14 +10,14 @@ import { getCompaniesByUser } from '../services/companies'
 import { AuthContext } from './AuthContextProvider'
 
 export function AuthProvider({ children }) {
-  const [session, setSessionState] = useState(() => getStoredAuthSession())
+  const [authSession, setAuthSession] = useState(() => getStoredAuthSession())
 
   const logout = useCallback(() => {
     clearAuthSession()
-    setSessionState(null)
+    setAuthSession(null)
   }, [])
 
-  const setSession = useCallback(
+  const applySession = useCallback(
     (token, user) => {
       if (!token || !user) {
         logout()
@@ -24,7 +25,7 @@ export function AuthProvider({ children }) {
       }
 
       saveAuthSession(token, user)
-      setSessionState({ token, user })
+      setAuthSession({ token, user })
     },
     [logout],
   )
@@ -47,35 +48,39 @@ export function AuthProvider({ children }) {
         }
       }
 
-      setSession(token, user)
+      applySession(token, user)
       return data
     },
-    [setSession],
+    [applySession],
   )
 
   const updateUser = useCallback(
     (updatedFields) => {
-      if (!session?.token || !session?.user) return
-      const newUser = { ...session.user, ...updatedFields }
-      saveAuthSession(session.token, newUser)
-      setSessionState({ token: session.token, user: newUser })
+      if (!authSession?.token || !authSession?.user) return
+      const newUser = { ...authSession.user, ...updatedFields }
+      saveAuthSession(authSession.token, newUser)
+      setAuthSession({ token: authSession.token, user: newUser })
     },
-    [session],
+    [authSession],
   )
 
   const value = useMemo(
     () => ({
-      session,
-      token: session?.token || null,
-      user: session?.user || null,
-      isAuthenticated: Boolean(session?.token),
+      session: authSession,
+      token: authSession?.token || null,
+      user: authSession?.user || null,
+      isAuthenticated: Boolean(authSession?.token),
       login,
       logout,
-      setSession,
+      setSession: applySession,
       updateUser,
     }),
-    [login, logout, session, setSession, updateUser],
+    [authSession, login, logout, applySession, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+AuthProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 }

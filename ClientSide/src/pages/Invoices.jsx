@@ -228,10 +228,10 @@ function InvoicesPage() {
           invoiceNumber: formData.invoiceNumber?.value || '',
           vendorName: formData.vendorName?.value || '',
           invoiceDate: formData.invoiceDate?.value || new Date().toISOString(),
-          totalAmount: parseFloat(formData.totalAmount?.value) || 0,
-          subtotal: parseFloat(formData.subtotal?.value) || 0,
-          vatRate: parseFloat(formData.vatRate?.value) || null,
-          vatAmount: parseFloat(formData.vatAmount?.value) || null,
+          totalAmount: Number.parseFloat(formData.totalAmount?.value) || 0,
+          subtotal: Number.parseFloat(formData.subtotal?.value) || 0,
+          vatRate: Number.parseFloat(formData.vatRate?.value) || null,
+          vatAmount: Number.parseFloat(formData.vatAmount?.value) || null,
           currency: formData.currency?.value || 'USD',
           vendorTaxId: formData.vendorTaxId?.value || null,
           lastFourDigitsCard: formData.lastFourDigitsCard?.value || null,
@@ -243,11 +243,11 @@ function InvoicesPage() {
           aiExtractionConfidence: aiConfidence,
           lineItems: (formData.lineItems || []).map((li, idx) => ({
             description: li.description || 'Item',
-            unitPrice: parseFloat(li.unitPrice) || 0,
-            totalAmount: parseFloat(li.totalAmount) || 0,
+            unitPrice: Number.parseFloat(li.unitPrice) || 0,
+            totalAmount: Number.parseFloat(li.totalAmount) || 0,
             lineNumber: idx + 1,
-            quantity: parseFloat(li.quantity) || 1,
-            vatRate: parseFloat(formData.vatRate?.value) || null,
+            quantity: Number.parseFloat(li.quantity) || 1,
+            vatRate: Number.parseFloat(formData.vatRate?.value) || null,
             aiConfidenceScore: li.confidence ?? null,
           })),
         }
@@ -319,6 +319,94 @@ function InvoicesPage() {
   // ===================== Render =====================
 
   const pendingFiles = files.filter((f) => f.status !== 'verified')
+
+  let invoiceListContent
+
+  if (listLoading) {
+    invoiceListContent = (
+      <Stack spacing={1}>
+        {['invoice-skeleton-1', 'invoice-skeleton-2', 'invoice-skeleton-3', 'invoice-skeleton-4'].map((key) => (
+          <Skeleton key={key} variant="rectangular" height={40} sx={{ borderRadius: 1 }} />
+        ))}
+      </Stack>
+    )
+  } else if (invoices.length === 0) {
+    invoiceListContent = (
+      <Box sx={{ py: 6, textAlign: 'center' }}>
+        <DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+        <Typography color="text.secondary">
+          No invoices yet. Upload a PDF above to get started.
+        </Typography>
+      </Box>
+    )
+  } else {
+    invoiceListContent = (
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+              <TableCell>Invoice #</TableCell>
+              <TableCell>Vendor</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell align="right">Total</TableCell>
+              <TableCell align="center">Currency</TableCell>
+              <TableCell align="center">Status</TableCell>
+              <TableCell align="center">Confidence</TableCell>
+              <TableCell align="center">File</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {invoices.map((inv) => (
+              <TableRow key={inv.id} hover>
+                <TableCell>
+                  <Typography variant="body2" fontWeight={600}>
+                    {inv.invoice_number || inv.invoiceNumber || '—'}
+                  </Typography>
+                </TableCell>
+                <TableCell>{inv.vendor_name || inv.vendorName || '—'}</TableCell>
+                <TableCell>
+                  {(inv.invoice_date || inv.invoiceDate)
+                    ? new Date(inv.invoice_date || inv.invoiceDate).toLocaleDateString()
+                    : '—'}
+                </TableCell>
+                <TableCell align="right">
+                  {(inv.total_amount ?? inv.totalAmount ?? 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </TableCell>
+                <TableCell align="center">{inv.currency || 'USD'}</TableCell>
+                <TableCell align="center">
+                  <Chip
+                    label={inv.status || 'uploaded'}
+                    size="small"
+                    color={statusColors[inv.status] || 'default'}
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell align="center">
+                  {(inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) == null
+                    ? '—'
+                    : `${Math.round((inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) * 100)}%`}
+                </TableCell>
+                <TableCell align="center">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
+                    onClick={() => handleOpenInvoice(inv)}
+                    disabled={openingInvoiceId === inv.id}
+                  >
+                    Open
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    )
+  }
 
   return (
     <Box
@@ -436,83 +524,90 @@ function InvoicesPage() {
                   Upload Queue ({pendingFiles.length})
                 </Typography>
                 <Stack spacing={1.5}>
-                  {pendingFiles.map((entry) => (
-                    <Stack
-                      key={entry.id}
-                      direction="row"
-                      alignItems="center"
-                      spacing={2}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 2,
-                        bgcolor: 'rgba(255,255,255,0.03)',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      {/* Icon */}
-                      <Box sx={{ color: entry.status === 'error' ? 'error.main' : entry.status === 'completed' ? 'success.main' : 'primary.main' }}>
-                        {entry.status === 'completed' ? (
-                          <CheckCircleRoundedIcon />
-                        ) : entry.status === 'error' ? (
-                          <ErrorRoundedIcon />
-                        ) : (
-                          <DescriptionRoundedIcon />
-                        )}
-                      </Box>
+                  {pendingFiles.map((entry) => {
+                    let entryColor = 'primary.main'
+                    if (entry.status === 'error') entryColor = 'error.main'
+                    else if (entry.status === 'completed') entryColor = 'success.main'
 
-                      {/* File info + progress */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {entry.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {(entry.size / 1024).toFixed(0)} KB
-                          </Typography>
-                        </Stack>
-                        {entry.status === 'uploading' && (
-                          <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
-                        )}
-                        {entry.status === 'error' && (
-                          <Typography variant="caption" color="error.main">
-                            {entry.error}
-                          </Typography>
-                        )}
-                        {entry.status === 'completed' && (
-                          <Typography variant="caption" color="success.main">
-                            Ready for verification
-                          </Typography>
-                        )}
-                      </Box>
+                    let entryIcon = <DescriptionRoundedIcon />
+                    if (entry.status === 'completed') {
+                      entryIcon = <CheckCircleRoundedIcon />
+                    } else if (entry.status === 'error') {
+                      entryIcon = <ErrorRoundedIcon />
+                    }
 
-                      {/* Actions */}
-                      <Stack direction="row" spacing={0.5}>
-                        {entry.status === 'completed' && entry.extractedData && (
-                          <Button
+                    return (
+                      <Stack
+                        key={entry.id}
+                        direction="row"
+                        alignItems="center"
+                        spacing={2}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: 'rgba(255,255,255,0.03)',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        {/* Icon */}
+                        <Box sx={{ color: entryColor }}>
+                          {entryIcon}
+                        </Box>
+
+                        {/* File info + progress */}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Typography variant="body2" fontWeight={600} noWrap>
+                              {entry.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {(entry.size / 1024).toFixed(0)} KB
+                            </Typography>
+                          </Stack>
+                          {entry.status === 'uploading' && (
+                            <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
+                          )}
+                          {entry.status === 'error' && (
+                            <Typography variant="caption" color="error.main">
+                              {entry.error}
+                            </Typography>
+                          )}
+                          {entry.status === 'completed' && (
+                            <Typography variant="caption" color="success.main">
+                              Ready for verification
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {/* Actions */}
+                        <Stack direction="row" spacing={0.5}>
+                          {entry.status === 'completed' && entry.extractedData && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<VisibilityRoundedIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openVerification(entry)
+                              }}
+                            >
+                              Verify
+                            </Button>
+                          )}
+                          <IconButton
                             size="small"
-                            variant="contained"
-                            startIcon={<VisibilityRoundedIcon />}
                             onClick={(e) => {
                               e.stopPropagation()
-                              openVerification(entry)
+                              removeFile(entry.id)
                             }}
                           >
-                            Verify
-                          </Button>
-                        )}
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeFile(entry.id)
-                          }}
-                        >
-                          <DeleteOutlineRoundedIcon fontSize="small" />
-                        </IconButton>
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
                       </Stack>
-                    </Stack>
-                  ))}
+                    )
+                  })}
                 </Stack>
               </CardContent>
             </Card>
@@ -543,85 +638,7 @@ function InvoicesPage() {
                 Invoice Records
               </Typography>
 
-              {listLoading ? (
-                <Stack spacing={1}>
-                  {[...Array(4)].map((_, i) => (
-                    <Skeleton key={i} variant="rectangular" height={40} sx={{ borderRadius: 1 }} />
-                  ))}
-                </Stack>
-              ) : invoices.length === 0 ? (
-                <Box sx={{ py: 6, textAlign: 'center' }}>
-                  <DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                  <Typography color="text.secondary">
-                    No invoices yet. Upload a PDF above to get started.
-                  </Typography>
-                </Box>
-              ) : (
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
-                        <TableCell>Invoice #</TableCell>
-                        <TableCell>Vendor</TableCell>
-                        <TableCell>Date</TableCell>
-                        <TableCell align="right">Total</TableCell>
-                        <TableCell align="center">Currency</TableCell>
-                        <TableCell align="center">Status</TableCell>
-                        <TableCell align="center">Confidence</TableCell>
-                        <TableCell align="center">File</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {invoices.map((inv) => (
-                        <TableRow key={inv.id} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {inv.invoice_number || inv.invoiceNumber || '—'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{inv.vendor_name || inv.vendorName || '—'}</TableCell>
-                          <TableCell>
-                            {(inv.invoice_date || inv.invoiceDate)
-                              ? new Date(inv.invoice_date || inv.invoiceDate).toLocaleDateString()
-                              : '—'}
-                          </TableCell>
-                          <TableCell align="right">
-                            {(inv.total_amount ?? inv.totalAmount ?? 0).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </TableCell>
-                          <TableCell align="center">{inv.currency || 'USD'}</TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={inv.status || 'uploaded'}
-                              size="small"
-                              color={statusColors[inv.status] || 'default'}
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            {(inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) != null
-                              ? `${Math.round((inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) * 100)}%`
-                              : '—'}
-                          </TableCell>
-                          <TableCell align="center">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
-                              onClick={() => handleOpenInvoice(inv)}
-                              disabled={openingInvoiceId === inv.id}
-                            >
-                              Open
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
+              {invoiceListContent}
             </CardContent>
           </Card>
         </Stack>

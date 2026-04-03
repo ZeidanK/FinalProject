@@ -207,7 +207,7 @@ function MatchesPage() {
           ),
           matchMethod: 'manual',
           matchType: 'full',
-          matchConfidence: 1.0,
+          matchConfidence: 1,
         },
         token,
       )
@@ -356,7 +356,6 @@ function MatchesPage() {
                       fontWeight={700}
                       sx={{ color: stat.color, mt: 0.5 }}
                     >
-                      {stat.prefix && stat.value !== '0.00' ? '' : ''}
                       {stat.value}
                     </Typography>
                   </CardContent>
@@ -495,8 +494,8 @@ function MatchesPage() {
                   <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
                     {loading ? (
                       <Stack spacing={1}>
-                        {[...Array(4)].map((_, i) => (
-                          <Skeleton key={i} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
+                        {['invoice-skeleton-1', 'invoice-skeleton-2', 'invoice-skeleton-3', 'invoice-skeleton-4'].map((skeletonKey) => (
+                          <Skeleton key={skeletonKey} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
                         ))}
                       </Stack>
                     ) : filteredInvoices.length === 0 ? (
@@ -603,7 +602,7 @@ function MatchesPage() {
                   <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
                     {loading ? (
                       <Stack spacing={1}>
-                        {[...Array(4)].map((_, i) => (
+                        {Array.from({ length: 4 }).map((_, i) => (
                           <Skeleton key={i} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
                         ))}
                       </Stack>
@@ -760,8 +759,8 @@ function MatchesPage() {
 
               {loading ? (
                 <Stack spacing={1}>
-                  {[...Array(3)].map((_, i) => (
-                    <Skeleton key={i} variant="rectangular" height={48} sx={{ borderRadius: 2 }} />
+                  {['match-skeleton-1', 'match-skeleton-2', 'match-skeleton-3'].map((skeletonKey) => (
+                    <Skeleton key={skeletonKey} variant="rectangular" height={48} sx={{ borderRadius: 2 }} />
                   ))}
                 </Stack>
               ) : matches.length === 0 ? (

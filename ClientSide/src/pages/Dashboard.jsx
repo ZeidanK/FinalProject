@@ -296,17 +296,17 @@ function DashboardPage() {
                           <Stack spacing={1}>
                             {stats.processingInvoices > 0 && (
                               <Typography variant="body2" color="text.secondary">
-                                {stats.processingInvoices} invoice{stats.processingInvoices !== 1 ? 's' : ''} currently processing
+                                {stats.processingInvoices} invoice{stats.processingInvoices === 1 ? '' : 's'} currently processing
                               </Typography>
                             )}
                             {stats.unmatchedTransactions > 0 && (
                               <Typography variant="body2" color="text.secondary">
-                                {stats.unmatchedTransactions} transaction{stats.unmatchedTransactions !== 1 ? 's' : ''} awaiting match review
+                                {stats.unmatchedTransactions} transaction{stats.unmatchedTransactions === 1 ? '' : 's'} awaiting match review
                               </Typography>
                             )}
                             {stats.openAnomalies > 0 && (
                               <Typography variant="body2" color="text.secondary">
-                                {stats.openAnomalies} open anomal{stats.openAnomalies !== 1 ? 'ies' : 'y'} to resolve
+                                {stats.openAnomalies} open anomal{stats.openAnomalies === 1 ? 'y' : 'ies'} to resolve
                                 {stats.criticalAnomalies > 0 && ` (${stats.criticalAnomalies} critical)`}
                               </Typography>
                             )}
@@ -322,12 +322,15 @@ function DashboardPage() {
                     <Typography variant="h6">Recent activity</Typography>
                     <Stack spacing={1.4}>
                       {activity.length > 0 ? (
-                        activity.map((item, index) => (
-                          <Typography key={index} variant="body2" color="text.secondary">
-                            {item.date ? new Date(item.date).toLocaleDateString() + ' — ' : ''}
-                            {item.text}
-                          </Typography>
-                        ))
+                        activity.map((item) => {
+                          const activityKey = item.id || `${item.date || 'no-date'}-${item.text}`
+                          return (
+                            <Typography key={activityKey} variant="body2" color="text.secondary">
+                              {item.date ? new Date(item.date).toLocaleDateString() + ' — ' : ''}
+                              {item.text}
+                            </Typography>
+                          )
+                        })
                       ) : (
                         <Typography variant="body2" color="text.secondary">
                           No recent activity to display.
