@@ -1,6 +1,7 @@
-import { Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, Stack, Typography, Button } from '@mui/material'
+import { Chip, Divider, Grid, Stack, Typography, Button } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import PropTypes from 'prop-types'
+import ModalShell from './ModalShell'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -169,54 +170,32 @@ export default function TransactionDetailsModal({ open, loading, error, transact
   const data = normalizeTransaction(transaction)
 
   return (
-    <Dialog
+    <ModalShell
       open={open}
       onClose={onClose}
       maxWidth="md"
-      fullWidth
-      slotProps={{
-        paper: {
-          sx: {
-            bgcolor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-          },
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          pb: 2,
-        }}
-      >
+      title={(
         <Stack spacing={0.5}>
           <Typography variant="h6">Saved Transaction</Typography>
           <Typography variant="body2" color="text.secondary">
             Review the exact values that were stored after import.
           </Typography>
         </Stack>
+      )}
+      headerAction={(
         <Button onClick={onClose} color="inherit" startIcon={<CloseRoundedIcon />}>
           Close
         </Button>
-      </DialogTitle>
-
-      <DialogContent dividers sx={{ py: 3 }}>
-        <TransactionStatusContent loading={loading} error={error} data={data} />
-        {data && <TransactionDetailsContent data={data} />}
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+      )}
+      actions={(
         <Button onClick={onClose} color="inherit">
           Close
         </Button>
-      </DialogActions>
-    </Dialog>
+      )}
+    >
+        <TransactionStatusContent loading={loading} error={error} data={data} />
+        {data && <TransactionDetailsContent data={data} />}
+    </ModalShell>
   )
 }
 

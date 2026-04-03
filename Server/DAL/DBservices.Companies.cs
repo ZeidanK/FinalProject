@@ -104,24 +104,24 @@ namespace FinalProjectAuthAPI.DAL
                 con = Connect();
                 var cmd = CreateCommandWithStoredProcedure(
                     "FP26_sp_Companies_Insert", con,
-                    new Dictionary<string, object?>
-                    {
-                        { "@Name",               name               },
-                        { "@CreatedByUserId",     createdByUserId    },
-                        { "@RegistrationNumber",  registrationNumber },
-                        { "@Street",             street             },
-                        { "@City",               city               },
-                        { "@State",              state              },
-                        { "@PostalCode",         postalCode         },
-                        { "@Country",            country            },
-                        { "@Email",              email              },
-                        { "@Phone",              phone              },
-                        { "@Website",            website            },
-                        { "@TaxId",              taxId              },
-                        { "@VatNumber",          vatNumber          },
-                        { "@FiscalYearStart",    fiscalYearStart    },
-                        { "@Currency",           currency           }
-                    });
+                    BuildCompanyParameters(
+                        id: null,
+                        name: name,
+                        createdByUserId: createdByUserId,
+                        registrationNumber: registrationNumber,
+                        street: street,
+                        city: city,
+                        state: state,
+                        postalCode: postalCode,
+                        country: country,
+                        email: email,
+                        phone: phone,
+                        website: website,
+                        taxId: taxId,
+                        vatNumber: vatNumber,
+                        fiscalYearStart: fiscalYearStart,
+                        currency: currency,
+                        isActive: null));
 
                 var result = cmd.ExecuteScalar();
                 return result != null ? Convert.ToInt64(result) : 0;
@@ -141,26 +141,72 @@ namespace FinalProjectAuthAPI.DAL
                 con = Connect();
                 var cmd = CreateCommandWithStoredProcedure(
                     "FP26_sp_Companies_Update", con,
-                    new Dictionary<string, object?>
-                    {
-                        { "@Id",         id         },
-                        { "@Name",       name       },
-                        { "@Street",     street     },
-                        { "@City",       city       },
-                        { "@State",      state      },
-                        { "@PostalCode", postalCode },
-                        { "@Country",   country    },
-                        { "@Email",     email      },
-                        { "@Phone",     phone      },
-                        { "@Website",   website    },
-                        { "@TaxId",     taxId      },
-                        { "@VatNumber", vatNumber  },
-                        { "@IsActive",  isActive   }
-                    });
+                    BuildCompanyParameters(
+                        id: id,
+                        name: name,
+                        createdByUserId: null,
+                        registrationNumber: null,
+                        street: street,
+                        city: city,
+                        state: state,
+                        postalCode: postalCode,
+                        country: country,
+                        email: email,
+                        phone: phone,
+                        website: website,
+                        taxId: taxId,
+                        vatNumber: vatNumber,
+                        fiscalYearStart: null,
+                        currency: null,
+                        isActive: isActive));
 
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
             finally { con?.Close(); }
+        }
+
+        private static Dictionary<string, object?> BuildCompanyParameters(
+            long? id,
+            string? name,
+            long? createdByUserId,
+            string? registrationNumber,
+            string? street,
+            string? city,
+            string? state,
+            string? postalCode,
+            string? country,
+            string? email,
+            string? phone,
+            string? website,
+            string? taxId,
+            string? vatNumber,
+            DateTime? fiscalYearStart,
+            string? currency,
+            bool? isActive)
+        {
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@Name",               name               },
+                { "@Street",             street             },
+                { "@City",               city               },
+                { "@State",              state              },
+                { "@PostalCode",         postalCode         },
+                { "@Country",            country            },
+                { "@Email",              email              },
+                { "@Phone",              phone              },
+                { "@Website",            website            },
+                { "@TaxId",              taxId              },
+                { "@VatNumber",          vatNumber          },
+            };
+
+            if (id.HasValue) parameters["@Id"] = id.Value;
+            if (createdByUserId.HasValue) parameters["@CreatedByUserId"] = createdByUserId.Value;
+            if (!string.IsNullOrWhiteSpace(registrationNumber)) parameters["@RegistrationNumber"] = registrationNumber;
+            if (fiscalYearStart.HasValue) parameters["@FiscalYearStart"] = fiscalYearStart.Value;
+            if (!string.IsNullOrWhiteSpace(currency)) parameters["@Currency"] = currency;
+            if (isActive.HasValue) parameters["@IsActive"] = isActive.Value;
+
+            return parameters;
         }
 
         // ── Mapping helper ────────────────────────────────────────────────────

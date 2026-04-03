@@ -7,11 +7,9 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Container,
   IconButton,
   LinearProgress,
   Skeleton,
-  Snackbar,
   Stack,
   Table,
   TableBody,
@@ -27,8 +25,10 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import { motion } from 'framer-motion'
+import PageHeaderCard from '../components/PageHeaderCard'
+import PageSectionLayout from '../components/PageSectionLayout'
+import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import {
   createInvoice,
@@ -36,24 +36,11 @@ import {
   getInvoicesByCompany,
   uploadInvoicePdf,
 } from '../services/invoices'
+import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
-
-const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: 'easeOut', staggerChildren: 0.09 },
-  },
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-}
 
 const DEFAULT_COMPANY_ID = 1
 
@@ -409,61 +396,15 @@ function InvoicesPage() {
   }
 
   return (
-    <Box
-      sx={{
-        py: { xs: 4, md: 6 },
-        background:
-          'radial-gradient(circle at 0% 5%, rgba(88,166,255,0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66,130,255,0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
-      }}
-    >
-      <Container maxWidth="lg">
-        <Stack
-          component={motion.div}
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          spacing={3}
-        >
-          {/* ---- Page Header ---- */}
-          <Card
-            component={motion.div}
+    <>
+      <PageSectionLayout>
+          <PageHeaderCard
+            title="Invoices"
+            description="Upload PDF invoices for AI extraction, review, and reconciliation."
+            onRefresh={loadInvoices}
+            refreshDisabled={listLoading}
             variants={itemVariants}
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(135deg, rgba(14,25,45,0.98), rgba(9,17,33,0.97))',
-              boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
-            }}
-          >
-            <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-                justifyContent="space-between"
-                spacing={2}
-              >
-                <Stack spacing={0.5}>
-                  <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '1.9rem' } }}>
-                    Invoices
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Upload PDF invoices for AI extraction, review, and reconciliation.
-                  </Typography>
-                </Stack>
-                <Button
-                  variant="outlined"
-                  startIcon={<RefreshRoundedIcon />}
-                  onClick={loadInvoices}
-                  disabled={listLoading}
-                >
-                  Refresh
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
+          />
 
           {/* ---- Upload Drop Zone ---- */}
           <Card
@@ -641,8 +582,7 @@ function InvoicesPage() {
               {invoiceListContent}
             </CardContent>
           </Card>
-        </Stack>
-      </Container>
+      </PageSectionLayout>
 
       {/* ---- Verification Modal ---- */}
       <InvoiceVerificationModal
@@ -657,22 +597,13 @@ function InvoicesPage() {
       />
 
       {/* ---- Snackbar ---- */}
-      <Snackbar
+      <SnackbarAlert
         open={snack.open}
-        autoHideDuration={4000}
+        message={snack.message}
+        severity={snack.severity}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnack((s) => ({ ...s, open: false }))}
-          severity={snack.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snack.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      />
+    </>
   )
 }
 

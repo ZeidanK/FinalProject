@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FinalProjectAuthAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+47628e5add4cd5dfd831ebd56e34614fe5935dbb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+79779578f4cf86bf8516b6b3eba0b437568e66f3")]
 [assembly: System.Reflection.AssemblyProductAttribute("FinalProjectAuthAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FinalProjectAuthAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

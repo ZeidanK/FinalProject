@@ -4,10 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Grid,
   IconButton,
   MenuItem,
@@ -26,6 +22,8 @@ import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import { confidenceColor, confidenceLabel } from '../utils/invoiceExtraction'
+import ConfidenceFieldRow from './ConfidenceFieldRow'
+import ModalShell from './ModalShell'
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'ILS']
 
@@ -137,32 +135,11 @@ export default function InvoiceVerificationModal(props) {
   const lineItems = form.lineItems || []
 
   return (
-    <Dialog
+    <ModalShell
       open={open}
       onClose={onClose}
       maxWidth="md"
-      fullWidth
-      slotProps={{
-        paper: {
-          sx: {
-            bgcolor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-          },
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          pb: 2,
-        }}
-      >
+      title={(
         <Stack spacing={0.5}>
           <Typography variant="h6">Verify Extracted Data</Typography>
           <Stack direction="row" spacing={1} alignItems="center">
@@ -184,12 +161,28 @@ export default function InvoiceVerificationModal(props) {
             />
           </Stack>
         </Stack>
+      )}
+      headerAction={(
         <IconButton onClick={onClose} size="small">
           <CloseRoundedIcon />
         </IconButton>
-      </DialogTitle>
-
-      <DialogContent dividers sx={{ py: 3 }}>
+      )}
+      actions={(
+        <>
+          <Button onClick={onClose} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<SaveRoundedIcon />}
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save & Confirm'}
+          </Button>
+        </>
+      )}
+    >
         <Stack spacing={3}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -361,66 +354,38 @@ export default function InvoiceVerificationModal(props) {
 
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, p: 2, border: '1px solid', borderColor: 'divider' }}>
             <Stack spacing={1.5}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Subtotal</Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={confidenceLabel(form.subtotal?.confidence)} size="small" color={confidenceColor((form.subtotal?.confidence) || 0)} />
-                  <TextField
-                    size="small" type="number" sx={({ ...fieldSx, width: 140})}
-                    value={form.subtotal?.value == null ? '' : form.subtotal.value}
-                    onChange={function (e) { updateField('subtotal', e.target.value) }}
-                    slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right' } } }}
-                  />
-                </Stack>
-              </Stack>
+              <ConfidenceFieldRow
+                label="Subtotal"
+                value={form.subtotal?.value}
+                confidence={form.subtotal?.confidence}
+                onChange={(value) => updateField('subtotal', value)}
+                fieldSx={fieldSx}
+              />
 
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">VAT Amount</Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={confidenceLabel(form.vatAmount?.confidence)} size="small" color={confidenceColor((form.vatAmount?.confidence) || 0)} />
-                  <TextField
-                    size="small" type="number" sx={({ ...fieldSx, width: 140})}
-                    value={form.vatAmount?.value == null ? '' : form.vatAmount.value}
-                    onChange={function (e) { updateField('vatAmount', e.target.value) }}
-                    slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right' } } }}
-                  />
-                </Stack>
-              </Stack>
+              <ConfidenceFieldRow
+                label="VAT Amount"
+                value={form.vatAmount?.value}
+                confidence={form.vatAmount?.confidence}
+                onChange={(value) => updateField('vatAmount', value)}
+                fieldSx={fieldSx}
+              />
 
-              <Stack
-                direction="row" justifyContent="space-between" alignItems="center"
-                sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
-              >
-                <Typography variant="subtitle1" fontWeight={700}>Total Amount</Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={confidenceLabel(form.totalAmount?.confidence)} size="small" color={confidenceColor((form.totalAmount?.confidence) || 0)} />
-                  <TextField
-                    size="small" type="number" sx={({ ...fieldSx, width: 140})}
-                    value={form.totalAmount?.value == null ? '' : form.totalAmount.value}
-                    onChange={function (e) { updateField('totalAmount', e.target.value) }}
-                    slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right', fontWeight: 700 } } }}
-                  />
-                </Stack>
-              </Stack>
+              <ConfidenceFieldRow
+                label="Total Amount"
+                value={form.totalAmount?.value}
+                confidence={form.totalAmount?.confidence}
+                onChange={(value) => updateField('totalAmount', value)}
+                fieldSx={fieldSx}
+                labelVariant="subtitle1"
+                labelColor="text.primary"
+                labelFontWeight={700}
+                rowSx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
+                inputWeight={700}
+              />
             </Stack>
           </Box>
         </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Button onClick={onClose} color="inherit">
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<SaveRoundedIcon />}
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save & Confirm'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </ModalShell>
   )
 }
 

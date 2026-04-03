@@ -80,10 +80,7 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("auto-match-batch/{companyId:long}")]
         public async Task<IActionResult> AutoMatchBatch(long companyId, [FromQuery] decimal? minConfidence)
         {
-            var userId = GetCurrentUserId();
-            var threshold = minConfidence ?? 70m;
-            
-            var result = await _svc.AutoMatchBatchAsync(companyId, userId, threshold);
+            var result = await ExecuteAutoMatchBatch(companyId, minConfidence);
             
             return Ok(new { 
                 successfulMatches = result.SuccessfulMatches,
@@ -105,10 +102,7 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("auto-match-on-load/{companyId:long}")]
         public async Task<IActionResult> AutoMatchOnLoad(long companyId, [FromQuery] decimal? minConfidence)
         {
-            var userId = GetCurrentUserId();
-            var threshold = minConfidence ?? 70m;
-            
-            var result = await _svc.AutoMatchBatchAsync(companyId, userId, threshold);
+            var result = await ExecuteAutoMatchBatch(companyId, minConfidence);
             
             return Ok(new { 
                 successfulMatches = result.SuccessfulMatches,
@@ -132,6 +126,13 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var claim = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             return long.TryParse(claim, out var id) ? id : 0;
+        }
+
+        private async Task<AutoMatchBatchResult> ExecuteAutoMatchBatch(long companyId, decimal? minConfidence)
+        {
+            var userId = GetCurrentUserId();
+            var threshold = minConfidence ?? 70m;
+            return await _svc.AutoMatchBatchAsync(companyId, userId, threshold);
         }
     }
 }

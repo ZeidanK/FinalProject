@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import PropTypes from 'prop-types'
 import {
   Alert,
   Box,
@@ -6,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,7 +16,6 @@ import {
   IconButton,
   InputAdornment,
   Skeleton,
-  Snackbar,
   Stack,
   TextField,
   Tooltip,
@@ -25,13 +24,15 @@ import {
 import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion, AnimatePresence } from 'framer-motion'
+import PageSectionLayout from '../components/PageSectionLayout'
+import PageHeaderCard from '../components/PageHeaderCard'
+import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { getInvoicesByCompany } from '../services/invoices'
 import { getTransactionsByCompany } from '../services/transactions'
@@ -42,20 +43,7 @@ import {
   deleteMatch,
   autoMatchOnLoad,
 } from '../services/matches'
-
-const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: 'easeOut', staggerChildren: 0.09 },
-  },
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-}
+import { itemVariants } from '../utils/motionVariants'
 
 const DEFAULT_COMPANY_ID = 1
 
@@ -76,6 +64,153 @@ const fmtAmount = (v) =>
 const fmtDate = (d) => {
   if (!d) return '—'
   return new Date(d).toLocaleDateString()
+}
+
+function SelectionPanel({
+  icon: Icon,
+  title,
+  count,
+  searchPlaceholder,
+  searchValue,
+  onSearchChange,
+  loading,
+  emptyMessage,
+  items,
+  selectedId,
+  onSelect,
+  renderPrimary,
+  renderSecondary,
+  renderAmount,
+  renderDate,
+}) {
+  let panelContent
+
+  if (loading) {
+    panelContent = (
+      <Stack spacing={1}>
+        {['list-skeleton-1', 'list-skeleton-2', 'list-skeleton-3', 'list-skeleton-4'].map((skeletonKey) => (
+          <Skeleton key={skeletonKey} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
+        ))}
+      </Stack>
+    )
+  } else if (items.length === 0) {
+    panelContent = (
+      <Stack alignItems="center" sx={{ py: 4 }}>
+        <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+        <Typography color="text.secondary" variant="body2">
+          {emptyMessage}
+        </Typography>
+      </Stack>
+    )
+  } else {
+    panelContent = (
+      <Stack spacing={1}>
+        <AnimatePresence>
+          {items.map((item) => {
+            const id = item.id
+            const isSelected = id === selectedId
+            return (
+              <Box
+                key={id}
+                component={motion.div}
+                layout
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                onClick={() => onSelect(isSelected ? null : id)}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  border: '2px solid',
+                  borderColor: isSelected ? 'primary.main' : 'divider',
+                  bgcolor: isSelected ? 'rgba(88,166,255,0.08)' : 'rgba(255,255,255,0.02)',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: isSelected ? 'primary.main' : 'rgba(88,166,255,0.4)',
+                    bgcolor: 'rgba(88,166,255,0.05)',
+                  },
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {renderPrimary(item)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {renderSecondary(item)}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" fontWeight={700}>
+                    {renderAmount(item)}
+                  </Typography>
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  {renderDate(item)}
+                </Typography>
+              </Box>
+            )
+          })}
+        </AnimatePresence>
+      </Stack>
+    )
+  }
+
+  return (
+    <Card component={motion.div} variants={itemVariants} elevation={0} sx={cardBaseSx}>
+      <CardContent>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+          <Icon sx={{ color: '#a9d5ff' }} />
+          <Typography variant="subtitle1" fontWeight={700}>
+            {title}
+          </Typography>
+          <Chip label={count} size="small" />
+        </Stack>
+
+        <TextField
+          placeholder={searchPlaceholder}
+          size="small"
+          fullWidth
+          value={searchValue}
+          onChange={(event) => onSearchChange(event.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchRoundedIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ mb: 2 }}
+        />
+
+        <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>{panelContent}</Box>
+      </CardContent>
+    </Card>
+  )
+}
+
+SelectionPanel.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  title: PropTypes.string.isRequired,
+  count: PropTypes.number.isRequired,
+  searchPlaceholder: PropTypes.string.isRequired,
+  searchValue: PropTypes.string.isRequired,
+  onSearchChange: PropTypes.func.isRequired,
+  loading: PropTypes.bool.isRequired,
+  emptyMessage: PropTypes.string.isRequired,
+  items: PropTypes.array.isRequired,
+  selectedId: PropTypes.number,
+  onSelect: PropTypes.func.isRequired,
+  renderPrimary: PropTypes.func.isRequired,
+  renderSecondary: PropTypes.func.isRequired,
+  renderAmount: PropTypes.func.isRequired,
+  renderDate: PropTypes.func.isRequired,
+}
+
+SelectionPanel.defaultProps = {
+  selectedId: null,
 }
 
 function MatchesPage() {
@@ -266,61 +401,15 @@ function MatchesPage() {
   // ===================== Render =====================
 
   return (
-    <Box
-      sx={{
-        py: { xs: 4, md: 6 },
-        background:
-          'radial-gradient(circle at 0% 5%, rgba(88,166,255,0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66,130,255,0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
-      }}
-    >
-      <Container maxWidth="lg">
-        <Stack
-          component={motion.div}
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          spacing={3}
-        >
-          {/* ---- Page Header ---- */}
-          <Card
-            component={motion.div}
+    <>
+      <PageSectionLayout>
+          <PageHeaderCard
+            title="Matches"
+            description="Match invoices to bank transactions for reconciliation."
+            onRefresh={loadData}
+            refreshDisabled={loading}
             variants={itemVariants}
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(135deg, rgba(14,25,45,0.98), rgba(9,17,33,0.97))',
-              boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
-            }}
-          >
-            <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-                justifyContent="space-between"
-                spacing={2}
-              >
-                <Stack spacing={0.5}>
-                  <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '1.9rem' } }}>
-                    Matches
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Match invoices to bank transactions for reconciliation.
-                  </Typography>
-                </Stack>
-                <Button
-                  variant="outlined"
-                  startIcon={<RefreshRoundedIcon />}
-                  onClick={loadData}
-                  disabled={loading}
-                >
-                  Refresh
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
+          />
 
           {/* ---- Stats Cards ---- */}
           <Grid
@@ -457,222 +546,48 @@ function MatchesPage() {
 
           {/* ---- Two-Panel Matching Interface ---- */}
           <Grid container spacing={2.5}>
-            {/* -- Invoices Panel -- */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card
-                component={motion.div}
-                variants={itemVariants}
-                elevation={0}
-                sx={cardBaseSx}
-              >
-                <CardContent>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-                    <ReceiptLongRoundedIcon sx={{ color: '#a9d5ff' }} />
-                    <Typography variant="subtitle1" fontWeight={700}>
-                      Unmatched Invoices
-                    </Typography>
-                    <Chip label={filteredInvoices.length} size="small" />
-                  </Stack>
-                  <TextField
-                    placeholder="Search by vendor or invoice #…"
-                    size="small"
-                    fullWidth
-                    value={invoiceSearch}
-                    onChange={(e) => setInvoiceSearch(e.target.value)}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchRoundedIcon fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      },
-                    }}
-                    sx={{ mb: 2 }}
-                  />
-
-                  <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
-                    {loading ? (
-                      <Stack spacing={1}>
-                        {['invoice-skeleton-1', 'invoice-skeleton-2', 'invoice-skeleton-3', 'invoice-skeleton-4'].map((skeletonKey) => (
-                          <Skeleton key={skeletonKey} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
-                        ))}
-                      </Stack>
-                    ) : filteredInvoices.length === 0 ? (
-                      <Stack alignItems="center" sx={{ py: 4 }}>
-                        <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                        <Typography color="text.secondary" variant="body2">
-                          {invoiceSearch ? 'No invoices match your search.' : 'All invoices are matched!'}
-                        </Typography>
-                      </Stack>
-                    ) : (
-                      <Stack spacing={1}>
-                        <AnimatePresence>
-                          {filteredInvoices.map((inv) => {
-                            const id = inv.id
-                            const isSelected = id === selectedInvoiceId
-                            return (
-                              <Box
-                                key={id}
-                                component={motion.div}
-                                layout
-                                initial={{ opacity: 0, scale: 0.96 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.96 }}
-                                onClick={() => setSelectedInvoiceId(isSelected ? null : id)}
-                                sx={{
-                                  p: 1.5,
-                                  borderRadius: 2,
-                                  cursor: 'pointer',
-                                  border: '2px solid',
-                                  borderColor: isSelected ? 'primary.main' : 'divider',
-                                  bgcolor: isSelected ? 'rgba(88,166,255,0.08)' : 'rgba(255,255,255,0.02)',
-                                  transition: 'all 0.2s',
-                                  '&:hover': {
-                                    borderColor: isSelected ? 'primary.main' : 'rgba(88,166,255,0.4)',
-                                    bgcolor: 'rgba(88,166,255,0.05)',
-                                  },
-                                }}
-                              >
-                                <Stack
-                                  direction="row"
-                                  justifyContent="space-between"
-                                  alignItems="flex-start"
-                                >
-                                  <Box>
-                                    <Typography variant="body2" fontWeight={600}>
-                                      {inv.invoice_number || inv.invoiceNumber || '—'}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {inv.vendor_name || inv.vendorName || '—'}
-                                    </Typography>
-                                  </Box>
-                                  <Typography variant="body2" fontWeight={700}>
-                                    {fmtAmount(inv.total_amount ?? inv.totalAmount)}
-                                  </Typography>
-                                </Stack>
-                                <Typography variant="caption" color="text.secondary">
-                                  {fmtDate(inv.invoice_date || inv.invoiceDate)}
-                                </Typography>
-                              </Box>
-                            )
-                          })}
-                        </AnimatePresence>
-                      </Stack>
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
+              <SelectionPanel
+                icon={ReceiptLongRoundedIcon}
+                title="Unmatched Invoices"
+                count={filteredInvoices.length}
+                searchPlaceholder="Search by vendor or invoice #…"
+                searchValue={invoiceSearch}
+                onSearchChange={setInvoiceSearch}
+                loading={loading}
+                emptyMessage={invoiceSearch ? 'No invoices match your search.' : 'All invoices are matched!'}
+                items={filteredInvoices}
+                selectedId={selectedInvoiceId}
+                onSelect={setSelectedInvoiceId}
+                renderPrimary={(inv) => inv.invoice_number || inv.invoiceNumber || '—'}
+                renderSecondary={(inv) => inv.vendor_name || inv.vendorName || '—'}
+                renderAmount={(inv) => fmtAmount(inv.total_amount ?? inv.totalAmount)}
+                renderDate={(inv) => fmtDate(inv.invoice_date || inv.invoiceDate)}
+              />
             </Grid>
 
-            {/* -- Transactions Panel -- */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card
-                component={motion.div}
-                variants={itemVariants}
-                elevation={0}
-                sx={cardBaseSx}
-              >
-                <CardContent>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-                    <AccountBalanceRoundedIcon sx={{ color: '#a9d5ff' }} />
-                    <Typography variant="subtitle1" fontWeight={700}>
-                      Unmatched Transactions
-                    </Typography>
-                    <Chip label={filteredTransactions.length} size="small" />
-                  </Stack>
-                  <TextField
-                    placeholder="Search by description…"
-                    size="small"
-                    fullWidth
-                    value={transactionSearch}
-                    onChange={(e) => setTransactionSearch(e.target.value)}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchRoundedIcon fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      },
-                    }}
-                    sx={{ mb: 2 }}
-                  />
-
-                  <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
-                    {loading ? (
-                      <Stack spacing={1}>
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <Skeleton key={i} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
-                        ))}
-                      </Stack>
-                    ) : filteredTransactions.length === 0 ? (
-                      <Stack alignItems="center" sx={{ py: 4 }}>
-                        <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                        <Typography color="text.secondary" variant="body2">
-                          {transactionSearch
-                            ? 'No transactions match your search.'
-                            : 'All transactions are matched!'}
-                        </Typography>
-                      </Stack>
-                    ) : (
-                      <Stack spacing={1}>
-                        <AnimatePresence>
-                          {filteredTransactions.map((trx) => {
-                            const id = trx.id
-                            const isSelected = id === selectedTransactionId
-                            return (
-                              <Box
-                                key={id}
-                                component={motion.div}
-                                layout
-                                initial={{ opacity: 0, scale: 0.96 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.96 }}
-                                onClick={() => setSelectedTransactionId(isSelected ? null : id)}
-                                sx={{
-                                  p: 1.5,
-                                  borderRadius: 2,
-                                  cursor: 'pointer',
-                                  border: '2px solid',
-                                  borderColor: isSelected ? 'primary.main' : 'divider',
-                                  bgcolor: isSelected ? 'rgba(88,166,255,0.08)' : 'rgba(255,255,255,0.02)',
-                                  transition: 'all 0.2s',
-                                  '&:hover': {
-                                    borderColor: isSelected ? 'primary.main' : 'rgba(88,166,255,0.4)',
-                                    bgcolor: 'rgba(88,166,255,0.05)',
-                                  },
-                                }}
-                              >
-                                <Stack
-                                  direction="row"
-                                  justifyContent="space-between"
-                                  alignItems="flex-start"
-                                >
-                                  <Box>
-                                    <Typography variant="body2" fontWeight={600}>
-                                      {trx.description || '—'}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {trx.type || trx.transaction_type || ''}
-                                    </Typography>
-                                  </Box>
-                                  <Typography variant="body2" fontWeight={700}>
-                                    {fmtAmount(trx.amount)}
-                                  </Typography>
-                                </Stack>
-                                <Typography variant="caption" color="text.secondary">
-                                  {fmtDate(trx.transaction_date || trx.transactionDate)}
-                                </Typography>
-                              </Box>
-                            )
-                          })}
-                        </AnimatePresence>
-                      </Stack>
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
+              <SelectionPanel
+                icon={AccountBalanceRoundedIcon}
+                title="Unmatched Transactions"
+                count={filteredTransactions.length}
+                searchPlaceholder="Search by description…"
+                searchValue={transactionSearch}
+                onSearchChange={setTransactionSearch}
+                loading={loading}
+                emptyMessage={
+                  transactionSearch
+                    ? 'No transactions match your search.'
+                    : 'All transactions are matched!'
+                }
+                items={filteredTransactions}
+                selectedId={selectedTransactionId}
+                onSelect={setSelectedTransactionId}
+                renderPrimary={(trx) => trx.description || '—'}
+                renderSecondary={(trx) => trx.type || trx.transaction_type || ''}
+                renderAmount={(trx) => fmtAmount(trx.amount)}
+                renderDate={(trx) => fmtDate(trx.transaction_date || trx.transactionDate)}
+              />
             </Grid>
           </Grid>
 
@@ -844,8 +759,7 @@ function MatchesPage() {
               )}
             </CardContent>
           </Card>
-        </Stack>
-      </Container>
+      </PageSectionLayout>
 
       {/* ---- Unmatch Confirmation Dialog ---- */}
       <Dialog
@@ -870,22 +784,13 @@ function MatchesPage() {
       </Dialog>
 
       {/* ---- Snackbar ---- */}
-      <Snackbar
+      <SnackbarAlert
         open={snack.open}
-        autoHideDuration={4000}
+        message={snack.message}
+        severity={snack.severity}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnack((s) => ({ ...s, open: false }))}
-          severity={snack.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snack.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      />
+    </>
   )
 }
 

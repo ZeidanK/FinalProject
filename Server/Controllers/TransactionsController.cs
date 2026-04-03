@@ -72,36 +72,20 @@ namespace FinalProjectAuthAPI.Controllers
             IFormFile file,
             [FromForm] long companyId)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { message = "No file provided." });
+            var validationError = ValidateExcelFile(file);
+            if (validationError != null)
+                return validationError;
 
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (extension != ".xlsx" && extension != ".xls")
-                return BadRequest(new { message = "Only Excel files (.xlsx, .xls) are accepted." });
+            var (extractionResult, extractionError) = TryExtractExcel(file);
+            if (extractionError != null)
+                return extractionError;
 
-            try
+            return Ok(new UploadExcelResponse
             {
-                using var stream = file.OpenReadStream();
-                var extractionResult = _excelSvc.Extract(stream, file.FileName);
-
-                if (extractionResult.TotalExtracted == 0)
-                    return BadRequest(new
-                    {
-                        message = "No transactions could be extracted from the file.",
-                        sheets = extractionResult.Sheets
-                    });
-
-                return Ok(new UploadExcelResponse
-                {
-                    FileOriginalName = file.FileName,
-                    FileSize = file.Length,
-                    ExtractionResult = extractionResult
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" });
-            }
+                FileOriginalName = file.FileName,
+                FileSize = file.Length,
+                ExtractionResult = extractionResult!
+            });
         }
 
         // POST api/transactions/upload-excel
@@ -111,12 +95,9 @@ namespace FinalProjectAuthAPI.Controllers
             [FromForm] long companyId,
             [FromForm] long? bankAccountId)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { message = "No file provided." });
-
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (extension != ".xlsx" && extension != ".xls")
-                return BadRequest(new { message = "Only Excel files (.xlsx, .xls) are accepted." });
+            var validationError = ValidateExcelFile(file);
+            if (validationError != null)
+                return validationError;
 
             try
             {
@@ -124,16 +105,9 @@ namespace FinalProjectAuthAPI.Controllers
                 var (relativePath, _) = await _fileSvc.SaveExcelAsync(file, companyId);
 
                 // 2. Extract transactions from the Excel file
-                using var stream = file.OpenReadStream();
-                var extractionResult = _excelSvc.Extract(stream, file.FileName);
-
-                if (extractionResult.TotalExtracted == 0)
-                    return BadRequest(new
-                    {
-                        message = "No transactions could be extracted from the file.",
-                        filePath = relativePath,
-                        sheets = extractionResult.Sheets
-                    });
+                var (extractionResult, extractionError) = TryExtractExcel(file, relativePath);
+                if (extractionError != null)
+                    return extractionError;
 
                 // 3. Map extracted transactions to bulk create request
                 var userId = GetCurrentUserId();
@@ -141,7 +115,7 @@ namespace FinalProjectAuthAPI.Controllers
                 {
                     CompanyId = companyId,
                     CreatedByUserId = userId,
-                    Transactions = extractionResult.Transactions.Select(t => new CreateTransactionRequest
+                    Transactions = extractionResult!.Transactions.Select(t => new CreateTransactionRequest
                     {
                         CompanyId = companyId,
                         TransactionDate = t.TransactionDate,
@@ -187,6 +161,57 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var claim = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             return long.TryParse(claim, out var id) ? id : 0;
+        }
+
+        private IActionResult? ValidateExcelFile(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file provided." });
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (extension != ".xlsx" && extension != ".xls")
+                return BadRequest(new { message = "Only Excel files (.xlsx, .xls) are accepted." });
+
+            return null;
+        }
+
+        private (ExcelExtractionResult? Result, IActionResult? Error) TryExtractExcel(
+            IFormFile file,
+            string? filePath = null)
+        {
+            try
+            {
+                using var stream = file.OpenReadStream();
+                var extractionResult = _excelSvc.Extract(stream, file.FileName);
+
+                if (extractionResult.TotalExtracted == 0)
+                    return (null, BuildNoTransactionsError(extractionResult, filePath));
+
+                return (extractionResult, null);
+            }
+            catch (Exception ex)
+            {
+                return (null, BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" }));
+            }
+        }
+
+        private IActionResult BuildNoTransactionsError(ExcelExtractionResult extractionResult, string? filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return BadRequest(new
+                {
+                    message = "No transactions could be extracted from the file.",
+                    sheets = extractionResult.Sheets
+                });
+            }
+
+            return BadRequest(new
+            {
+                message = "No transactions could be extracted from the file.",
+                filePath,
+                sheets = extractionResult.Sheets
+            });
         }
     }
 }

@@ -29,21 +29,7 @@ namespace FinalProjectAuthAPI.DAL
         public DateTime UpdatedAt                   { get; set; }
     }
 
-    public class MatchSuggestionRow
-    {
-        public long     Id               { get; set; }
-        public DateTime TransactionDate  { get; set; }
-        public string   Description      { get; set; } = string.Empty;
-        public decimal  Amount           { get; set; }
-        public string   TransactionType  { get; set; } = string.Empty;
-        public string?  ReferenceNumber  { get; set; }
-        public decimal  AmountDifference { get; set; }
-        public decimal  MatchScore       { get; set; } // 0-100 scoring
-        public int      DaysDifference   { get; set; }
-        public List<string> MatchReasons { get; set; } = new();
-    }
-
-    public class TransactionCandidate
+    public class TransactionMatchBase
     {
         public long     Id              { get; set; }
         public DateTime TransactionDate { get; set; }
@@ -51,6 +37,18 @@ namespace FinalProjectAuthAPI.DAL
         public decimal  Amount          { get; set; }
         public string   TransactionType { get; set; } = string.Empty;
         public string?  ReferenceNumber { get; set; }
+    }
+
+    public class MatchSuggestionRow : TransactionMatchBase
+    {
+        public decimal  AmountDifference { get; set; }
+        public decimal  MatchScore       { get; set; } // 0-100 scoring
+        public int      DaysDifference   { get; set; }
+        public List<string> MatchReasons { get; set; } = new();
+    }
+
+    public class TransactionCandidate : TransactionMatchBase
+    {
         public string?  VendorName      { get; set; }
     }
 

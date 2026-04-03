@@ -1,0 +1,14 @@
+{
+  "name": "finalproject",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "cpd": "jscpd ClientSide/src Server/BL Server/Controllers Server/DAL --format javascript,jsx,csharp --min-tokens 60 --threshold 100 --ignore \"**/{mock,node_modules,dist,build,coverage,bin,obj,.git}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd",
+    "cpd:strict": "jscpd ClientSide/src Server/BL Server/Controllers Server/DAL --format javascript,jsx,csharp --min-tokens 40 --threshold 2 --ignore \"**/{mock,node_modules,dist,build,coverage,bin,obj,.git}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd-strict",
+    "cpd:frontend": "jscpd ClientSide/src --format javascript,jsx --min-tokens 60 --threshold 100 --ignore \"**/{mock,node_modules,dist,build,coverage}/**\" --reporters console,json --output reports/jscpd-frontend",
+    "cpd:backend": "jscpd Server/BL Server/Controllers Server/DAL --format csharp --min-tokens 80 --threshold 100 --ignore \"**/{bin,obj,node_modules}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd-backend"
+  },
+  "devDependencies": {
+    "jscpd": "^4.0.5"
+  }
+}

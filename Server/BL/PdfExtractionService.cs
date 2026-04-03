@@ -617,83 +617,83 @@ namespace FinalProjectAuthAPI.BL
         // ── Line item parsing helpers ─────────────────────────────────────
 
         private static bool TryParseLineItem4ColDescFirst(Match m, decimal confidence, out ExtractedLineItem item)
-        {
-            item = new ExtractedLineItem();
-            var desc = m.Groups[1].Value.Trim();
-            if (desc.Length <= 1) return false;
-
-            if (decimal.TryParse(m.Groups[2].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var qty) &&
-                decimal.TryParse(m.Groups[3].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var unitPrice) &&
-                decimal.TryParse(m.Groups[4].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var total))
-            {
-                item = new ExtractedLineItem
-                {
-                    Description = desc, Quantity = qty, UnitPrice = unitPrice,
-                    TotalAmount = total, AiConfidenceScore = confidence
-                };
-                return true;
-            }
-            return false;
-        }
+            => TryParseLineItemPattern(m, confidence, descGroupIndex: 1, qtyGroupIndex: 2, unitPriceGroupIndex: 3, totalGroupIndex: 4, out item);
 
         private static bool TryParseLineItem3ColDescFirst(Match m, decimal confidence, out ExtractedLineItem item)
-        {
-            item = new ExtractedLineItem();
-            var desc = m.Groups[1].Value.Trim();
-            if (desc.Length <= 1) return false;
-
-            if (decimal.TryParse(m.Groups[2].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var unitPrice) &&
-                decimal.TryParse(m.Groups[3].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var total))
-            {
-                var qty = unitPrice > 0 ? Math.Round(total / unitPrice, 2) : 1;
-                item = new ExtractedLineItem
-                {
-                    Description = desc, Quantity = qty, UnitPrice = unitPrice,
-                    TotalAmount = total, AiConfidenceScore = confidence
-                };
-                return true;
-            }
-            return false;
-        }
+            => TryParseLineItemPattern(m, confidence, descGroupIndex: 1, qtyGroupIndex: null, unitPriceGroupIndex: 2, totalGroupIndex: 3, out item);
 
         private static bool TryParseLineItem4ColQtyFirst(Match m, decimal confidence, out ExtractedLineItem item)
-        {
-            item = new ExtractedLineItem();
-            var desc = m.Groups[2].Value.Trim();
-            if (desc.Length <= 1) return false;
-
-            if (decimal.TryParse(m.Groups[1].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var qty) &&
-                decimal.TryParse(m.Groups[3].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var unitPrice) &&
-                decimal.TryParse(m.Groups[4].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var total))
-            {
-                item = new ExtractedLineItem
-                {
-                    Description = desc, Quantity = qty, UnitPrice = unitPrice,
-                    TotalAmount = total, AiConfidenceScore = confidence
-                };
-                return true;
-            }
-            return false;
-        }
+            => TryParseLineItemPattern(m, confidence, descGroupIndex: 2, qtyGroupIndex: 1, unitPriceGroupIndex: 3, totalGroupIndex: 4, out item);
 
         private static bool TryParseLineItem3ColQtyFirst(Match m, decimal confidence, out ExtractedLineItem item)
         {
+            return TryParseLineItemPattern(
+                m,
+                confidence,
+                descGroupIndex: 2,
+                qtyGroupIndex: 1,
+                unitPriceGroupIndex: null,
+                totalGroupIndex: 3,
+                out item);
+        }
+
+        private static bool TryParseLineItemPattern(
+            Match m,
+            decimal confidence,
+            int descGroupIndex,
+            int? qtyGroupIndex,
+            int? unitPriceGroupIndex,
+            int totalGroupIndex,
+            out ExtractedLineItem item)
+        {
             item = new ExtractedLineItem();
-            var desc = m.Groups[2].Value.Trim();
+            var desc = m.Groups[descGroupIndex].Value.Trim();
             if (desc.Length <= 1) return false;
 
-            if (decimal.TryParse(m.Groups[1].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var qty) &&
-                decimal.TryParse(m.Groups[3].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var total))
+            if (!TryParseDecimalGroup(m, totalGroupIndex, out var total))
+                return false;
+
+            decimal qty;
+            if (qtyGroupIndex.HasValue)
             {
-                var unitPrice = qty > 0 ? Math.Round(total / qty, 2) : total;
-                item = new ExtractedLineItem
-                {
-                    Description = desc, Quantity = qty, UnitPrice = unitPrice,
-                    TotalAmount = total, AiConfidenceScore = confidence
-                };
-                return true;
+                if (!TryParseDecimalGroup(m, qtyGroupIndex.Value, out qty))
+                    return false;
             }
-            return false;
+            else
+            {
+                qty = 1;
+            }
+
+            decimal unitPrice;
+            if (unitPriceGroupIndex.HasValue)
+            {
+                if (!TryParseDecimalGroup(m, unitPriceGroupIndex.Value, out unitPrice))
+                    return false;
+            }
+            else
+            {
+                unitPrice = qty > 0 ? Math.Round(total / qty, 2) : total;
+            }
+
+            if (!qtyGroupIndex.HasValue)
+                qty = unitPrice > 0 ? Math.Round(total / unitPrice, 2) : 1;
+
+            item = new ExtractedLineItem
+            {
+                Description = desc,
+                Quantity = qty,
+                UnitPrice = unitPrice,
+                TotalAmount = total,
+                AiConfidenceScore = confidence
+            };
+            return true;
         }
+
+        private static bool TryParseDecimalGroup(Match m, int groupIndex, out decimal value)
+            => decimal.TryParse(
+                m.Groups[groupIndex].Value.Replace(",", ""),
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out value);
     }
 }
