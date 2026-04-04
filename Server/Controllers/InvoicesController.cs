@@ -78,6 +78,22 @@ namespace FinalProjectAuthAPI.Controllers
             return CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Invoice created." });
         }
 
+        // PUT api/invoices/{id}
+        [HttpPut("{id:long}")]
+        public IActionResult Update(long id, [FromBody] CreateInvoiceRequest request)
+        {
+            var userId = GetCurrentUserId();
+            var (success, error, notFound) = _svc.Update(id, request, userId);
+
+            if (success)
+                return Ok(new { message = "Invoice updated." });
+
+            if (notFound)
+                return NotFound(new { message = error });
+
+            return BadRequest(new { message = error });
+        }
+
         // PATCH api/invoices/{id}/status
         [HttpPatch("{id:long}/status")]
         public IActionResult UpdateStatus(long id, [FromBody] UpdateInvoiceStatusRequest request)

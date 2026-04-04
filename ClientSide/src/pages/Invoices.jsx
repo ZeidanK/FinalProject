@@ -25,15 +25,19 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import { motion } from 'framer-motion'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
+import { useCompany } from '../context/useCompany'
 import {
   createInvoice,
   downloadInvoicePdf,
+  getInvoiceById,
   getInvoicesByCompany,
+  updateInvoice,
   uploadInvoicePdf,
 } from '../services/invoices'
 import { itemVariants } from '../utils/motionVariants'
@@ -41,8 +45,6 @@ import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
-
-const DEFAULT_COMPANY_ID = 1
 
 const statusColors = {
   uploaded: 'info',
@@ -53,9 +55,48 @@ const statusColors = {
   rejected: 'error',
 }
 
+const toDateInput = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
+const mapSavedInvoiceToForm = (invoice) => {
+  const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
+  const lineItems = invoice?.lineItems || invoice?.line_items || []
+
+  return mapExtractedToForm(
+    {
+      vendorName: invoice?.vendor_name ?? invoice?.vendorName ?? '',
+      invoiceNumber: invoice?.invoice_number ?? invoice?.invoiceNumber ?? '',
+      invoiceDate: toDateInput(invoice?.invoice_date ?? invoice?.invoiceDate),
+      dueDate: toDateInput(invoice?.due_date ?? invoice?.dueDate),
+      totalAmount: invoice?.total_amount ?? invoice?.totalAmount ?? 0,
+      subtotal: invoice?.subtotal ?? 0,
+      vatRate: invoice?.vat_rate ?? invoice?.vatRate ?? null,
+      vatAmount: invoice?.vat_amount ?? invoice?.vatAmount ?? null,
+      currency: invoice?.currency ?? 'USD',
+      vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
+      lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
+      lineItems: lineItems.map((li, idx) => ({
+        description: li?.description || '',
+        quantity: li?.quantity ?? 1,
+        unitPrice: li?.unit_price ?? li?.unitPrice ?? 0,
+        totalAmount: li?.total_amount ?? li?.totalAmount ?? 0,
+        aiConfidenceScore: li?.ai_confidence_score ?? li?.aiConfidenceScore ?? null,
+        lineNumber: li?.line_number ?? li?.lineNumber ?? idx + 1,
+      })),
+      extractionConfidence: confidence,
+    },
+    confidence,
+  )
+}
+
 function InvoicesPage() {
-  const { user, token } = useAuth()
-  const companyId = user?.companyId || DEFAULT_COMPANY_ID
+  const { token } = useAuth()
+  const { activeCompanyId } = useCompany()
 
   // --- Invoice list state ---
   const [invoices, setInvoices] = useState([])
@@ -74,6 +115,7 @@ function InvoicesPage() {
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
   const [openingInvoiceId, setOpeningInvoiceId] = useState(null)
+  const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
 
   // ===================== Data Fetching =====================
 
@@ -81,14 +123,14 @@ function InvoicesPage() {
     setListLoading(true)
     setListError('')
     try {
-      const data = await getInvoicesByCompany(companyId, {}, token)
+      const data = await getInvoicesByCompany(activeCompanyId, {}, token)
       setInvoices(Array.isArray(data) ? data : [])
     } catch (err) {
       setListError(err.message || 'Failed to load invoices.')
     } finally {
       setListLoading(false)
     }
-  }, [companyId, token])
+  }, [activeCompanyId, token])
 
   useEffect(() => {
     loadInvoices()
@@ -109,7 +151,7 @@ function InvoicesPage() {
       )
 
       try {
-        const response = await uploadInvoicePdf(entry.file, companyId, token)
+        const response = await uploadInvoicePdf(entry.file, activeCompanyId, token)
 
         setFiles((prev) =>
           prev.map((f) =>
@@ -137,7 +179,7 @@ function InvoicesPage() {
         )
       }
     },
-    [companyId, token],
+    [activeCompanyId, token],
   )
 
   const addFiles = useCallback((fileList) => {
@@ -199,19 +241,76 @@ function InvoicesPage() {
     setModal({ open: true, file: fileEntry })
   }, [])
 
+  const openSavedInvoiceVerification = useCallback(
+    async (invoiceId) => {
+      if (!invoiceId) return
+      setReopeningInvoiceId(invoiceId)
+      try {
+        const invoice = await getInvoiceById(invoiceId, token)
+        const formData = mapSavedInvoiceToForm(invoice)
+        setModal({
+          open: true,
+          file: {
+            id: `saved-${invoice.id}`,
+            name: invoice.fileOriginalName || invoice.file_original_name || `Invoice ${invoice.invoiceNumber || invoice.invoice_number || invoice.id}`,
+            extractedData: formData,
+            existingInvoiceId: invoice.id,
+            sourceInvoice: invoice,
+            serverResponse: null,
+          },
+        })
+      } catch (err) {
+        setSnack({
+          open: true,
+          message: err.message || 'Failed to open invoice for editing.',
+          severity: 'error',
+        })
+      } finally {
+        setReopeningInvoiceId(null)
+      }
+    },
+    [token],
+  )
+
   const handleSaveVerification = useCallback(
     async (formData) => {
       setSaving(true)
       try {
+        const editingInvoiceId = modal.file?.existingInvoiceId || null
+        const sourceInvoice = modal.file?.sourceInvoice || {}
         const serverResponse = modal.file?.serverResponse || {}
-        const fileOriginalName = serverResponse.fileOriginalName || serverResponse.FileOriginalName || modal.file?.name || null
-        const filePath = serverResponse.filePath || serverResponse.FilePath || null
-        const fileType = serverResponse.fileType || serverResponse.FileType || modal.file?.file?.type || null
-        const fileSize = serverResponse.fileSize || serverResponse.FileSize || modal.file?.file?.size || null
-        const aiConfidence = formData?.confidence?.value ?? serverResponse?.extractedData?.extractionConfidence ?? serverResponse?.ExtractedData?.ExtractionConfidence ?? null
+        const fileOriginalName =
+          serverResponse.fileOriginalName ||
+          serverResponse.FileOriginalName ||
+          sourceInvoice.fileOriginalName ||
+          sourceInvoice.file_original_name ||
+          modal.file?.name ||
+          null
+        const filePath = serverResponse.filePath || serverResponse.FilePath || sourceInvoice.filePath || sourceInvoice.file_path || null
+        const fileType =
+          serverResponse.fileType ||
+          serverResponse.FileType ||
+          sourceInvoice.fileType ||
+          sourceInvoice.file_type ||
+          modal.file?.file?.type ||
+          null
+        const fileSize =
+          serverResponse.fileSize ||
+          serverResponse.FileSize ||
+          sourceInvoice.fileSize ||
+          sourceInvoice.file_size ||
+          modal.file?.file?.size ||
+          null
+        const aiConfidence =
+          formData?.confidence?.value ??
+          sourceInvoice.aiExtractionConfidence ??
+          sourceInvoice.ai_extraction_confidence ??
+          serverResponse?.extractedData?.extractionConfidence ??
+          serverResponse?.ExtractedData?.ExtractionConfidence ??
+          null
 
         const payload = {
-          companyId,
+          companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
           invoiceNumber: formData.invoiceNumber?.value || '',
           vendorName: formData.vendorName?.value || '',
           invoiceDate: formData.invoiceDate?.value || new Date().toISOString(),
@@ -223,6 +322,16 @@ function InvoicesPage() {
           vendorTaxId: formData.vendorTaxId?.value || null,
           lastFourDigitsCard: formData.lastFourDigitsCard?.value || null,
           dueDate: formData.dueDate?.value || null,
+          paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
+          itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
+          paymentPlanTotalInstallments:
+            sourceInvoice.paymentPlanTotalInstallments || sourceInvoice.payment_plan_total_installments || null,
+          paymentPlanInstallmentAmount:
+            sourceInvoice.paymentPlanInstallmentAmount || sourceInvoice.payment_plan_installment_amount || null,
+          paymentPlanFrequency:
+            sourceInvoice.paymentPlanFrequency || sourceInvoice.payment_plan_frequency || null,
+          paymentPlanDescription:
+            sourceInvoice.paymentPlanDescription || sourceInvoice.payment_plan_description || null,
           fileOriginalName,
           filePath,
           fileType,
@@ -239,30 +348,37 @@ function InvoicesPage() {
           })),
         }
 
-        const result = await createInvoice(payload, true, token)
+        if (editingInvoiceId) {
+          await updateInvoice(editingInvoiceId, payload, token)
+        } else {
+          const result = await createInvoice(payload, true, token)
 
-        // Mark file as verified
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === modal.file?.id ? { ...f, status: 'verified' } : f,
-          ),
-        )
+          // Mark file as verified
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === modal.file?.id ? { ...f, status: 'verified' } : f,
+            ),
+          )
+
+          // Show success message with auto-match result
+          const autoMatchResult = result?.autoMatchResult
+          if (autoMatchResult?.matched) {
+            setSnack({
+              open: true,
+              message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`,
+              severity: 'success',
+            })
+          } else {
+            setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+          }
+        }
 
         setModal({ open: false, file: null })
-        
-        // Show success message with auto-match result
-        const autoMatchResult = result?.autoMatchResult
-        if (autoMatchResult?.matched) {
-          setSnack({ 
-            open: true, 
-            message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`, 
-            severity: 'success' 
-          })
-        } else {
-          setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+        if (editingInvoiceId) {
+          setSnack({ open: true, message: 'Invoice updated successfully!', severity: 'success' })
         }
-        
-        loadInvoices()
+
+        await loadInvoices()
       } catch (err) {
         setSnack({
           open: true,
@@ -273,7 +389,7 @@ function InvoicesPage() {
         setSaving(false)
       }
     },
-    [companyId, token, modal.file, loadInvoices],
+    [activeCompanyId, token, modal.file, loadInvoices],
   )
 
   const handleOpenInvoice = useCallback(
@@ -377,15 +493,27 @@ function InvoicesPage() {
                     : `${Math.round((inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) * 100)}%`}
                 </TableCell>
                 <TableCell align="center">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
-                    onClick={() => handleOpenInvoice(inv)}
-                    disabled={openingInvoiceId === inv.id}
-                  >
-                    Open
-                  </Button>
+                  <Stack direction="row" spacing={1} justifyContent="center">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
+                      onClick={() => handleOpenInvoice(inv)}
+                      disabled={openingInvoiceId === inv.id}
+                    >
+                      Open
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="secondary"
+                      startIcon={reopeningInvoiceId === inv.id ? <CircularProgress size={14} color="inherit" /> : <EditRoundedIcon />}
+                      onClick={() => openSavedInvoiceVerification(inv.id)}
+                      disabled={reopeningInvoiceId === inv.id}
+                    >
+                      Reopen
+                    </Button>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}

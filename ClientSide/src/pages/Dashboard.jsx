@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/useAuth'
+import { useCompany } from '../context/useCompany'
 import { getDashboardStats, getRecentActivity, mapDashboardStatsToKpis } from '../services/dashboard'
 
 const quickActions = [
@@ -78,10 +79,9 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 }
 
-const DEFAULT_COMPANY_ID = 1
-
 function DashboardPage() {
   const { user, token } = useAuth()
+  const { activeCompanyId } = useCompany()
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [activity, setActivity] = useState([])
@@ -93,10 +93,9 @@ function DashboardPage() {
     setErrorMessage('')
 
     try {
-      const companyId = user?.companyId || DEFAULT_COMPANY_ID
       const [data, activityItems] = await Promise.all([
-        getDashboardStats({ companyId, token }),
-        getRecentActivity({ companyId, token }).catch(() => []),
+        getDashboardStats({ companyId: activeCompanyId, token }),
+        getRecentActivity({ companyId: activeCompanyId, token }).catch(() => []),
       ])
       setStats(data || null)
       setActivity(activityItems)
@@ -107,7 +106,7 @@ function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [token, user?.companyId])
+  }, [activeCompanyId, token])
 
   useEffect(() => {
     loadDashboard()

@@ -29,12 +29,15 @@ import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import { motion, AnimatePresence } from 'framer-motion'
 import PageSectionLayout from '../components/PageSectionLayout'
 import PageHeaderCard from '../components/PageHeaderCard'
 import SnackbarAlert from '../components/SnackbarAlert'
+import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { useAuth } from '../context/useAuth'
-import { getInvoicesByCompany } from '../services/invoices'
+import { useCompany } from '../context/useCompany'
+import { getInvoiceById, getInvoicesByCompany, updateInvoice } from '../services/invoices'
 import { getTransactionsByCompany } from '../services/transactions'
 import {
   getMatchesByCompany,
@@ -43,9 +46,8 @@ import {
   deleteMatch,
   autoMatchOnLoad,
 } from '../services/matches'
+import { mapExtractedToForm } from '../utils/invoiceExtraction'
 import { itemVariants } from '../utils/motionVariants'
-
-const DEFAULT_COMPANY_ID = 1
 
 const cardBaseSx = {
   borderRadius: 3,
@@ -66,8 +68,47 @@ const fmtDate = (d) => {
   return new Date(d).toLocaleDateString()
 }
 
+const toDateInput = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
+const mapSavedInvoiceToForm = (invoice) => {
+  const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
+  const lineItems = invoice?.lineItems || invoice?.line_items || []
+
+  return mapExtractedToForm(
+    {
+      vendorName: invoice?.vendor_name ?? invoice?.vendorName ?? '',
+      invoiceNumber: invoice?.invoice_number ?? invoice?.invoiceNumber ?? '',
+      invoiceDate: toDateInput(invoice?.invoice_date ?? invoice?.invoiceDate),
+      dueDate: toDateInput(invoice?.due_date ?? invoice?.dueDate),
+      totalAmount: invoice?.total_amount ?? invoice?.totalAmount ?? 0,
+      subtotal: invoice?.subtotal ?? 0,
+      vatRate: invoice?.vat_rate ?? invoice?.vatRate ?? null,
+      vatAmount: invoice?.vat_amount ?? invoice?.vatAmount ?? null,
+      currency: invoice?.currency ?? 'USD',
+      vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
+      lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
+      lineItems: lineItems.map((li, idx) => ({
+        description: li?.description || '',
+        quantity: li?.quantity ?? 1,
+        unitPrice: li?.unit_price ?? li?.unitPrice ?? 0,
+        totalAmount: li?.total_amount ?? li?.totalAmount ?? 0,
+        aiConfidenceScore: li?.ai_confidence_score ?? li?.aiConfidenceScore ?? null,
+        lineNumber: li?.line_number ?? li?.lineNumber ?? idx + 1,
+      })),
+      extractionConfidence: confidence,
+    },
+    confidence,
+  )
+}
+
 function SelectionPanel({
-  icon: Icon,
+  icon,
   title,
   count,
   searchPlaceholder,
@@ -82,7 +123,9 @@ function SelectionPanel({
   renderSecondary,
   renderAmount,
   renderDate,
+  renderActions,
 }) {
+  const PanelIcon = icon
   let panelContent
 
   if (loading) {
@@ -148,6 +191,11 @@ function SelectionPanel({
                 <Typography variant="caption" color="text.secondary">
                   {renderDate(item)}
                 </Typography>
+                {renderActions ? (
+                  <Box sx={{ mt: 1 }}>
+                    {renderActions(item)}
+                  </Box>
+                ) : null}
               </Box>
             )
           })}
@@ -160,7 +208,7 @@ function SelectionPanel({
     <Card component={motion.div} variants={itemVariants} elevation={0} sx={cardBaseSx}>
       <CardContent>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-          <Icon sx={{ color: '#a9d5ff' }} />
+          <PanelIcon sx={{ color: '#a9d5ff' }} />
           <Typography variant="subtitle1" fontWeight={700}>
             {title}
           </Typography>
@@ -207,15 +255,17 @@ SelectionPanel.propTypes = {
   renderSecondary: PropTypes.func.isRequired,
   renderAmount: PropTypes.func.isRequired,
   renderDate: PropTypes.func.isRequired,
+  renderActions: PropTypes.func,
 }
 
 SelectionPanel.defaultProps = {
   selectedId: null,
+  renderActions: null,
 }
 
 function MatchesPage() {
-  const { user, token } = useAuth()
-  const companyId = user?.companyId || DEFAULT_COMPANY_ID
+  const { token } = useAuth()
+  const { activeCompanyId } = useCompany()
 
   // ----- Data state -----
   const [invoices, setInvoices] = useState([])
@@ -236,6 +286,9 @@ function MatchesPage() {
   const [error, setError] = useState('')
   const [matchBusy, setMatchBusy] = useState(false)
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const [invoiceModal, setInvoiceModal] = useState({ open: false, file: null })
+  const [invoiceSaving, setInvoiceSaving] = useState(false)
+  const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
 
   // ----- Unmatch confirmation dialog -----
   const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null })
@@ -243,19 +296,23 @@ function MatchesPage() {
   // ----- Prevent double auto-match in StrictMode -----
   const autoMatchRanRef = useRef(false)
 
+  const getConfidenceChipColor = (confidence) => {
+    if (confidence >= 0.8) return 'success'
+    if (confidence >= 0.5) return 'warning'
+    return 'default'
+  }
+
   // ===================== Data Fetching =====================
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      console.log('[MATCH] Loading data for companyId:', companyId)
       const [inv, trx, mat] = await Promise.all([
-        getInvoicesByCompany(companyId, { isMatched: false }, token),
-        getTransactionsByCompany(companyId, { isMatched: false }, token),
-        getMatchesByCompany(companyId, token),
+        getInvoicesByCompany(activeCompanyId, { isMatched: false }, token),
+        getTransactionsByCompany(activeCompanyId, { isMatched: false }, token),
+        getMatchesByCompany(activeCompanyId, token),
       ])
-      console.log(`[MATCH] Loaded: ${Array.isArray(inv) ? inv.length : 0} invoices, ${Array.isArray(trx) ? trx.length : 0} transactions, ${Array.isArray(mat) ? mat.length : 0} matches`)
       setInvoices(Array.isArray(inv) ? inv : [])
       setTransactions(Array.isArray(trx) ? trx : [])
       setMatches(Array.isArray(mat) ? mat : [])
@@ -265,7 +322,7 @@ function MatchesPage() {
     } finally {
       setLoading(false)
     }
-  }, [companyId, token])
+  }, [activeCompanyId, token])
 
   useEffect(() => {
     loadData()
@@ -278,9 +335,7 @@ function MatchesPage() {
 
     const runAutoMatch = async () => {
       try {
-        console.log('[MATCH] Starting auto-match on load...')
-        const matchResult = await autoMatchOnLoad(companyId, 70, token)
-        console.log('[MATCH] Auto-match result:', matchResult)
+        const matchResult = await autoMatchOnLoad(activeCompanyId, 70, token)
         if (matchResult?.successfulMatches > 0) {
           setSnack({
             open: true,
@@ -294,7 +349,7 @@ function MatchesPage() {
       }
     }
     runAutoMatch()
-  }, [companyId, token, loadData])
+  }, [activeCompanyId, token, loadData])
 
   // ---- Fetch suggestions when an invoice is selected ----
   useEffect(() => {
@@ -305,14 +360,7 @@ function MatchesPage() {
     let cancelled = false
     ;(async () => {
       try {
-        console.log('[MATCH] Fetching suggestions for invoiceId:', selectedInvoiceId)
         const data = await getMatchSuggestions(selectedInvoiceId, token)
-        console.log('[MATCH] Raw suggestions response:', JSON.stringify(data, null, 2))
-        console.log('[MATCH] Suggestions count:', Array.isArray(data) ? data.length : 'not an array')
-        if (Array.isArray(data) && data.length > 0) {
-          console.log('[MATCH] First suggestion fields:', Object.keys(data[0]))
-          console.log('[MATCH] First suggestion:', data[0])
-        }
         if (!cancelled) setSuggestions(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error('[MATCH] Suggestions fetch error:', err)
@@ -379,6 +427,114 @@ function MatchesPage() {
     setSelectedTransactionId(transactionId)
   }, [])
 
+  const openInvoiceForEditing = useCallback(
+    async (invoiceId) => {
+      if (!invoiceId) return
+      setReopeningInvoiceId(invoiceId)
+      try {
+        const invoice = await getInvoiceById(invoiceId, token)
+        const extractedData = mapSavedInvoiceToForm(invoice)
+        setInvoiceModal({
+          open: true,
+          file: {
+            id: `saved-${invoice.id}`,
+            name:
+              invoice.fileOriginalName ||
+              invoice.file_original_name ||
+              `Invoice ${invoice.invoiceNumber || invoice.invoice_number || invoice.id}`,
+            extractedData,
+            existingInvoiceId: invoice.id,
+            sourceInvoice: invoice,
+          },
+        })
+      } catch (err) {
+        setSnack({
+          open: true,
+          message: err.message || 'Failed to open invoice for editing.',
+          severity: 'error',
+        })
+      } finally {
+        setReopeningInvoiceId(null)
+      }
+    },
+    [token],
+  )
+
+  const handleSaveInvoiceVerification = useCallback(
+    async (formData) => {
+      const editingInvoiceId = invoiceModal.file?.existingInvoiceId
+      if (!editingInvoiceId) return
+
+      const sourceInvoice = invoiceModal.file?.sourceInvoice || {}
+      setInvoiceSaving(true)
+      try {
+        const payload = {
+          companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
+          invoiceNumber: formData.invoiceNumber?.value || '',
+          vendorName: formData.vendorName?.value || '',
+          invoiceDate: formData.invoiceDate?.value || new Date().toISOString(),
+          totalAmount: Number.parseFloat(formData.totalAmount?.value) || 0,
+          subtotal: Number.parseFloat(formData.subtotal?.value) || 0,
+          vatRate: Number.parseFloat(formData.vatRate?.value) || null,
+          vatAmount: Number.parseFloat(formData.vatAmount?.value) || null,
+          currency: formData.currency?.value || 'USD',
+          vendorTaxId: formData.vendorTaxId?.value || null,
+          lastFourDigitsCard: formData.lastFourDigitsCard?.value || null,
+          dueDate: formData.dueDate?.value || null,
+          paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
+          itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
+          paymentPlanTotalInstallments:
+            sourceInvoice.paymentPlanTotalInstallments ||
+            sourceInvoice.payment_plan_total_installments ||
+            null,
+          paymentPlanInstallmentAmount:
+            sourceInvoice.paymentPlanInstallmentAmount ||
+            sourceInvoice.payment_plan_installment_amount ||
+            null,
+          paymentPlanFrequency:
+            sourceInvoice.paymentPlanFrequency || sourceInvoice.payment_plan_frequency || null,
+          paymentPlanDescription:
+            sourceInvoice.paymentPlanDescription ||
+            sourceInvoice.payment_plan_description ||
+            null,
+          fileOriginalName: sourceInvoice.fileOriginalName || sourceInvoice.file_original_name || null,
+          filePath: sourceInvoice.filePath || sourceInvoice.file_path || null,
+          fileType: sourceInvoice.fileType || sourceInvoice.file_type || null,
+          fileSize: sourceInvoice.fileSize || sourceInvoice.file_size || null,
+          aiExtractionConfidence:
+            sourceInvoice.aiExtractionConfidence || sourceInvoice.ai_extraction_confidence || null,
+          lineItems: (formData.lineItems || []).map((li, idx) => ({
+            description: li.description || 'Item',
+            unitPrice: Number.parseFloat(li.unitPrice) || 0,
+            totalAmount: Number.parseFloat(li.totalAmount) || 0,
+            lineNumber: idx + 1,
+            quantity: Number.parseFloat(li.quantity) || 1,
+            vatRate: Number.parseFloat(formData.vatRate?.value) || null,
+            aiConfidenceScore: li.confidence ?? null,
+          })),
+        }
+
+        await updateInvoice(editingInvoiceId, payload, token)
+        setInvoiceModal({ open: false, file: null })
+        setSnack({ open: true, message: 'Invoice updated successfully!', severity: 'success' })
+
+        setSelectedInvoiceId(null)
+        setSelectedTransactionId(null)
+        setSuggestions([])
+        await loadData()
+      } catch (err) {
+        setSnack({
+          open: true,
+          message: err.message || 'Failed to save invoice.',
+          severity: 'error',
+        })
+      } finally {
+        setInvoiceSaving(false)
+      }
+    },
+    [invoiceModal.file, activeCompanyId, token, loadData],
+  )
+
   // ===================== Filtered lists =====================
 
   const filteredInvoices = invoices.filter((inv) => {
@@ -397,6 +553,99 @@ function MatchesPage() {
 
   const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId)
   const selectedTransaction = transactions.find((t) => t.id === selectedTransactionId)
+
+  let matchedItemsContent
+  if (loading) {
+    matchedItemsContent = (
+      <Stack spacing={1}>
+        {['match-skeleton-1', 'match-skeleton-2', 'match-skeleton-3'].map((skeletonKey) => (
+          <Skeleton key={skeletonKey} variant="rectangular" height={48} sx={{ borderRadius: 2 }} />
+        ))}
+      </Stack>
+    )
+  } else if (matches.length === 0) {
+    matchedItemsContent = (
+      <Stack alignItems="center" sx={{ py: 5 }}>
+        <CompareArrowsRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+        <Typography color="text.secondary">
+          No matches yet. Select an invoice and a transaction above to create one.
+        </Typography>
+      </Stack>
+    )
+  } else {
+    matchedItemsContent = (
+      <Stack spacing={1}>
+        <AnimatePresence>
+          {matches.map((m) => {
+            const id = m.id
+            const invLabel =
+              m.invoice_number || m.invoiceNumber || `Invoice #${m.invoice_id ?? m.invoiceId ?? '?'}`
+            const trxLabel =
+              m.transaction_description ||
+              m.transactionDescription ||
+              `Transaction #${m.transaction_id ?? m.transactionId ?? '?'}`
+            const amount = Number(m.matched_amount ?? m.matchedAmount) || 0
+            const method = m.match_method || m.matchMethod || '—'
+            const confidence = Number(m.match_confidence ?? m.matchConfidence ?? 0)
+
+            return (
+              <Stack
+                key={id}
+                component={motion.div}
+                layout
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ sm: 'center' }}
+                justifyContent="space-between"
+                spacing={1}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(55,214,122,0.05)',
+                  border: '1px solid',
+                  borderColor: 'rgba(55,214,122,0.25)',
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1 }}>
+                  <CheckCircleRoundedIcon sx={{ color: 'success.main' }} />
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {invLabel} ↔ {trxLabel}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Amount: {fmtAmount(amount)}
+                      </Typography>
+                      <Chip label={method} size="small" variant="outlined" />
+                      {confidence > 0 && (
+                        <Chip
+                          label={`${Math.round(confidence * 100)}%`}
+                          size="small"
+                          color={confidence >= 0.8 ? 'success' : 'warning'}
+                          variant="outlined"
+                        />
+                      )}
+                    </Stack>
+                  </Box>
+                </Stack>
+                <Tooltip title="Remove match">
+                  <IconButton
+                    size="small"
+                    onClick={() => confirmUnmatch(id)}
+                    sx={{ color: 'error.main' }}
+                  >
+                    <LinkOffRoundedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )
+          })}
+        </AnimatePresence>
+      </Stack>
+    )
+  }
 
   // ===================== Render =====================
 
@@ -497,8 +746,6 @@ function MatchesPage() {
                     const confidence = rawScore > 1 ? rawScore / 100 : rawScore
                     const desc = s.description ?? s.transaction_description ?? s.transactionDescription ?? `Transaction #${trxId}`
                     const amt = Number(s.amount ?? s.transaction_amount ?? s.transactionAmount ?? 0)
-                    const reasons = s.matchReasons ?? s.match_reasons ?? []
-                    console.log(`[MATCH] Rendering suggestion: trxId=${trxId} confidence=${confidence} desc="${desc}" amount=${amt} reasons=`, reasons)
                     return (
                       <Stack
                         key={trxId}
@@ -518,7 +765,7 @@ function MatchesPage() {
                           <Chip
                             label={`${Math.round(confidence * 100)}%`}
                             size="small"
-                            color={confidence >= 0.8 ? 'success' : confidence >= 0.5 ? 'warning' : 'default'}
+                            color={getConfidenceChipColor(confidence)}
                           />
                           <Box>
                             <Typography variant="body2" fontWeight={600}>
@@ -563,6 +810,22 @@ function MatchesPage() {
                 renderSecondary={(inv) => inv.vendor_name || inv.vendorName || '—'}
                 renderAmount={(inv) => fmtAmount(inv.total_amount ?? inv.totalAmount)}
                 renderDate={(inv) => fmtDate(inv.invoice_date || inv.invoiceDate)}
+                renderActions={(inv) => (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={
+                      reopeningInvoiceId === inv.id ? <CheckCircleRoundedIcon fontSize="small" /> : <EditRoundedIcon fontSize="small" />
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      openInvoiceForEditing(inv.id)
+                    }}
+                    disabled={reopeningInvoiceId === inv.id}
+                  >
+                    {reopeningInvoiceId === inv.id ? 'Opening...' : 'Reopen'}
+                  </Button>
+                )}
               />
             </Grid>
 
@@ -672,91 +935,7 @@ function MatchesPage() {
                 Matched Items ({matches.length})
               </Typography>
 
-              {loading ? (
-                <Stack spacing={1}>
-                  {['match-skeleton-1', 'match-skeleton-2', 'match-skeleton-3'].map((skeletonKey) => (
-                    <Skeleton key={skeletonKey} variant="rectangular" height={48} sx={{ borderRadius: 2 }} />
-                  ))}
-                </Stack>
-              ) : matches.length === 0 ? (
-                <Stack alignItems="center" sx={{ py: 5 }}>
-                  <CompareArrowsRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                  <Typography color="text.secondary">
-                    No matches yet. Select an invoice and a transaction above to create one.
-                  </Typography>
-                </Stack>
-              ) : (
-                <Stack spacing={1}>
-                  <AnimatePresence>
-                    {matches.map((m) => {
-                      const id = m.id
-                      const invLabel =
-                        m.invoice_number || m.invoiceNumber || `Invoice #${m.invoice_id ?? m.invoiceId ?? '?'}`
-                      const trxLabel =
-                        m.transaction_description ||
-                        m.transactionDescription ||
-                        `Transaction #${m.transaction_id ?? m.transactionId ?? '?'}`
-                      const amount = Number(m.matched_amount ?? m.matchedAmount) || 0
-                      const method = m.match_method || m.matchMethod || '—'
-                      const confidence = Number(m.match_confidence ?? m.matchConfidence ?? 0)
-
-                      return (
-                        <Stack
-                          key={id}
-                          component={motion.div}
-                          layout
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 10 }}
-                          direction={{ xs: 'column', sm: 'row' }}
-                          alignItems={{ sm: 'center' }}
-                          justifyContent="space-between"
-                          spacing={1}
-                          sx={{
-                            p: 1.5,
-                            borderRadius: 2,
-                            bgcolor: 'rgba(55,214,122,0.05)',
-                            border: '1px solid',
-                            borderColor: 'rgba(55,214,122,0.25)',
-                          }}
-                        >
-                          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1 }}>
-                            <CheckCircleRoundedIcon sx={{ color: 'success.main' }} />
-                            <Box>
-                              <Typography variant="body2" fontWeight={600}>
-                                {invLabel} ↔ {trxLabel}
-                              </Typography>
-                              <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
-                                <Typography variant="caption" color="text.secondary">
-                                  Amount: {fmtAmount(amount)}
-                                </Typography>
-                                <Chip label={method} size="small" variant="outlined" />
-                                {confidence > 0 && (
-                                  <Chip
-                                    label={`${Math.round(confidence * 100)}%`}
-                                    size="small"
-                                    color={confidence >= 0.8 ? 'success' : 'warning'}
-                                    variant="outlined"
-                                  />
-                                )}
-                              </Stack>
-                            </Box>
-                          </Stack>
-                          <Tooltip title="Remove match">
-                            <IconButton
-                              size="small"
-                              onClick={() => confirmUnmatch(id)}
-                              sx={{ color: 'error.main' }}
-                            >
-                              <LinkOffRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      )
-                    })}
-                  </AnimatePresence>
-                </Stack>
-              )}
+              {matchedItemsContent}
             </CardContent>
           </Card>
       </PageSectionLayout>
@@ -782,6 +961,17 @@ function MatchesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <InvoiceVerificationModal
+        key={invoiceModal.file?.id || 'empty'}
+        open={invoiceModal.open}
+        onClose={() => setInvoiceModal({ open: false, file: null })}
+        onSave={handleSaveInvoiceVerification}
+        initialData={invoiceModal.file?.extractedData}
+        fileName={invoiceModal.file?.name}
+        extractionMethod={null}
+        saving={invoiceSaving}
+      />
 
       {/* ---- Snackbar ---- */}
       <SnackbarAlert

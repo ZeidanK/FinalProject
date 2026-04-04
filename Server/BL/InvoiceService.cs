@@ -69,6 +69,52 @@ namespace FinalProjectAuthAPI.BL
             return (true, invoiceId, string.Empty);
         }
 
+        public (bool Success, string Error, bool NotFound) Update(
+            long id, CreateInvoiceRequest req, long verifiedByUserId)
+        {
+            var existing = _db.GetInvoiceById(id);
+            if (existing is null)
+                return (false, "Invoice not found.", true);
+
+            if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
+                return (false, "Invoice number is required.", false);
+            if (string.IsNullOrWhiteSpace(req.VendorName))
+                return (false, "Vendor name is required.", false);
+
+            var ok = _db.UpdateInvoice(
+                id,
+                req.CompanyId,
+                req.InvoiceNumber.Trim(),
+                req.VendorName.Trim(),
+                req.InvoiceDate,
+                req.TotalAmount,
+                req.VendorTaxId,
+                req.DueDate,
+                req.PaymentDate,
+                req.Subtotal == 0 ? req.TotalAmount : req.Subtotal,
+                req.VatRate,
+                req.VatAmount,
+                string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
+                req.FileOriginalName,
+                req.FilePath,
+                req.FileType,
+                req.FileSize,
+                req.AiExtractionConfidence,
+                req.LastFourDigitsCard,
+                req.ItemCount,
+                req.PaymentPlanTotalInstallments,
+                req.PaymentPlanInstallmentAmount,
+                req.PaymentPlanFrequency,
+                req.PaymentPlanDescription,
+                verifiedByUserId,
+                req.LineItems ?? new List<CreateLineItemRequest>());
+
+            if (!ok)
+                return (false, "Failed to update invoice.", false);
+
+            return (true, string.Empty, false);
+        }
+
         public bool UpdateStatus(long id, string status)
         {
             var validStatuses = new HashSet<string>

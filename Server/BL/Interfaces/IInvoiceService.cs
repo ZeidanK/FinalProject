@@ -10,6 +10,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         (bool Success, long Id, string Error) Create(CreateInvoiceRequest req, long uploadedByUserId);
         (bool Success, long Id, string Error) Create(CreateInvoiceRequest req, long uploadedByUserId,
             string? fileOriginalName, string? filePath, string? fileType, long? fileSize, decimal? aiConfidence);
+        (bool Success, string Error, bool NotFound) Update(long id, CreateInvoiceRequest req, long verifiedByUserId);
         bool UpdateStatus(long id, string status);
         bool UpdateFileInfo(long id, string? fileOriginalName, string? filePath, string? fileType,
             long? fileSize, decimal? aiConfidence);

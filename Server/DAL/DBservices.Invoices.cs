@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.SqlClient;
+using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.DAL
 {
@@ -236,6 +237,149 @@ namespace FinalProjectAuthAPI.DAL
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
             finally { con?.Close(); }
+        }
+
+        public bool UpdateInvoice(
+            long id,
+            long companyId,
+            string invoiceNumber,
+            string vendorName,
+            DateTime invoiceDate,
+            decimal totalAmount,
+            string? vendorTaxId,
+            DateTime? dueDate,
+            DateTime? paymentDate,
+            decimal subtotal,
+            decimal? vatRate,
+            decimal? vatAmount,
+            string currency,
+            string? fileOriginalName,
+            string? filePath,
+            string? fileType,
+            long? fileSize,
+            decimal? aiConfidence,
+            string? lastFourDigitsCard,
+            int? itemCount,
+            int? paymentPlanTotalInstallments,
+            decimal? paymentPlanInstallmentAmount,
+            string? paymentPlanFrequency,
+            string? paymentPlanDescription,
+            long? verifiedByUserId,
+            List<CreateLineItemRequest> lineItems)
+        {
+            SqlConnection? con = null;
+            SqlTransaction? tx = null;
+            try
+            {
+                con = Connect();
+                tx = con.BeginTransaction();
+
+                var updateCmd = new SqlCommand(@"
+                    UPDATE dbo.FP26_invoices
+                    SET
+                        company_id = @CompanyId,
+                        invoice_number = @InvoiceNumber,
+                        vendor_name = @VendorName,
+                        invoice_date = @InvoiceDate,
+                        total_amount = @TotalAmount,
+                        vendor_tax_id = @VendorTaxId,
+                        due_date = @DueDate,
+                        payment_date = @PaymentDate,
+                        subtotal = @Subtotal,
+                        vat_rate = @VatRate,
+                        vat_amount = @VatAmount,
+                        currency = @Currency,
+                        file_original_name = @FileOriginalName,
+                        file_path = @FilePath,
+                        file_type = @FileType,
+                        file_size = @FileSize,
+                        ai_extraction_confidence = @AiExtractionConfidence,
+                        ai_processed = CASE WHEN @AiExtractionConfidence IS NULL THEN ai_processed ELSE 1 END,
+                        last_four_digits_card = @LastFourDigitsCard,
+                        item_count = @ItemCount,
+                        payment_plan_total_installments = @PaymentPlanTotalInstallments,
+                        payment_plan_installment_amount = @PaymentPlanInstallmentAmount,
+                        payment_plan_frequency = @PaymentPlanFrequency,
+                        payment_plan_description = @PaymentPlanDescription,
+                        verified_by_user_id = COALESCE(@VerifiedByUserId, verified_by_user_id),
+                        is_verified = 1,
+                        status = CASE WHEN status = 'matched' THEN status ELSE 'verified' END,
+                        updated_at = GETDATE()
+                    WHERE id = @Id", con, tx);
+
+                updateCmd.Parameters.AddWithValue("@Id", id);
+                updateCmd.Parameters.AddWithValue("@CompanyId", companyId);
+                updateCmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
+                updateCmd.Parameters.AddWithValue("@VendorName", vendorName);
+                updateCmd.Parameters.AddWithValue("@InvoiceDate", invoiceDate);
+                updateCmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
+                updateCmd.Parameters.AddWithValue("@VendorTaxId", (object?)vendorTaxId ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@DueDate", (object?)dueDate ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@PaymentDate", (object?)paymentDate ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@Subtotal", subtotal);
+                updateCmd.Parameters.AddWithValue("@VatRate", (object?)vatRate ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@VatAmount", (object?)vatAmount ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@Currency", currency);
+                updateCmd.Parameters.AddWithValue("@FileOriginalName", (object?)fileOriginalName ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@FilePath", (object?)filePath ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@FileType", (object?)fileType ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@FileSize", (object?)fileSize ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@AiExtractionConfidence", (object?)aiConfidence ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@LastFourDigitsCard", (object?)lastFourDigitsCard ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@ItemCount", (object?)itemCount ?? lineItems.Count);
+                updateCmd.Parameters.AddWithValue("@PaymentPlanTotalInstallments", (object?)paymentPlanTotalInstallments ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@PaymentPlanInstallmentAmount", (object?)paymentPlanInstallmentAmount ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@PaymentPlanFrequency", (object?)paymentPlanFrequency ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@PaymentPlanDescription", (object?)paymentPlanDescription ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@VerifiedByUserId", (object?)verifiedByUserId ?? DBNull.Value);
+
+                var rows = updateCmd.ExecuteNonQuery();
+                if (rows <= 0)
+                {
+                    tx.Rollback();
+                    return false;
+                }
+
+                var deleteItemsCmd = new SqlCommand(
+                    "DELETE FROM dbo.FP26_invoice_line_items WHERE invoice_id = @InvoiceId",
+                    con,
+                    tx);
+                deleteItemsCmd.Parameters.AddWithValue("@InvoiceId", id);
+                deleteItemsCmd.ExecuteNonQuery();
+
+                foreach (var li in lineItems)
+                {
+                    var insertItemCmd = new SqlCommand(@"
+                        INSERT INTO dbo.FP26_invoice_line_items
+                            (invoice_id, line_number, description, category, quantity, unit_price, vat_rate, total_amount, ai_confidence_score)
+                        VALUES
+                            (@InvoiceId, @LineNumber, @Description, @Category, @Quantity, @UnitPrice, @VatRate, @TotalAmount, @AiConfidenceScore)", con, tx);
+
+                    insertItemCmd.Parameters.AddWithValue("@InvoiceId", id);
+                    insertItemCmd.Parameters.AddWithValue("@LineNumber", (object?)li.LineNumber ?? DBNull.Value);
+                    insertItemCmd.Parameters.AddWithValue("@Description", li.Description);
+                    insertItemCmd.Parameters.AddWithValue("@Category", (object?)li.Category ?? DBNull.Value);
+                    insertItemCmd.Parameters.AddWithValue("@Quantity", li.Quantity);
+                    insertItemCmd.Parameters.AddWithValue("@UnitPrice", li.UnitPrice);
+                    insertItemCmd.Parameters.AddWithValue("@VatRate", (object?)li.VatRate ?? DBNull.Value);
+                    insertItemCmd.Parameters.AddWithValue("@TotalAmount", li.TotalAmount);
+                    insertItemCmd.Parameters.AddWithValue("@AiConfidenceScore", (object?)li.AiConfidenceScore ?? DBNull.Value);
+                    insertItemCmd.ExecuteNonQuery();
+                }
+
+                tx.Commit();
+                return true;
+            }
+            catch
+            {
+                tx?.Rollback();
+                return false;
+            }
+            finally
+            {
+                tx?.Dispose();
+                con?.Close();
+            }
         }
 
         /// <summary>

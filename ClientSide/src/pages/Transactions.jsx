@@ -43,6 +43,7 @@ import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
 import { useAuth } from '../context/useAuth'
+import { useCompany } from '../context/useCompany'
 import {
   getTransactionById,
   getTransactionsByCompany,
@@ -70,8 +71,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 }
-
-const DEFAULT_COMPANY_ID = 1
 
 const typeColors = {
   debit: 'error',
@@ -243,7 +242,7 @@ function AddBankAccountDialog({ open, onClose, onSave, saving }) {
 
 function TransactionsPage() {
   const { user, token } = useAuth()
-  const companyId = user?.companyId || DEFAULT_COMPANY_ID
+  const { activeCompanyId } = useCompany()
 
   // --- Transaction list ---
   const [transactions, setTransactions] = useState([])
@@ -290,19 +289,19 @@ function TransactionsPage() {
     try {
       const filters = {}
       if (typeFilter !== 'all') filters.type = typeFilter
-      const data = await getTransactionsByCompany(companyId, filters, token)
+      const data = await getTransactionsByCompany(activeCompanyId, filters, token)
       setTransactions(Array.isArray(data) ? data : [])
     } catch (err) {
       setListError(err.message || 'Failed to load transactions.')
     } finally {
       setListLoading(false)
     }
-  }, [companyId, token, typeFilter])
+  }, [activeCompanyId, token, typeFilter])
 
   const loadBankAccounts = useCallback(async () => {
     setAccountsLoading(true)
     try {
-      const data = await getBankAccountsByCompany(companyId, token)
+      const data = await getBankAccountsByCompany(activeCompanyId, token)
       const accounts = Array.isArray(data) ? data : []
       setBankAccounts(accounts)
       if (accounts.length > 0 && !selectedAccountId) {
@@ -314,7 +313,7 @@ function TransactionsPage() {
     } finally {
       setAccountsLoading(false)
     }
-  }, [companyId, token, selectedAccountId])
+  }, [activeCompanyId, token, selectedAccountId])
 
   useEffect(() => {
     loadTransactions()
@@ -350,7 +349,7 @@ function TransactionsPage() {
       // XLSX/XLS: send to server for extraction
       setPreviewing(true)
       setParsedRows([])
-      previewExcel(file, companyId, token)
+      previewExcel(file, activeCompanyId, token)
         .then((data) => {
           const txns = data?.extractionResult?.transactions || []
           if (txns.length === 0) {
@@ -362,7 +361,7 @@ function TransactionsPage() {
             _rowId: idx,
             transactionDate: t.transactionDate || '',
             description: t.description || '',
-            amount: typeof t.amount === 'number' ? t.amount : parseFloat(t.amount) || 0,
+            amount: typeof t.amount === 'number' ? t.amount : Number.parseFloat(t.amount) || 0,
             transactionType: (t.transactionType || 'debit').toLowerCase(),
             category: t.category || '',
             referenceNumber: t.referenceNumber || '',
@@ -398,7 +397,7 @@ function TransactionsPage() {
       setParseError('Failed to read file.')
     }
     reader.readAsText(file)
-  }, [companyId, token, validateFile])
+  }, [activeCompanyId, token, validateFile])
 
   const handleDrag = useCallback((e) => {
     e.preventDefault()
@@ -447,10 +446,10 @@ function TransactionsPage() {
     setImporting(true)
     try {
       const payload = {
-        companyId,
+        companyId: activeCompanyId,
         createdByUserId: user?.id || user?.userId,
         transactions: validRows.map((r) => ({
-          companyId,
+          companyId: activeCompanyId,
           bankAccountId: selectedAccountId || null,
           transactionDate: r.transactionDate,
           description: r.description,
@@ -480,7 +479,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, companyId, user, selectedAccountId, token, clearUpload, loadTransactions])
+  }, [parsedRows, activeCompanyId, user, selectedAccountId, token, clearUpload, loadTransactions])
 
   // ===================== Add Bank Account =====================
 
@@ -490,7 +489,7 @@ function TransactionsPage() {
       try {
         await createBankAccount(
           {
-            companyId,
+            companyId: activeCompanyId,
             bankName: formData.bankName,
             accountType: formData.accountType,
             accountName: formData.accountName || null,
@@ -513,7 +512,7 @@ function TransactionsPage() {
         setAddingAccount(false)
       }
     },
-    [companyId, user, token, loadBankAccounts],
+    [activeCompanyId, user, token, loadBankAccounts],
   )
 
   const openTransactionDetails = useCallback(

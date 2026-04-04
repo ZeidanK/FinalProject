@@ -37,6 +37,14 @@ export function createInvoice(payload, autoMatch = false, token) {
   })
 }
 
+export function updateInvoice(invoiceId, payload, token) {
+  return apiRequest(URLS.invoices.byId(invoiceId), {
+    method: 'PUT',
+    body: payload,
+    token,
+  })
+}
+
 export function updateInvoiceStatus(invoiceId, status, token) {
   return apiRequest(URLS.invoices.status(invoiceId), {
     method: 'PATCH',
