@@ -56,12 +56,22 @@ export function AuthProvider({ children }) {
 
   const updateUser = useCallback(
     (updatedFields) => {
-      if (!authSession?.token || !authSession?.user) return
-      const newUser = { ...authSession.user, ...updatedFields }
-      saveAuthSession(authSession.token, newUser)
-      setAuthSession({ token: authSession.token, user: newUser })
+      setAuthSession((prevSession) => {
+        if (!prevSession?.token || !prevSession?.user) return prevSession
+
+        const newUser = { ...prevSession.user, ...updatedFields }
+
+        const changed = Object.keys(updatedFields || {}).some(
+          (key) => prevSession.user?.[key] !== newUser?.[key],
+        )
+
+        if (!changed) return prevSession
+
+        saveAuthSession(prevSession.token, newUser)
+        return { token: prevSession.token, user: newUser }
+      })
     },
-    [authSession],
+    [],
   )
 
   const value = useMemo(

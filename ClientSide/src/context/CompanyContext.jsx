@@ -34,20 +34,20 @@ export function CompanyProvider({ children }) {
   )
   const [loadingCompanies, setLoadingCompanies] = useState(false)
 
-  const resolveInitialCompanyId = useCallback((availableCompanies) => {
+  const resolveInitialCompanyId = useCallback((availableCompanies, currentUserCompanyId) => {
     const ids = availableCompanies
       .map((company) => parseCompanyId(company.id ?? company.companyId))
       .filter(Boolean)
 
     const storedId = readStoredCompanyId()
-    const userCompanyId = parseCompanyId(user?.companyId)
+    const userCompanyId = parseCompanyId(currentUserCompanyId)
 
     if (storedId && ids.includes(storedId)) return storedId
     if (userCompanyId && ids.includes(userCompanyId)) return userCompanyId
     if (ids.length > 0) return ids[0]
 
     return userCompanyId || storedId || DEFAULT_COMPANY_ID
-  }, [user?.companyId])
+  }, [])
 
   const changeActiveCompanyId = useCallback((companyId) => {
     const parsedId = parseCompanyId(companyId)
@@ -81,16 +81,24 @@ export function CompanyProvider({ children }) {
       const nextCompanies = Array.isArray(response) ? response : []
       setCompanies(nextCompanies)
 
-      const nextActiveCompanyId = resolveInitialCompanyId(nextCompanies)
+      const nextActiveCompanyId = resolveInitialCompanyId(nextCompanies, user?.companyId)
       setActiveCompanyId(nextActiveCompanyId)
       persistCompanyId(nextActiveCompanyId)
-      updateUser({ companyId: nextActiveCompanyId, companies: nextCompanies })
+
+      const currentUserCompanyId = parseCompanyId(user?.companyId)
+      if (currentUserCompanyId !== nextActiveCompanyId) {
+        updateUser({ companyId: nextActiveCompanyId })
+      }
     } catch {
       const fallbackCompanyId = parseCompanyId(user?.companyId) || readStoredCompanyId() || DEFAULT_COMPANY_ID
       setCompanies([])
       setActiveCompanyId(fallbackCompanyId)
       persistCompanyId(fallbackCompanyId)
-      updateUser({ companyId: fallbackCompanyId })
+
+      const currentUserCompanyId = parseCompanyId(user?.companyId)
+      if (currentUserCompanyId !== fallbackCompanyId) {
+        updateUser({ companyId: fallbackCompanyId })
+      }
     } finally {
       setLoadingCompanies(false)
     }
