@@ -2,13 +2,14 @@ using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace FinalProjectAuthAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class CompaniesController : ControllerBase
+    public class CompaniesController : ApiControllerBase
     {
         private readonly ICompanyService _svc;
 
@@ -63,6 +64,24 @@ namespace FinalProjectAuthAPI.Controllers
                 request.TaxId, request.VatNumber, request.IsActive);
 
             return ok ? Ok(new { message = "Company updated." }) : NotFound(new { message = "Company not found." });
+        }
+
+        // DELETE api/companies/{id}
+        [HttpDelete("{id:long}")]
+        public IActionResult Delete(long id)
+        {
+            var role = GetCurrentUserRole();
+            var currentUserId = GetCurrentUserId();
+
+            if (!string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                var canAccess = _svc.GetByUserId(currentUserId).Any(c => c.Id == id);
+                if (!canAccess)
+                    return Forbid();
+            }
+
+            var ok = _svc.Delete(id);
+            return ok ? Ok(new { message = "Company deleted." }) : NotFound(new { message = "Company not found." });
         }
     }
 }

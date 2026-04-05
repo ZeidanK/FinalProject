@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import PropTypes from 'prop-types'
 import LandingPage from './pages/LandingPage'
 import RegisterPage from './pages/Register'
 import LoginPage from './pages/Login'
@@ -11,6 +12,7 @@ import TransactionsPage from './pages/Transactions'
 import ProfilePage from './pages/ProfilePage'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
 import { useAuth } from './context/useAuth'
+import { useCompany } from './context/useCompany'
 
 const ROLE_RULES = {
   accountantOnly: ['accountant', 'accountant_business_owner'],
@@ -28,6 +30,10 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+ProtectedRoute.propTypes = {
+  children: PropTypes.node.isRequired,
+}
+
 function RoleRoute({ allowedRoles, children }) {
   const { user } = useAuth()
 
@@ -36,6 +42,39 @@ function RoleRoute({ allowedRoles, children }) {
   }
 
   return children
+}
+
+RoleRoute.propTypes = {
+  allowedRoles: PropTypes.arrayOf(PropTypes.string).isRequired,
+  children: PropTypes.node.isRequired,
+}
+
+function CompanyRoute({ children }) {
+  const location = useLocation()
+  const { activeCompanyId, loadingCompanies } = useCompany()
+
+  if (loadingCompanies) {
+    return <div>Resolving company access...</div>
+  }
+
+  if (!activeCompanyId) {
+    return (
+      <Navigate
+        to="/profile"
+        replace
+        state={{
+          noCompany: true,
+          from: location.pathname,
+        }}
+      />
+    )
+  }
+
+  return children
+}
+
+CompanyRoute.propTypes = {
+  children: PropTypes.node.isRequired,
 }
 
 function App() {
@@ -52,46 +91,63 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <CompanyRoute>
+                <DashboardPage />
+              </CompanyRoute>
+            }
+          />
           <Route path="/profile" element={<ProfilePage />} />
           <Route
             path="/invoices"
             element={
-              <RoleRoute allowedRoles={ROLE_RULES.all}>
-                <InvoicesPage />
-              </RoleRoute>
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.all}>
+                  <InvoicesPage />
+                </RoleRoute>
+              </CompanyRoute>
             }
           />
           <Route
             path="/transactions"
             element={
-              <RoleRoute allowedRoles={ROLE_RULES.all}>
-                <TransactionsPage />
-              </RoleRoute>
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.all}>
+                  <TransactionsPage />
+                </RoleRoute>
+              </CompanyRoute>
             }
           />
           <Route
             path="/matches"
             element={
-              <RoleRoute allowedRoles={ROLE_RULES.all}>
-                <MatchesPage />
-              </RoleRoute>
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.all}>
+                  <MatchesPage />
+                </RoleRoute>
+              </CompanyRoute>
             }
           />
           <Route
             path="/anomalies"
             element={
-              <RoleRoute allowedRoles={ROLE_RULES.all}>
-                <AnomaliesPage />
-              </RoleRoute>
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.all}>
+                  <AnomaliesPage />
+                </RoleRoute>
+              </CompanyRoute>
             }
           />
           <Route
             path="/reports"
             element={
-              <RoleRoute allowedRoles={ROLE_RULES.all}>
-                <ReportsPage />
-              </RoleRoute>
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.all}>
+                  <ReportsPage />
+                </RoleRoute>
+              </CompanyRoute>
             }
           />
         </Route>

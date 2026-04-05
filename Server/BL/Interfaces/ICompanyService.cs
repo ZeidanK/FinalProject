@@ -22,5 +22,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
             string? state, string? postalCode, string? country,
             string? email, string? phone, string? website,
             string? taxId, string? vatNumber, bool? isActive);
+        bool Delete(long id);
     }
 }

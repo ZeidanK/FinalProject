@@ -36,10 +36,14 @@ CREATE TABLE dbo.FP26_companies
     created_at          DATETIME2       NOT NULL DEFAULT GETDATE(),
     updated_at          DATETIME2       NOT NULL DEFAULT GETDATE(),
     CONSTRAINT PK_FP26_companies PRIMARY KEY (id),
-    CONSTRAINT UQ_FP26_companies_registration UNIQUE (registration_number),
     CONSTRAINT FK_FP26_companies_creator FOREIGN KEY (created_by_user_id)
         REFERENCES dbo.FP26_users (id) ON DELETE SET NULL
 );
+GO
+
+CREATE UNIQUE INDEX IX_FP26_companies_registration_not_null
+    ON dbo.FP26_companies (registration_number)
+    WHERE registration_number IS NOT NULL;
 GO
 
 -- ── User-Company Access ───────────────────────────────────────

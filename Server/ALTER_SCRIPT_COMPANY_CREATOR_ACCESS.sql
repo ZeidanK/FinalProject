@@ -1,5 +1,6 @@
 -- ============================================================
--- Run this script in SSMS against: igroup104_test2
+-- Run this script in SSMS against your FinalProject database.
+-- Purpose: ensure new company creation auto-assigns creator as active/full access
 -- ============================================================
 
 IF OBJECT_ID('dbo.FP26_sp_Companies_Insert', 'P') IS NOT NULL

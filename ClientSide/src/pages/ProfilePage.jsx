@@ -27,10 +27,13 @@ import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded'
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import PropTypes from 'prop-types'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useCompany } from '../context/useCompany'
 import { getUserById, updateUser, changePassword, uploadProfilePicture } from '../services/users'
-import { getCompaniesByUser, createCompany, updateCompany } from '../services/companies'
+import { getCompaniesByUser, createCompany, updateCompany, deleteCompany } from '../services/companies'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
@@ -78,6 +81,9 @@ const passwordFieldMeta = {
 
 export default function ProfilePage() {
   const { user, token, updateUser: updateAuthUser } = useAuth()
+  const { refreshCompanies } = useCompany()
+  const location = useLocation()
+  const requiresCompanySetup = Boolean(location.state?.noCompany)
 
   // ── Profile state ──────────────────────────────────────────
   const [profile, setProfile] = useState(null)
@@ -110,6 +116,7 @@ export default function ProfilePage() {
   const [companyForm, setCompanyForm] = useState({ ...emptyCompanyForm })
   const [addingCompany, setAddingCompany] = useState(false)
   const [savingCompany, setSavingCompany] = useState(false)
+  const [deletingCompanyId, setDeletingCompanyId] = useState(null)
   const [companyMsg, setCompanyMsg] = useState(null)
 
   const isBusinessOwner = useMemo(
@@ -313,6 +320,33 @@ export default function ProfilePage() {
     }
   }
 
+  const handleDeleteCompany = async (company) => {
+    if (!company?.id) return
+
+    const confirmed = globalThis.window?.confirm(
+      `Delete ${company.name || 'this company'}? This will remove it from active company lists.`,
+    )
+
+    if (!confirmed) return
+
+    setDeletingCompanyId(company.id)
+    setCompanyMsg(null)
+
+    try {
+      await deleteCompany(company.id, token)
+      setCompanyMsg({ type: 'success', text: 'Company deleted successfully.' })
+      if (editingCompanyId === company.id) {
+        setEditingCompanyId(null)
+      }
+      await fetchCompanies()
+      await refreshCompanies()
+    } catch (err) {
+      setCompanyMsg({ type: 'error', text: err.message || 'Failed to delete company.' })
+    } finally {
+      setDeletingCompanyId(null)
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────
   let assignedCompaniesContent
   if (loadingCompanies) {
@@ -372,6 +406,12 @@ export default function ProfilePage() {
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Box>
+        {requiresCompanySetup && (
+          <Alert severity="warning" sx={{ mb: 2.5 }}>
+            No active company could be resolved. Create or assign a company below to continue.
+          </Alert>
+        )}
+
         {/* ── Page title ─────────────────────────────────── */}
         <Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
@@ -697,7 +737,12 @@ export default function ProfilePage() {
                             onCancel={cancelCompanyEdit}
                           />
                         ) : (
-                          <CompanyCard company={c} onEdit={() => startEditCompany(c)} />
+                          <CompanyCard
+                            company={c}
+                            onEdit={() => startEditCompany(c)}
+                            onDelete={() => handleDeleteCompany(c)}
+                            deleting={deletingCompanyId === c.id}
+                          />
                         )}
                       </Box>
                     ))}
@@ -763,7 +808,7 @@ export default function ProfilePage() {
 // Sub-components
 // ═══════════════════════════════════════════════════════════════
 
-function CompanyCard({ company, onEdit }) {
+function CompanyCard({ company, onEdit, onDelete, deleting }) {
   const c = company
   return (
     <Box
@@ -795,9 +840,14 @@ function CompanyCard({ company, onEdit }) {
             </Typography>
           )}
         </Stack>
-        <IconButton size="small" onClick={onEdit}>
-          <EditRoundedIcon fontSize="small" />
-        </IconButton>
+        <Stack direction="row" spacing={0.5}>
+          <IconButton size="small" onClick={onEdit}>
+            <EditRoundedIcon fontSize="small" />
+          </IconButton>
+          <IconButton size="small" color="error" onClick={onDelete} disabled={deleting}>
+            {deleting ? <CircularProgress size={16} /> : <DeleteOutlineRoundedIcon fontSize="small" />}
+          </IconButton>
+        </Stack>
       </Stack>
     </Box>
   )
@@ -817,6 +867,12 @@ CompanyCard.propTypes = {
     phone: PropTypes.string,
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  deleting: PropTypes.bool,
+}
+
+CompanyCard.defaultProps = {
+  deleting: false,
 }
 
 function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {

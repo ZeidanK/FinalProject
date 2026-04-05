@@ -5,7 +5,6 @@ import { useAuth } from './useAuth'
 import { CompanyContext } from './CompanyContextProvider'
 
 const ACTIVE_COMPANY_STORAGE_KEY = 'activeCompanyId'
-const DEFAULT_COMPANY_ID = 1
 
 const parseCompanyId = (value) => {
   const num = Number(value)
@@ -29,9 +28,7 @@ const persistCompanyId = (companyId) => {
 export function CompanyProvider({ children }) {
   const { isAuthenticated, user, token, updateUser } = useAuth()
   const [companies, setCompanies] = useState([])
-  const [activeCompanyId, setActiveCompanyId] = useState(
-    () => readStoredCompanyId() || DEFAULT_COMPANY_ID,
-  )
+  const [activeCompanyId, setActiveCompanyId] = useState(() => readStoredCompanyId())
   const [loadingCompanies, setLoadingCompanies] = useState(false)
 
   const resolveInitialCompanyId = useCallback((availableCompanies, currentUserCompanyId) => {
@@ -46,7 +43,7 @@ export function CompanyProvider({ children }) {
     if (userCompanyId && ids.includes(userCompanyId)) return userCompanyId
     if (ids.length > 0) return ids[0]
 
-    return userCompanyId || storedId || DEFAULT_COMPANY_ID
+    return null
   }, [])
 
   const changeActiveCompanyId = useCallback((companyId) => {
@@ -57,7 +54,7 @@ export function CompanyProvider({ children }) {
       .map((company) => parseCompanyId(company.id ?? company.companyId))
       .filter(Boolean)
 
-    if (availableIds.length > 0 && !availableIds.includes(parsedId)) {
+    if (!availableIds.includes(parsedId)) {
       return
     }
 
@@ -69,9 +66,8 @@ export function CompanyProvider({ children }) {
   const refreshCompanies = useCallback(async () => {
     if (!isAuthenticated || !user?.id || !token) {
       setCompanies([])
-      const fallbackCompanyId = parseCompanyId(user?.companyId) || DEFAULT_COMPANY_ID
-      setActiveCompanyId(fallbackCompanyId)
-      persistCompanyId(fallbackCompanyId)
+      setActiveCompanyId(null)
+      persistCompanyId(null)
       return
     }
 
@@ -90,14 +86,13 @@ export function CompanyProvider({ children }) {
         updateUser({ companyId: nextActiveCompanyId })
       }
     } catch {
-      const fallbackCompanyId = parseCompanyId(user?.companyId) || readStoredCompanyId() || DEFAULT_COMPANY_ID
       setCompanies([])
-      setActiveCompanyId(fallbackCompanyId)
-      persistCompanyId(fallbackCompanyId)
+      setActiveCompanyId(null)
+      persistCompanyId(null)
 
       const currentUserCompanyId = parseCompanyId(user?.companyId)
-      if (currentUserCompanyId !== fallbackCompanyId) {
-        updateUser({ companyId: fallbackCompanyId })
+      if (currentUserCompanyId !== null) {
+        updateUser({ companyId: null })
       }
     } finally {
       setLoadingCompanies(false)

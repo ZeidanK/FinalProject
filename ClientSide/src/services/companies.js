@@ -24,3 +24,10 @@ export function updateCompany(companyId, payload, token) {
     token,
   })
 }
+
+export function deleteCompany(companyId, token) {
+  return apiRequest(URLS.companies.byId(companyId), {
+    method: 'DELETE',
+    token,
+  })
+}

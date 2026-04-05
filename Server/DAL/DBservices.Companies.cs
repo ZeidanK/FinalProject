@@ -99,9 +99,11 @@ namespace FinalProjectAuthAPI.DAL
             string currency)
         {
             SqlConnection? con = null;
+            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
+                tx = con.BeginTransaction();
                 var cmd = CreateCommandWithStoredProcedure(
                     "FP26_sp_Companies_Insert", con,
                     BuildCompanyParameters(
@@ -122,9 +124,40 @@ namespace FinalProjectAuthAPI.DAL
                         fiscalYearStart: fiscalYearStart,
                         currency: currency,
                         isActive: null));
+                cmd.Transaction = tx;
 
                 var result = cmd.ExecuteScalar();
-                return result != null ? Convert.ToInt64(result) : 0;
+                var companyId = result != null ? Convert.ToInt64(result) : 0;
+                if (companyId <= 0)
+                {
+                    tx.Rollback();
+                    return 0;
+                }
+
+                using var accessCmd = new SqlCommand(@"
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.FP26_user_company_access
+    WHERE user_id = @UserId AND company_id = @CompanyId
+)
+BEGIN
+    INSERT INTO dbo.FP26_user_company_access
+        (user_id, company_id, access_level, status, granted_by_user_id, granted_at, created_at)
+    VALUES
+        (@UserId, @CompanyId, 'full', 'active', @UserId, GETDATE(), GETDATE());
+END", con, tx);
+
+                accessCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = createdByUserId;
+                accessCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                accessCmd.ExecuteNonQuery();
+
+                tx.Commit();
+                return companyId;
+            }
+            catch
+            {
+                tx?.Rollback();
+                throw;
             }
             finally { con?.Close(); }
         }
@@ -215,24 +248,24 @@ namespace FinalProjectAuthAPI.DAL
         {
             var row = new CompanyRow
             {
-                Id                 = Convert.ToInt64(r["id"]),
-                Name               = r["name"]?.ToString()!,
-                RegistrationNumber = r["registration_number"] as string,
-                Street             = r["street"]             as string,
-                City               = r["city"]               as string,
-                State              = r["state"]              as string,
-                PostalCode         = r["postal_code"]        as string,
-                Country            = r["country"]?.ToString() ?? "USA",
-                Email              = r["email"]              as string,
-                Phone              = r["phone"]              as string,
-                Website            = r["website"]            as string,
-                TaxId              = r["tax_id"]             as string,
-                VatNumber          = r["vat_number"]         as string,
-                Currency           = r["currency"]?.ToString() ?? "USD",
-                IsActive           = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"]),
-                CreatedByUserId    = r["created_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["created_by_user_id"]) : null,
-                CreatedAt          = r["created_at"] != DBNull.Value ? Convert.ToDateTime(r["created_at"]) : DateTime.MinValue,
-                UpdatedAt          = r["updated_at"] != DBNull.Value ? Convert.ToDateTime(r["updated_at"]) : DateTime.MinValue,
+                Id                 = r.GetInt64OrDefault("id"),
+                Name               = r.GetStringOrDefault("name", string.Empty),
+                RegistrationNumber = r.GetStringOrNull("registration_number"),
+                Street             = r.GetStringOrNull("street"),
+                City               = r.GetStringOrNull("city"),
+                State              = r.GetStringOrNull("state"),
+                PostalCode         = r.GetStringOrNull("postal_code"),
+                Country            = r.GetStringOrDefault("country", "USA"),
+                Email              = r.GetStringOrNull("email"),
+                Phone              = r.GetStringOrNull("phone"),
+                Website            = r.GetStringOrNull("website"),
+                TaxId              = r.GetStringOrNull("tax_id"),
+                VatNumber          = r.GetStringOrNull("vat_number"),
+                Currency           = r.GetStringOrDefault("currency", "USD"),
+                IsActive           = r.GetBoolOrDefault("is_active", true),
+                CreatedByUserId    = r.GetInt64OrNull("created_by_user_id"),
+                CreatedAt          = r.GetDateTimeOrDefault("created_at", DateTime.MinValue),
+                UpdatedAt          = r.GetDateTimeOrDefault("updated_at", DateTime.MinValue),
             };
 
             if (r.HasColumn("created_by_name"))
@@ -254,6 +287,42 @@ namespace FinalProjectAuthAPI.DAL
             for (int i = 0; i < r.FieldCount; i++)
                 if (r.GetName(i).Equals(name, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
+        }
+
+        internal static string? GetStringOrNull(this SqlDataReader r, string name)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return null;
+            return r[name]?.ToString();
+        }
+
+        internal static string GetStringOrDefault(this SqlDataReader r, string name, string defaultValue)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return defaultValue;
+            return r[name]?.ToString() ?? defaultValue;
+        }
+
+        internal static long GetInt64OrDefault(this SqlDataReader r, string name, long defaultValue = 0)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return defaultValue;
+            return Convert.ToInt64(r[name]);
+        }
+
+        internal static long? GetInt64OrNull(this SqlDataReader r, string name)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return null;
+            return Convert.ToInt64(r[name]);
+        }
+
+        internal static bool GetBoolOrDefault(this SqlDataReader r, string name, bool defaultValue)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return defaultValue;
+            return Convert.ToBoolean(r[name]);
+        }
+
+        internal static DateTime GetDateTimeOrDefault(this SqlDataReader r, string name, DateTime defaultValue)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return defaultValue;
+            return Convert.ToDateTime(r[name]);
         }
     }
 }
