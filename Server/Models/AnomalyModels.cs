@@ -49,4 +49,35 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(50)]
         public string Status { get; set; } = "resolved";
     }
+
+    // ── Anomaly row ───────────────────────────────────────────────────────────
+    public class AnomalyRow
+    {
+        public long      Id                    { get; set; }
+        public long      CompanyId             { get; set; }
+        public string    AnomalyType           { get; set; } = string.Empty;
+        public string    Title                 { get; set; } = string.Empty;
+        public string    Description           { get; set; } = string.Empty;
+        public string    Severity              { get; set; } = "warning";
+        public string    Status                { get; set; } = "open";
+        public string?   SuggestedAction       { get; set; }
+        public long?     RelatedInvoiceId      { get; set; }
+        public long?     RelatedTransactionId  { get; set; }
+        public long?     RelatedMatchId        { get; set; }
+        public decimal?  Amount                { get; set; }
+        public string    DetectionMethod       { get; set; } = "ai";
+        public decimal?  DetectionConfidence   { get; set; }
+        public long?     ResolvedByUserId      { get; set; }
+        public string?   ResolvedByName        { get; set; }
+        public string?   ResolutionNotes       { get; set; }
+        public DateTime? ResolvedAt            { get; set; }
+        public DateTime  CreatedAt             { get; set; }
+        public DateTime  UpdatedAt             { get; set; }
+    }
+
+    public class AnomalyStatsRow
+    {
+        public Dictionary<string, int> ByStatus   { get; set; } = new();
+        public Dictionary<string, int> BySeverity { get; set; } = new();
+    }
 }

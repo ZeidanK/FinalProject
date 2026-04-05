@@ -7,7 +7,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class ReportsController : ControllerBase
+    public class ReportsController : ApiControllerBase
     {
         private readonly IReportService _svc;
 

@@ -1,15 +1,21 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL
 {
     /// <summary>
     /// User management operations (profile reads/updates).
-    /// Authentication operations remain in User.cs.
+    /// Authentication operations remain in AuthService.
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly DBservices _db = new();
+        private readonly DBservices _db;
+
+        public UserService(DBservices db)
+        {
+            _db = db;
+        }
 
         public User? GetById(long id) => _db.GetUserById(id);
 

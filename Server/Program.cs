@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,12 +13,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ── Dependency Injection: register BL services ───────────────────────────
+builder.Services.AddScoped<DBservices>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAnomalyService, AnomalyService>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();

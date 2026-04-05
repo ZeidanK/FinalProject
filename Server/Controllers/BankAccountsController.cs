@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class BankAccountsController : ControllerBase
+    public class BankAccountsController : ApiControllerBase
     {
         private readonly IBankAccountService _svc;
 

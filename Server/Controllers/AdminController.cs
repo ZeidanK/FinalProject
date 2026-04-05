@@ -7,7 +7,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "admin")]
-    public class AdminController : ControllerBase
+    public class AdminController : ApiControllerBase
     {
         private readonly IAdminService _svc;
 

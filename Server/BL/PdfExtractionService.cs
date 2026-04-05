@@ -27,7 +27,7 @@ namespace FinalProjectAuthAPI.BL
             _logger = logger;
         }
 
-        public PdfExtractionResult Extract(Stream pdfStream, string fileName)
+        public async Task<PdfExtractionResult> ExtractAsync(Stream pdfStream, string fileName)
         {
             // Step 1: Try iText7 text extraction (for digitally-generated PDFs)
             string extractedText = ExtractTextWithIText(pdfStream);
@@ -49,14 +49,11 @@ namespace FinalProjectAuthAPI.BL
             PdfExtractionResult? result = null;
             try
             {
-                Console.WriteLine($"\n*** PDF EXTRACTION for: {fileName} ***");
-                Console.WriteLine($"*** Text extraction method: {method} ***");
-                _logger.LogInformation("Attempting Gemini extraction for {FileName}", fileName);
-                result = _geminiService.ParseInvoiceTextAsync(extractedText).GetAwaiter().GetResult();
+                _logger.LogInformation("Starting PDF extraction for {FileName} using {ExtractionMethod}", fileName, method);
+                result = await _geminiService.ParseInvoiceTextAsync(extractedText);
                 
                 if (result != null)
                 {
-                    Console.WriteLine($"\n✓✓✓ USING GEMINI EXTRACTION for {fileName} ✓✓✓\n");
                     _logger.LogInformation("Gemini extraction successful for {FileName}. Confidence: {Confidence}", 
                         fileName, result.ExtractionConfidence);
                     result.ExtractionMethod = method; // Preserve whether text or ocr was used
@@ -65,20 +62,16 @@ namespace FinalProjectAuthAPI.BL
                 }
                 else
                 {
-                    Console.WriteLine($"\n⚠ Gemini returned null for {fileName}. Falling back to regex. ⚠\n");
                     _logger.LogWarning("Gemini returned null result for {FileName}. Falling back to regex.", fileName);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"\n⚠ Gemini extraction FAILED for {fileName}: {ex.Message}");
-                Console.WriteLine("⚠ Falling back to regex extraction. ⚠\n");
                 _logger.LogWarning(ex, "Gemini extraction failed for {FileName}. Falling back to regex: {Message}", 
                     fileName, ex.Message);
             }
 
             // Step 4: Fallback to regex-based parsing if Gemini fails
-            Console.WriteLine($"*** USING REGEX FALLBACK EXTRACTION for {fileName} ***\n");
             _logger.LogInformation("Using regex fallback extraction for {FileName}", fileName);
             result = ParseExtractedText(extractedText);
             result.ExtractionMethod = method;

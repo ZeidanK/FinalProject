@@ -52,4 +52,23 @@ namespace FinalProjectAuthAPI.Models
 
         public DateTime? LastSyncAt { get; set; }
     }
+
+    // ── BankAccount row ───────────────────────────────────────────────────────
+    public class BankAccountRow
+    {
+        public long      Id                    { get; set; }
+        public long      CompanyId             { get; set; }
+        public string    BankName              { get; set; } = string.Empty;
+        public string?   AccountName           { get; set; }
+        public string?   AccountNumberMasked   { get; set; }
+        public string    AccountType           { get; set; } = string.Empty;
+        public string    Currency              { get; set; } = "USD";
+        public bool      IsActive              { get; set; } = true;
+        public DateTime? LastSyncAt            { get; set; }
+        public decimal   Balance               { get; set; }
+        public long?     CreatedByUserId       { get; set; }
+        public string?   CreatedByName         { get; set; }
+        public DateTime  CreatedAt             { get; set; }
+        public DateTime  UpdatedAt             { get; set; }
+    }
 }

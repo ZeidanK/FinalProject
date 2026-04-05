@@ -6,7 +6,7 @@ namespace FinalProjectAuthAPI.BL
 {
     public class MatchService : IMatchService
     {
-        private readonly DBservices _db = new();
+        private readonly DBservices _db;
         private readonly IGeminiExtractionService _gemini;
 
         // Confidence thresholds for automatic matching
@@ -15,8 +15,9 @@ namespace FinalProjectAuthAPI.BL
         private const decimal LOW_CONFIDENCE_THRESHOLD = 30m;
         private const decimal MIN_SUGGESTION_THRESHOLD = 60m; // Gemini similarity threshold
 
-        public MatchService(IGeminiExtractionService gemini)
+        public MatchService(DBservices db, IGeminiExtractionService gemini)
         {
+            _db = db;
             _gemini = gemini;
         }
 

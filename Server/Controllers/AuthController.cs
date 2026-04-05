@@ -7,14 +7,12 @@ namespace FinalProjectAuthAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController : ControllerBase
+    public class AuthController : ApiControllerBase
     {
-        private readonly IConfiguration _config;
         private readonly IAuthService _authSvc;
 
-        public AuthController(IConfiguration config, IAuthService authSvc)
+        public AuthController(IAuthService authSvc)
         {
-            _config = config;
             _authSvc = authSvc;
         }
 
@@ -22,7 +20,7 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            var (token, id, name, email, role) = _authSvc.LogIn(request.Email, request.Password, _config);
+            var (token, id, name, email, role) = _authSvc.LogIn(request.Email, request.Password);
 
             if (token == null)
                 return Unauthorized(new { message = "Invalid credentials or account is inactive." });

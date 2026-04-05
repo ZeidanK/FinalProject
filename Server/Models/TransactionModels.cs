@@ -99,4 +99,28 @@ namespace FinalProjectAuthAPI.Models
         public ExcelExtractionResult ExtractionResult { get; set; } = new();
         public List<long>? CreatedTransactionIds { get; set; }
     }
+
+    // ── Transaction row ───────────────────────────────────────────────────────
+    public class TransactionRow
+    {
+        public long      Id                  { get; set; }
+        public long      CompanyId           { get; set; }
+        public long?     BankAccountId       { get; set; }
+        public DateTime  TransactionDate     { get; set; }
+        public DateTime? PostedDate          { get; set; }
+        public string    Description         { get; set; } = string.Empty;
+        public string?   VendorName          { get; set; }
+        public decimal   Amount              { get; set; }
+        public decimal?  BalanceAfter        { get; set; }
+        public string    TransactionType     { get; set; } = string.Empty;
+        public string?   Category            { get; set; }
+        public decimal?  CategoryConfidence  { get; set; }
+        public string?   ReferenceNumber     { get; set; }
+        public bool      IsMatched           { get; set; }
+        public bool      IsDuplicate         { get; set; }
+        public string    Status              { get; set; } = "confirmed";
+        public long?     CreatedByUserId     { get; set; }
+        public DateTime  CreatedAt           { get; set; }
+        public DateTime  UpdatedAt           { get; set; }
+    }
 }

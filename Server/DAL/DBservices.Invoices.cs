@@ -4,60 +4,6 @@ using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.DAL
 {
-    // ── Invoice row ───────────────────────────────────────────────────────────
-    public class InvoiceRow
-    {
-        public long      Id                       { get; set; }
-        public long      CompanyId                { get; set; }
-        public string    InvoiceNumber            { get; set; } = string.Empty;
-        public string    VendorName               { get; set; } = string.Empty;
-        public string?   VendorTaxId              { get; set; }
-        public DateTime  InvoiceDate              { get; set; }
-        public DateTime? DueDate                  { get; set; }
-        public DateTime? PaymentDate              { get; set; }
-        public decimal   Subtotal                 { get; set; }
-        public decimal?  VatRate                  { get; set; }
-        public decimal?  VatAmount                { get; set; }
-        public decimal   TotalAmount              { get; set; }
-        public string    Currency                 { get; set; } = "USD";
-        public string?   FileOriginalName         { get; set; }
-        public string?   FilePath                 { get; set; }
-        public string?   FileType                 { get; set; }
-        public long?     FileSize                 { get; set; }
-        public string    Status                   { get; set; } = "uploaded";
-        public decimal?  AiExtractionConfidence   { get; set; }
-        public bool      AiProcessed              { get; set; }
-        public bool      IsVerified               { get; set; }
-        public bool      IsMatched                { get; set; }
-        public decimal   MatchedAmount            { get; set; }
-        public string?   LastFourDigitsCard       { get; set; }
-        public int?      ItemCount                { get; set; }
-        public int?      PaymentPlanTotalInstallments { get; set; }
-        public decimal?  PaymentPlanInstallmentAmount { get; set; }
-        public string?   PaymentPlanFrequency     { get; set; }
-        public string?   PaymentPlanDescription   { get; set; }
-        public long?     UploadedByUserId         { get; set; }
-        public string?   UploadedByName           { get; set; }
-        public long?     VerifiedByUserId         { get; set; }
-        public DateTime  CreatedAt                { get; set; }
-        public DateTime  UpdatedAt                { get; set; }
-        public List<LineItemRow> LineItems        { get; set; } = new();
-    }
-
-    public class LineItemRow
-    {
-        public long     Id                 { get; set; }
-        public long     InvoiceId          { get; set; }
-        public int?     LineNumber         { get; set; }
-        public string   Description        { get; set; } = string.Empty;
-        public string?  Category           { get; set; }
-        public decimal  Quantity           { get; set; } = 1;
-        public decimal  UnitPrice          { get; set; }
-        public decimal? VatRate            { get; set; }
-        public decimal  TotalAmount        { get; set; }
-        public decimal? AiConfidenceScore  { get; set; }
-    }
-
     public partial class DBservices
     {
         // ── Invoices ──────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 using System.Data;
 using System.Data.SqlClient;
-using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.DAL
 {

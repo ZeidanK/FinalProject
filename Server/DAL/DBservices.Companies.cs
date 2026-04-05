@@ -1,34 +1,9 @@
 using System.Data;
 using System.Data.SqlClient;
+using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.DAL
 {
-    // ── Company row ───────────────────────────────────────────────────────────
-    public class CompanyRow
-    {
-        public long    Id                 { get; set; }
-        public string  Name               { get; set; } = string.Empty;
-        public string? RegistrationNumber { get; set; }
-        public string? Street             { get; set; }
-        public string? City               { get; set; }
-        public string? State              { get; set; }
-        public string? PostalCode         { get; set; }
-        public string  Country            { get; set; } = "USA";
-        public string? Email              { get; set; }
-        public string? Phone              { get; set; }
-        public string? Website            { get; set; }
-        public string? TaxId              { get; set; }
-        public string? VatNumber          { get; set; }
-        public DateTime? FiscalYearStart  { get; set; }
-        public string  Currency           { get; set; } = "USD";
-        public bool    IsActive           { get; set; } = true;
-        public long?   CreatedByUserId    { get; set; }
-        public string? CreatedByName      { get; set; }
-        public string? AccessLevel        { get; set; }
-        public DateTime CreatedAt         { get; set; }
-        public DateTime UpdatedAt         { get; set; }
-    }
-
     public partial class DBservices
     {
         // ── Companies ─────────────────────────────────────────────────────────

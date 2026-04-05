@@ -9,7 +9,12 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class AnomalyService : IAnomalyService
     {
-        private readonly DBservices _db = new();
+        private readonly DBservices _db;
+
+        public AnomalyService(DBservices db)
+        {
+            _db = db;
+        }
 
         public List<AnomalyRow> GetByCompany(
             long companyId, string? status = null,

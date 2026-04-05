@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL.Interfaces
 {

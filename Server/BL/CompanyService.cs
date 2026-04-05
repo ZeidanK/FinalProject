@@ -1,5 +1,6 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.Models;
 using System.Data.SqlClient;
 
 namespace FinalProjectAuthAPI.BL
@@ -9,7 +10,12 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class CompanyService : ICompanyService
     {
-        private readonly DBservices _db = new();
+        private readonly DBservices _db;
+
+        public CompanyService(DBservices db)
+        {
+            _db = db;
+        }
 
         public List<CompanyRow> GetAll() => _db.GetAllCompanies();
 

@@ -1,5 +1,6 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL
 {
@@ -8,7 +9,12 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class AdminService : IAdminService
     {
-        private readonly DBservices _db = new();
+        private readonly DBservices _db;
+
+        public AdminService(DBservices db)
+        {
+            _db = db;
+        }
 
         public AdminStatsRow GetStats() => _db.GetAdminStats();
 
