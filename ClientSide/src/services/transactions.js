@@ -28,6 +28,21 @@ export function createTransactionsBulk(payload, token) {
   })
 }
 
+export function deleteTransaction(transactionId, token) {
+  return apiRequest(URLS.transactions.byId(transactionId), {
+    method: 'DELETE',
+    token,
+  })
+}
+
+export function bulkDeleteTransactions(ids, token) {
+  return apiRequest(URLS.transactions.bulkDelete, {
+    method: 'DELETE',
+    body: { ids },
+    token,
+  })
+}
+
 export function previewExcel(file, companyId, token) {
   const formData = new FormData()
   formData.append('file', file)

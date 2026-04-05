@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class AnomaliesController : ControllerBase
+    public class AnomaliesController : ApiControllerBase
     {
         private readonly IAnomalyService _svc;
 
@@ -58,10 +58,5 @@ namespace FinalProjectAuthAPI.Controllers
             return success ? Ok(new { message = "Anomaly resolved." }) : BadRequest(new { message = error });
         }
 
-        private long GetCurrentUserId()
-        {
-            var claim = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            return long.TryParse(claim, out var id) ? id : 0;
-        }
     }
 }

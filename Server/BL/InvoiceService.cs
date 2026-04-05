@@ -126,6 +126,26 @@ namespace FinalProjectAuthAPI.BL
             return _db.UpdateInvoiceStatus(id, status);
         }
 
+        public bool Delete(long id)
+        {
+            if (id <= 0)
+                return false;
+
+            return _db.DeleteInvoice(id);
+        }
+
+        public (List<long> DeletedIds, List<long> NotFoundIds) BulkDelete(List<long> ids)
+        {
+            if (ids == null || ids.Count == 0)
+                return (new List<long>(), new List<long>());
+
+            var normalizedIds = ids.Where(i => i > 0).Distinct().ToList();
+            if (normalizedIds.Count == 0)
+                return (new List<long>(), new List<long>());
+
+            return _db.BulkDeleteInvoices(normalizedIds);
+        }
+
         public bool UpdateFileInfo(long id, string? fileOriginalName, string? filePath,
             string? fileType, long? fileSize, decimal? aiConfidence)
         {

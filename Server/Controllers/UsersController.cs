@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class UsersController : ControllerBase
+    public class UsersController : ApiControllerBase
     {
         private readonly IUserService _svc;
         private readonly IFileStorageService _fileStorage;
@@ -17,12 +17,6 @@ namespace FinalProjectAuthAPI.Controllers
         {
             _svc = svc;
             _fileStorage = fileStorage;
-        }
-
-        private long GetCallerId()
-        {
-            var idClaim = User.FindFirst("id")?.Value;
-            return long.TryParse(idClaim, out var id) ? id : 0;
         }
 
         // GET api/users
@@ -43,7 +37,7 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPut("{id:long}")]
         public IActionResult Update(long id, [FromBody] UpdateUserRequest request)
         {
-            if (GetCallerId() != id)
+            if (GetCurrentUserId() != id)
                 return Forbid();
 
             var ok = _svc.Update(id, request.Name, request.Phone, request.ProfilePicture);
@@ -54,7 +48,7 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("{id:long}/password")]
         public IActionResult ChangePassword(long id, [FromBody] ChangePasswordRequest request)
         {
-            if (GetCallerId() != id)
+            if (GetCurrentUserId() != id)
                 return Forbid();
 
             var ok = _svc.ChangePassword(id, request.CurrentPassword, request.NewPassword);
@@ -67,7 +61,7 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("{id:long}/profile-picture")]
         public async Task<IActionResult> UploadProfilePicture(long id, IFormFile file)
         {
-            if (GetCallerId() != id)
+            if (GetCurrentUserId() != id)
                 return Forbid();
 
             try

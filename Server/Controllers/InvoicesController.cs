@@ -9,7 +9,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class InvoicesController : ControllerBase
+    public class InvoicesController : ApiControllerBase
     {
         private readonly IInvoiceService _svc;
         private readonly IPdfExtractionService _pdfSvc;
@@ -100,6 +100,39 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var ok = _svc.UpdateStatus(id, request.Status);
             return ok ? Ok(new { message = "Invoice status updated." }) : BadRequest(new { message = "Invalid status or invoice not found." });
+        }
+
+        // DELETE api/invoices/{id}
+        [HttpDelete("{id:long}")]
+        public IActionResult Delete(long id)
+        {
+            var ok = _svc.Delete(id);
+            return ok
+                ? Ok(new { message = "Invoice deleted." })
+                : NotFound(new { message = "Invoice not found." });
+        }
+
+        // DELETE api/invoices/bulk
+        [HttpDelete("bulk")]
+        public IActionResult BulkDelete([FromBody] BulkDeleteInvoicesRequest request)
+        {
+            if (request?.Ids == null || request.Ids.Count == 0)
+                return BadRequest(new { message = "At least one invoice ID is required." });
+
+            var (deletedIds, notFoundIds) = _svc.BulkDelete(request.Ids);
+            var deletedCount = deletedIds.Count;
+            var notFoundCount = notFoundIds.Count;
+
+            return Ok(new
+            {
+                deletedCount,
+                notFoundCount,
+                deletedIds,
+                notFoundIds,
+                message = notFoundCount == 0
+                    ? "Invoices deleted."
+                    : "Bulk delete completed with partial success."
+            });
         }
 
         // GET api/invoices/{id}/download
@@ -263,10 +296,5 @@ namespace FinalProjectAuthAPI.Controllers
             }
         }
 
-        private long GetCurrentUserId()
-        {
-            var claim = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            return long.TryParse(claim, out var id) ? id : 0;
-        }
     }
 }

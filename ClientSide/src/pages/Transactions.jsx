@@ -12,6 +12,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Checkbox,
   FormControl,
   IconButton,
   InputLabel,
@@ -48,6 +49,8 @@ import {
   getTransactionById,
   getTransactionsByCompany,
   createTransactionsBulk,
+  deleteTransaction,
+  bulkDeleteTransactions,
   previewExcel,
 } from '../services/transactions'
 import {
@@ -280,6 +283,9 @@ function TransactionsPage() {
     error: '',
     transaction: null,
   })
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState([])
+  const [deletingTransactionIds, setDeletingTransactionIds] = useState([])
+  const [bulkDeletingTransactions, setBulkDeletingTransactions] = useState(false)
 
   // ===================== Data Fetching =====================
 
@@ -291,6 +297,7 @@ function TransactionsPage() {
       if (typeFilter !== 'all') filters.type = typeFilter
       const data = await getTransactionsByCompany(activeCompanyId, filters, token)
       setTransactions(Array.isArray(data) ? data : [])
+      setSelectedTransactionIds([])
     } catch (err) {
       setListError(err.message || 'Failed to load transactions.')
     } finally {
@@ -540,6 +547,110 @@ function TransactionsPage() {
   const closeTransactionDetails = useCallback(() => {
     setDetailsModal({ open: false, loading: false, error: '', transaction: null })
   }, [])
+
+  const visibleTransactionIds = transactions
+    .map((tx) => tx.id ?? tx.transactionId)
+    .filter((id) => typeof id === 'number' && id > 0)
+
+  const allTransactionsSelected =
+    visibleTransactionIds.length > 0 &&
+    visibleTransactionIds.every((id) => selectedTransactionIds.includes(id))
+
+  const hasTransactionSelection = selectedTransactionIds.length > 0
+
+  const toggleSelectAllTransactions = useCallback(() => {
+    setSelectedTransactionIds((prev) => {
+      if (visibleTransactionIds.length === 0) return []
+      const allSelected = visibleTransactionIds.every((id) => prev.includes(id))
+      return allSelected
+        ? prev.filter((id) => !visibleTransactionIds.includes(id))
+        : [...new Set([...prev, ...visibleTransactionIds])]
+    })
+  }, [visibleTransactionIds])
+
+  const toggleTransactionSelection = useCallback((transactionId) => {
+    setSelectedTransactionIds((prev) =>
+      prev.includes(transactionId)
+        ? prev.filter((id) => id !== transactionId)
+        : [...prev, transactionId],
+    )
+  }, [])
+
+  const handleDeleteTransaction = useCallback(
+    async (transaction) => {
+      const transactionId = transaction?.id ?? transaction?.transactionId
+      if (!transactionId) return
+
+      const confirmed = globalThis.confirm(
+        `Delete transaction #${transactionId}? This action cannot be undone.`,
+      )
+      if (!confirmed) return
+
+      setDeletingTransactionIds((prev) => [...prev, transactionId])
+      try {
+        await deleteTransaction(transactionId, token)
+        setTransactions((prev) =>
+          prev.filter((tx) => (tx.id ?? tx.transactionId) !== transactionId),
+        )
+        setSelectedTransactionIds((prev) => prev.filter((id) => id !== transactionId))
+        setSnack({ open: true, message: 'Transaction deleted successfully.', severity: 'success' })
+      } catch (err) {
+        setSnack({
+          open: true,
+          message: err.message || 'Failed to delete transaction.',
+          severity: 'error',
+        })
+      } finally {
+        setDeletingTransactionIds((prev) => prev.filter((id) => id !== transactionId))
+      }
+    },
+    [token],
+  )
+
+  const handleBulkDeleteTransactions = useCallback(async () => {
+    if (selectedTransactionIds.length === 0) return
+
+    const confirmed = globalThis.confirm(
+      `Delete ${selectedTransactionIds.length} selected transaction(s)? This action cannot be undone.`,
+    )
+    if (!confirmed) return
+
+    setBulkDeletingTransactions(true)
+    try {
+      const response = await bulkDeleteTransactions(selectedTransactionIds, token)
+      const deletedIds = Array.isArray(response?.deletedIds)
+        ? response.deletedIds
+        : selectedTransactionIds
+      const notFoundIds = Array.isArray(response?.notFoundIds) ? response.notFoundIds : []
+
+      setTransactions((prev) =>
+        prev.filter((tx) => !deletedIds.includes(tx.id ?? tx.transactionId)),
+      )
+      setSelectedTransactionIds((prev) => prev.filter((id) => !deletedIds.includes(id)))
+
+      if (notFoundIds.length > 0) {
+        setSnack({
+          open: true,
+          message: `Deleted ${deletedIds.length} transaction(s). ${notFoundIds.length} were not found.`,
+          severity: 'warning',
+        })
+      } else {
+        setSnack({
+          open: true,
+          message: `Deleted ${deletedIds.length} transaction(s).`,
+          severity: 'success',
+        })
+      }
+    } catch (err) {
+      setSnack({
+        open: true,
+        message: err.message || 'Bulk delete failed.',
+        severity: 'error',
+      })
+    } finally {
+      setBulkDeletingTransactions(false)
+    }
+  }, [selectedTransactionIds, token])
 
   // ===================== Render =====================
 
@@ -919,6 +1030,21 @@ function TransactionsPage() {
                 </FormControl>
               </Stack>
 
+              <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={bulkDeletingTransactions ? <CircularProgress size={14} /> : <DeleteOutlineRoundedIcon />}
+                  onClick={handleBulkDeleteTransactions}
+                  disabled={!hasTransactionSelection || bulkDeletingTransactions}
+                >
+                  {bulkDeletingTransactions
+                    ? 'Deleting...'
+                    : `Delete Selected (${selectedTransactionIds.length})`}
+                </Button>
+              </Stack>
+
               {/* Transaction table */}
               <Box sx={{ mt: 2 }}>
                 {listLoading ? (
@@ -941,6 +1067,14 @@ function TransactionsPage() {
                     <Table size="small">
                       <TableHead>
                         <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              size="small"
+                              checked={allTransactionsSelected}
+                              indeterminate={hasTransactionSelection && !allTransactionsSelected}
+                              onChange={toggleSelectAllTransactions}
+                            />
+                          </TableCell>
                           <TableCell>Date</TableCell>
                           <TableCell>Description</TableCell>
                           <TableCell>Vendor</TableCell>
@@ -969,6 +1103,13 @@ function TransactionsPage() {
 
                           return (
                             <TableRow key={tx.id ?? tx.transactionId} hover>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  size="small"
+                                  checked={selectedTransactionIds.includes(tx.id ?? tx.transactionId)}
+                                  onChange={() => toggleTransactionSelection(tx.id ?? tx.transactionId)}
+                                />
+                              </TableCell>
                               <TableCell>
                                 <Typography variant="body2">
                                   {date ? new Date(date).toLocaleDateString() : '—'}
@@ -1024,14 +1165,32 @@ function TransactionsPage() {
                                 />
                               </TableCell>
                               <TableCell align="center">
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  startIcon={<VisibilityRoundedIcon />}
-                                  onClick={() => openTransactionDetails(tx)}
-                                >
-                                  View
-                                </Button>
+                                <Stack direction="row" spacing={1} justifyContent="center">
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<VisibilityRoundedIcon />}
+                                    onClick={() => openTransactionDetails(tx)}
+                                    disabled={bulkDeletingTransactions}
+                                  >
+                                    View
+                                  </Button>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleDeleteTransaction(tx)}
+                                    disabled={
+                                      deletingTransactionIds.includes(tx.id ?? tx.transactionId) ||
+                                      bulkDeletingTransactions
+                                    }
+                                  >
+                                    {deletingTransactionIds.includes(tx.id ?? tx.transactionId) ? (
+                                      <CircularProgress size={16} color="error" />
+                                    ) : (
+                                      <DeleteOutlineRoundedIcon fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                </Stack>
                               </TableCell>
                             </TableRow>
                           )

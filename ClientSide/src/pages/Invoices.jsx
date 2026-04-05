@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   IconButton,
@@ -33,7 +34,9 @@ import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import {
+  bulkDeleteInvoices,
   createInvoice,
+  deleteInvoice,
   downloadInvoicePdf,
   getInvoiceById,
   getInvoicesByCompany,
@@ -116,6 +119,9 @@ function InvoicesPage() {
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
   const [openingInvoiceId, setOpeningInvoiceId] = useState(null)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([])
+  const [deletingInvoiceIds, setDeletingInvoiceIds] = useState([])
+  const [bulkDeletingInvoices, setBulkDeletingInvoices] = useState(false)
 
   // ===================== Data Fetching =====================
 
@@ -125,6 +131,7 @@ function InvoicesPage() {
     try {
       const data = await getInvoicesByCompany(activeCompanyId, {}, token)
       setInvoices(Array.isArray(data) ? data : [])
+      setSelectedInvoiceIds([])
     } catch (err) {
       setListError(err.message || 'Failed to load invoices.')
     } finally {
@@ -419,6 +426,92 @@ function InvoicesPage() {
     [token],
   )
 
+  const visibleInvoiceIds = invoices
+    .map((inv) => inv.id)
+    .filter((id) => typeof id === 'number' && id > 0)
+
+  const allInvoicesSelected =
+    visibleInvoiceIds.length > 0 && visibleInvoiceIds.every((id) => selectedInvoiceIds.includes(id))
+
+  const hasInvoiceSelection = selectedInvoiceIds.length > 0
+
+  const toggleSelectAllInvoices = useCallback(() => {
+    setSelectedInvoiceIds((prev) => {
+      if (visibleInvoiceIds.length === 0) return []
+      const allSelected = visibleInvoiceIds.every((id) => prev.includes(id))
+      return allSelected
+        ? prev.filter((id) => !visibleInvoiceIds.includes(id))
+        : [...new Set([...prev, ...visibleInvoiceIds])]
+    })
+  }, [visibleInvoiceIds])
+
+  const toggleInvoiceSelection = useCallback((invoiceId) => {
+    setSelectedInvoiceIds((prev) =>
+      prev.includes(invoiceId) ? prev.filter((id) => id !== invoiceId) : [...prev, invoiceId],
+    )
+  }, [])
+
+  const handleDeleteInvoice = useCallback(
+    async (invoice) => {
+      const invoiceId = invoice?.id
+      if (!invoiceId) return
+
+      const invoiceLabel = invoice?.invoice_number || invoice?.invoiceNumber || `#${invoiceId}`
+      const confirmed = globalThis.confirm(`Delete invoice ${invoiceLabel}? This action cannot be undone.`)
+      if (!confirmed) return
+
+      setDeletingInvoiceIds((prev) => [...prev, invoiceId])
+      try {
+        await deleteInvoice(invoiceId, token)
+        setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId))
+        setSelectedInvoiceIds((prev) => prev.filter((id) => id !== invoiceId))
+        setSnack({ open: true, message: 'Invoice deleted successfully.', severity: 'success' })
+      } catch (err) {
+        setSnack({ open: true, message: err.message || 'Failed to delete invoice.', severity: 'error' })
+      } finally {
+        setDeletingInvoiceIds((prev) => prev.filter((id) => id !== invoiceId))
+      }
+    },
+    [token],
+  )
+
+  const handleBulkDeleteInvoices = useCallback(async () => {
+    if (selectedInvoiceIds.length === 0) return
+
+    const confirmed = globalThis.confirm(
+      `Delete ${selectedInvoiceIds.length} selected invoice(s)? This action cannot be undone.`,
+    )
+    if (!confirmed) return
+
+    setBulkDeletingInvoices(true)
+    try {
+      const response = await bulkDeleteInvoices(selectedInvoiceIds, token)
+      const deletedIds = Array.isArray(response?.deletedIds) ? response.deletedIds : selectedInvoiceIds
+      const notFoundIds = Array.isArray(response?.notFoundIds) ? response.notFoundIds : []
+
+      setInvoices((prev) => prev.filter((inv) => !deletedIds.includes(inv.id)))
+      setSelectedInvoiceIds((prev) => prev.filter((id) => !deletedIds.includes(id)))
+
+      if (notFoundIds.length > 0) {
+        setSnack({
+          open: true,
+          message: `Deleted ${deletedIds.length} invoice(s). ${notFoundIds.length} were not found.`,
+          severity: 'warning',
+        })
+      } else {
+        setSnack({
+          open: true,
+          message: `Deleted ${deletedIds.length} invoice(s).`,
+          severity: 'success',
+        })
+      }
+    } catch (err) {
+      setSnack({ open: true, message: err.message || 'Bulk delete failed.', severity: 'error' })
+    } finally {
+      setBulkDeletingInvoices(false)
+    }
+  }, [selectedInvoiceIds, token])
+
   // ===================== Render =====================
 
   const pendingFiles = files.filter((f) => f.status !== 'verified')
@@ -448,6 +541,14 @@ function InvoicesPage() {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  size="small"
+                  checked={allInvoicesSelected}
+                  indeterminate={hasInvoiceSelection && !allInvoicesSelected}
+                  onChange={toggleSelectAllInvoices}
+                />
+              </TableCell>
               <TableCell>Invoice #</TableCell>
               <TableCell>Vendor</TableCell>
               <TableCell>Date</TableCell>
@@ -461,6 +562,13 @@ function InvoicesPage() {
           <TableBody>
             {invoices.map((inv) => (
               <TableRow key={inv.id} hover>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={selectedInvoiceIds.includes(inv.id)}
+                    onChange={() => toggleInvoiceSelection(inv.id)}
+                  />
+                </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight={600}>
                     {inv.invoice_number || inv.invoiceNumber || '—'}
@@ -499,7 +607,7 @@ function InvoicesPage() {
                       variant="outlined"
                       startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
                       onClick={() => handleOpenInvoice(inv)}
-                      disabled={openingInvoiceId === inv.id}
+                      disabled={openingInvoiceId === inv.id || bulkDeletingInvoices}
                     >
                       Open
                     </Button>
@@ -509,10 +617,22 @@ function InvoicesPage() {
                       color="secondary"
                       startIcon={reopeningInvoiceId === inv.id ? <CircularProgress size={14} color="inherit" /> : <EditRoundedIcon />}
                       onClick={() => openSavedInvoiceVerification(inv.id)}
-                      disabled={reopeningInvoiceId === inv.id}
+                      disabled={reopeningInvoiceId === inv.id || bulkDeletingInvoices}
                     >
                       Reopen
                     </Button>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteInvoice(inv)}
+                      disabled={deletingInvoiceIds.includes(inv.id) || bulkDeletingInvoices}
+                    >
+                      {deletingInvoiceIds.includes(inv.id) ? (
+                        <CircularProgress size={16} color="error" />
+                      ) : (
+                        <DeleteOutlineRoundedIcon fontSize="small" />
+                      )}
+                    </IconButton>
                   </Stack>
                 </TableCell>
               </TableRow>
@@ -706,6 +826,21 @@ function InvoicesPage() {
               <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
                 Invoice Records
               </Typography>
+
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={bulkDeletingInvoices ? <CircularProgress size={14} /> : <DeleteOutlineRoundedIcon />}
+                  onClick={handleBulkDeleteInvoices}
+                  disabled={!hasInvoiceSelection || bulkDeletingInvoices}
+                >
+                  {bulkDeletingInvoices
+                    ? 'Deleting...'
+                    : `Delete Selected (${selectedInvoiceIds.length})`}
+                </Button>
+              </Stack>
 
               {invoiceListContent}
             </CardContent>

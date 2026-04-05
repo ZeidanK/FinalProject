@@ -32,6 +32,7 @@ export const URLS = {
   invoices: {
     base: buildApiPath('/Invoices'),
     byId: (id) => buildApiPath(`/Invoices/${id}`),
+    bulkDelete: buildApiPath('/Invoices/bulk'),
     download: (id) => buildApiPath(`/Invoices/${id}/download`),
     byCompany: (companyId) => buildApiPath(`/Invoices/company/${companyId}`),
     status: (id) => buildApiPath(`/Invoices/${id}/status`),
@@ -47,6 +48,7 @@ export const URLS = {
     byId: (id) => buildApiPath(`/Transactions/${id}`),
     byCompany: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
     bulk: buildApiPath('/Transactions/bulk'),
+    bulkDelete: buildApiPath('/Transactions/bulk'),
     previewExcel: buildApiPath('/Transactions/preview-excel'),
   },
   matches: {

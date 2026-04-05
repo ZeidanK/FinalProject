@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,9 +76,14 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Always show Swagger (useful in dev/staging)
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseCors("AllowFrontend");
 app.UseStaticFiles();

@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class TransactionsController : ControllerBase
+    public class TransactionsController : ApiControllerBase
     {
         private readonly ITransactionService _svc;
         private readonly IExcelExtractionService _excelSvc;
@@ -64,6 +64,39 @@ namespace FinalProjectAuthAPI.Controllers
             return success
                 ? StatusCode(201, new { count = ids.Count, ids, message = "Transactions created." })
                 : BadRequest(new { message = error });
+        }
+
+        // DELETE api/transactions/{id}
+        [HttpDelete("{id:long}")]
+        public IActionResult Delete(long id)
+        {
+            var ok = _svc.Delete(id);
+            return ok
+                ? Ok(new { message = "Transaction deleted." })
+                : NotFound(new { message = "Transaction not found." });
+        }
+
+        // DELETE api/transactions/bulk
+        [HttpDelete("bulk")]
+        public IActionResult BulkDelete([FromBody] BulkDeleteTransactionsRequest request)
+        {
+            if (request?.Ids == null || request.Ids.Count == 0)
+                return BadRequest(new { message = "At least one transaction ID is required." });
+
+            var (deletedIds, notFoundIds) = _svc.BulkDelete(request.Ids);
+            var deletedCount = deletedIds.Count;
+            var notFoundCount = notFoundIds.Count;
+
+            return Ok(new
+            {
+                deletedCount,
+                notFoundCount,
+                deletedIds,
+                notFoundIds,
+                message = notFoundCount == 0
+                    ? "Transactions deleted."
+                    : "Bulk delete completed with partial success."
+            });
         }
 
         // POST api/transactions/preview-excel
@@ -155,12 +188,6 @@ namespace FinalProjectAuthAPI.Controllers
             {
                 return BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" });
             }
-        }
-
-        private long GetCurrentUserId()
-        {
-            var claim = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            return long.TryParse(claim, out var id) ? id : 0;
         }
 
         private IActionResult? ValidateExcelFile(IFormFile file)

@@ -49,7 +49,7 @@ import DbTest from './pages/DbTest';
 
 // ── Inner app (has access to AuthContext) ──────────────────────────────────
 function AppRoutes() {
-  const { isAuthenticated, loading, user, logout } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
   // Show nothing while restoring session from localStorage
   if (loading) return null;

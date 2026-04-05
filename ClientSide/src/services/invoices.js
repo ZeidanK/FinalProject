@@ -45,6 +45,21 @@ export function updateInvoice(invoiceId, payload, token) {
   })
 }
 
+export function deleteInvoice(invoiceId, token) {
+  return apiRequest(URLS.invoices.byId(invoiceId), {
+    method: 'DELETE',
+    token,
+  })
+}
+
+export function bulkDeleteInvoices(ids, token) {
+  return apiRequest(URLS.invoices.bulkDelete, {
+    method: 'DELETE',
+    body: { ids },
+    token,
+  })
+}
+
 export function updateInvoiceStatus(invoiceId, status, token) {
   return apiRequest(URLS.invoices.status(invoiceId), {
     method: 'PATCH',

@@ -6,6 +6,7 @@ import App from './App.jsx'
 import theme from './theme'
 import { AuthProvider } from './context/AuthContext'
 import { CompanyProvider } from './context/CompanyContext'
+import ErrorBoundary from './components/ErrorBoundary'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')).render(
       <CssBaseline />
       <AuthProvider>
         <CompanyProvider>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
         </CompanyProvider>
       </AuthProvider>
     </ThemeProvider>

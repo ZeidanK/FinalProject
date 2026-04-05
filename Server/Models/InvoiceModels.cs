@@ -104,6 +104,13 @@ namespace FinalProjectAuthAPI.Models
         public string Status { get; set; } = string.Empty;
     }
 
+    public class BulkDeleteInvoicesRequest
+    {
+        [Required]
+        [MinLength(1, ErrorMessage = "At least one invoice ID is required.")]
+        public List<long> Ids { get; set; } = new();
+    }
+
     // ── PDF Upload & Extraction Models ────────────────────────────────────
 
     public class ExtractedLineItem

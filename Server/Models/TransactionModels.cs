@@ -50,6 +50,13 @@ namespace FinalProjectAuthAPI.Models
         public List<CreateTransactionRequest> Transactions { get; set; } = new();
     }
 
+    public class BulkDeleteTransactionsRequest
+    {
+        [Required]
+        [MinLength(1, ErrorMessage = "At least one transaction ID is required.")]
+        public List<long> Ids { get; set; } = new();
+    }
+
     // ── Excel Upload Models ──────────────────────────────────────────────
 
     public class ExtractedTransaction

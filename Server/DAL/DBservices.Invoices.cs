@@ -390,6 +390,87 @@ namespace FinalProjectAuthAPI.DAL
             return GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
         }
 
+        public bool DeleteInvoice(long id)
+        {
+            SqlConnection? con = null;
+            SqlTransaction? tx = null;
+            try
+            {
+                con = Connect();
+                tx = con.BeginTransaction();
+
+                var existsCmd = new SqlCommand(
+                    "SELECT COUNT(1) FROM dbo.FP26_invoices WHERE id = @Id",
+                    con,
+                    tx);
+                existsCmd.Parameters.AddWithValue("@Id", id);
+
+                if (Convert.ToInt32(existsCmd.ExecuteScalar()) <= 0)
+                {
+                    tx.Rollback();
+                    return false;
+                }
+
+                var cleanupCmd = new SqlCommand(@"
+                    DECLARE @AffectedTransactions TABLE (transaction_id BIGINT PRIMARY KEY);
+
+                    INSERT INTO @AffectedTransactions(transaction_id)
+                    SELECT DISTINCT transaction_id
+                    FROM dbo.FP26_invoice_transaction_matches
+                    WHERE invoice_id = @InvoiceId;
+
+                    DELETE FROM dbo.FP26_invoice_transaction_matches
+                    WHERE invoice_id = @InvoiceId;
+
+                    UPDATE t
+                    SET
+                        is_matched = CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM dbo.FP26_invoice_transaction_matches m
+                                WHERE m.transaction_id = t.id
+                            ) THEN 1 ELSE 0 END,
+                        updated_at = GETDATE()
+                    FROM dbo.FP26_transactions t
+                    INNER JOIN @AffectedTransactions a ON a.transaction_id = t.id;
+
+                    DELETE FROM dbo.FP26_invoices
+                    WHERE id = @InvoiceId;
+                ", con, tx);
+                cleanupCmd.Parameters.AddWithValue("@InvoiceId", id);
+                var deletedRows = cleanupCmd.ExecuteNonQuery();
+
+                tx.Commit();
+                return deletedRows > 0;
+            }
+            catch
+            {
+                tx?.Rollback();
+                throw;
+            }
+            finally
+            {
+                tx?.Dispose();
+                con?.Close();
+            }
+        }
+
+        public (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteInvoices(IEnumerable<long> ids)
+        {
+            var deletedIds = new List<long>();
+            var notFoundIds = new List<long>();
+
+            foreach (var id in ids)
+            {
+                if (DeleteInvoice(id))
+                    deletedIds.Add(id);
+                else
+                    notFoundIds.Add(id);
+            }
+
+            return (deletedIds, notFoundIds);
+        }
+
         // ── Mapping helpers ───────────────────────────────────────────────────
 
         private static InvoiceRow MapInvoice(SqlDataReader r) => new()

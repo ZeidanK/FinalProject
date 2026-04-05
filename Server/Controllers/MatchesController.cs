@@ -9,7 +9,7 @@ namespace FinalProjectAuthAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class MatchesController : ControllerBase
+    public class MatchesController : ApiControllerBase
     {
         private readonly IMatchService _svc;
 
@@ -120,12 +120,6 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var ok = _svc.Delete(id);
             return ok ? Ok(new { message = "Match deleted." }) : NotFound(new { message = "Match not found." });
-        }
-
-        private long GetCurrentUserId()
-        {
-            var claim = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            return long.TryParse(claim, out var id) ? id : 0;
         }
 
         private async Task<AutoMatchBatchResult> ExecuteAutoMatchBatch(long companyId, decimal? minConfidence)
