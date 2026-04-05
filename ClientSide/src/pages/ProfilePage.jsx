@@ -27,7 +27,7 @@ import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded'
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
-import { motion } from 'framer-motion'
+import PropTypes from 'prop-types'
 import { useAuth } from '../context/useAuth'
 import { getUserById, updateUser, changePassword, uploadProfilePicture } from '../services/users'
 import { getCompaniesByUser, createCompany, updateCompany } from '../services/companies'
@@ -68,6 +68,12 @@ const emptyCompanyForm = {
   taxId: '',
   vatNumber: '',
   currency: 'USD',
+}
+
+const passwordFieldMeta = {
+  current: { label: 'Current Password', formKey: 'currentPassword' },
+  new: { label: 'New Password', formKey: 'newPassword' },
+  confirm: { label: 'Confirm New Password', formKey: 'confirmPassword' },
 }
 
 export default function ProfilePage() {
@@ -308,29 +314,75 @@ export default function ProfilePage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  const container = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.08 } },
-  }
-  const item = {
-    hidden: { opacity: 0, y: 18 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.32 } },
+  let assignedCompaniesContent
+  if (loadingCompanies) {
+    assignedCompaniesContent = (
+      <Stack spacing={2}>
+        <Skeleton variant="rounded" height={60} />
+        <Skeleton variant="rounded" height={60} />
+      </Stack>
+    )
+  } else if (companies.length === 0) {
+    assignedCompaniesContent = (
+      <Typography color="text.secondary">No companies assigned to you yet.</Typography>
+    )
+  } else {
+    assignedCompaniesContent = (
+      <Stack spacing={1.5}>
+        {companies.map((c) => (
+          <Box
+            key={c.id}
+            sx={{
+              p: 2,
+              borderRadius: 2.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'rgba(14, 22, 40, 0.5)',
+            }}
+          >
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack>
+                <Typography fontWeight={700}>{c.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
+                  {' · '}
+                  {c.currency || 'USD'}
+                </Typography>
+              </Stack>
+              <Chip
+                label={c.accessLevel || c.access_level || 'view_only'}
+                size="small"
+                sx={{
+                  bgcolor: 'rgba(55, 214, 122, 0.14)',
+                  border: '1px solid',
+                  borderColor: 'rgba(55, 214, 122, 0.38)',
+                  color: '#b3ffd0',
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  textTransform: 'capitalize',
+                }}
+              />
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+    )
   }
 
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
-      <motion.div variants={container} initial="hidden" animate="show">
+      <Box>
         {/* ── Page title ─────────────────────────────────── */}
-        <motion.div variants={item}>
+        <Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
             Profile &amp; Settings
           </Typography>
-        </motion.div>
+        </Box>
 
         {/* ══════════════════════════════════════════════════
             SECTION A — Profile Info
            ══════════════════════════════════════════════════ */}
-        <motion.div variants={item}>
+        <Box>
           <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
             <CardContent sx={{ p: 3 }}>
               {sectionHeader(
@@ -516,12 +568,12 @@ export default function ProfilePage() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </Box>
 
         {/* ══════════════════════════════════════════════════
             SECTION B — Change Password
            ══════════════════════════════════════════════════ */}
-        <motion.div variants={item}>
+        <Box>
           <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
             <CardContent sx={{ p: 3 }}>
               {sectionHeader(
@@ -543,18 +595,7 @@ export default function ProfilePage() {
 
               <Stack spacing={2} sx={{ maxWidth: 420 }}>
                 {['current', 'new', 'confirm'].map((key) => {
-                  const label =
-                    key === 'current'
-                      ? 'Current Password'
-                      : key === 'new'
-                        ? 'New Password'
-                        : 'Confirm New Password'
-                  const formKey =
-                    key === 'current'
-                      ? 'currentPassword'
-                      : key === 'new'
-                        ? 'newPassword'
-                        : 'confirmPassword'
+                  const { label, formKey } = passwordFieldMeta[key]
                   return (
                     <TextField
                       key={key}
@@ -606,13 +647,13 @@ export default function ProfilePage() {
               </Stack>
             </CardContent>
           </Card>
-        </motion.div>
+        </Box>
 
         {/* ══════════════════════════════════════════════════
             SECTION C — Business Info (business_owner roles)
            ══════════════════════════════════════════════════ */}
         {isBusinessOwner && (
-          <motion.div variants={item}>
+          <Box>
             <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
               <CardContent sx={{ p: 3 }}>
                 {sectionHeader(
@@ -686,14 +727,14 @@ export default function ProfilePage() {
                 )}
               </CardContent>
             </Card>
-          </motion.div>
+          </Box>
         )}
 
         {/* ══════════════════════════════════════════════════
             SECTION D — Accountant: Assigned Companies
            ══════════════════════════════════════════════════ */}
         {isAccountant && (
-          <motion.div variants={item}>
+          <Box>
             <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
               <CardContent sx={{ p: 3 }}>
                 {sectionHeader(
@@ -706,59 +747,14 @@ export default function ProfilePage() {
                     <Skeleton variant="rounded" height={60} />
                     <Skeleton variant="rounded" height={60} />
                   </Stack>
-                ) : companies.length === 0 ? (
-                  <Typography color="text.secondary">
-                    No companies assigned to you yet.
-                  </Typography>
                 ) : (
-                  <Stack spacing={1.5}>
-                    {companies.map((c) => (
-                      <Box
-                        key={c.id}
-                        sx={{
-                          p: 2,
-                          borderRadius: 2.5,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          bgcolor: 'rgba(14, 22, 40, 0.5)',
-                        }}
-                      >
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Stack>
-                            <Typography fontWeight={700}>{c.name}</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
-                              {' · '}
-                              {c.currency || 'USD'}
-                            </Typography>
-                          </Stack>
-                          <Chip
-                            label={c.accessLevel || c.access_level || 'view_only'}
-                            size="small"
-                            sx={{
-                              bgcolor: 'rgba(55, 214, 122, 0.14)',
-                              border: '1px solid',
-                              borderColor: 'rgba(55, 214, 122, 0.38)',
-                              color: '#b3ffd0',
-                              fontWeight: 700,
-                              fontSize: '0.7rem',
-                              textTransform: 'capitalize',
-                            }}
-                          />
-                        </Stack>
-                      </Box>
-                    ))}
-                  </Stack>
+                  assignedCompaniesContent
                 )}
               </CardContent>
             </Card>
-          </motion.div>
+          </Box>
         )}
-      </motion.div>
+      </Box>
     </Container>
   )
 }
@@ -805,6 +801,22 @@ function CompanyCard({ company, onEdit }) {
       </Stack>
     </Box>
   )
+}
+
+CompanyCard.propTypes = {
+  company: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string,
+    registrationNumber: PropTypes.string,
+    registration_number: PropTypes.string,
+    city: PropTypes.string,
+    state: PropTypes.string,
+    country: PropTypes.string,
+    currency: PropTypes.string,
+    email: PropTypes.string,
+    phone: PropTypes.string,
+  }).isRequired,
+  onEdit: PropTypes.func.isRequired,
 }
 
 function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
@@ -964,4 +976,31 @@ function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
       </Stack>
     </Box>
   )
+}
+
+CompanyForm.propTypes = {
+  form: PropTypes.shape({
+    name: PropTypes.string,
+    registrationNumber: PropTypes.string,
+    street: PropTypes.string,
+    city: PropTypes.string,
+    state: PropTypes.string,
+    postalCode: PropTypes.string,
+    country: PropTypes.string,
+    email: PropTypes.string,
+    phone: PropTypes.string,
+    website: PropTypes.string,
+    taxId: PropTypes.string,
+    vatNumber: PropTypes.string,
+    currency: PropTypes.string,
+  }).isRequired,
+  setForm: PropTypes.func.isRequired,
+  saving: PropTypes.bool.isRequired,
+  onSave: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  isNew: PropTypes.bool,
+}
+
+CompanyForm.defaultProps = {
+  isNew: false,
 }
