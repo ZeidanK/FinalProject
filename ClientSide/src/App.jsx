@@ -10,11 +10,13 @@ import AnomaliesPage from './pages/Anomalies'
 import ReportsPage from './pages/Reports'
 import TransactionsPage from './pages/Transactions'
 import ProfilePage from './pages/ProfilePage'
+import AdminPortalPage from './pages/AdminPortal'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
 import { useAuth } from './context/useAuth'
 import { useCompany } from './context/useCompany'
 
 const ROLE_RULES = {
+  adminOnly: ['admin'],
   accountantOnly: ['accountant', 'accountant_business_owner'],
   ownerOnly: ['business_owner', 'accountant_business_owner'],
   all: ['accountant', 'business_owner', 'accountant_business_owner'],
@@ -100,6 +102,14 @@ function App() {
             }
           />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/admin"
+            element={
+              <RoleRoute allowedRoles={ROLE_RULES.adminOnly}>
+                <AdminPortalPage />
+              </RoleRoute>
+            }
+          />
           <Route
             path="/invoices"
             element={

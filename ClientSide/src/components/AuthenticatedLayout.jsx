@@ -17,6 +17,7 @@ import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded
 import HubRoundedIcon from '@mui/icons-material/HubRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
+import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
@@ -28,50 +29,57 @@ import PropTypes from 'prop-types'
 import { useAuth } from '../context/useAuth'
 
 const sidebarWidth = 272
-const ALL_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
+const BUSINESS_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
+const PROFILE_ROLES = [...BUSINESS_ROLES, 'admin']
 
 const navItems = [
   {
     label: 'Dashboard',
     to: '/dashboard',
     icon: <DashboardRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: BUSINESS_ROLES,
   },
   {
     label: 'Invoices',
     to: '/invoices',
     icon: <ReceiptLongRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: BUSINESS_ROLES,
   },
   {
     label: 'Transactions',
     to: '/transactions',
     icon: <AccountBalanceRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: BUSINESS_ROLES,
   },
   {
     label: 'Matches',
     to: '/matches',
     icon: <HubRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: BUSINESS_ROLES,
   },
   {
     label: 'Anomalies',
     to: '/anomalies',
     icon: <ErrorOutlineRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: BUSINESS_ROLES,
   },
   {
     label: 'Reports',
     to: '/reports',
     icon: <AssessmentRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: BUSINESS_ROLES,
+  },
+  {
+    label: 'Admin',
+    to: '/admin',
+    icon: <AdminPanelSettingsRoundedIcon fontSize="small" />,
+    roles: ['admin'],
   },
   {
     label: 'Profile',
     to: '/profile',
     icon: <PersonRoundedIcon fontSize="small" />,
-    roles: ALL_ROLES,
+    roles: PROFILE_ROLES,
   },
 ]
 
@@ -80,6 +88,7 @@ function SidebarContent({ onNavigate, user, onLogout }) {
 
   const getRoleLabel = () => {
     if (!user?.role) return 'Unknown role'
+    if (user.role === 'admin') return 'Administrator'
     if (user.role === 'accountant_business_owner') return 'Accountant + Business Owner'
     if (user.role === 'business_owner') return 'Business Owner'
     if (user.role === 'accountant') return 'Accountant'

@@ -73,4 +73,12 @@ export const URLS = {
     vat: (companyId) => buildApiPath(`/Reports/vat/${companyId}`),
     reconciliation: (companyId) => buildApiPath(`/Reports/reconciliation/${companyId}`),
   },
+  admin: {
+    base: buildApiPath('/Admin'),
+    stats: buildApiPath('/Admin/stats'),
+    users: buildApiPath('/Admin/users'),
+    toggleUser: (id) => buildApiPath(`/Admin/users/${id}/toggle`),
+    logs: buildApiPath('/Admin/logs'),
+    auditLogs: buildApiPath('/Admin/audit-logs'),
+  },
 }
