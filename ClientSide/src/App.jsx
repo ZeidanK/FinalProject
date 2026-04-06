@@ -11,6 +11,7 @@ import ReportsPage from './pages/Reports'
 import TransactionsPage from './pages/Transactions'
 import ProfilePage from './pages/ProfilePage'
 import AdminPortalPage from './pages/AdminPortal'
+import TechStackPage from './pages/TechStackPage'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
 import { useAuth } from './context/useAuth'
 import { useCompany } from './context/useCompany'
@@ -84,6 +85,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/tech-stack" element={<TechStackPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route
