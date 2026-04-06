@@ -12,7 +12,7 @@ import PropTypes from 'prop-types'
 import { motion } from 'framer-motion'
 import PageSectionLayout from '../components/PageSectionLayout'
 import { itemVariants } from '../utils/motionVariants'
-import { techStackSections } from './techStackData'
+import { requirementCoverage, stackRationale, techStackSections } from './techStackData'
 
 function TechStackEntryCard({ entry }) {
   return (
@@ -52,6 +52,9 @@ function TechStackEntryCard({ entry }) {
         <Typography color="text.secondary">
           <strong>Used for:</strong> {entry.usedFor}
         </Typography>
+        <Typography color="text.secondary">
+          <strong>Project example:</strong> {entry.projectExample}
+        </Typography>
 
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
 
@@ -86,6 +89,7 @@ TechStackEntryCard.propTypes = {
     name: PropTypes.string.isRequired,
     what: PropTypes.string.isRequired,
     usedFor: PropTypes.string.isRequired,
+    projectExample: PropTypes.string.isRequired,
     positives: PropTypes.arrayOf(PropTypes.string).isRequired,
     improvements: PropTypes.arrayOf(PropTypes.string).isRequired,
   }).isRequired,
@@ -149,6 +153,96 @@ export default function TechStackPage() {
           </Grid>
         </Stack>
       ))}
+
+      <Card
+        component={motion.div}
+        variants={itemVariants}
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
+          <Stack spacing={1.3}>
+            <Typography variant="h5" sx={{ fontSize: { xs: '1.2rem', md: '1.4rem' } }}>
+              Project Requirements Coverage
+            </Typography>
+            <Stack spacing={1}>
+              {requirementCoverage.map((item) => (
+                <Box
+                  key={item.requirement}
+                  sx={{
+                    p: 1.4,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    backgroundColor: 'rgba(255,255,255,0.02)',
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    justifyContent="space-between"
+                    spacing={1}
+                  >
+                    <Typography sx={{ fontWeight: 700 }}>{item.requirement}</Typography>
+                    <Chip
+                      label={item.status}
+                      size="small"
+                      sx={{
+                        bgcolor:
+                          item.status === 'Covered'
+                            ? 'rgba(93, 204, 126, 0.18)'
+                            : 'rgba(255, 200, 120, 0.16)',
+                        border: '1px solid',
+                        borderColor:
+                          item.status === 'Covered'
+                            ? 'rgba(140, 230, 165, 0.45)'
+                            : 'rgba(255, 205, 140, 0.4)',
+                        color: item.status === 'Covered' ? '#cbf5d5' : '#ffe0b2',
+                        fontWeight: 700,
+                      }}
+                    />
+                  </Stack>
+                  <Typography color="text.secondary" sx={{ mt: 0.8 }}>
+                    {item.proof}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card
+        component={motion.div}
+        variants={itemVariants}
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
+          <Stack spacing={1.2}>
+            <Typography variant="h5" sx={{ fontSize: { xs: '1.2rem', md: '1.4rem' } }}>
+              Why This Stack Was Chosen
+            </Typography>
+            <Stack component="ul" sx={{ m: 0, pl: 2.2, gap: 0.6, color: 'text.secondary' }}>
+              {stackRationale.map((point) => (
+                <Typography key={point} component="li" variant="body2">
+                  {point}
+                </Typography>
+              ))}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
     </PageSectionLayout>
   )
 }
