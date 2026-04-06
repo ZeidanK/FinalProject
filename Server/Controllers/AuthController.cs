@@ -25,11 +25,13 @@ namespace FinalProjectAuthAPI.Controllers
             if (token == null)
                 return Unauthorized(new { message = "Invalid credentials or account is inactive." });
 
-            return Ok(new
+            var payload = new
             {
                 token,
                 user = new { id, name, email, role }
-            });
+            };
+
+            return SuccessWithLegacy(payload, payload, "Login successful.");
         }
 
         private static readonly HashSet<string> ValidRoles = new()
@@ -53,7 +55,15 @@ namespace FinalProjectAuthAPI.Controllers
                 if (!success)
                     return BadRequest(new { message = error });
 
-                return StatusCode(201, new { message = "Registration successful.", userId });
+                var payload = new { userId };
+                return StatusCode(201, new
+                {
+                    success = true,
+                    code = 201,
+                    message = "Registration successful.",
+                    data = payload,
+                    userId
+                });
             }
             catch (System.Data.SqlClient.SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
             {
@@ -93,7 +103,8 @@ namespace FinalProjectAuthAPI.Controllers
                 var email = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
                 var role  = token.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
 
-                return Ok(new { message = "Token is valid.", id, name, email, role });
+                var payload = new { id, name, email, role };
+                return SuccessWithLegacy(payload, payload, "Token is valid.");
             }
             catch (Exception ex)
             {

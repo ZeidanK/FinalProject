@@ -1,55 +1,70 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
-export function getTransactionsByCompany(companyId, filters = {}, token) {
-  return apiRequest(URLS.transactions.byCompany(companyId), {
-    query: filters,
+export async function getTransactionsByCompany(companyId, filters, token) {
+  const nextFilters = filters || {}
+  const response = await apiRequest(URLS.transactions.byCompany(companyId), {
+    query: nextFilters,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function getTransactionById(transactionId, token) {
-  return apiRequest(URLS.transactions.byId(transactionId), { token })
+export async function getTransactionById(transactionId, token) {
+  const response = await apiRequest(URLS.transactions.byId(transactionId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function createTransaction(payload, token) {
-  return apiRequest(URLS.transactions.base, {
+export async function createTransaction(payload, token) {
+  const response = await apiRequest(URLS.transactions.base, {
     method: 'POST',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function createTransactionsBulk(payload, token) {
-  return apiRequest(URLS.transactions.bulk, {
+export async function createTransactionsBulk(payload, token) {
+  const response = await apiRequest(URLS.transactions.bulk, {
     method: 'POST',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function deleteTransaction(transactionId, token) {
-  return apiRequest(URLS.transactions.byId(transactionId), {
+export async function deleteTransaction(transactionId, token) {
+  const response = await apiRequest(URLS.transactions.byId(transactionId), {
     method: 'DELETE',
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function bulkDeleteTransactions(ids, token) {
-  return apiRequest(URLS.transactions.bulkDelete, {
+export async function bulkDeleteTransactions(ids, token) {
+  const response = await apiRequest(URLS.transactions.bulkDelete, {
     method: 'DELETE',
     body: { ids },
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function previewExcel(file, companyId, token) {
+export async function previewExcel(file, companyId, token) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('companyId', companyId)
-  return apiRequest(URLS.transactions.previewExcel, {
+  const response = await apiRequest(URLS.transactions.previewExcel, {
     method: 'POST',
     body: formData,
     token,
   })
+
+  return unwrapEnvelope(response)
 }

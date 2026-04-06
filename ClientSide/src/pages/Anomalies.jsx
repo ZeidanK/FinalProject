@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
+import { useForm } from 'react-hook-form'
 import {
   Alert,
   Box,
@@ -39,11 +40,12 @@ import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import {
-  getAnomaliesByCompany,
-  getAnomalyById,
-  getAnomalyStats,
-  resolveAnomaly,
-} from '../services/anomalies'
+  useAnomaliesListQuery,
+  useAnomalyDetailsQuery,
+  useAnomalyStatsQuery,
+  useResolveAnomalyMutation,
+} from '../hooks/queries/useAnomaliesQueries'
+import { resolveAnomalySchema } from '../schemas/anomalies'
 import { itemVariants } from '../utils/motionVariants'
 
 const severityColors = {
@@ -198,7 +200,13 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
   )
 }
 
-function getDetailsContent({ detailsLoading, detailsError, selectedAnomaly, resolutionNotes, setResolutionNotes }) {
+function getDetailsContent({
+  detailsLoading,
+  detailsError,
+  selectedAnomaly,
+  resolutionFieldProps,
+  resolutionError,
+}) {
   if (detailsLoading) {
     return (
       <Stack spacing={1.2}>
@@ -274,8 +282,9 @@ function getDetailsContent({ detailsLoading, detailsError, selectedAnomaly, reso
           multiline
           minRows={3}
           label="Resolution Notes"
-          value={resolutionNotes}
-          onChange={(event) => setResolutionNotes(event.target.value)}
+          error={Boolean(resolutionError)}
+          helperText={resolutionError || ' '}
+          {...resolutionFieldProps}
         />
       ) : (
         <>
@@ -334,82 +343,88 @@ function AnomaliesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
 
-  const [anomalies, setAnomalies] = useState([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState('')
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [statsError, setStatsError] = useState('')
-  const [stats, setStats] = useState({ byStatus: {}, bySeverity: {} })
-
   const [status, setStatus] = useState('')
   const [severity, setSeverity] = useState('')
   const [type, setType] = useState('')
   const [queryInput, setQueryInput] = useState('')
   const [query, setQuery] = useState('')
 
-  const [selectedAnomaly, setSelectedAnomaly] = useState(null)
+  const [selectedAnomalyId, setSelectedAnomalyId] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [detailsLoading, setDetailsLoading] = useState(false)
-  const [detailsError, setDetailsError] = useState('')
-  const [resolutionNotes, setResolutionNotes] = useState('')
-  const [resolveBusy, setResolveBusy] = useState(false)
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+
+  const {
+    register,
+    getValues,
+    setValue,
+    setError,
+    clearErrors,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      resolutionNotes: '',
+    },
+  })
+
+  const filters = useMemo(
+    () => ({
+      status,
+      severity,
+      type,
+    }),
+    [severity, status, type],
+  )
+
+  const anomaliesQuery = useAnomaliesListQuery({
+    companyId: activeCompanyId,
+    token,
+    filters,
+  })
+
+  const statsQuery = useAnomalyStatsQuery({
+    companyId: activeCompanyId,
+    token,
+  })
+
+  const detailsQuery = useAnomalyDetailsQuery({
+    anomalyId: selectedAnomalyId,
+    token,
+    enabled: detailsOpen,
+  })
+
+  const resolveMutation = useResolveAnomalyMutation({
+    companyId: activeCompanyId,
+    token,
+  })
 
   useEffect(() => {
     const timeoutId = globalThis.setTimeout(() => setQuery(queryInput.trim()), 350)
     return () => globalThis.clearTimeout(timeoutId)
   }, [queryInput])
 
-  const loadAnomalies = useCallback(async () => {
-    setListLoading(true)
-    setListError('')
-
-    try {
-      const data = await getAnomaliesByCompany(
-        activeCompanyId,
-        {
-          status,
-          severity,
-          type,
-        },
-        token,
-      )
-
-      setAnomalies(Array.isArray(data) ? data : [])
-    } catch (err) {
-      setListError(err.message || 'Failed to load anomalies.')
-      setAnomalies([])
-    } finally {
-      setListLoading(false)
-    }
-  }, [activeCompanyId, severity, status, token, type])
-
-  const loadStats = useCallback(async () => {
-    setStatsLoading(true)
-    setStatsError('')
-
-    try {
-      const data = await getAnomalyStats(activeCompanyId, token)
-      setStats({
-        byStatus: data?.byStatus || {},
-        bySeverity: data?.bySeverity || {},
-      })
-    } catch (err) {
-      setStatsError(err.message || 'Failed to load anomaly statistics.')
-      setStats({ byStatus: {}, bySeverity: {} })
-    } finally {
-      setStatsLoading(false)
-    }
-  }, [activeCompanyId, token])
-
   useEffect(() => {
-    loadAnomalies()
-  }, [loadAnomalies])
+    if (!detailsQuery.data) {
+      return
+    }
 
-  useEffect(() => {
-    loadStats()
-  }, [loadStats])
+    setValue('resolutionNotes', detailsQuery.data?.resolutionNotes || '')
+    clearErrors('resolutionNotes')
+  }, [clearErrors, detailsQuery.data, setValue])
+
+  const anomalies = useMemo(
+    () => (Array.isArray(anomaliesQuery.data) ? anomaliesQuery.data : []),
+    [anomaliesQuery.data],
+  )
+
+  const stats = useMemo(
+    () => ({
+      byStatus: statsQuery.data?.byStatus || {},
+      bySeverity: statsQuery.data?.bySeverity || {},
+    }),
+    [statsQuery.data],
+  )
 
   const filteredAnomalies = useMemo(() => {
     if (!query) return anomalies
@@ -432,51 +447,49 @@ function AnomaliesPage() {
   const criticalCount = Number(stats.bySeverity?.critical || 0)
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([loadAnomalies(), loadStats()])
-  }, [loadAnomalies, loadStats])
+    await Promise.all([anomaliesQuery.refetch(), statsQuery.refetch()])
+  }, [anomaliesQuery, statsQuery])
 
   const handleOpenDetails = useCallback(
     async (anomalyId) => {
       setDetailsOpen(true)
-      setDetailsLoading(true)
-      setDetailsError('')
-      setResolutionNotes('')
-
-      try {
-        const details = await getAnomalyById(anomalyId, token)
-        setSelectedAnomaly(details)
-        setResolutionNotes(details?.resolutionNotes || '')
-      } catch (err) {
-        setDetailsError(err.message || 'Failed to load anomaly details.')
-        setSelectedAnomaly(null)
-      } finally {
-        setDetailsLoading(false)
-      }
+      setSelectedAnomalyId(anomalyId)
+      reset({ resolutionNotes: '' })
     },
-    [token],
+    [reset],
   )
 
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)
-    setSelectedAnomaly(null)
-    setDetailsError('')
-    setResolutionNotes('')
-    setResolveBusy(false)
-  }, [])
+    setSelectedAnomalyId(null)
+    resolveMutation.reset()
+    reset({ resolutionNotes: '' })
+  }, [reset, resolveMutation])
 
   const handleResolve = useCallback(async () => {
-    if (!selectedAnomaly?.id) return
+    if (!detailsQuery.data?.id) return
 
-    setResolveBusy(true)
+    const parsed = resolveAnomalySchema.safeParse({
+      resolutionNotes: getValues('resolutionNotes') || '',
+    })
+
+    if (!parsed.success) {
+      setError('resolutionNotes', {
+        type: 'manual',
+        message: parsed.error.issues[0]?.message || 'Please enter valid resolution notes.',
+      })
+      return
+    }
+
+    clearErrors('resolutionNotes')
     try {
-      await resolveAnomaly(
-        selectedAnomaly.id,
-        {
+      await resolveMutation.mutateAsync({
+        anomalyId: detailsQuery.data.id,
+        payload: {
           status: 'resolved',
-          resolutionNotes: resolutionNotes.trim() || null,
+          resolutionNotes: parsed.data.resolutionNotes || null,
         },
-        token,
-      )
+      })
 
       setSnack({
         open: true,
@@ -485,17 +498,24 @@ function AnomaliesPage() {
       })
 
       closeDetails()
-      await Promise.all([loadAnomalies(), loadStats()])
     } catch (err) {
       setSnack({
         open: true,
         severity: 'error',
         message: err.message || 'Failed to resolve anomaly.',
       })
-    } finally {
-      setResolveBusy(false)
     }
-  }, [closeDetails, loadAnomalies, loadStats, resolutionNotes, selectedAnomaly?.id, token])
+  }, [clearErrors, closeDetails, detailsQuery.data, getValues, resolveMutation, setError])
+
+  const listLoading = anomaliesQuery.isLoading || anomaliesQuery.isFetching
+  const listError = anomaliesQuery.error?.message || ''
+  const statsLoading = statsQuery.isLoading || statsQuery.isFetching
+  const statsError = statsQuery.error?.message || ''
+  const selectedAnomaly = detailsQuery.data || null
+  const detailsLoading = detailsQuery.isLoading || detailsQuery.isFetching
+  const detailsError = detailsQuery.error?.message || ''
+  const resolveBusy = resolveMutation.isPending
+  const resolutionFieldProps = register('resolutionNotes')
 
   const listContent = getListContent({
     listLoading,
@@ -508,8 +528,8 @@ function AnomaliesPage() {
     detailsLoading,
     detailsError,
     selectedAnomaly,
-    resolutionNotes,
-    setResolutionNotes,
+    resolutionFieldProps,
+    resolutionError: errors.resolutionNotes?.message,
   })
 
   const statsCards = [

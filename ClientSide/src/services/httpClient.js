@@ -45,11 +45,16 @@ const parseResponseBody = async (response) => {
 }
 
 const createApiError = ({ response, data, url }) => {
+  const code =
+    (data && typeof data === 'object' && data.code) ||
+    `HTTP_${response.status}`
+
   const message =
     (data && typeof data === 'object' && data.message) ||
     `Request failed with status ${response.status}.`
 
   const error = new Error(message)
+  error.code = code
   error.status = response.status
   error.data = data
   error.url = url

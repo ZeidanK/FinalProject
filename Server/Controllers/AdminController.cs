@@ -18,8 +18,11 @@ namespace FinalProjectAuthAPI.Controllers
 
         // GET api/admin/stats
         [HttpGet("stats")]
-        public IActionResult GetStats() =>
-            Ok(_svc.GetStats());
+        public IActionResult GetStats()
+        {
+            var data = _svc.GetStats();
+            return SuccessWithLegacy(data, data, "Admin stats retrieved.");
+        }
 
         // GET api/admin/users?page=&limit=&role=&search=
         [HttpGet("users")]
@@ -27,15 +30,25 @@ namespace FinalProjectAuthAPI.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int limit = 20,
             [FromQuery] string? role = null,
-            [FromQuery] string? search = null) =>
-            Ok(_svc.GetUsers(page, limit, role, search));
+            [FromQuery] string? search = null)
+        {
+            var data = _svc.GetUsers(page, limit, role, search);
+            return SuccessWithLegacy(data, data, "Admin users retrieved.");
+        }
 
         // PATCH api/admin/users/{id}/toggle
         [HttpPatch("users/{id:long}/toggle")]
         public IActionResult ToggleUserActive(long id)
         {
             var (userId, isActive) = _svc.ToggleUserActive(id);
-            return Ok(new { id = userId, isActive, message = isActive ? "User activated." : "User deactivated." });
+            var payload = new
+            {
+                id = userId,
+                isActive,
+                message = isActive ? "User activated." : "User deactivated."
+            };
+
+            return SuccessWithLegacy(payload, payload, payload.message);
         }
 
         // GET api/admin/logs?page=&limit=&level=&category=
@@ -44,15 +57,21 @@ namespace FinalProjectAuthAPI.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int limit = 50,
             [FromQuery] string? level = null,
-            [FromQuery] string? category = null) =>
-            Ok(_svc.GetLogs(page, limit, level, category));
+            [FromQuery] string? category = null)
+        {
+            var data = _svc.GetLogs(page, limit, level, category);
+            return SuccessWithLegacy(data, data, "System logs retrieved.");
+        }
 
         // GET api/admin/audit-logs?page=&limit=&companyId=
         [HttpGet("audit-logs")]
         public IActionResult GetAuditLogs(
             [FromQuery] int page = 1,
             [FromQuery] int limit = 50,
-            [FromQuery] long? companyId = null) =>
-            Ok(_svc.GetAuditLogs(page, limit, companyId));
+            [FromQuery] long? companyId = null)
+        {
+            var data = _svc.GetAuditLogs(page, limit, companyId);
+            return SuccessWithLegacy(data, data, "Audit logs retrieved.");
+        }
     }
 }

@@ -1,33 +1,42 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
-export function getCompanyById(companyId, token) {
-  return apiRequest(URLS.companies.byId(companyId), { token })
+export async function getCompanyById(companyId, token) {
+  const response = await apiRequest(URLS.companies.byId(companyId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function getCompaniesByUser(userId, token) {
-  return apiRequest(URLS.companies.byUser(userId), { token })
+export async function getCompaniesByUser(userId, token) {
+  const response = await apiRequest(URLS.companies.byUser(userId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function createCompany(payload, token) {
-  return apiRequest(URLS.companies.base, {
+export async function createCompany(payload, token) {
+  const response = await apiRequest(URLS.companies.base, {
     method: 'POST',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function updateCompany(companyId, payload, token) {
-  return apiRequest(URLS.companies.byId(companyId), {
+export async function updateCompany(companyId, payload, token) {
+  const response = await apiRequest(URLS.companies.byId(companyId), {
     method: 'PUT',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function deleteCompany(companyId, token) {
-  return apiRequest(URLS.companies.byId(companyId), {
+export async function deleteCompany(companyId, token) {
+  const response = await apiRequest(URLS.companies.byId(companyId), {
     method: 'DELETE',
     token,
   })
+
+  return unwrapEnvelope(response)
 }

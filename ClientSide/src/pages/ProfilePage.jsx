@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Avatar,
@@ -32,8 +32,17 @@ import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
-import { getUserById, updateUser, changePassword, uploadProfilePicture } from '../services/users'
-import { getCompaniesByUser, createCompany, updateCompany, deleteCompany } from '../services/companies'
+import {
+  useChangePasswordMutation,
+  useCreateCompanyMutation,
+  useDeleteCompanyMutation,
+  useUpdateCompanyMutation,
+  useUpdateProfileMutation,
+  useUploadProfilePictureMutation,
+  useUserCompaniesQuery,
+  useUserProfileQuery,
+} from '../hooks/queries/useProfileQueries'
+import { companySchema, passwordChangeSchema, profileUpdateSchema } from '../schemas/profile'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
@@ -87,7 +96,6 @@ export default function ProfilePage() {
 
   // ── Profile state ──────────────────────────────────────────
   const [profile, setProfile] = useState(null)
-  const [loadingProfile, setLoadingProfile] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileForm, setProfileForm] = useState({ name: '', phone: '' })
   const [profilePicFile, setProfilePicFile] = useState(null)
@@ -111,7 +119,6 @@ export default function ProfilePage() {
 
   // ── Companies state ────────────────────────────────────────
   const [companies, setCompanies] = useState([])
-  const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [editingCompanyId, setEditingCompanyId] = useState(null)
   const [companyForm, setCompanyForm] = useState({ ...emptyCompanyForm })
   const [addingCompany, setAddingCompany] = useState(false)
@@ -137,36 +144,41 @@ export default function ProfilePage() {
     return user.role
   }, [user?.role])
 
-  // ── Load profile and companies ─────────────────────────────
-  const fetchProfile = useCallback(async () => {
-    if (!user?.id || !token) return
-    try {
-      const data = await getUserById(user.id, token)
-      setProfile(data)
-      setProfileForm({ name: data.name || '', phone: data.phone || '' })
-    } catch (err) {
-      console.error('Failed to load profile:', err)
-    } finally {
-      setLoadingProfile(false)
-    }
-  }, [user?.id, token])
+  const profileQuery = useUserProfileQuery({
+    userId: user?.id,
+    token,
+    enabled: Boolean(user?.id && token),
+  })
 
-  const fetchCompanies = useCallback(async () => {
-    if (!user?.id || !token) return
-    try {
-      const data = await getCompaniesByUser(user.id, token)
-      setCompanies(data || [])
-    } catch (err) {
-      console.error('Failed to load companies:', err)
-    } finally {
-      setLoadingCompanies(false)
-    }
-  }, [user?.id, token])
+  const companiesQuery = useUserCompaniesQuery({
+    userId: user?.id,
+    token,
+    enabled: Boolean(user?.id && token),
+  })
+
+  const updateProfileMutation = useUpdateProfileMutation({ userId: user?.id, token })
+  const uploadProfilePictureMutation = useUploadProfilePictureMutation({ userId: user?.id, token })
+  const changePasswordMutation = useChangePasswordMutation({ userId: user?.id, token })
+  const createCompanyMutation = useCreateCompanyMutation({ userId: user?.id, token })
+  const updateCompanyMutation = useUpdateCompanyMutation({ userId: user?.id, token })
+  const deleteCompanyMutation = useDeleteCompanyMutation({ userId: user?.id, token })
+
+  const loadingProfile = profileQuery.isLoading || profileQuery.isFetching
+  const loadingCompanies = companiesQuery.isLoading || companiesQuery.isFetching
 
   useEffect(() => {
-    fetchProfile()
-    fetchCompanies()
-  }, [fetchProfile, fetchCompanies])
+    if (!profileQuery.data) return
+    setProfile(profileQuery.data)
+    setProfileForm({
+      name: profileQuery.data.name || '',
+      phone: profileQuery.data.phone || '',
+    })
+  }, [profileQuery.data])
+
+  useEffect(() => {
+    const nextCompanies = Array.isArray(companiesQuery.data) ? companiesQuery.data : []
+    setCompanies(nextCompanies)
+  }, [companiesQuery.data])
 
   // ── Profile picture helpers ────────────────────────────────
   const handleProfilePicChange = (e) => {
@@ -186,8 +198,12 @@ export default function ProfilePage() {
 
   // ── Save profile ───────────────────────────────────────────
   const handleSaveProfile = async () => {
-    if (!profileForm.name.trim()) {
-      setProfileMsg({ type: 'error', text: 'Name cannot be empty.' })
+    const parsed = profileUpdateSchema.safeParse(profileForm)
+    if (!parsed.success) {
+      setProfileMsg({
+        type: 'error',
+        text: parsed.error.issues[0]?.message || 'Profile data is invalid.',
+      })
       return
     }
 
@@ -198,14 +214,14 @@ export default function ProfilePage() {
       // Upload picture first, if changed
       let newPicture = null
       if (profilePicFile) {
-        const picRes = await uploadProfilePicture(user.id, profilePicFile, token)
+        const picRes = await uploadProfilePictureMutation.mutateAsync(profilePicFile)
         newPicture = picRes.profilePicture
       }
 
-      await updateUser(user.id, {
-        name: profileForm.name.trim(),
-        phone: profileForm.phone.trim() || null,
-      }, token)
+      await updateProfileMutation.mutateAsync({
+        name: parsed.data.name,
+        phone: parsed.data.phone?.trim() ? parsed.data.phone.trim() : null,
+      })
 
       // Update auth context so sidebar reflects changes
       const updates = { name: profileForm.name.trim() }
@@ -216,7 +232,7 @@ export default function ProfilePage() {
       setProfilePicPreview(null)
       setEditingProfile(false)
       setProfileMsg({ type: 'success', text: 'Profile updated successfully.' })
-      fetchProfile()
+      await profileQuery.refetch()
     } catch (err) {
       setProfileMsg({ type: 'error', text: err.message || 'Failed to update profile.' })
     } finally {
@@ -226,18 +242,12 @@ export default function ProfilePage() {
 
   // ── Change password ────────────────────────────────────────
   const handleChangePassword = async () => {
-    const { currentPassword, newPassword, confirmPassword } = passwordForm
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'All fields are required.' })
-      return
-    }
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters.' })
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' })
+    const parsed = passwordChangeSchema.safeParse(passwordForm)
+    if (!parsed.success) {
+      setPasswordMsg({
+        type: 'error',
+        text: parsed.error.issues[0]?.message || 'Password form is invalid.',
+      })
       return
     }
 
@@ -245,7 +255,10 @@ export default function ProfilePage() {
     setPasswordMsg(null)
 
     try {
-      await changePassword(user.id, { currentPassword, newPassword }, token)
+      await changePasswordMutation.mutateAsync({
+        currentPassword: parsed.data.currentPassword,
+        newPassword: parsed.data.newPassword,
+      })
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
     } catch (err) {
@@ -291,8 +304,12 @@ export default function ProfilePage() {
   }
 
   const handleSaveCompany = async () => {
-    if (!companyForm.name.trim()) {
-      setCompanyMsg({ type: 'error', text: 'Company name is required.' })
+    const parsed = companySchema.safeParse(companyForm)
+    if (!parsed.success) {
+      setCompanyMsg({
+        type: 'error',
+        text: parsed.error.issues[0]?.message || 'Company data is invalid.',
+      })
       return
     }
 
@@ -301,18 +318,23 @@ export default function ProfilePage() {
 
     try {
       if (addingCompany) {
-        await createCompany(
-          { ...companyForm, createdByUserId: user.id },
-          token,
-        )
+        await createCompanyMutation.mutateAsync({
+          ...companyForm,
+          name: parsed.data.name,
+          createdByUserId: user.id,
+        })
         setCompanyMsg({ type: 'success', text: 'Company created successfully.' })
       } else {
-        await updateCompany(editingCompanyId, companyForm, token)
+        await updateCompanyMutation.mutateAsync({
+          companyId: editingCompanyId,
+          payload: { ...companyForm, name: parsed.data.name },
+        })
         setCompanyMsg({ type: 'success', text: 'Company updated successfully.' })
       }
       setEditingCompanyId(null)
       setAddingCompany(false)
-      fetchCompanies()
+      await companiesQuery.refetch()
+      await refreshCompanies()
     } catch (err) {
       setCompanyMsg({ type: 'error', text: err.message || 'Failed to save company.' })
     } finally {
@@ -333,12 +355,12 @@ export default function ProfilePage() {
     setCompanyMsg(null)
 
     try {
-      await deleteCompany(company.id, token)
+      await deleteCompanyMutation.mutateAsync(company.id)
       setCompanyMsg({ type: 'success', text: 'Company deleted successfully.' })
       if (editingCompanyId === company.id) {
         setEditingCompanyId(null)
       }
-      await fetchCompanies()
+      await companiesQuery.refetch()
       await refreshCompanies()
     } catch (err) {
       setCompanyMsg({ type: 'error', text: err.message || 'Failed to delete company.' })

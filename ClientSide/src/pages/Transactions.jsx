@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import PropTypes from 'prop-types'
 import {
   Alert,
   Box,
@@ -31,142 +32,127 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
-import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
-import FileUploadRoundedIcon from '@mui/icons-material/FileUploadRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
+import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
+import FileUploadRoundedIcon from '@mui/icons-material/FileUploadRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import TransactionDetailsModal from '../components/TransactionDetailsModal'
+import { createBankAccount } from '../services/bankAccounts'
 import {
-  getTransactionById,
-  getTransactionsByCompany,
+  bulkDeleteTransactions,
   createTransactionsBulk,
   deleteTransaction,
-  bulkDeleteTransactions,
+  getTransactionById,
   previewExcel,
 } from '../services/transactions'
 import {
-  getBankAccountsByCompany,
-  createBankAccount,
-} from '../services/bankAccounts'
-import TransactionDetailsModal from '../components/TransactionDetailsModal'
+  useBankAccountsByCompanyQuery,
+  useTransactionsByCompanyQuery,
+} from '../hooks/queries/useTransactionsQueries'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const EXCEL_EXTENSIONS = new Set(['xlsx', 'xls'])
+
+const ACCOUNT_TYPES = ['checking', 'savings', 'credit_card', 'other']
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'SAR']
+
+const typeColors = {
+  credit: 'success',
+  debit: 'error',
+}
 
 const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: 'easeOut', staggerChildren: 0.09 },
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.08,
+    },
   },
 }
 
 const itemVariants = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-}
-
-const typeColors = {
-  debit: 'error',
-  credit: 'success',
-}
-
-// ==================== CSV Helpers ====================
-
-const EXPECTED_HEADERS = ['date', 'description', 'amount', 'type']
-const OPTIONAL_HEADERS = ['category', 'reference', 'posteddate', 'vendorname']
-
-function normalizeHeader(raw) {
-  return raw
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/transactiondate|txndate|txdate/, 'date')
-    .replace(/posteddate|postdate/, 'posteddate')
-    .replace(/referencenumber|refno|ref/, 'reference')
-    .replace(/transactiontype|txntype|txtype/, 'type')
-    .replace(/desc/, 'description')
-    .replace(/amt/, 'amount')
-    .replace(/cat/, 'category')
-    .replace(/vendorname|vendor|suppliername|supplier/, 'vendorname')
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, ease: 'easeOut' },
+  },
 }
 
 function parseCSVData(text) {
   const result = Papa.parse(text, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: normalizeHeader,
+    transformHeader: (header) => header?.trim(),
   })
 
-  if (result.errors.length > 0) {
-    const fatal = result.errors.find((e) => e.type === 'Quotes' || e.type === 'Delimiter')
-    if (fatal) throw new Error(`CSV parsing error: ${fatal.message}`)
-  }
+  const rows = Array.isArray(result.data) ? result.data : []
 
-  const headers = result.meta.fields || []
-  const missing = EXPECTED_HEADERS.filter((h) => !headers.includes(h))
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required columns: ${missing.join(', ')}. Expected: Date, Description, Amount, Type`,
-    )
-  }
+  return rows.map((raw, index) => {
+    const transactionDate = raw.transactionDate || raw.date || raw.transaction_date || ''
+    const description = raw.description || raw.memo || ''
+    const amountValue = Number.parseFloat(raw.amount)
+    const amount = Number.isNaN(amountValue) ? 0 : amountValue
+    const transactionType = (raw.transactionType || raw.transaction_type || 'debit').toLowerCase()
+    const category = raw.category || ''
+    const referenceNumber = raw.referenceNumber || raw.reference_number || ''
+    const postedDate = raw.postedDate || raw.posted_date || ''
+    const vendorName = raw.vendorName || raw.vendor_name || ''
 
-  const rows = result.data.map((row, idx) => {
-    const amount = parseFloat(row.amount)
-    const type = (row.type || '').toLowerCase().trim()
     return {
-      _rowId: idx,
-      transactionDate: row.date || '',
-      description: row.description || '',
-      amount: isNaN(amount) ? 0 : amount,
-      transactionType: type === 'credit' ? 'credit' : 'debit',
-      category: row.category || '',
-      referenceNumber: row.reference || '',
-      postedDate: row.posteddate || '',
-      vendorName: row.vendorname || '',
-      _valid: !!(row.date && row.description && !isNaN(amount) && amount !== 0),
+      _rowId: index,
+      transactionDate,
+      description,
+      amount,
+      transactionType,
+      category,
+      referenceNumber,
+      postedDate,
+      vendorName,
+      _valid: Boolean(transactionDate && description && amount !== 0),
     }
   })
-
-  return rows
-}
-
-// ==================== Bank Account Dialog ====================
-
-const ACCOUNT_TYPES = ['checking', 'savings', 'credit_card', 'other']
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'ILS']
-const EXCEL_EXTENSIONS = ['xlsx', 'xls']
-
-const emptyAccount = {
-  bankName: '',
-  accountType: 'checking',
-  accountName: '',
-  accountNumberMasked: '',
-  currency: 'USD',
 }
 
 function AddBankAccountDialog({ open, onClose, onSave, saving }) {
-  const [form, setForm] = useState(emptyAccount)
-
-  const handleChange = (field) => (e) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }))
-
-  const handleSave = () => {
-    if (!form.bankName.trim() || !form.accountType) return
-    onSave(form)
-  }
+  const [form, setForm] = useState({
+    bankName: '',
+    accountType: 'checking',
+    accountName: '',
+    accountNumberMasked: '',
+    currency: 'USD',
+  })
 
   const handleClose = () => {
-    setForm(emptyAccount)
+    if (saving) return
     onClose()
+  }
+
+  const handleChange = (field) => (event) => {
+    setForm((prev) => ({ ...prev, [field]: event.target.value }))
+  }
+
+  const handleSave = async () => {
+    await onSave(form)
+    setForm({
+      bankName: '',
+      accountType: 'checking',
+      accountName: '',
+      accountNumberMasked: '',
+      currency: 'USD',
+    })
   }
 
   return (
@@ -190,7 +176,7 @@ function AddBankAccountDialog({ open, onClose, onSave, saving }) {
             >
               {ACCOUNT_TYPES.map((t) => (
                 <MenuItem key={t} value={t}>
-                  {t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  {t.replaceAll('_', ' ').replaceAll(/\b\w/g, (c) => c.toUpperCase())}
                 </MenuItem>
               ))}
             </Select>
@@ -241,6 +227,13 @@ function AddBankAccountDialog({ open, onClose, onSave, saving }) {
   )
 }
 
+AddBankAccountDialog.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  saving: PropTypes.bool.isRequired,
+}
+
 // ==================== Main Page ====================
 
 function TransactionsPage() {
@@ -249,13 +242,11 @@ function TransactionsPage() {
 
   // --- Transaction list ---
   const [transactions, setTransactions] = useState([])
-  const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState('')
 
   // --- Bank accounts ---
   const [bankAccounts, setBankAccounts] = useState([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
-  const [accountsLoading, setAccountsLoading] = useState(true)
 
   // --- Add bank account dialog ---
   const [showAddAccount, setShowAddAccount] = useState(false)
@@ -289,52 +280,50 @@ function TransactionsPage() {
 
   // ===================== Data Fetching =====================
 
-  const loadTransactions = useCallback(async () => {
-    setListLoading(true)
+  const transactionFilters = useMemo(() => {
+    if (typeFilter === 'all') return {}
+    return { type: typeFilter }
+  }, [typeFilter])
+
+  const transactionsQuery = useTransactionsByCompanyQuery({
+    companyId: activeCompanyId,
+    token,
+    filters: transactionFilters,
+  })
+
+  const bankAccountsQuery = useBankAccountsByCompanyQuery({
+    companyId: activeCompanyId,
+    token,
+  })
+
+  const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
+  const accountsLoading = bankAccountsQuery.isLoading || bankAccountsQuery.isFetching
+
+  useEffect(() => {
+    if (transactionsQuery.error) {
+      setListError(transactionsQuery.error.message || 'Failed to load transactions.')
+      return
+    }
+
     setListError('')
-    try {
-      const filters = {}
-      if (typeFilter !== 'all') filters.type = typeFilter
-      const data = await getTransactionsByCompany(activeCompanyId, filters, token)
-      setTransactions(Array.isArray(data) ? data : [])
-      setSelectedTransactionIds([])
-    } catch (err) {
-      setListError(err.message || 'Failed to load transactions.')
-    } finally {
-      setListLoading(false)
-    }
-  }, [activeCompanyId, token, typeFilter])
-
-  const loadBankAccounts = useCallback(async () => {
-    setAccountsLoading(true)
-    try {
-      const data = await getBankAccountsByCompany(activeCompanyId, token)
-      const accounts = Array.isArray(data) ? data : []
-      setBankAccounts(accounts)
-      if (accounts.length > 0 && !selectedAccountId) {
-        setSelectedAccountId(accounts[0].id ?? accounts[0].bankAccountId ?? '')
-      }
-    } catch {
-      // Bank accounts may not be available yet — silently handle
-      setBankAccounts([])
-    } finally {
-      setAccountsLoading(false)
-    }
-  }, [activeCompanyId, token, selectedAccountId])
+    const data = Array.isArray(transactionsQuery.data) ? transactionsQuery.data : []
+    setTransactions(data)
+    setSelectedTransactionIds([])
+  }, [transactionsQuery.data, transactionsQuery.error])
 
   useEffect(() => {
-    loadTransactions()
-  }, [loadTransactions])
-
-  useEffect(() => {
-    loadBankAccounts()
-  }, [loadBankAccounts])
+    const accounts = Array.isArray(bankAccountsQuery.data) ? bankAccountsQuery.data : []
+    setBankAccounts(accounts)
+    if (accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].id ?? accounts[0].bankAccountId ?? '')
+    }
+  }, [bankAccountsQuery.data, selectedAccountId])
 
   // ===================== File Handlers =====================
 
   const validateFile = useCallback((file) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'csv' && !EXCEL_EXTENSIONS.includes(ext))
+    if (ext !== 'csv' && !EXCEL_EXTENSIONS.has(ext))
       return 'Only CSV and Excel (.xlsx, .xls) files are accepted.'
     if (file.size > MAX_FILE_SIZE) return 'File exceeds 10 MB limit.'
     return null
@@ -352,7 +341,7 @@ function TransactionsPage() {
 
     const ext = file.name.split('.').pop()?.toLowerCase()
 
-    if (EXCEL_EXTENSIONS.includes(ext)) {
+    if (EXCEL_EXTENSIONS.has(ext)) {
       // XLSX/XLS: send to server for extraction
       setPreviewing(true)
       setParsedRows([])
@@ -387,23 +376,18 @@ function TransactionsPage() {
     }
 
     // CSV: parse client-side with PapaParse
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const rows = parseCSVData(e.target.result)
+    file.text()
+      .then((text) => {
+        const rows = parseCSVData(text)
         setParsedRows(rows)
         if (rows.length === 0) {
           setParseError('CSV file contains no data rows.')
         }
-      } catch (err) {
-        setParseError(err.message)
+      })
+      .catch((err) => {
+        setParseError(err.message || 'Failed to read file.')
         setParsedRows([])
-      }
-    }
-    reader.onerror = () => {
-      setParseError('Failed to read file.')
-    }
-    reader.readAsText(file)
+      })
   }, [activeCompanyId, token, validateFile])
 
   const handleDrag = useCallback((e) => {
@@ -476,7 +460,7 @@ function TransactionsPage() {
         severity: 'success',
       })
       clearUpload()
-      loadTransactions()
+      await transactionsQuery.refetch()
     } catch (err) {
       setSnack({
         open: true,
@@ -486,7 +470,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, activeCompanyId, user, selectedAccountId, token, clearUpload, loadTransactions])
+  }, [parsedRows, activeCompanyId, user, selectedAccountId, token, clearUpload, transactionsQuery])
 
   // ===================== Add Bank Account =====================
 
@@ -508,7 +492,7 @@ function TransactionsPage() {
         )
         setSnack({ open: true, message: 'Bank account added!', severity: 'success' })
         setShowAddAccount(false)
-        loadBankAccounts()
+        await bankAccountsQuery.refetch()
       } catch (err) {
         setSnack({
           open: true,
@@ -519,7 +503,7 @@ function TransactionsPage() {
         setAddingAccount(false)
       }
     },
-    [activeCompanyId, user, token, loadBankAccounts],
+    [activeCompanyId, user, token, bankAccountsQuery],
   )
 
   const openTransactionDetails = useCallback(
@@ -657,6 +641,188 @@ function TransactionsPage() {
   const validCount = parsedRows.filter((r) => r._valid).length
   const invalidCount = parsedRows.length - validCount
 
+  let bankAccountSelectionContent
+  if (accountsLoading) {
+    bankAccountSelectionContent = <Skeleton variant="rectangular" width={220} height={40} sx={{ borderRadius: 1 }} />
+  } else if (bankAccounts.length === 0) {
+    bankAccountSelectionContent = <Typography variant="body2" color="text.secondary">No bank accounts yet.</Typography>
+  } else {
+    bankAccountSelectionContent = (
+      <FormControl size="small" sx={{ minWidth: 220 }}>
+        <Select
+          value={selectedAccountId}
+          onChange={(e) => setSelectedAccountId(e.target.value)}
+          displayEmpty={true}
+        >
+          {bankAccounts.map((acc) => (
+            <MenuItem key={acc.id ?? acc.bankAccountId} value={acc.id ?? acc.bankAccountId}>
+              {acc.bankName || acc.bank_name}
+              {(acc.accountNumberMasked || acc.account_number_masked) &&
+                ` · ${acc.accountNumberMasked || acc.account_number_masked}`}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    )
+  }
+
+  let transactionTableContent
+  if (listLoading) {
+    transactionTableContent = (
+      <Stack spacing={1}>
+        {Array.from({ length: 5 }, (_, index) => (
+          <Skeleton key={`tx-loading-${index + 1}`} variant="rectangular" height={40} sx={{ borderRadius: 1 }} />
+        ))}
+      </Stack>
+    )
+  } else if (transactions.length === 0) {
+    transactionTableContent = (
+      <Box sx={{ py: 6, textAlign: 'center' }}>
+        <DescriptionRoundedIcon
+          sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
+        />
+        <Typography color="text.secondary">
+          No transactions yet. Import a CSV above to get started.
+        </Typography>
+      </Box>
+    )
+  } else {
+    transactionTableContent = (
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  size="small"
+                  checked={allTransactionsSelected}
+                  indeterminate={hasTransactionSelection && !allTransactionsSelected}
+                  onChange={toggleSelectAllTransactions}
+                />
+              </TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Vendor</TableCell>
+              <TableCell align="right">Amount</TableCell>
+              <TableCell align="center">Type</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Reference</TableCell>
+              <TableCell align="center">Matched</TableCell>
+              <TableCell align="center">Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {transactions.map((tx) => {
+              const date = tx.transaction_date || tx.transactionDate
+              const desc = tx.description || '—'
+              const vendor = tx.vendor_name || tx.vendorName || '—'
+              const amount = tx.amount ?? 0
+              const type = (
+                tx.transaction_type ||
+                tx.transactionType ||
+                'debit'
+              ).toLowerCase()
+              const cat = tx.category || '—'
+              const ref = tx.reference_number || tx.referenceNumber || '—'
+              const matched = tx.is_matched ?? tx.isMatched ?? false
+
+              return (
+                <TableRow key={tx.id ?? tx.transactionId} hover>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={selectedTransactionIds.includes(tx.id ?? tx.transactionId)}
+                      onChange={() => toggleTransactionSelection(tx.id ?? tx.transactionId)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {date ? new Date(date).toLocaleDateString() : '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" noWrap sx={{ maxWidth: 240 }}>
+                      {desc}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
+                      {vendor}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography
+                      variant="body2"
+                      fontWeight={600}
+                      color={type === 'credit' ? 'success.main' : 'error.main'}
+                    >
+                      {type === 'credit' ? '+' : '−'}
+                      {Math.abs(amount).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={type}
+                      size="small"
+                      color={typeColors[type] || 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {cat}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {ref}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={matched ? 'Matched' : 'Unmatched'}
+                      size="small"
+                      color={matched ? 'success' : 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" justifyContent="center" spacing={0.5}>
+                      <IconButton
+                        size="small"
+                        onClick={() => openTransactionDetails(tx)}
+                      >
+                        <VisibilityRoundedIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteTransaction(tx)}
+                        disabled={
+                          deletingTransactionIds.includes(tx.id ?? tx.transactionId) ||
+                          bulkDeletingTransactions
+                        }
+                      >
+                        {deletingTransactionIds.includes(tx.id ?? tx.transactionId) ? (
+                          <CircularProgress size={16} color="error" />
+                        ) : (
+                          <DeleteOutlineRoundedIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    )
+  }
+
   return (
     <Box
       sx={{
@@ -706,7 +872,7 @@ function TransactionsPage() {
                 <Button
                   variant="outlined"
                   startIcon={<RefreshRoundedIcon />}
-                  onClick={loadTransactions}
+                  onClick={() => transactionsQuery.refetch()}
                   disabled={listLoading}
                 >
                   Refresh
@@ -740,29 +906,7 @@ function TransactionsPage() {
                 <Typography variant="subtitle1" fontWeight={700} sx={{ minWidth: 'fit-content' }}>
                   Bank Account
                 </Typography>
-                {accountsLoading ? (
-                  <Skeleton variant="rectangular" width={220} height={40} sx={{ borderRadius: 1 }} />
-                ) : bankAccounts.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No bank accounts yet.
-                  </Typography>
-                ) : (
-                  <FormControl size="small" sx={{ minWidth: 220 }}>
-                    <Select
-                      value={selectedAccountId}
-                      onChange={(e) => setSelectedAccountId(e.target.value)}
-                      displayEmpty={true}
-                    >
-                      {bankAccounts.map((acc) => (
-                        <MenuItem key={acc.id ?? acc.bankAccountId} value={acc.id ?? acc.bankAccountId}>
-                          {acc.bankName || acc.bank_name}
-                          {(acc.accountNumberMasked || acc.account_number_masked) &&
-                            ` · ${acc.accountNumberMasked || acc.account_number_masked}`}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
+                {bankAccountSelectionContent}
                 <Button
                   size="small"
                   startIcon={<AddRoundedIcon />}
@@ -1047,158 +1191,7 @@ function TransactionsPage() {
 
               {/* Transaction table */}
               <Box sx={{ mt: 2 }}>
-                {listLoading ? (
-                  <Stack spacing={1}>
-                    {[...Array(5)].map((_, i) => (
-                      <Skeleton key={i} variant="rectangular" height={40} sx={{ borderRadius: 1 }} />
-                    ))}
-                  </Stack>
-                ) : transactions.length === 0 ? (
-                  <Box sx={{ py: 6, textAlign: 'center' }}>
-                    <DescriptionRoundedIcon
-                      sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
-                    />
-                    <Typography color="text.secondary">
-                      No transactions yet. Import a CSV above to get started.
-                    </Typography>
-                  </Box>
-                ) : (
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
-                          <TableCell padding="checkbox">
-                            <Checkbox
-                              size="small"
-                              checked={allTransactionsSelected}
-                              indeterminate={hasTransactionSelection && !allTransactionsSelected}
-                              onChange={toggleSelectAllTransactions}
-                            />
-                          </TableCell>
-                          <TableCell>Date</TableCell>
-                          <TableCell>Description</TableCell>
-                          <TableCell>Vendor</TableCell>
-                          <TableCell align="right">Amount</TableCell>
-                          <TableCell align="center">Type</TableCell>
-                          <TableCell>Category</TableCell>
-                          <TableCell>Reference</TableCell>
-                          <TableCell align="center">Matched</TableCell>
-                          <TableCell align="center">Action</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {transactions.map((tx) => {
-                          const date = tx.transaction_date || tx.transactionDate
-                          const desc = tx.description || '—'
-                          const vendor = tx.vendor_name || tx.vendorName || '—'
-                          const amount = tx.amount ?? 0
-                          const type = (
-                            tx.transaction_type ||
-                            tx.transactionType ||
-                            'debit'
-                          ).toLowerCase()
-                          const cat = tx.category || '—'
-                          const ref = tx.reference_number || tx.referenceNumber || '—'
-                          const matched = tx.is_matched ?? tx.isMatched ?? false
-
-                          return (
-                            <TableRow key={tx.id ?? tx.transactionId} hover>
-                              <TableCell padding="checkbox">
-                                <Checkbox
-                                  size="small"
-                                  checked={selectedTransactionIds.includes(tx.id ?? tx.transactionId)}
-                                  onChange={() => toggleTransactionSelection(tx.id ?? tx.transactionId)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2">
-                                  {date ? new Date(date).toLocaleDateString() : '—'}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" noWrap sx={{ maxWidth: 240 }}>
-                                  {desc}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
-                                  {vendor}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right">
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={600}
-                                  color={type === 'credit' ? 'success.main' : 'error.main'}
-                                >
-                                  {type === 'credit' ? '+' : '−'}
-                                  {Math.abs(amount).toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="center">
-                                <Chip
-                                  label={type}
-                                  size="small"
-                                  color={typeColors[type] || 'default'}
-                                  variant="outlined"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" color="text.secondary">
-                                  {cat}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" color="text.secondary">
-                                  {ref}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="center">
-                                <Chip
-                                  label={matched ? 'Matched' : 'Unmatched'}
-                                  size="small"
-                                  color={matched ? 'success' : 'default'}
-                                  variant="outlined"
-                                />
-                              </TableCell>
-                              <TableCell align="center">
-                                <Stack direction="row" spacing={1} justifyContent="center">
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<VisibilityRoundedIcon />}
-                                    onClick={() => openTransactionDetails(tx)}
-                                    disabled={bulkDeletingTransactions}
-                                  >
-                                    View
-                                  </Button>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleDeleteTransaction(tx)}
-                                    disabled={
-                                      deletingTransactionIds.includes(tx.id ?? tx.transactionId) ||
-                                      bulkDeletingTransactions
-                                    }
-                                  >
-                                    {deletingTransactionIds.includes(tx.id ?? tx.transactionId) ? (
-                                      <CircularProgress size={16} color="error" />
-                                    ) : (
-                                      <DeleteOutlineRoundedIcon fontSize="small" />
-                                    )}
-                                  </IconButton>
-                                </Stack>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
+                {transactionTableContent}
               </Box>
             </CardContent>
           </Card>

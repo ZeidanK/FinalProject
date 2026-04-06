@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Alert,
   Button,
@@ -9,58 +10,60 @@ import {
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import AuthShellLayout from '../components/AuthShellLayout'
 import { useAuth } from '../context/useAuth'
+import { loginSchema } from '../schemas/auth'
+import { useLoginWithSessionMutation } from '../hooks/queries/useAuthQueries'
 
 function Login() {
   const navigate = useNavigate()
   const { login, logout } = useAuth()
   const location = useLocation()
   const successMessage = location.state?.registrationSuccess || ''
-  const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [formData, setFormData] = useState({ email: '', password: '' })
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  })
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target
-    setFormData((previous) => ({ ...previous, [name]: value }))
-  }
+  const loginMutation = useLoginWithSessionMutation(login)
 
-  const validate = () => {
-    if (!formData.email.trim()) return 'Email is required.'
-    if (!/^\S+@\S+\.\S+$/.test(formData.email)) return 'Please enter a valid email address.'
-    if (!formData.password) return 'Password is required.'
-    return ''
-  }
-
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+  const onSubmit = async (formValues) => {
     setErrorMessage('')
 
-    const validationError = validate()
-    if (validationError) {
-      setErrorMessage(validationError)
+    const parsed = loginSchema.safeParse(formValues)
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0]
+        if (typeof field === 'string') {
+          setError(field, { type: 'manual', message: issue.message })
+        }
+      }
       return
     }
 
-    setSubmitting(true)
     logout()
 
     try {
-      await login({
-        email: formData.email.trim(),
-        password: formData.password,
+      await loginMutation.mutateAsync({
+        email: parsed.data.email,
+        password: parsed.data.password,
       })
 
       navigate('/dashboard', { replace: true })
     } catch (error) {
       setErrorMessage(error.message || 'Login failed. Please try again.')
-    } finally {
-      setSubmitting(false)
     }
   }
 
   return (
     <AuthShellLayout chipLabel="Access your account">
-      <Stack spacing={2.5} component="form" onSubmit={handleSubmit}>
+      <Stack spacing={2.5} component="form" onSubmit={handleSubmit(onSubmit)}>
         <Typography variant="h4" sx={{ fontSize: { xs: '1.7rem', md: '2rem' } }}>
           Welcome back
         </Typography>
@@ -77,8 +80,9 @@ function Login() {
           label="Email"
           name="email"
           type="email"
-          value={formData.email}
-          onChange={handleInputChange}
+          error={Boolean(errors.email)}
+          helperText={errors.email?.message || ' '}
+          {...register('email')}
           autoComplete="email"
           fullWidth
         />
@@ -88,8 +92,9 @@ function Login() {
           label="Password"
           name="password"
           type="password"
-          value={formData.password}
-          onChange={handleInputChange}
+          error={Boolean(errors.password)}
+          helperText={errors.password?.message || ' '}
+          {...register('password')}
           autoComplete="current-password"
           fullWidth
         />
@@ -98,10 +103,10 @@ function Login() {
           type="submit"
           size="large"
           variant="contained"
-          disabled={submitting}
+          disabled={isSubmitting || loginMutation.isPending}
           sx={{ boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)' }}
         >
-          {submitting ? 'Signing in...' : 'Log In'}
+          {isSubmitting || loginMutation.isPending ? 'Signing in...' : 'Log In'}
         </Button>
 
         <Typography variant="body2" color="text.secondary" textAlign="center">

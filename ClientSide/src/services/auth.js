@@ -1,28 +1,35 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
 const AUTH_TOKEN_KEY = 'authToken'
 const AUTH_USER_KEY = 'authUser'
 
 export async function registerUser(payload) {
-  return apiRequest(URLS.auth.register, {
+  const response = await apiRequest(URLS.auth.register, {
     method: 'POST',
     body: payload,
   })
+
+  return unwrapEnvelope(response)
 }
 
 export async function loginUser(payload) {
-  return apiRequest(URLS.auth.login, {
+  const response = await apiRequest(URLS.auth.login, {
     method: 'POST',
     body: payload,
   })
+
+  return unwrapEnvelope(response)
 }
 
 export async function validateSession(token) {
-  return apiRequest(URLS.auth.validate, {
+  const response = await apiRequest(URLS.auth.validate, {
     method: 'POST',
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
 export function saveAuthSession(token, user) {

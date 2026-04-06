@@ -29,7 +29,7 @@ import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded'
 import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import EmptyState from '../components/EmptyState'
 import PageHeaderCard from '../components/PageHeaderCard'
@@ -37,12 +37,12 @@ import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import {
-  getAdminAuditLogs,
-  getAdminLogs,
-  getAdminStats,
-  getAdminUsers,
-  toggleAdminUserActive,
-} from '../services/admin'
+  useAdminAuditQuery,
+  useAdminLogsQuery,
+  useAdminStatsQuery,
+  useAdminUsersQuery,
+  useToggleAdminUserActiveMutation,
+} from '../hooks/queries/useAdminQueries'
 import { itemVariants } from '../utils/motionVariants'
 
 const TAB_KEYS = {
@@ -149,136 +149,79 @@ function AdminPortalPage() {
 
   const [activeTab, setActiveTab] = useState(TAB_KEYS.stats)
 
-  const [stats, setStats] = useState(null)
-  const [statsLoading, setStatsLoading] = useState(false)
-  const [statsError, setStatsError] = useState('')
-
-  const [usersData, setUsersData] = useState(createEmptyPaged)
-  const [usersLoading, setUsersLoading] = useState(false)
-  const [usersError, setUsersError] = useState('')
   const [usersQuery, setUsersQuery] = useState({ page: 1, limit: 20, role: null, search: null })
   const [usersRoleInput, setUsersRoleInput] = useState('')
   const [usersSearchInput, setUsersSearchInput] = useState('')
   const [toggleLoadingUserId, setToggleLoadingUserId] = useState(null)
 
-  const [logsData, setLogsData] = useState(createEmptyPaged)
-  const [logsLoading, setLogsLoading] = useState(false)
-  const [logsError, setLogsError] = useState('')
   const [logsQuery, setLogsQuery] = useState({ page: 1, limit: 50, level: null, category: null })
   const [logsLevelInput, setLogsLevelInput] = useState('')
   const [logsCategoryInput, setLogsCategoryInput] = useState('')
 
-  const [auditData, setAuditData] = useState(createEmptyPaged)
-  const [auditLoading, setAuditLoading] = useState(false)
-  const [auditError, setAuditError] = useState('')
   const [auditQuery, setAuditQuery] = useState({ page: 1, limit: 50, companyId: null })
   const [auditCompanyInput, setAuditCompanyInput] = useState('')
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
 
-  const loadStats = useCallback(async () => {
-    if (!token) return
-    setStatsLoading(true)
-    setStatsError('')
+  const statsQuery = useAdminStatsQuery({
+    token,
+    enabled: activeTab === TAB_KEYS.stats,
+  })
 
-    try {
-      const response = await getAdminStats(token)
-      setStats(response && typeof response === 'object' ? response : null)
-    } catch (error) {
-      setStats(null)
-      setStatsError(error.message || 'Failed to load admin stats.')
-    } finally {
-      setStatsLoading(false)
-    }
-  }, [token])
+  const usersResult = useAdminUsersQuery({
+    token,
+    query: usersQuery,
+    enabled: activeTab === TAB_KEYS.users,
+  })
 
-  const loadUsers = useCallback(async () => {
-    if (!token) return
-    setUsersLoading(true)
-    setUsersError('')
+  const logsResult = useAdminLogsQuery({
+    token,
+    query: logsQuery,
+    enabled: activeTab === TAB_KEYS.logs,
+  })
 
-    try {
-      const response = await getAdminUsers(usersQuery, token)
-      setUsersData(normalizePagedResult(response))
-    } catch (error) {
-      setUsersData(createEmptyPaged())
-      setUsersError(error.message || 'Failed to load admin users.')
-    } finally {
-      setUsersLoading(false)
-    }
-  }, [token, usersQuery])
+  const auditResult = useAdminAuditQuery({
+    token,
+    query: auditQuery,
+    enabled: activeTab === TAB_KEYS.audit,
+  })
 
-  const loadLogs = useCallback(async () => {
-    if (!token) return
-    setLogsLoading(true)
-    setLogsError('')
+  const toggleUserMutation = useToggleAdminUserActiveMutation({ token })
 
-    try {
-      const response = await getAdminLogs(logsQuery, token)
-      setLogsData(normalizePagedResult(response))
-    } catch (error) {
-      setLogsData(createEmptyPaged())
-      setLogsError(error.message || 'Failed to load system logs.')
-    } finally {
-      setLogsLoading(false)
-    }
-  }, [token, logsQuery])
+  const stats = statsQuery.data && typeof statsQuery.data === 'object' ? statsQuery.data : null
+  const statsLoading = statsQuery.isLoading || statsQuery.isFetching
+  const statsError = statsQuery.error?.message || ''
 
-  const loadAuditLogs = useCallback(async () => {
-    if (!token) return
-    setAuditLoading(true)
-    setAuditError('')
+  const usersData = normalizePagedResult(usersResult.data)
+  const usersLoading = usersResult.isLoading || usersResult.isFetching
+  const usersError = usersResult.error?.message || ''
 
-    try {
-      const response = await getAdminAuditLogs(auditQuery, token)
-      setAuditData(normalizePagedResult(response))
-    } catch (error) {
-      setAuditData(createEmptyPaged())
-      setAuditError(error.message || 'Failed to load audit logs.')
-    } finally {
-      setAuditLoading(false)
-    }
-  }, [token, auditQuery])
+  const logsData = normalizePagedResult(logsResult.data)
+  const logsLoading = logsResult.isLoading || logsResult.isFetching
+  const logsError = logsResult.error?.message || ''
 
-  useEffect(() => {
+  const auditData = normalizePagedResult(auditResult.data)
+  const auditLoading = auditResult.isLoading || auditResult.isFetching
+  const auditError = auditResult.error?.message || ''
+
+  const handleRefresh = useCallback(() => {
     if (activeTab === TAB_KEYS.stats) {
-      loadStats()
+      statsQuery.refetch()
       return
     }
 
     if (activeTab === TAB_KEYS.users) {
-      loadUsers()
+      usersResult.refetch()
       return
     }
 
     if (activeTab === TAB_KEYS.logs) {
-      loadLogs()
+      logsResult.refetch()
       return
     }
 
-    if (activeTab === TAB_KEYS.audit) {
-      loadAuditLogs()
-    }
-  }, [activeTab, loadStats, loadUsers, loadLogs, loadAuditLogs])
-
-  const handleRefresh = () => {
-    if (activeTab === TAB_KEYS.stats) {
-      loadStats()
-      return
-    }
-
-    if (activeTab === TAB_KEYS.users) {
-      loadUsers()
-      return
-    }
-
-    if (activeTab === TAB_KEYS.logs) {
-      loadLogs()
-      return
-    }
-
-    loadAuditLogs()
-  }
+    auditResult.refetch()
+  }, [activeTab, auditResult, logsResult, statsQuery, usersResult])
 
   const activeTabLoading = useMemo(() => {
     if (activeTab === TAB_KEYS.stats) return statsLoading
@@ -326,13 +269,12 @@ function AdminPortalPage() {
   const handleToggleUserActive = async (userId) => {
     setToggleLoadingUserId(userId)
     try {
-      const result = await toggleAdminUserActive(userId, token)
+      const result = await toggleUserMutation.mutateAsync({ userId })
       setSnack({
         open: true,
         message: result?.message || 'User status updated successfully.',
         severity: 'success',
       })
-      await loadUsers()
     } catch (error) {
       setSnack({
         open: true,

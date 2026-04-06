@@ -37,17 +37,18 @@ import SnackbarAlert from '../components/SnackbarAlert'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
-import { getInvoiceById, getInvoicesByCompany, updateInvoice } from '../services/invoices'
-import { getTransactionsByCompany } from '../services/transactions'
-import {
-  getMatchesByCompany,
-  getMatchSuggestions,
-  createMatch,
-  deleteMatch,
-  autoMatchOnLoad,
-} from '../services/matches'
+import { getInvoiceById, updateInvoice } from '../services/invoices'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
 import { itemVariants } from '../utils/motionVariants'
+import {
+  useAutoMatchOnLoadMutation,
+  useCreateMatchMutation,
+  useDeleteMatchMutation,
+  useMatchSuggestionsQuery,
+  useMatchesByCompanyQuery,
+  useUnmatchedInvoicesQuery,
+  useUnmatchedTransactionsQuery,
+} from '../hooks/queries/useMatchesQueries'
 
 const cardBaseSx = {
   borderRadius: 3,
@@ -296,6 +297,18 @@ function MatchesPage() {
   // ----- Prevent double auto-match in StrictMode -----
   const autoMatchRanRef = useRef(false)
 
+  const matchesQuery = useMatchesByCompanyQuery({ companyId: activeCompanyId, token })
+  const invoicesQuery = useUnmatchedInvoicesQuery({ companyId: activeCompanyId, token })
+  const transactionsQuery = useUnmatchedTransactionsQuery({ companyId: activeCompanyId, token })
+  const createMatchMutation = useCreateMatchMutation({ companyId: activeCompanyId, token })
+  const deleteMatchMutation = useDeleteMatchMutation({ companyId: activeCompanyId, token })
+  const autoMatchMutation = useAutoMatchOnLoadMutation({ companyId: activeCompanyId, token })
+  const suggestionsQuery = useMatchSuggestionsQuery({
+    invoiceId: selectedInvoiceId,
+    token,
+    enabled: Boolean(selectedInvoiceId),
+  })
+
   const getConfidenceChipColor = (confidence) => {
     if (confidence >= 0.8) return 'success'
     if (confidence >= 0.5) return 'warning'
@@ -305,28 +318,52 @@ function MatchesPage() {
   // ===================== Data Fetching =====================
 
   const loadData = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const [inv, trx, mat] = await Promise.all([
-        getInvoicesByCompany(activeCompanyId, { isMatched: false }, token),
-        getTransactionsByCompany(activeCompanyId, { isMatched: false }, token),
-        getMatchesByCompany(activeCompanyId, token),
-      ])
-      setInvoices(Array.isArray(inv) ? inv : [])
-      setTransactions(Array.isArray(trx) ? trx : [])
-      setMatches(Array.isArray(mat) ? mat : [])
-    } catch (err) {
-      console.error('[MATCH] Failed to load data:', err)
-      setError(err.message || 'Failed to load data.')
-    } finally {
-      setLoading(false)
-    }
-  }, [activeCompanyId, token])
+    await Promise.all([
+      invoicesQuery.refetch(),
+      transactionsQuery.refetch(),
+      matchesQuery.refetch(),
+    ])
+  }, [invoicesQuery, matchesQuery, transactionsQuery])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    setInvoices(Array.isArray(invoicesQuery.data) ? invoicesQuery.data : [])
+  }, [invoicesQuery.data])
+
+  useEffect(() => {
+    setTransactions(Array.isArray(transactionsQuery.data) ? transactionsQuery.data : [])
+  }, [transactionsQuery.data])
+
+  useEffect(() => {
+    setMatches(Array.isArray(matchesQuery.data) ? matchesQuery.data : [])
+  }, [matchesQuery.data])
+
+  useEffect(() => {
+    const nextError =
+      matchesQuery.error?.message ||
+      invoicesQuery.error?.message ||
+      transactionsQuery.error?.message ||
+      ''
+
+    setError(nextError)
+    setLoading(
+      matchesQuery.isLoading ||
+      matchesQuery.isFetching ||
+      invoicesQuery.isLoading ||
+      invoicesQuery.isFetching ||
+      transactionsQuery.isLoading ||
+      transactionsQuery.isFetching,
+    )
+  }, [
+    invoicesQuery.error,
+    invoicesQuery.isFetching,
+    invoicesQuery.isLoading,
+    matchesQuery.error,
+    matchesQuery.isFetching,
+    matchesQuery.isLoading,
+    transactionsQuery.error,
+    transactionsQuery.isFetching,
+    transactionsQuery.isLoading,
+  ])
 
   // Auto-match once on mount
   useEffect(() => {
@@ -335,7 +372,7 @@ function MatchesPage() {
 
     const runAutoMatch = async () => {
       try {
-        const matchResult = await autoMatchOnLoad(activeCompanyId, 70, token)
+        const matchResult = await autoMatchMutation.mutateAsync({ minConfidence: 70 })
         if (matchResult?.successfulMatches > 0) {
           setSnack({
             open: true,
@@ -349,26 +386,11 @@ function MatchesPage() {
       }
     }
     runAutoMatch()
-  }, [activeCompanyId, token, loadData])
+  }, [autoMatchMutation, loadData])
 
-  // ---- Fetch suggestions when an invoice is selected ----
   useEffect(() => {
-    if (!selectedInvoiceId) {
-      setSuggestions([])
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      try {
-        const data = await getMatchSuggestions(selectedInvoiceId, token)
-        if (!cancelled) setSuggestions(Array.isArray(data) ? data : [])
-      } catch (err) {
-        console.error('[MATCH] Suggestions fetch error:', err)
-        if (!cancelled) setSuggestions([])
-      }
-    })()
-    return () => { cancelled = true }
-  }, [selectedInvoiceId, token])
+    setSuggestions(Array.isArray(suggestionsQuery.data) ? suggestionsQuery.data : [])
+  }, [suggestionsQuery.data])
 
   // ===================== Handlers =====================
 
@@ -380,20 +402,17 @@ function MatchesPage() {
 
     setMatchBusy(true)
     try {
-      await createMatch(
-        {
-          invoiceId: inv.id,
-          transactionId: trx.id,
-          matchedAmount: Math.min(
-            Math.abs(Number(inv.total_amount ?? inv.totalAmount) || 0),
-            Math.abs(Number(trx.amount) || 0),
-          ),
-          matchMethod: 'manual',
-          matchType: 'full',
-          matchConfidence: 1,
-        },
-        token,
-      )
+      await createMatchMutation.mutateAsync({
+        invoiceId: inv.id,
+        transactionId: trx.id,
+        matchedAmount: Math.min(
+          Math.abs(Number(inv.total_amount ?? inv.totalAmount) || 0),
+          Math.abs(Number(trx.amount) || 0),
+        ),
+        matchMethod: 'manual',
+        matchType: 'full',
+        matchConfidence: 1,
+      })
       setSelectedInvoiceId(null)
       setSelectedTransactionId(null)
       setSuggestions([])
@@ -404,7 +423,7 @@ function MatchesPage() {
     } finally {
       setMatchBusy(false)
     }
-  }, [selectedInvoiceId, selectedTransactionId, invoices, transactions, token, loadData])
+  }, [selectedInvoiceId, selectedTransactionId, invoices, transactions, createMatchMutation, loadData])
 
   const confirmUnmatch = useCallback((matchId) => {
     setUnmatchDialog({ open: true, matchId })
@@ -415,13 +434,13 @@ function MatchesPage() {
     setUnmatchDialog({ open: false, matchId: null })
     if (!matchId) return
     try {
-      await deleteMatch(matchId, token)
+      await deleteMatchMutation.mutateAsync(matchId)
       setSnack({ open: true, message: 'Match removed.', severity: 'success' })
       await loadData()
     } catch (err) {
       setSnack({ open: true, message: err.message || 'Failed to remove match.', severity: 'error' })
     }
-  }, [unmatchDialog.matchId, token, loadData])
+  }, [unmatchDialog.matchId, deleteMatchMutation, loadData])
 
   const handleAcceptSuggestion = useCallback((transactionId) => {
     setSelectedTransactionId(transactionId)

@@ -1,33 +1,42 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
-export function getBankAccountsByCompany(companyId, token) {
-  return apiRequest(URLS.bankAccounts.byCompany(companyId), { token })
+export async function getBankAccountsByCompany(companyId, token) {
+  const response = await apiRequest(URLS.bankAccounts.byCompany(companyId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function getBankAccountById(accountId, token) {
-  return apiRequest(URLS.bankAccounts.byId(accountId), { token })
+export async function getBankAccountById(accountId, token) {
+  const response = await apiRequest(URLS.bankAccounts.byId(accountId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function createBankAccount(payload, token) {
-  return apiRequest(URLS.bankAccounts.base, {
+export async function createBankAccount(payload, token) {
+  const response = await apiRequest(URLS.bankAccounts.base, {
     method: 'POST',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function updateBankAccount(accountId, payload, token) {
-  return apiRequest(URLS.bankAccounts.byId(accountId), {
+export async function updateBankAccount(accountId, payload, token) {
+  const response = await apiRequest(URLS.bankAccounts.byId(accountId), {
     method: 'PUT',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function deleteBankAccount(accountId, token) {
-  return apiRequest(URLS.bankAccounts.byId(accountId), {
+export async function deleteBankAccount(accountId, token) {
+  const response = await apiRequest(URLS.bankAccounts.byId(accountId), {
     method: 'DELETE',
     token,
   })
+
+  return unwrapEnvelope(response)
 }

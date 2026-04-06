@@ -1,53 +1,70 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
-export function getMatchesByCompany(companyId, token) {
-  return apiRequest(URLS.matches.byCompany(companyId), { token })
+export async function getMatchesByCompany(companyId, token) {
+  const response = await apiRequest(URLS.matches.byCompany(companyId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function getMatchById(matchId, token) {
-  return apiRequest(URLS.matches.byId(matchId), { token })
+export async function getMatchById(matchId, token) {
+  const response = await apiRequest(URLS.matches.byId(matchId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function getMatchSuggestions(invoiceId, token) {
-  return apiRequest(URLS.matches.suggestions(invoiceId), { token })
+export async function getMatchSuggestions(invoiceId, token) {
+  const response = await apiRequest(URLS.matches.suggestions(invoiceId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function createMatch(payload, token) {
-  return apiRequest(URLS.matches.base, {
+export async function createMatch(payload, token) {
+  const response = await apiRequest(URLS.matches.base, {
     method: 'POST',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function deleteMatch(matchId, token) {
-  return apiRequest(URLS.matches.byId(matchId), {
+export async function deleteMatch(matchId, token) {
+  const response = await apiRequest(URLS.matches.byId(matchId), {
     method: 'DELETE',
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function autoMatchInvoice(invoiceId, minConfidence = 70, token) {
-  return apiRequest(URLS.matches.autoMatch(invoiceId), {
+export async function autoMatchInvoice(invoiceId, minConfidence, token) {
+  const nextMinConfidence = minConfidence ?? 70
+  const response = await apiRequest(URLS.matches.autoMatch(invoiceId), {
     method: 'POST',
-    query: { minConfidence },
+    query: { minConfidence: nextMinConfidence },
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function autoMatchBatch(companyId, minConfidence = 70, token) {
-  return apiRequest(URLS.matches.autoMatchBatch(companyId), {
+export async function autoMatchBatch(companyId, minConfidence, token) {
+  const nextMinConfidence = minConfidence ?? 70
+  const response = await apiRequest(URLS.matches.autoMatchBatch(companyId), {
     method: 'POST',
-    query: { minConfidence },
+    query: { minConfidence: nextMinConfidence },
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function autoMatchOnLoad(companyId, minConfidence = 70, token) {
-  return apiRequest(URLS.matches.autoMatchOnLoad(companyId), {
+export async function autoMatchOnLoad(companyId, minConfidence, token) {
+  const nextMinConfidence = minConfidence ?? 70
+  const response = await apiRequest(URLS.matches.autoMatchOnLoad(companyId), {
     method: 'POST',
-    query: { minConfidence },
+    query: { minConfidence: nextMinConfidence },
     token,
   })
+
+  return unwrapEnvelope(response)
 }

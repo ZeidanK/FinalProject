@@ -1,5 +1,6 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
 const parseFileName = (contentDisposition) => {
   if (!contentDisposition) return 'invoice.pdf'
@@ -17,67 +18,84 @@ const parseFileName = (contentDisposition) => {
   return plainMatch?.[1] || 'invoice.pdf'
 }
 
-export function getInvoicesByCompany(companyId, filters = {}, token) {
-  return apiRequest(URLS.invoices.byCompany(companyId), {
-    query: filters,
+export async function getInvoicesByCompany(companyId, filters, token) {
+  const nextFilters = filters || {}
+  const response = await apiRequest(URLS.invoices.byCompany(companyId), {
+    query: nextFilters,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function getInvoiceById(invoiceId, token) {
-  return apiRequest(URLS.invoices.byId(invoiceId), { token })
+export async function getInvoiceById(invoiceId, token) {
+  const response = await apiRequest(URLS.invoices.byId(invoiceId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function createInvoice(payload, autoMatch = false, token) {
-  return apiRequest(URLS.invoices.base, {
+export async function createInvoice(payload, autoMatch, token) {
+  const shouldAutoMatch = autoMatch ?? false
+  const response = await apiRequest(URLS.invoices.base, {
     method: 'POST',
     body: payload,
-    query: autoMatch ? { autoMatch: true } : {},
+    query: shouldAutoMatch ? { autoMatch: true } : {},
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function updateInvoice(invoiceId, payload, token) {
-  return apiRequest(URLS.invoices.byId(invoiceId), {
+export async function updateInvoice(invoiceId, payload, token) {
+  const response = await apiRequest(URLS.invoices.byId(invoiceId), {
     method: 'PUT',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function deleteInvoice(invoiceId, token) {
-  return apiRequest(URLS.invoices.byId(invoiceId), {
+export async function deleteInvoice(invoiceId, token) {
+  const response = await apiRequest(URLS.invoices.byId(invoiceId), {
     method: 'DELETE',
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function bulkDeleteInvoices(ids, token) {
-  return apiRequest(URLS.invoices.bulkDelete, {
+export async function bulkDeleteInvoices(ids, token) {
+  const response = await apiRequest(URLS.invoices.bulkDelete, {
     method: 'DELETE',
     body: { ids },
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function updateInvoiceStatus(invoiceId, status, token) {
-  return apiRequest(URLS.invoices.status(invoiceId), {
+export async function updateInvoiceStatus(invoiceId, status, token) {
+  const response = await apiRequest(URLS.invoices.status(invoiceId), {
     method: 'PATCH',
     body: { status },
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function uploadInvoicePdf(file, companyId, token) {
+export async function uploadInvoicePdf(file, companyId, token) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('companyId', String(companyId))
 
-  return apiRequest(URLS.invoices.uploadPdf, {
+  const response = await apiRequest(URLS.invoices.uploadPdf, {
     method: 'POST',
     body: formData,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
 export async function downloadInvoicePdf(invoiceId, token) {

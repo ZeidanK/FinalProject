@@ -23,29 +23,51 @@ namespace FinalProjectAuthAPI.Controllers
             long companyId,
             [FromQuery] string? status,
             [FromQuery] string? severity,
-            [FromQuery] string? type) =>
-            Ok(_svc.GetByCompany(companyId, status, severity, type));
+            [FromQuery] string? type)
+        {
+            var data = _svc.GetByCompany(companyId, status, severity, type);
+            var legacy = new
+            {
+                items = data,
+                totalCount = data?.Count ?? 0
+            };
+
+            return SuccessWithLegacy(data, legacy, "Anomalies retrieved.");
+        }
 
         // GET api/anomalies/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)
         {
             var anomaly = _svc.GetById(id);
-            return anomaly is null ? NotFound(new { message = "Anomaly not found." }) : Ok(anomaly);
+            return anomaly is null
+                ? NotFound(new { message = "Anomaly not found." })
+                : SuccessWithLegacy(anomaly, anomaly, "Anomaly retrieved.");
         }
 
         // GET api/anomalies/stats/{companyId}
         [HttpGet("stats/{companyId:long}")]
-        public IActionResult GetStats(long companyId) =>
-            Ok(_svc.GetStats(companyId));
+        public IActionResult GetStats(long companyId)
+        {
+            var data = _svc.GetStats(companyId);
+            return SuccessWithLegacy(data, data, "Anomaly stats retrieved.");
+        }
 
         // POST api/anomalies
         [HttpPost]
+        [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
         public IActionResult Create([FromBody] CreateAnomalyRequest request)
         {
             var (success, id, error) = _svc.Create(request);
             return success
-                ? CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Anomaly created." })
+                ? CreatedAtAction(nameof(GetById), new { id }, new
+                {
+                    success = true,
+                    code = 201,
+                    message = "Anomaly created.",
+                    data = new { id },
+                    id
+                })
                 : BadRequest(new { message = error });
         }
 
@@ -55,7 +77,13 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var userId = GetCurrentUserId();
             var (success, error) = _svc.Resolve(id, userId, request);
-            return success ? Ok(new { message = "Anomaly resolved." }) : BadRequest(new { message = error });
+            if (!success)
+            {
+                return BadRequest(new { message = error });
+            }
+
+            var payload = new { id, status = request.Status, resolutionNotes = request.ResolutionNotes };
+            return SuccessWithLegacy(payload, new { message = "Anomaly resolved." }, "Anomaly resolved.");
         }
 
     }

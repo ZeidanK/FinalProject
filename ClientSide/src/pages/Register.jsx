@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Alert,
   Button,
@@ -10,7 +11,8 @@ import {
 } from '@mui/material'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import AuthShellLayout from '../components/AuthShellLayout'
-import { registerUser } from '../services/auth'
+import { registerSchema } from '../schemas/auth'
+import { useRegisterMutation } from '../hooks/queries/useAuthQueries'
 
 const ROLE_OPTIONS = [
   { label: 'Accountant', value: 'accountant' },
@@ -20,55 +22,54 @@ const ROLE_OPTIONS = [
 
 function RegisterPage() {
   const navigate = useNavigate()
-  const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'business_owner',
+  const {
+    register,
+    handleSubmit,
+    setError,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'business_owner',
+    },
   })
-
-  const handleInputChange = (event) => {
-    const { name, value } = event.target
-    setFormData((previous) => ({ ...previous, [name]: value }))
-  }
+  const registerMutation = useRegisterMutation()
+  const selectedRole = watch('role')
 
   const handleRoleChange = (_event, role) => {
     if (!role) {
       return
     }
 
-    setFormData((previous) => ({ ...previous, role }))
+    setValue('role', role, { shouldDirty: true, shouldValidate: true })
   }
 
-  const validate = () => {
-    if (!formData.name.trim()) return 'Name is required.'
-    if (!formData.email.trim()) return 'Email is required.'
-    if (!/^\S+@\S+\.\S+$/.test(formData.email)) return 'Please enter a valid email address.'
-    if (formData.password.length < 6) return 'Password must be at least 6 characters long.'
-    if (formData.password !== formData.confirmPassword) return 'Password and confirmation must match.'
-    return ''
-  }
-
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+  const onSubmit = async (formValues) => {
     setErrorMessage('')
 
-    const validationError = validate()
-    if (validationError) {
-      setErrorMessage(validationError)
+    const parsed = registerSchema.safeParse(formValues)
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0]
+        if (typeof field === 'string') {
+          setError(field, { type: 'manual', message: issue.message })
+        }
+      }
       return
     }
 
-    setSubmitting(true)
     try {
-      await registerUser({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        role: formData.role,
+      await registerMutation.mutateAsync({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        password: parsed.data.password,
+        role: parsed.data.role,
       })
 
       navigate('/login', {
@@ -79,14 +80,12 @@ function RegisterPage() {
       })
     } catch (error) {
       setErrorMessage(error.message)
-    } finally {
-      setSubmitting(false)
     }
   }
 
   return (
     <AuthShellLayout chipLabel="Create your account">
-      <Stack spacing={2.5} component="form" onSubmit={handleSubmit}>
+      <Stack spacing={2.5} component="form" onSubmit={handleSubmit(onSubmit)}>
         <Typography variant="h4" sx={{ fontSize: { xs: '1.7rem', md: '2rem' } }}>
           Register in seconds
         </Typography>
@@ -102,8 +101,9 @@ function RegisterPage() {
           required
           label="Full Name"
           name="name"
-          value={formData.name}
-          onChange={handleInputChange}
+          error={Boolean(errors.name)}
+          helperText={errors.name?.message || ' '}
+          {...register('name')}
           autoComplete="name"
           fullWidth
         />
@@ -113,8 +113,9 @@ function RegisterPage() {
           label="Email"
           name="email"
           type="email"
-          value={formData.email}
-          onChange={handleInputChange}
+          error={Boolean(errors.email)}
+          helperText={errors.email?.message || ' '}
+          {...register('email')}
           autoComplete="email"
           fullWidth
         />
@@ -125,8 +126,9 @@ function RegisterPage() {
             label="Password"
             name="password"
             type="password"
-            value={formData.password}
-            onChange={handleInputChange}
+            error={Boolean(errors.password)}
+            helperText={errors.password?.message || ' '}
+            {...register('password')}
             autoComplete="new-password"
             fullWidth
           />
@@ -136,8 +138,9 @@ function RegisterPage() {
             label="Confirm Password"
             name="confirmPassword"
             type="password"
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
+            error={Boolean(errors.confirmPassword)}
+            helperText={errors.confirmPassword?.message || ' '}
+            {...register('confirmPassword')}
             autoComplete="new-password"
             fullWidth
           />
@@ -149,7 +152,7 @@ function RegisterPage() {
           </Typography>
 
           <ToggleButtonGroup
-            value={formData.role}
+            value={selectedRole}
             exclusive
             onChange={handleRoleChange}
             sx={{
@@ -184,10 +187,10 @@ function RegisterPage() {
           type="submit"
           size="large"
           variant="contained"
-          disabled={submitting}
+          disabled={isSubmitting || registerMutation.isPending}
           sx={{ boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)' }}
         >
-          {submitting ? 'Creating account...' : 'Create Account'}
+          {isSubmitting || registerMutation.isPending ? 'Creating account...' : 'Create Account'}
         </Button>
 
         <Typography variant="body2" color="text.secondary" textAlign="center">

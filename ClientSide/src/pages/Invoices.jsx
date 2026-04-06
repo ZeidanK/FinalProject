@@ -34,18 +34,20 @@ import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import {
-  bulkDeleteInvoices,
-  createInvoice,
-  deleteInvoice,
   downloadInvoicePdf,
   getInvoiceById,
-  getInvoicesByCompany,
-  updateInvoice,
-  uploadInvoicePdf,
 } from '../services/invoices'
 import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
+import {
+  useBulkDeleteInvoicesMutation,
+  useCreateInvoiceMutation,
+  useDeleteInvoiceMutation,
+  useInvoicesByCompanyQuery,
+  useUpdateInvoiceMutation,
+  useUploadInvoicePdfMutation,
+} from '../hooks/queries/useInvoicesQueries'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -103,7 +105,6 @@ function InvoicesPage() {
 
   // --- Invoice list state ---
   const [invoices, setInvoices] = useState([])
-  const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState('')
 
   // --- Upload state ---
@@ -125,23 +126,45 @@ function InvoicesPage() {
 
   // ===================== Data Fetching =====================
 
-  const loadInvoices = useCallback(async () => {
-    setListLoading(true)
-    setListError('')
-    try {
-      const data = await getInvoicesByCompany(activeCompanyId, {}, token)
-      setInvoices(Array.isArray(data) ? data : [])
-      setSelectedInvoiceIds([])
-    } catch (err) {
-      setListError(err.message || 'Failed to load invoices.')
-    } finally {
-      setListLoading(false)
-    }
-  }, [activeCompanyId, token])
+  const invoicesQuery = useInvoicesByCompanyQuery({
+    companyId: activeCompanyId,
+    filters: {},
+    token,
+  })
+  const uploadInvoiceMutation = useUploadInvoicePdfMutation({ token })
+  const createInvoiceMutation = useCreateInvoiceMutation({
+    companyId: activeCompanyId,
+    filters: {},
+    token,
+  })
+  const updateInvoiceMutation = useUpdateInvoiceMutation({
+    companyId: activeCompanyId,
+    filters: {},
+    token,
+  })
+  const deleteInvoiceMutation = useDeleteInvoiceMutation({
+    companyId: activeCompanyId,
+    filters: {},
+    token,
+  })
+  const bulkDeleteInvoicesMutation = useBulkDeleteInvoicesMutation({
+    companyId: activeCompanyId,
+    filters: {},
+    token,
+  })
+
+  const listLoading = invoicesQuery.isLoading || invoicesQuery.isFetching
 
   useEffect(() => {
-    loadInvoices()
-  }, [loadInvoices])
+    if (invoicesQuery.error) {
+      setListError(invoicesQuery.error.message || 'Failed to load invoices.')
+      return
+    }
+
+    setListError('')
+    setInvoices(Array.isArray(invoicesQuery.data) ? invoicesQuery.data : [])
+    setSelectedInvoiceIds([])
+  }, [invoicesQuery.data, invoicesQuery.error])
 
   // ===================== Upload Handlers =====================
 
@@ -158,7 +181,10 @@ function InvoicesPage() {
       )
 
       try {
-        const response = await uploadInvoicePdf(entry.file, activeCompanyId, token)
+        const response = await uploadInvoiceMutation.mutateAsync({
+          file: entry.file,
+          companyId: activeCompanyId,
+        })
 
         setFiles((prev) =>
           prev.map((f) =>
@@ -356,9 +382,9 @@ function InvoicesPage() {
         }
 
         if (editingInvoiceId) {
-          await updateInvoice(editingInvoiceId, payload, token)
+          await updateInvoiceMutation.mutateAsync({ invoiceId: editingInvoiceId, payload })
         } else {
-          const result = await createInvoice(payload, true, token)
+          const result = await createInvoiceMutation.mutateAsync({ payload, autoMatch: true })
 
           // Mark file as verified
           setFiles((prev) =>
@@ -385,7 +411,7 @@ function InvoicesPage() {
           setSnack({ open: true, message: 'Invoice updated successfully!', severity: 'success' })
         }
 
-        await loadInvoices()
+        await invoicesQuery.refetch()
       } catch (err) {
         setSnack({
           open: true,
@@ -396,7 +422,7 @@ function InvoicesPage() {
         setSaving(false)
       }
     },
-    [activeCompanyId, token, modal.file, loadInvoices],
+    [activeCompanyId, token, modal.file, invoicesQuery],
   )
 
   const handleOpenInvoice = useCallback(
@@ -462,7 +488,7 @@ function InvoicesPage() {
 
       setDeletingInvoiceIds((prev) => [...prev, invoiceId])
       try {
-        await deleteInvoice(invoiceId, token)
+        await deleteInvoiceMutation.mutateAsync(invoiceId)
         setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId))
         setSelectedInvoiceIds((prev) => prev.filter((id) => id !== invoiceId))
         setSnack({ open: true, message: 'Invoice deleted successfully.', severity: 'success' })
@@ -485,7 +511,7 @@ function InvoicesPage() {
 
     setBulkDeletingInvoices(true)
     try {
-      const response = await bulkDeleteInvoices(selectedInvoiceIds, token)
+      const response = await bulkDeleteInvoicesMutation.mutateAsync(selectedInvoiceIds)
       const deletedIds = Array.isArray(response?.deletedIds) ? response.deletedIds : selectedInvoiceIds
       const notFoundIds = Array.isArray(response?.notFoundIds) ? response.notFoundIds : []
 
@@ -510,7 +536,7 @@ function InvoicesPage() {
     } finally {
       setBulkDeletingInvoices(false)
     }
-  }, [selectedInvoiceIds, token])
+  }, [selectedInvoiceIds, bulkDeleteInvoicesMutation])
 
   // ===================== Render =====================
 
@@ -649,7 +675,7 @@ function InvoicesPage() {
           <PageHeaderCard
             title="Invoices"
             description="Upload PDF invoices for AI extraction, review, and reconciliation."
-            onRefresh={loadInvoices}
+            onRefresh={() => invoicesQuery.refetch()}
             refreshDisabled={listLoading}
             variants={itemVariants}
           />

@@ -35,6 +35,7 @@ public class ExceptionHandlingMiddleware
 
             var payload = new
             {
+                code = "INTERNAL_SERVER_ERROR",
                 message = "An unexpected error occurred.",
                 traceId,
                 timestamp = DateTimeOffset.UtcNow

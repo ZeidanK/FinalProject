@@ -1,33 +1,41 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
-export function getUserById(userId, token) {
-  return apiRequest(URLS.users.byId(userId), { token })
+export async function getUserById(userId, token) {
+  const response = await apiRequest(URLS.users.byId(userId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function updateUser(userId, payload, token) {
-  return apiRequest(URLS.users.byId(userId), {
+export async function updateUser(userId, payload, token) {
+  const response = await apiRequest(URLS.users.byId(userId), {
     method: 'PUT',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function changePassword(userId, payload, token) {
-  return apiRequest(URLS.users.changePassword(userId), {
+export async function changePassword(userId, payload, token) {
+  const response = await apiRequest(URLS.users.changePassword(userId), {
     method: 'PATCH',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function uploadProfilePicture(userId, file, token) {
+export async function uploadProfilePicture(userId, file, token) {
   const formData = new FormData()
   formData.append('file', file)
 
-  return apiRequest(URLS.users.profilePicture(userId), {
+  const response = await apiRequest(URLS.users.profilePicture(userId), {
     method: 'POST',
     body: formData,
     token,
   })
+
+  return unwrapEnvelope(response)
 }

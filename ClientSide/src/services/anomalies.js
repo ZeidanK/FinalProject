@@ -1,33 +1,42 @@
 import { URLS } from '../scripts/config'
 import { apiRequest } from './httpClient'
+import { unwrapEnvelope } from './unwrapEnvelope'
 
-export function getAnomaliesByCompany(companyId, filters = {}, token) {
-  return apiRequest(URLS.anomalies.byCompany(companyId), {
+export async function getAnomaliesByCompany(companyId, filters = {}, token) {
+  const response = await apiRequest(URLS.anomalies.byCompany(companyId), {
     query: filters,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function getAnomalyById(anomalyId, token) {
-  return apiRequest(URLS.anomalies.byId(anomalyId), { token })
+export async function getAnomalyById(anomalyId, token) {
+  const response = await apiRequest(URLS.anomalies.byId(anomalyId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function getAnomalyStats(companyId, token) {
-  return apiRequest(URLS.anomalies.stats(companyId), { token })
+export async function getAnomalyStats(companyId, token) {
+  const response = await apiRequest(URLS.anomalies.stats(companyId), { token })
+  return unwrapEnvelope(response)
 }
 
-export function createAnomaly(payload, token) {
-  return apiRequest(URLS.anomalies.base, {
+export async function createAnomaly(payload, token) {
+  const response = await apiRequest(URLS.anomalies.base, {
     method: 'POST',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
 
-export function resolveAnomaly(anomalyId, payload, token) {
-  return apiRequest(URLS.anomalies.resolve(anomalyId), {
+export async function resolveAnomaly(anomalyId, payload, token) {
+  const response = await apiRequest(URLS.anomalies.resolve(anomalyId), {
     method: 'PATCH',
     body: payload,
     token,
   })
+
+  return unwrapEnvelope(response)
 }
