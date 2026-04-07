@@ -299,5 +299,17 @@ END", con, tx);
             if (!r.HasColumn(name) || r[name] == DBNull.Value) return defaultValue;
             return Convert.ToDateTime(r[name]);
         }
+
+        internal static decimal? GetDecimalOrNull(this SqlDataReader r, string name)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return null;
+            return Convert.ToDecimal(r[name]);
+        }
+
+        internal static DateTime? GetDateTimeOrNull(this SqlDataReader r, string name)
+        {
+            if (!r.HasColumn(name) || r[name] == DBNull.Value) return null;
+            return Convert.ToDateTime(r[name]);
+        }
     }
 }

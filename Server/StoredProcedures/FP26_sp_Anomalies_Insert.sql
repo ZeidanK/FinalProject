@@ -34,6 +34,13 @@ BEGIN
          @RelatedMatchId, @Amount, @DetectionMethod, @DetectionConfidence,
          GETDATE(), GETDATE());
 
+    -- Mark the linked transaction as anomalous
+    IF @RelatedTransactionId IS NOT NULL
+        UPDATE dbo.FP26_transactions
+        SET    is_anomaly = 1,
+               updated_at = GETDATE()
+        WHERE  id = @RelatedTransactionId;
+
     SELECT SCOPE_IDENTITY() AS id;
 END
 GO

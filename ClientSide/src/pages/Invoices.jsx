@@ -25,8 +25,9 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
@@ -582,7 +583,7 @@ function InvoicesPage() {
               <TableCell align="center">Currency</TableCell>
               <TableCell align="center">Status</TableCell>
               <TableCell align="center">Confidence</TableCell>
-              <TableCell align="center">File</TableCell>
+              <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -622,36 +623,49 @@ function InvoicesPage() {
                   />
                 </TableCell>
                 <TableCell align="center">
-                  {(inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) == null
-                    ? '—'
-                    : `${Math.round((inv.ai_extraction_confidence ?? inv.aiExtractionConfidence) * 100)}%`}
+                  {(() => {
+                    const confidenceValue = inv.ai_extraction_confidence ?? inv.aiExtractionConfidence
+                    const parsedConfidence = Number(confidenceValue)
+                    if (confidenceValue == null || Number.isNaN(parsedConfidence)) return '—'
+                    return `${Math.round(parsedConfidence * 100)}%`
+                  })()}
                 </TableCell>
                 <TableCell align="center">
-                  <Stack direction="row" spacing={1} justifyContent="center">
-                    <Button
+                  <Stack direction="row" spacing={0.5} justifyContent="center">
+                    <IconButton
                       size="small"
-                      variant="outlined"
-                      startIcon={openingInvoiceId === inv.id ? <CircularProgress size={14} /> : <VisibilityRoundedIcon />}
                       onClick={() => handleOpenInvoice(inv)}
                       disabled={openingInvoiceId === inv.id || bulkDeletingInvoices}
+                      aria-label="Download invoice"
+                      title="Download invoice"
                     >
-                      Open
-                    </Button>
-                    <Button
+                      {openingInvoiceId === inv.id ? (
+                        <CircularProgress size={16} />
+                      ) : (
+                        <DownloadRoundedIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                    <IconButton
                       size="small"
-                      variant="contained"
                       color="secondary"
-                      startIcon={reopeningInvoiceId === inv.id ? <CircularProgress size={14} color="inherit" /> : <EditRoundedIcon />}
                       onClick={() => openSavedInvoiceVerification(inv.id)}
                       disabled={reopeningInvoiceId === inv.id || bulkDeletingInvoices}
+                      aria-label="Reopen invoice"
+                      title="Reopen invoice"
                     >
-                      Reopen
-                    </Button>
+                      {reopeningInvoiceId === inv.id ? (
+                        <CircularProgress size={16} color="inherit" />
+                      ) : (
+                        <EditRoundedIcon fontSize="small" />
+                      )}
+                    </IconButton>
                     <IconButton
                       size="small"
                       color="error"
                       onClick={() => handleDeleteInvoice(inv)}
                       disabled={deletingInvoiceIds.includes(inv.id) || bulkDeletingInvoices}
+                      aria-label="Delete invoice"
+                      title="Delete invoice"
                     >
                       {deletingInvoiceIds.includes(inv.id) ? (
                         <CircularProgress size={16} color="error" />

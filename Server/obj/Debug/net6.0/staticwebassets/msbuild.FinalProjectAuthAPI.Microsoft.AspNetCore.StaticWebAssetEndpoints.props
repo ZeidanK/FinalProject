@@ -1,5 +1,17 @@
 ﻿<Project>
   <ItemGroup>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/055d5ab0108845d983a284c5408c6ac8_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\055d5ab0108845d983a284c5408c6ac8_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:53:56 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/055d5ab0108845d983a284c5408c6ac8_invoice_2866377_with_receipt_for_order_26566245_1_.yvje3ooq1d.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\055d5ab0108845d983a284c5408c6ac8_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"yvje3ooq1d"},{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="},{"Name":"label","Value":"_content/FinalProjectAuthAPI/uploads/invoices/1/055d5ab0108845d983a284c5408c6ac8_invoice_2866377_with_receipt_for_order_26566245_1_.pdf"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:53:56 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/06db1dac22a14115b441862802575903_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\06db1dac22a14115b441862802575903_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
@@ -168,6 +180,18 @@
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-lYXcH0WSfNFtn38YmsCYKM1YECE9Q5\u002ByXQned6fsthQ="}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"105609"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u0022lYXcH0WSfNFtn38YmsCYKM1YECE9Q5\u002ByXQned6fsthQ=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 12:41:35 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/4081613fd1464a0a8fa39c139b6ae5b9_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\4081613fd1464a0a8fa39c139b6ae5b9_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:47:56 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/4081613fd1464a0a8fa39c139b6ae5b9_invoice_2866377_with_receipt_for_order_26566245_1_.yvje3ooq1d.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\4081613fd1464a0a8fa39c139b6ae5b9_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"yvje3ooq1d"},{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="},{"Name":"label","Value":"_content/FinalProjectAuthAPI/uploads/invoices/1/4081613fd1464a0a8fa39c139b6ae5b9_invoice_2866377_with_receipt_for_order_26566245_1_.pdf"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:47:56 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/5d18cc03f0e84ae8aa3a0c03e2b818ed_invoice_2866377_with_receipt_for_order_26566245.pdf">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\5d18cc03f0e84ae8aa3a0c03e2b818ed_invoice_2866377_with_receipt_for_order_26566245.pdf'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
@@ -263,6 +287,18 @@
       <Selectors><![CDATA[[]]]></Selectors>
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-RI7eXYMBQL3DDLuWycwFq5UA4ZNVPnM3E6c8RDenyOw="}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"722593"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u0022RI7eXYMBQL3DDLuWycwFq5UA4ZNVPnM3E6c8RDenyOw=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 12:41:35 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/82b9cd8d1953429385dbcdb86c73634a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\82b9cd8d1953429385dbcdb86c73634a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:58:09 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/82b9cd8d1953429385dbcdb86c73634a_invoice_2866377_with_receipt_for_order_26566245_1_.yvje3ooq1d.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\82b9cd8d1953429385dbcdb86c73634a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"yvje3ooq1d"},{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="},{"Name":"label","Value":"_content/FinalProjectAuthAPI/uploads/invoices/1/82b9cd8d1953429385dbcdb86c73634a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:58:09 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/8755416f59884d2f9976f9a00f3933a6_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\8755416f59884d2f9976f9a00f3933a6_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
@@ -420,6 +456,18 @@
       <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"poweih3fm4"},{"Name":"integrity","Value":"sha256-Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo="},{"Name":"label","Value":"_content/FinalProjectAuthAPI/uploads/invoices/1/acaf5111794342b890545afdb3fd059a_D324057617_1_.pdf"}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"138247"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u0022Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo=\u0022"},{"Name":"Last-Modified","Value":"Tue, 31 Mar 2026 12:26:07 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/b3f14fabc0be4ed6ae1e7a8c2cf8dfdd_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\b3f14fabc0be4ed6ae1e7a8c2cf8dfdd_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:52:06 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/b3f14fabc0be4ed6ae1e7a8c2cf8dfdd_invoice_2866377_with_receipt_for_order_26566245_1_.yvje3ooq1d.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\b3f14fabc0be4ed6ae1e7a8c2cf8dfdd_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"yvje3ooq1d"},{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="},{"Name":"label","Value":"_content/FinalProjectAuthAPI/uploads/invoices/1/b3f14fabc0be4ed6ae1e7a8c2cf8dfdd_invoice_2866377_with_receipt_for_order_26566245_1_.pdf"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:52:06 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.7rt93kzkes.pdf">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\ba7b70c360d44e9bb2e89fe109b7179d_Invoice-917C7AA3-0002_1_.pdf'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
@@ -479,6 +527,18 @@
       <Selectors><![CDATA[[]]]></Selectors>
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg="}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"24576"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u0022HR7tcIqH7ebK5MMm3o5zAREAgMdSCYMOgTwlQXu4Ldg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 31 Mar 2026 09:47:59 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/cdde4b155df6446395bbfe91661f173a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\cdde4b155df6446395bbfe91661f173a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:56:36 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/cdde4b155df6446395bbfe91661f173a_invoice_2866377_with_receipt_for_order_26566245_1_.yvje3ooq1d.pdf">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\cdde4b155df6446395bbfe91661f173a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"yvje3ooq1d"},{"Name":"integrity","Value":"sha256-0mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg="},{"Name":"label","Value":"_content/FinalProjectAuthAPI/uploads/invoices/1/cdde4b155df6446395bbfe91661f173a_invoice_2866377_with_receipt_for_order_26566245_1_.pdf"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"722725"},{"Name":"Content-Type","Value":"application/pdf"},{"Name":"ETag","Value":"\u00220mCYz\u002BMCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=\u0022"},{"Name":"Last-Modified","Value":"Tue, 07 Apr 2026 14:56:36 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/FinalProjectAuthAPI/uploads/invoices/1/d259425bb0cb4132ab50a593bb62bea5_invoice_2866377_with_receipt_for_order_26566245_1_.pdf">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\d259425bb0cb4132ab50a593bb62bea5_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))</AssetFile>

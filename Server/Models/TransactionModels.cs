@@ -10,23 +10,24 @@ namespace FinalProjectAuthAPI.Models
         [Required]
         public DateTime TransactionDate { get; set; }
 
+        /// <summary>Date of billing</summary>
+        public DateTime? PostedDate { get; set; }
+
         [Required]
         public string Description { get; set; } = string.Empty;
 
+        [StringLength(255)]
+        public string? VendorName { get; set; }
+
+        [StringLength(4)]
+        public string? CardLast4 { get; set; }
+
         [Required]
-        public decimal Amount { get; set; }
+        public decimal Amount { get; set; }   // value of transaction
 
         [Required]
         [StringLength(50)]
         public string TransactionType { get; set; } = string.Empty;
-
-        public long? CreatedByUserId { get; set; }
-
-        public long? BankAccountId { get; set; }
-
-        public DateTime? PostedDate { get; set; }
-
-        public decimal? BalanceAfter { get; set; }
 
         [StringLength(100)]
         public string? Category { get; set; }
@@ -34,8 +35,21 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(100)]
         public string? ReferenceNumber { get; set; }
 
-        [StringLength(255)]
-        public string? VendorName { get; set; }
+        public decimal? ChargeAmount { get; set; }   // amount of charge
+
+        [StringLength(3)]
+        public string? ChargeCurrency { get; set; }   // currency of charge (ISO 4217)
+
+        [StringLength(3)]
+        public string? OriginalCurrency { get; set; }
+
+        public decimal? ExchangeRate { get; set; }
+
+        public decimal? BalanceAfter { get; set; }
+
+        public long? BankAccountId { get; set; }
+
+        public long? CreatedByUserId { get; set; }
     }
 
     public class BulkCreateTransactionsRequest
@@ -61,17 +75,22 @@ namespace FinalProjectAuthAPI.Models
 
     public class ExtractedTransaction
     {
-        public DateTime TransactionDate { get; set; }
-        public DateTime? PostedDate { get; set; }
-        public string Description { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
-        public decimal? BalanceAfter { get; set; }
-        public string TransactionType { get; set; } = "debit";
-        public string? Category { get; set; }
-        public string? ReferenceNumber { get; set; }
-        public string? VendorName { get; set; }
-        public string SheetName { get; set; } = string.Empty;
-        public int RowNumber { get; set; }
+        public DateTime  TransactionDate   { get; set; }
+        public DateTime? PostedDate        { get; set; }   // date of billing
+        public string    Description       { get; set; } = string.Empty;
+        public string?   VendorName        { get; set; }
+        public string?   CardLast4         { get; set; }
+        public decimal   Amount            { get; set; }   // value of transaction
+        public string    TransactionType   { get; set; } = "debit";
+        public string?   Category          { get; set; }
+        public string?   ReferenceNumber   { get; set; }
+        public decimal?  ChargeAmount      { get; set; }   // amount of charge
+        public string?   ChargeCurrency    { get; set; }   // currency of charge
+        public string?   OriginalCurrency  { get; set; }
+        public decimal?  ExchangeRate      { get; set; }
+        public decimal?  BalanceAfter      { get; set; }
+        public string    SheetName         { get; set; } = string.Empty;
+        public int       RowNumber         { get; set; }
     }
 
     public class SheetResult
@@ -100,26 +119,48 @@ namespace FinalProjectAuthAPI.Models
         public List<long>? CreatedTransactionIds { get; set; }
     }
 
+    // ── Insert DTO used by DAL to keep parameter count low ─────────────────────
+    public class TransactionInsertData
+    {
+        public DateTime  TransactionDate  { get; init; }
+        public DateTime? PostedDate       { get; init; }
+        public string    Description      { get; init; } = string.Empty;
+        public string?   VendorName       { get; init; }
+        public string?   CardLast4        { get; init; }
+        public decimal   Amount           { get; init; }
+        public string    TransactionType  { get; init; } = string.Empty;
+        public string?   Category         { get; init; }
+        public string?   ReferenceNumber  { get; init; }
+        public decimal?  ChargeAmount     { get; init; }
+        public string?   ChargeCurrency   { get; init; }
+        public string?   OriginalCurrency { get; init; }
+        public decimal?  ExchangeRate     { get; init; }
+    }
+
     // ── Transaction row ───────────────────────────────────────────────────────
     public class TransactionRow
     {
         public long      Id                  { get; set; }
-        public long      CompanyId           { get; set; }
-        public long?     BankAccountId       { get; set; }
+        public long      CompanyId           { get; set; }   // uploaded-to company
         public DateTime  TransactionDate     { get; set; }
-        public DateTime? PostedDate          { get; set; }
+        public DateTime? PostedDate          { get; set; }   // date of billing
         public string    Description         { get; set; } = string.Empty;
         public string?   VendorName          { get; set; }
-        public decimal   Amount              { get; set; }
-        public decimal?  BalanceAfter        { get; set; }
+        public string?   CardLast4           { get; set; }
+        public decimal   Amount              { get; set; }   // value of transaction
         public string    TransactionType     { get; set; } = string.Empty;
         public string?   Category            { get; set; }
         public decimal?  CategoryConfidence  { get; set; }
         public string?   ReferenceNumber     { get; set; }
+        public decimal?  ChargeAmount        { get; set; }   // amount of charge
+        public string?   ChargeCurrency      { get; set; }   // currency of charge
+        public string?   OriginalCurrency    { get; set; }
+        public decimal?  ExchangeRate        { get; set; }
         public bool      IsMatched           { get; set; }
+        public bool      IsAnomaly           { get; set; }
         public bool      IsDuplicate         { get; set; }
         public string    Status              { get; set; } = "confirmed";
-        public long?     CreatedByUserId     { get; set; }
+        public long?     CreatedByUserId     { get; set; }   // uploader user id
         public DateTime  CreatedAt           { get; set; }
         public DateTime  UpdatedAt           { get; set; }
     }

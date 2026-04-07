@@ -19,13 +19,13 @@ namespace FinalProjectAuthAPI.Controllers
 
         // GET api/bankaccounts/company/{companyId}
         [HttpGet("company/{companyId:long}")]
-        [ProducesResponseType(typeof(IEnumerable<BankAccount>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IEnumerable<BankAccountRow>), StatusCodes.Status200OK)]
         public IActionResult GetByCompany(long companyId) =>
             Ok(_svc.GetByCompany(companyId));
 
         // GET api/bankaccounts/{id}
         [HttpGet("{id:long}")]
-        [ProducesResponseType(typeof(BankAccount), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(BankAccountRow), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public IActionResult GetById(long id)
         {

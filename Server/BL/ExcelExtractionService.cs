@@ -8,31 +8,39 @@ namespace FinalProjectAuthAPI.BL
     public class ExcelExtractionService : IExcelExtractionService
     {
         // ── Header role constants ────────────────────────────────────────
-        private const string HeaderDate = "date";
-        private const string HeaderPostedDate = "postedDate";
-        private const string HeaderDescription = "description";
-        private const string HeaderAmount = "amount";
-        private const string HeaderDebit = "debit";
-        private const string HeaderCredit = "credit";
-        private const string HeaderBalance = "balance";
-        private const string HeaderReference = "reference";
-        private const string HeaderType = "type";
-        private const string HeaderCategory = "category";
-        private const string HeaderVendorName = "vendorName";
+        private const string HeaderDate             = "date";
+        private const string HeaderPostedDate       = "postedDate";
+        private const string HeaderDescription      = "description";
+        private const string HeaderAmount           = "amount";
+        private const string HeaderDebit            = "debit";
+        private const string HeaderCredit           = "credit";
+        private const string HeaderBalance          = "balance";
+        private const string HeaderReference        = "reference";
+        private const string HeaderType             = "type";
+        private const string HeaderCategory         = "category";
+        private const string HeaderVendorName       = "vendorName";
+        private const string HeaderCardLast4        = "cardLast4";
+        private const string HeaderChargeAmount     = "chargeAmount";
+        private const string HeaderChargeCurrency   = "chargeCurrency";
+        private const string HeaderOriginalCurrency = "originalCurrency";
+        private const string HeaderExchangeRate     = "exchangeRate";
 
-        // ── Known header patterns (English + Hebrew) ─────────────────────
+        // ── Known header patterns (English + Hebrew credit-card statements) ──
 
         private static readonly string[] DateHeaders =
             { "date", "transaction date", "value date", "תאריך", "תאריך עסקה", "תאריך ערך" };
 
         private static readonly string[] PostedDateHeaders =
-            { "posted date", "posting date", "תאריך רישום" };
+            { "posted date", "posting date", "billing date", "charge date",
+              "תאריך רישום", "תאריך חיוב", "תאריך חיוב העסקות", "תאריך חיוב עסקות" };
 
         private static readonly string[] DescriptionHeaders =
             { "description", "details", "memo", "particulars", "narrative", "תיאור", "פרטים", "הערות" };
 
+        // NOTE: bare "סכום" omitted — it would greedily match "סכום חיוב"/"סכום עסקה"
+        // before the specific charge/amount headers get a chance to fire.
         private static readonly string[] AmountHeaders =
-            { "amount", "sum", "total", "סכום", "סה\"כ" };
+            { "amount", "sum", "total", "סכום עסקה", "סה\"כ" };
 
         private static readonly string[] DebitHeaders =
             { "debit", "withdrawal", "חובה", "משיכה" };
@@ -47,14 +55,36 @@ namespace FinalProjectAuthAPI.BL
             { "reference", "ref", "reference number", "check number", "אסמכתא", "מספר אסמכתא" };
 
         private static readonly string[] TypeHeaders =
-            { "type", "transaction type", "סוג", "סוג עסקה" };
+            { "type", "transaction type", "סוג", "סוג עסקה",
+              "אופן ביצוע העסקה", "אופן ביצוע" };
 
         private static readonly string[] CategoryHeaders =
             { "category", "קטגוריה" };
 
         private static readonly string[] VendorNameHeaders =
             { "vendor name", "vendor", "supplier", "supplier name", "business name",
-              "שם בית העסק", "שם בית עסק", "שם ספק", "שם עסק", "בית עסק" };
+              "שם בית העסק", "שם בית עסק", "שם ספק", "שם עסק", "בית עסק",
+              "בית העסקה", "שם בית העסקה" };
+
+        // ── New credit-card specific header patterns ──────────────────────────
+
+        private static readonly string[] CardLast4Headers =
+            { "4 ספרות אחרונות", "ספרות אחרונות", "last 4 digits", "last four digits",
+              "card last 4", "card last4", "last 4" };
+
+        private static readonly string[] ChargeAmountHeaders =
+            { "סכום חיוב", "charge amount", "charged amount", "billed amount", "billing amount" };
+
+        private static readonly string[] ChargeCurrencyHeaders =
+            { "מטבע חיוב", "charge currency", "billing currency" };
+
+        private static readonly string[] OriginalCurrencyHeaders =
+            { "מטבע עסקה מקורי", "מטבע עסקה", "original currency", "transaction currency", "fx currency" };
+
+        private static readonly string[] ExchangeRateHeaders =
+            { "שער המרה", "שער המרה ממטבע מקור", "שער המרה ממטבע מקור/התחשבנות",
+              "שער המרה ממטבע מקור/התחשבנות ל\"ח",
+              "exchange rate", "fx rate", "rate" };
 
         public ExcelExtractionResult Extract(Stream excelStream, string fileName)
         {
@@ -114,12 +144,14 @@ namespace FinalProjectAuthAPI.BL
                 return (sheetInfo, transactions);
             }
 
-            // Require at least a date column and either amount or debit/credit columns
-            bool hasAmount = columnMap.ContainsKey(HeaderAmount) ||
-                             (columnMap.ContainsKey(HeaderDebit) || columnMap.ContainsKey(HeaderCredit));
+            // Require at least a date column and either amount/chargeAmount or debit/credit columns
+            bool hasAmount = columnMap.ContainsKey(HeaderAmount)
+                          || columnMap.ContainsKey(HeaderChargeAmount)
+                          || columnMap.ContainsKey(HeaderDebit)
+                          || columnMap.ContainsKey(HeaderCredit);
             if (!hasAmount)
             {
-                sheetInfo.Errors.Add("No amount, debit, or credit column found.");
+                sheetInfo.Errors.Add("No amount, charge amount, debit, or credit column found.");
                 return (sheetInfo, transactions);
             }
 
@@ -170,19 +202,26 @@ namespace FinalProjectAuthAPI.BL
 
         private static void TryAddHeaderMapping(Dictionary<string, int> map, string lower, int columnNumber)
         {
+            // Specific Hebrew credit-card headers MUST come before generic ones
+            // (e.g. "סכום חיוב" must match ChargeAmount before the bare "סכום עסקה" in Amount)
             var headerMappings = new (string HeaderKey, string[] Headers)[]
             {
-                (HeaderDate, DateHeaders),
-                (HeaderPostedDate, PostedDateHeaders),
-                (HeaderDescription, DescriptionHeaders),
-                (HeaderAmount, AmountHeaders),
-                (HeaderDebit, DebitHeaders),
-                (HeaderCredit, CreditHeaders),
-                (HeaderBalance, BalanceHeaders),
-                (HeaderReference, ReferenceHeaders),
-                (HeaderType, TypeHeaders),
-                (HeaderCategory, CategoryHeaders),
-                (HeaderVendorName, VendorNameHeaders)
+                (HeaderCardLast4,        CardLast4Headers),
+                (HeaderChargeAmount,     ChargeAmountHeaders),
+                (HeaderChargeCurrency,   ChargeCurrencyHeaders),
+                (HeaderOriginalCurrency, OriginalCurrencyHeaders),
+                (HeaderExchangeRate,     ExchangeRateHeaders),
+                (HeaderDate,             DateHeaders),
+                (HeaderPostedDate,       PostedDateHeaders),
+                (HeaderDescription,      DescriptionHeaders),
+                (HeaderAmount,           AmountHeaders),
+                (HeaderDebit,            DebitHeaders),
+                (HeaderCredit,           CreditHeaders),
+                (HeaderBalance,          BalanceHeaders),
+                (HeaderReference,        ReferenceHeaders),
+                (HeaderType,             TypeHeaders),
+                (HeaderCategory,         CategoryHeaders),
+                (HeaderVendorName,       VendorNameHeaders),
             };
 
             foreach (var (headerKey, headers) in headerMappings)
@@ -210,51 +249,76 @@ namespace FinalProjectAuthAPI.BL
             var date = ParseDate(sheet.Cell(row, map[HeaderDate]));
             if (date == null) return null;
 
-            // 2. Amount (required) – from single "amount" column or merged debit/credit
+            // 2. Amount — prefer סכום עסקה (transaction value), fall back to סכום חיוב
             var (amount, transactionType) = ParseAmount(sheet, row, map);
             if (amount == null || amount.Value == 0) return null;
 
             // 3. Description
             string description = GetCellString(sheet, row, map, HeaderDescription, string.Empty);
 
-            // 4. Optional fields
+            // 4. Standard optional fields
             DateTime? postedDate = GetCellDate(sheet, row, map, HeaderPostedDate);
-            decimal? balanceAfter = GetCellDecimal(sheet, row, map, HeaderBalance);
-            string? reference = GetCellNullableString(sheet, row, map, HeaderReference);
-            string? category = GetCellNullableString(sheet, row, map, HeaderCategory);
-            string? vendorName = GetCellNullableString(sheet, row, map, HeaderVendorName);
+            string?   reference  = GetCellNullableString(sheet, row, map, HeaderReference);
+            string?   category   = GetCellNullableString(sheet, row, map, HeaderCategory);
+            string?   vendorName = GetCellNullableString(sheet, row, map, HeaderVendorName);
+
+            // 5. Credit-card specific fields
+            string?  cardLast4        = GetCellNullableString(sheet, row, map, HeaderCardLast4);
+            decimal? chargeAmount     = GetCellDecimal(sheet, row, map, HeaderChargeAmount);
+            string?  chargeCurrency   = GetCellNullableString(sheet, row, map, HeaderChargeCurrency);
+            string?  originalCurrency = GetCellNullableString(sheet, row, map, HeaderOriginalCurrency);
+            decimal? exchangeRate     = GetCellDecimal(sheet, row, map, HeaderExchangeRate);
 
             // Type column overrides auto-detected type
             string finalTransactionType = GetTransactionType(sheet, row, map, transactionType);
 
+            // If no dedicated description column, fall back to vendor name
+            if (string.IsNullOrWhiteSpace(description))
+                description = vendorName ?? "No description";
+
             return new ExtractedTransaction
             {
-                TransactionDate = date.Value,
-                PostedDate = postedDate,
-                Description = string.IsNullOrWhiteSpace(description) ? "No description" : description,
-                Amount = amount.Value,
-                BalanceAfter = balanceAfter,
-                TransactionType = finalTransactionType,
-                Category = category,
-                ReferenceNumber = reference,
-                VendorName = vendorName
+                TransactionDate  = date.Value,
+                PostedDate       = postedDate,
+                Description      = string.IsNullOrWhiteSpace(description) ? "No description" : description,
+                VendorName       = vendorName,
+                CardLast4        = cardLast4,
+                Amount           = amount.Value,
+                TransactionType  = finalTransactionType,
+                Category         = category,
+                ReferenceNumber  = reference,
+                ChargeAmount     = chargeAmount,
+                ChargeCurrency   = chargeCurrency,
+                OriginalCurrency = originalCurrency,
+                ExchangeRate     = exchangeRate,
             };
         }
 
         private static (decimal?, string) ParseAmount(IXLWorksheet sheet, int row, Dictionary<string, int> map)
         {
-            string transactionType = "debit";
-
+            // Prefer סכום עסקה (transaction value)
             if (map.ContainsKey(HeaderAmount))
-            {
-                decimal? amount = ParseDecimal(sheet.Cell(row, map[HeaderAmount]));
-                if (amount.HasValue)
-                    transactionType = amount.Value >= 0 ? HeaderCredit : HeaderDebit;
-                return (amount, transactionType);
-            }
+                return ParseSingleAmountColumn(sheet, row, map[HeaderAmount]);
+
+            // Fall back to סכום חיוב (charge amount) when no transaction-value column exists
+            if (map.ContainsKey(HeaderChargeAmount))
+                return ParseSingleAmountColumn(sheet, row, map[HeaderChargeAmount]);
 
             // Split debit / credit columns
-            decimal? debitVal = map.ContainsKey(HeaderDebit) ? ParseDecimal(sheet.Cell(row, map[HeaderDebit])) : null;
+            return ParseDebitCreditColumns(sheet, row, map);
+        }
+
+        private static (decimal?, string) ParseSingleAmountColumn(IXLWorksheet sheet, int row, int col)
+        {
+            decimal? amount = ParseDecimal(sheet.Cell(row, col));
+            if (!amount.HasValue) return (null, HeaderDebit);
+            string type = amount.Value >= 0 ? HeaderCredit : HeaderDebit;
+            return (amount, type);
+        }
+
+        private static (decimal?, string) ParseDebitCreditColumns(IXLWorksheet sheet, int row, Dictionary<string, int> map)
+        {
+            decimal? debitVal  = map.ContainsKey(HeaderDebit)  ? ParseDecimal(sheet.Cell(row, map[HeaderDebit]))  : null;
             decimal? creditVal = map.ContainsKey(HeaderCredit) ? ParseDecimal(sheet.Cell(row, map[HeaderCredit])) : null;
 
             if (debitVal.HasValue && debitVal.Value != 0)
@@ -263,7 +327,7 @@ namespace FinalProjectAuthAPI.BL
             if (creditVal.HasValue && creditVal.Value != 0)
                 return (Math.Abs(creditVal.Value), HeaderCredit);
 
-            return (null, transactionType);
+            return (null, HeaderDebit);
         }
 
         private static string GetCellString(IXLWorksheet sheet, int row, Dictionary<string, int> map, string headerKey, string defaultValue)

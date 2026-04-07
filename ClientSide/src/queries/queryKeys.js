@@ -24,7 +24,6 @@ export const transactionKeys = {
   all: ['transactions'],
   byCompany: (companyId, filters) => [...transactionKeys.all, 'company', companyId, filters],
   detail: (transactionId) => [...transactionKeys.all, 'detail', transactionId],
-  bankAccounts: (companyId) => [...transactionKeys.all, 'bankAccounts', companyId],
 }
 
 export const invoiceKeys = {

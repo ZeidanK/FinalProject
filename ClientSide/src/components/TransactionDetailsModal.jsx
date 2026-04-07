@@ -33,7 +33,6 @@ function normalizeTransaction(tx) {
   return {
     id: tx.id ?? tx.transactionId ?? null,
     companyId: tx.companyId ?? tx.company_id ?? null,
-    bankAccountId: tx.bankAccountId ?? tx.bank_account_id ?? null,
     transactionDate: tx.transactionDate ?? tx.transaction_date ?? null,
     postedDate: tx.postedDate ?? tx.posted_date ?? null,
     description: tx.description ?? '',
@@ -127,9 +126,6 @@ function TransactionDetailsContent({ data }) {
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
           <DetailRow label="Balance After" value={data.balanceAfter == null ? '—' : formatNumber(data.balanceAfter)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <DetailRow label="Bank Account Id" value={data.bankAccountId == null ? '—' : String(data.bankAccountId)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <DetailRow label="Category" value={data.category || '—'} />

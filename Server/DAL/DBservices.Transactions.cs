@@ -55,10 +55,7 @@ namespace FinalProjectAuthAPI.DAL
         }
 
         public long CreateTransaction(
-            long companyId, DateTime transactionDate, string description,
-            decimal amount, string transactionType, long? createdByUserId,
-            long? bankAccountId, DateTime? postedDate, decimal? balanceAfter,
-            string? category, string? referenceNumber, string? vendorName)
+            long companyId, long? createdByUserId, TransactionInsertData data)
         {
             SqlConnection? con = null;
             try
@@ -68,18 +65,21 @@ namespace FinalProjectAuthAPI.DAL
                     "FP26_sp_Transactions_Insert", con,
                     new Dictionary<string, object?>
                     {
-                        { "@CompanyId",       companyId       },
-                        { "@TransactionDate", transactionDate },
-                        { "@Description",     description     },
-                        { "@Amount",          amount          },
-                        { "@TransactionType", transactionType },
-                        { "@CreatedByUserId", createdByUserId },
-                        { "@BankAccountId",   bankAccountId   },
-                        { "@PostedDate",      postedDate      },
-                        { "@BalanceAfter",    balanceAfter    },
-                        { "@Category",        category        },
-                        { "@ReferenceNumber", referenceNumber },
-                        { "@VendorName",      vendorName      }
+                        { "@CompanyId",        companyId            },
+                        { "@TransactionDate",  data.TransactionDate },
+                        { "@Description",      data.Description     },
+                        { "@Amount",           data.Amount          },
+                        { "@TransactionType",  data.TransactionType },
+                        { "@CreatedByUserId",  createdByUserId      },
+                        { "@PostedDate",       data.PostedDate      },
+                        { "@Category",         data.Category        },
+                        { "@ReferenceNumber",  data.ReferenceNumber },
+                        { "@VendorName",       data.VendorName      },
+                        { "@CardLast4",        data.CardLast4       },
+                        { "@ChargeAmount",     data.ChargeAmount    },
+                        { "@ChargeCurrency",   data.ChargeCurrency  },
+                        { "@OriginalCurrency", data.OriginalCurrency },
+                        { "@ExchangeRate",     data.ExchangeRate    }
                     });
 
                 var result = cmd.ExecuteScalar();
@@ -94,10 +94,7 @@ namespace FinalProjectAuthAPI.DAL
         /// </summary>
         public List<long> BulkCreateTransactions(
             long companyId, long? createdByUserId,
-            IEnumerable<(DateTime date, string description, decimal amount,
-                         string type, long? bankAccountId, DateTime? postedDate,
-                         decimal? balanceAfter, string? category, string? referenceNumber,
-                         string? vendorName)> rows)
+            IEnumerable<TransactionInsertData> rows)
         {
             SqlConnection? con = null;
             SqlTransaction? tx = null;
@@ -114,18 +111,21 @@ namespace FinalProjectAuthAPI.DAL
                         CommandType    = CommandType.StoredProcedure,
                         CommandTimeout = 10
                     };
-                    cmd.Parameters.AddWithValue("@CompanyId",       companyId);
-                    cmd.Parameters.AddWithValue("@TransactionDate", row.date);
-                    cmd.Parameters.AddWithValue("@Description",     row.description);
-                    cmd.Parameters.AddWithValue("@Amount",          row.amount);
-                    cmd.Parameters.AddWithValue("@TransactionType", row.type);
-                    cmd.Parameters.AddWithValue("@CreatedByUserId", (object?)createdByUserId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@BankAccountId",   (object?)row.bankAccountId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@PostedDate",      (object?)row.postedDate    ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@BalanceAfter",    (object?)row.balanceAfter  ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Category",        (object?)row.category      ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@ReferenceNumber", (object?)row.referenceNumber ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@VendorName",      (object?)row.vendorName    ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@CompanyId",        companyId);
+                    cmd.Parameters.AddWithValue("@TransactionDate",  row.TransactionDate);
+                    cmd.Parameters.AddWithValue("@Description",      row.Description);
+                    cmd.Parameters.AddWithValue("@Amount",           row.Amount);
+                    cmd.Parameters.AddWithValue("@TransactionType",  row.TransactionType);
+                    cmd.Parameters.AddWithValue("@CreatedByUserId",  (object?)createdByUserId       ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@PostedDate",       (object?)row.PostedDate        ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Category",         (object?)row.Category          ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ReferenceNumber",  (object?)row.ReferenceNumber   ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@VendorName",       (object?)row.VendorName        ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@CardLast4",        (object?)row.CardLast4         ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ChargeAmount",     (object?)row.ChargeAmount      ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ChargeCurrency",   (object?)row.ChargeCurrency    ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@OriginalCurrency", (object?)row.OriginalCurrency  ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ExchangeRate",     (object?)row.ExchangeRate      ?? DBNull.Value);
 
                     var result = cmd.ExecuteScalar();
                     ids.Add(result != null ? Convert.ToInt64(result) : 0);
@@ -241,26 +241,29 @@ namespace FinalProjectAuthAPI.DAL
 
         private static TransactionRow MapTransaction(SqlDataReader r) => new()
         {
-            Id              = Convert.ToInt64(r["id"]),
-            CompanyId       = Convert.ToInt64(r["company_id"]),
-            BankAccountId   = r["bank_account_id"]  != DBNull.Value ? Convert.ToInt64(r["bank_account_id"]) : null,
-            TransactionDate = Convert.ToDateTime(r["transaction_date"]),
-            PostedDate      = r["posted_date"]       != DBNull.Value ? Convert.ToDateTime(r["posted_date"]) : null,
-            Description     = r["description"]?.ToString()!,
-            VendorName      = r.HasColumn("vendor_name") && r["vendor_name"] != DBNull.Value ? r["vendor_name"] as string : null,
-            Amount          = Convert.ToDecimal(r["amount"]),
-            BalanceAfter    = r["balance_after"]     != DBNull.Value ? Convert.ToDecimal(r["balance_after"]) : null,
-            TransactionType = r["transaction_type"]?.ToString()!,
-            Category        = r["category"]          as string,
-            CategoryConfidence = r.HasColumn("category_confidence") && r["category_confidence"] != DBNull.Value
-                                    ? Convert.ToDecimal(r["category_confidence"]) : null,
-            ReferenceNumber = r["reference_number"]  as string,
-            IsMatched       = r["is_matched"]        != DBNull.Value && Convert.ToBoolean(r["is_matched"]),
-            IsDuplicate     = r["is_duplicate"]      != DBNull.Value && Convert.ToBoolean(r["is_duplicate"]),
-            Status          = r["status"]?.ToString() ?? "confirmed",
-            CreatedByUserId = r["created_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["created_by_user_id"]) : null,
-            CreatedAt       = Convert.ToDateTime(r["created_at"]),
-            UpdatedAt       = Convert.ToDateTime(r["updated_at"]),
+            Id               = Convert.ToInt64(r["id"]),
+            CompanyId        = Convert.ToInt64(r["company_id"]),
+            TransactionDate  = Convert.ToDateTime(r["transaction_date"]),
+            PostedDate       = r.GetDateTimeOrNull("posted_date"),
+            Description      = r["description"]?.ToString()!,
+            VendorName       = r.GetStringOrNull("vendor_name"),
+            CardLast4        = r.GetStringOrNull("card_last4"),
+            Amount           = Convert.ToDecimal(r["amount"]),
+            TransactionType  = r["transaction_type"]?.ToString()!,
+            Category         = r.GetStringOrNull("category"),
+            CategoryConfidence = r.GetDecimalOrNull("category_confidence"),
+            ReferenceNumber  = r.GetStringOrNull("reference_number"),
+            ChargeAmount     = r.GetDecimalOrNull("charge_amount"),
+            ChargeCurrency   = r.GetStringOrNull("charge_currency"),
+            OriginalCurrency = r.GetStringOrNull("original_currency"),
+            ExchangeRate     = r.GetDecimalOrNull("exchange_rate"),
+            IsMatched        = r.GetBoolOrDefault("is_matched",  false),
+            IsAnomaly        = r.GetBoolOrDefault("is_anomaly",  false),
+            IsDuplicate      = r.GetBoolOrDefault("is_duplicate", false),
+            Status           = r.GetStringOrDefault("status", "confirmed"),
+            CreatedByUserId  = r.GetInt64OrNull("created_by_user_id"),
+            CreatedAt        = Convert.ToDateTime(r["created_at"]),
+            UpdatedAt        = Convert.ToDateTime(r["updated_at"]),
         };
     }
 }

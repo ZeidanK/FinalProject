@@ -35,10 +35,23 @@ namespace FinalProjectAuthAPI.BL
                 return (false, 0, "Amount cannot be zero.");
 
             var id = _db.CreateTransaction(
-                req.CompanyId, req.TransactionDate, req.Description.Trim(),
-                req.Amount, req.TransactionType ?? "debit", createdByUserId,
-                req.BankAccountId, req.PostedDate, req.BalanceAfter,
-                req.Category, req.ReferenceNumber, req.VendorName?.Trim());
+                req.CompanyId, createdByUserId,
+                new TransactionInsertData
+                {
+                    TransactionDate  = req.TransactionDate,
+                    PostedDate       = req.PostedDate,
+                    Description      = req.Description.Trim(),
+                    VendorName       = req.VendorName?.Trim(),
+                    CardLast4        = req.CardLast4?.Trim(),
+                    Amount           = req.Amount,
+                    TransactionType  = req.TransactionType ?? "debit",
+                    Category         = req.Category,
+                    ReferenceNumber  = req.ReferenceNumber,
+                    ChargeAmount     = req.ChargeAmount,
+                    ChargeCurrency   = req.ChargeCurrency,
+                    OriginalCurrency = req.OriginalCurrency,
+                    ExchangeRate     = req.ExchangeRate
+                });
 
             return id > 0
                 ? (true, id, string.Empty)
@@ -51,18 +64,22 @@ namespace FinalProjectAuthAPI.BL
             if (req.Transactions == null || req.Transactions.Count == 0)
                 return (false, new List<long>(), "No transactions provided.");
 
-            var rows = req.Transactions.Select(t => (
-                t.TransactionDate,
-                t.Description ?? string.Empty,
-                t.Amount,
-                t.TransactionType ?? "debit",
-                t.BankAccountId,
-                t.PostedDate,
-                t.BalanceAfter,
-                t.Category,
-                t.ReferenceNumber,
-                t.VendorName
-            ));
+            var rows = req.Transactions.Select(t => new TransactionInsertData
+            {
+                TransactionDate  = t.TransactionDate,
+                PostedDate       = t.PostedDate,
+                Description      = t.Description ?? string.Empty,
+                VendorName       = t.VendorName,
+                CardLast4        = t.CardLast4,
+                Amount           = t.Amount,
+                TransactionType  = t.TransactionType ?? "debit",
+                Category         = t.Category,
+                ReferenceNumber  = t.ReferenceNumber,
+                ChargeAmount     = t.ChargeAmount,
+                ChargeCurrency   = t.ChargeCurrency,
+                OriginalCurrency = t.OriginalCurrency,
+                ExchangeRate     = t.ExchangeRate
+            });
 
             var ids = _db.BulkCreateTransactions(req.CompanyId, createdByUserId, rows);
             return (true, ids, string.Empty);

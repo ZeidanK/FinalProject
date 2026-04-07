@@ -7,7 +7,6 @@ import {
   getTransactionsByCompany,
   previewExcel,
 } from '../../services/transactions'
-import { createBankAccount, getBankAccountsByCompany } from '../../services/bankAccounts'
 import { transactionKeys } from '../../queries/queryKeys'
 
 export function useTransactionsByCompanyQuery({ companyId, token, filters }) {
@@ -23,25 +22,6 @@ export function useTransactionDetailsQuery({ transactionId, token, enabled = tru
     queryKey: transactionKeys.detail(transactionId),
     queryFn: () => getTransactionById(transactionId, token),
     enabled: Boolean(transactionId) && Boolean(token) && enabled,
-  })
-}
-
-export function useBankAccountsByCompanyQuery({ companyId, token }) {
-  return useQuery({
-    queryKey: transactionKeys.bankAccounts(companyId),
-    queryFn: () => getBankAccountsByCompany(companyId, token),
-    enabled: Boolean(companyId) && Boolean(token),
-  })
-}
-
-export function useCreateBankAccountMutation({ companyId, token }) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (payload) => createBankAccount(payload, token),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: transactionKeys.bankAccounts(companyId) })
-    },
   })
 }
 

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import PropTypes from 'prop-types'
 import {
   Alert,
   Box,
@@ -9,10 +8,6 @@ import {
   Chip,
   CircularProgress,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Checkbox,
   FormControl,
   IconButton,
@@ -29,11 +24,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
-import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -47,7 +39,6 @@ import Papa from 'papaparse'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import TransactionDetailsModal from '../components/TransactionDetailsModal'
-import { createBankAccount } from '../services/bankAccounts'
 import {
   bulkDeleteTransactions,
   createTransactionsBulk,
@@ -55,16 +46,10 @@ import {
   getTransactionById,
   previewExcel,
 } from '../services/transactions'
-import {
-  useBankAccountsByCompanyQuery,
-  useTransactionsByCompanyQuery,
-} from '../hooks/queries/useTransactionsQueries'
+import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const EXCEL_EXTENSIONS = new Set(['xlsx', 'xls'])
-
-const ACCOUNT_TYPES = ['checking', 'savings', 'credit_card', 'other']
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'SAR']
 
 const typeColors = {
   credit: 'success',
@@ -126,114 +111,6 @@ function parseCSVData(text) {
   })
 }
 
-function AddBankAccountDialog({ open, onClose, onSave, saving }) {
-  const [form, setForm] = useState({
-    bankName: '',
-    accountType: 'checking',
-    accountName: '',
-    accountNumberMasked: '',
-    currency: 'USD',
-  })
-
-  const handleClose = () => {
-    if (saving) return
-    onClose()
-  }
-
-  const handleChange = (field) => (event) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }))
-  }
-
-  const handleSave = async () => {
-    await onSave(form)
-    setForm({
-      bankName: '',
-      accountType: 'checking',
-      accountName: '',
-      accountNumberMasked: '',
-      currency: 'USD',
-    })
-  }
-
-  return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add Bank Account</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField
-            label="Bank Name"
-            required
-            fullWidth
-            value={form.bankName}
-            onChange={handleChange('bankName')}
-          />
-          <FormControl fullWidth>
-            <InputLabel>Account Type</InputLabel>
-            <Select
-              value={form.accountType}
-              label="Account Type"
-              onChange={handleChange('accountType')}
-            >
-              {ACCOUNT_TYPES.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t.replaceAll('_', ' ').replaceAll(/\b\w/g, (c) => c.toUpperCase())}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Account Name (optional)"
-            fullWidth
-            value={form.accountName}
-            onChange={handleChange('accountName')}
-          />
-          <TextField
-            label="Account Number (masked)"
-            fullWidth
-            placeholder="e.g. ****1234"
-            value={form.accountNumberMasked}
-            onChange={handleChange('accountNumberMasked')}
-          />
-          <FormControl fullWidth>
-            <InputLabel>Currency</InputLabel>
-            <Select
-              value={form.currency}
-              label="Currency"
-              onChange={handleChange('currency')}
-            >
-              {CURRENCIES.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleClose} disabled={saving}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving || !form.bankName.trim()}
-          startIcon={saving ? <CircularProgress size={16} /> : null}
-        >
-          {saving ? 'Saving…' : 'Add Account'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
-
-AddBankAccountDialog.propTypes = {
-  open: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  onSave: PropTypes.func.isRequired,
-  saving: PropTypes.bool.isRequired,
-}
-
 // ==================== Main Page ====================
 
 function TransactionsPage() {
@@ -243,14 +120,6 @@ function TransactionsPage() {
   // --- Transaction list ---
   const [transactions, setTransactions] = useState([])
   const [listError, setListError] = useState('')
-
-  // --- Bank accounts ---
-  const [bankAccounts, setBankAccounts] = useState([])
-  const [selectedAccountId, setSelectedAccountId] = useState('')
-
-  // --- Add bank account dialog ---
-  const [showAddAccount, setShowAddAccount] = useState(false)
-  const [addingAccount, setAddingAccount] = useState(false)
 
   // --- File upload ---
   const [csvFile, setCsvFile] = useState(null)
@@ -291,13 +160,7 @@ function TransactionsPage() {
     filters: transactionFilters,
   })
 
-  const bankAccountsQuery = useBankAccountsByCompanyQuery({
-    companyId: activeCompanyId,
-    token,
-  })
-
   const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
-  const accountsLoading = bankAccountsQuery.isLoading || bankAccountsQuery.isFetching
 
   useEffect(() => {
     if (transactionsQuery.error) {
@@ -310,14 +173,6 @@ function TransactionsPage() {
     setTransactions(data)
     setSelectedTransactionIds([])
   }, [transactionsQuery.data, transactionsQuery.error])
-
-  useEffect(() => {
-    const accounts = Array.isArray(bankAccountsQuery.data) ? bankAccountsQuery.data : []
-    setBankAccounts(accounts)
-    if (accounts.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(accounts[0].id ?? accounts[0].bankAccountId ?? '')
-    }
-  }, [bankAccountsQuery.data, selectedAccountId])
 
   // ===================== File Handlers =====================
 
@@ -441,7 +296,6 @@ function TransactionsPage() {
         createdByUserId: user?.id || user?.userId,
         transactions: validRows.map((r) => ({
           companyId: activeCompanyId,
-          bankAccountId: selectedAccountId || null,
           transactionDate: r.transactionDate,
           description: r.description,
           amount: r.amount,
@@ -470,41 +324,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, activeCompanyId, user, selectedAccountId, token, clearUpload, transactionsQuery])
-
-  // ===================== Add Bank Account =====================
-
-  const handleAddAccount = useCallback(
-    async (formData) => {
-      setAddingAccount(true)
-      try {
-        await createBankAccount(
-          {
-            companyId: activeCompanyId,
-            bankName: formData.bankName,
-            accountType: formData.accountType,
-            accountName: formData.accountName || null,
-            accountNumberMasked: formData.accountNumberMasked || null,
-            currency: formData.currency || 'USD',
-            createdByUserId: user?.id || user?.userId,
-          },
-          token,
-        )
-        setSnack({ open: true, message: 'Bank account added!', severity: 'success' })
-        setShowAddAccount(false)
-        await bankAccountsQuery.refetch()
-      } catch (err) {
-        setSnack({
-          open: true,
-          message: err.message || 'Failed to add bank account.',
-          severity: 'error',
-        })
-      } finally {
-        setAddingAccount(false)
-      }
-    },
-    [activeCompanyId, user, token, bankAccountsQuery],
-  )
+  }, [parsedRows, activeCompanyId, user, token, clearUpload, transactionsQuery])
 
   const openTransactionDetails = useCallback(
     async (tx) => {
@@ -640,31 +460,6 @@ function TransactionsPage() {
 
   const validCount = parsedRows.filter((r) => r._valid).length
   const invalidCount = parsedRows.length - validCount
-
-  let bankAccountSelectionContent
-  if (accountsLoading) {
-    bankAccountSelectionContent = <Skeleton variant="rectangular" width={220} height={40} sx={{ borderRadius: 1 }} />
-  } else if (bankAccounts.length === 0) {
-    bankAccountSelectionContent = <Typography variant="body2" color="text.secondary">No bank accounts yet.</Typography>
-  } else {
-    bankAccountSelectionContent = (
-      <FormControl size="small" sx={{ minWidth: 220 }}>
-        <Select
-          value={selectedAccountId}
-          onChange={(e) => setSelectedAccountId(e.target.value)}
-          displayEmpty={true}
-        >
-          {bankAccounts.map((acc) => (
-            <MenuItem key={acc.id ?? acc.bankAccountId} value={acc.id ?? acc.bankAccountId}>
-              {acc.bankName || acc.bank_name}
-              {(acc.accountNumberMasked || acc.account_number_masked) &&
-                ` · ${acc.accountNumberMasked || acc.account_number_masked}`}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    )
-  }
 
   let transactionTableContent
   if (listLoading) {
@@ -881,7 +676,7 @@ function TransactionsPage() {
             </CardContent>
           </Card>
 
-          {/* ---- Bank Account Selector + CSV Upload ---- */}
+          {/* ---- CSV / Excel Upload ---- */}
           <Card
             component={motion.div}
             variants={itemVariants}
@@ -895,27 +690,6 @@ function TransactionsPage() {
             }}
           >
             <CardContent>
-              {/* Bank account selector */}
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ sm: 'center' }}
-                spacing={2}
-                sx={{ mb: 3 }}
-              >
-                <AccountBalanceRoundedIcon sx={{ color: 'primary.main' }} />
-                <Typography variant="subtitle1" fontWeight={700} sx={{ minWidth: 'fit-content' }}>
-                  Bank Account
-                </Typography>
-                {bankAccountSelectionContent}
-                <Button
-                  size="small"
-                  startIcon={<AddRoundedIcon />}
-                  onClick={() => setShowAddAccount(true)}
-                >
-                  Add Account
-                </Button>
-              </Stack>
-
               {/* CSV drop zone */}
               <Box
                 sx={{
@@ -1197,14 +971,6 @@ function TransactionsPage() {
           </Card>
         </Stack>
       </Container>
-
-      {/* ---- Add Bank Account Dialog ---- */}
-      <AddBankAccountDialog
-        open={showAddAccount}
-        onClose={() => setShowAddAccount(false)}
-        onSave={handleAddAccount}
-        saving={addingAccount}
-      />
 
       <TransactionDetailsModal
         open={detailsModal.open}

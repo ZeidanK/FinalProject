@@ -176,7 +176,7 @@ namespace FinalProjectAuthAPI.BL
 
         private List<MatchSuggestionRow> BuildResultsWithGemini(
             List<(TransactionCandidate Txn, string AmountReason)> filtered,
-            List<dynamic> comparisonResults,
+            List<VendorComparisonResult> comparisonResults,
             decimal remaining)
         {
             var results = new List<MatchSuggestionRow>();
