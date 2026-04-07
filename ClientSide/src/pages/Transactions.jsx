@@ -576,8 +576,8 @@ function TransactionsPage() {
     )
   } else {
     transactionTableContent = (
-      <TableContainer>
-        <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
+      <TableContainer sx={{ overflowX: 'auto' }}>
+        <Table size="small" sx={{ minWidth: 1100 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
               <TableCell padding="checkbox">
@@ -629,12 +629,12 @@ function TransactionsPage() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 220 }}>
                       {desc}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 160 }}>
                       {vendor}
                     </Typography>
                   </TableCell>
@@ -907,8 +907,8 @@ function TransactionsPage() {
 
                 {importing && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
-                <TableContainer sx={{ maxHeight: 400 }}>
-                  <Table size="small" stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
+                <TableContainer sx={{ maxHeight: 400, overflowX: 'auto' }}>
+                  <Table size="small" stickyHeader sx={{ minWidth: 980 }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
                         <TableCell padding="checkbox" />
@@ -941,12 +941,12 @@ function TransactionsPage() {
                             <Typography variant="body2">{row.transactionDate || '—'}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 220 }}>
                               {row.description || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 160 }}>
                               {row.vendorName || '—'}
                             </Typography>
                           </TableCell>
