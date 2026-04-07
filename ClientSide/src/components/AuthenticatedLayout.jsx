@@ -273,7 +273,7 @@ function AuthenticatedLayout() {
         </AppBar>
       )}
 
-      <Box sx={{ display: 'flex', minHeight: isMobile ? 'calc(100vh - 64px)' : '100vh' }}>
+      <Box sx={{ display: 'flex', minHeight: isMobile ? 'calc(100vh - 64px)' : '100vh', minWidth: 0 }}>
         {!isMobile && (
           <Box
             component={motion.aside}
@@ -321,6 +321,8 @@ function AuthenticatedLayout() {
           transition={{ duration: 0.34, ease: 'easeOut' }}
           sx={{
             flexGrow: 1,
+            minWidth: 0,
+            overflowX: 'hidden',
             p: { xs: 1.5, md: 2.5, xl: 3 },
           }}
         >

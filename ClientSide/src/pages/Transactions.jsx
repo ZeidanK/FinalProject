@@ -576,7 +576,7 @@ function TransactionsPage() {
     )
   } else {
     transactionTableContent = (
-      <TableContainer sx={{ overflowX: 'auto' }}>
+      <TableContainer sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
         <Table size="small" sx={{ minWidth: 1100 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
@@ -629,12 +629,12 @@ function TransactionsPage() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 220 }}>
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                       {desc}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 160 }}>
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                       {vendor}
                     </Typography>
                   </TableCell>
@@ -715,6 +715,7 @@ function TransactionsPage() {
     <Box
       sx={{
         py: { xs: 4, md: 6 },
+        overflowX: 'hidden',
         background:
           'radial-gradient(circle at 0% 5%, rgba(88,166,255,0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66,130,255,0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
       }}
@@ -722,7 +723,7 @@ function TransactionsPage() {
       <Container
         maxWidth={false}
         disableGutters
-        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', overflowX: 'hidden' }}
       >
         <Stack
           component={motion.div}
@@ -730,6 +731,7 @@ function TransactionsPage() {
           initial="hidden"
           animate="show"
           spacing={3}
+          sx={{ minWidth: 0 }}
         >
           {/* ---- Page Header ---- */}
           <Card
@@ -907,7 +909,7 @@ function TransactionsPage() {
 
                 {importing && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
-                <TableContainer sx={{ maxHeight: 400, overflowX: 'auto' }}>
+                <TableContainer sx={{ width: '100%', maxWidth: '100%', maxHeight: 400, overflowX: 'auto' }}>
                   <Table size="small" stickyHeader sx={{ minWidth: 980 }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
@@ -941,12 +943,12 @@ function TransactionsPage() {
                             <Typography variant="body2">{row.transactionDate || '—'}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 220 }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                               {row.description || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere', minWidth: 160 }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                               {row.vendorName || '—'}
                             </Typography>
                           </TableCell>
@@ -1033,6 +1035,7 @@ function TransactionsPage() {
                 justifyContent="space-between"
                 alignItems={{ sm: 'center' }}
                 spacing={2}
+                sx={{ minWidth: 0 }}
               >
                 <Typography variant="subtitle1" fontWeight={700}>
                   Transaction Records
@@ -1051,7 +1054,7 @@ function TransactionsPage() {
                 </FormControl>
               </Stack>
 
-              <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+              <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
                 <Button
                   size="small"
                   color="error"
