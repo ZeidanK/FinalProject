@@ -68,3 +68,8 @@ export async function autoMatchOnLoad(companyId, minConfidence, token) {
 
   return unwrapEnvelope(response)
 }
+
+export async function getSimpleSuggestions(companyId, token) {
+  const response = await apiRequest(URLS.matches.simpleSuggestions(companyId), { token })
+  return unwrapEnvelope(response)
+}

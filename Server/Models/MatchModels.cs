@@ -108,4 +108,19 @@ namespace FinalProjectAuthAPI.Models
         public bool    IsActive               { get; set; } = true;
         public DateTime CreatedAt             { get; set; }
     }
+
+    // ── Simple date+amount match suggestion ──────────────────────────────────
+    public class SimpleMatchSuggestion
+    {
+        public long     InvoiceId               { get; set; }
+        public string   InvoiceNumber           { get; set; } = string.Empty;
+        public string   VendorName              { get; set; } = string.Empty;
+        public decimal  InvoiceAmount           { get; set; }
+        public DateTime InvoiceDate             { get; set; }
+        public long     TransactionId           { get; set; }
+        public string   TransactionDescription  { get; set; } = string.Empty;
+        public decimal  TransactionAmount       { get; set; }
+        public DateTime TransactionDate         { get; set; }
+        public string   TransactionType         { get; set; } = string.Empty;
+    }
 }

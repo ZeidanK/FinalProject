@@ -5,6 +5,7 @@ import {
   deleteMatch,
   getMatchSuggestions,
   getMatchesByCompany,
+  getSimpleSuggestions,
 } from '../../services/matches'
 import { getInvoicesByCompany } from '../../services/invoices'
 import { getTransactionsByCompany } from '../../services/transactions'
@@ -52,6 +53,7 @@ export function useCreateMatchMutation({ companyId, token }) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: matchKeys.byCompany(companyId) }),
+        queryClient.invalidateQueries({ queryKey: matchKeys.simpleSuggestions(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
       ])
@@ -67,10 +69,19 @@ export function useDeleteMatchMutation({ companyId, token }) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: matchKeys.byCompany(companyId) }),
+        queryClient.invalidateQueries({ queryKey: matchKeys.simpleSuggestions(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
       ])
     },
+  })
+}
+
+export function useSimpleSuggestionsQuery({ companyId, token }) {
+  return useQuery({
+    queryKey: matchKeys.simpleSuggestions(companyId),
+    queryFn: () => getSimpleSuggestions(companyId, token),
+    enabled: Boolean(companyId) && Boolean(token),
   })
 }
 
@@ -82,6 +93,7 @@ export function useAutoMatchOnLoadMutation({ companyId, token }) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: matchKeys.byCompany(companyId) }),
+        queryClient.invalidateQueries({ queryKey: matchKeys.simpleSuggestions(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
       ])

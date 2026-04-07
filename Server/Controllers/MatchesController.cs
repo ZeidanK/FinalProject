@@ -36,6 +36,11 @@ namespace FinalProjectAuthAPI.Controllers
         public async Task<IActionResult> GetSuggestions(long invoiceId) =>
             Ok(await _svc.GetSuggestionsAsync(invoiceId));
 
+        // GET api/matches/simple-suggestions/{companyId}
+        [HttpGet("simple-suggestions/{companyId:long}")]
+        public IActionResult GetSimpleSuggestions(long companyId) =>
+            Ok(_svc.GetSimpleSuggestions(companyId));
+
         // POST api/matches
         [HttpPost]
         public IActionResult Create([FromBody] CreateMatchRequest request)

@@ -29,7 +29,8 @@ export function CompanyProvider({ children }) {
   const { isAuthenticated, user, token, updateUser } = useAuth()
   const [companies, setCompanies] = useState([])
   const [activeCompanyId, setActiveCompanyId] = useState(() => readStoredCompanyId())
-  const [loadingCompanies, setLoadingCompanies] = useState(false)
+  const [loadingCompanies, setLoadingCompanies] = useState(true)
+  const [hasResolvedCompanies, setHasResolvedCompanies] = useState(false)
 
   const resolveInitialCompanyId = useCallback((availableCompanies, currentUserCompanyId) => {
     const ids = availableCompanies
@@ -68,10 +69,13 @@ export function CompanyProvider({ children }) {
       setCompanies([])
       setActiveCompanyId(null)
       persistCompanyId(null)
+      setLoadingCompanies(false)
+      setHasResolvedCompanies(false)
       return
     }
 
     setLoadingCompanies(true)
+    setHasResolvedCompanies(false)
     try {
       const response = await getCompaniesByUser(user.id, token)
       const nextCompanies = Array.isArray(response) ? response : []
@@ -85,6 +89,7 @@ export function CompanyProvider({ children }) {
       if (currentUserCompanyId !== nextActiveCompanyId) {
         updateUser({ companyId: nextActiveCompanyId })
       }
+      setHasResolvedCompanies(true)
     } catch {
       setCompanies([])
       setActiveCompanyId(null)
@@ -94,6 +99,7 @@ export function CompanyProvider({ children }) {
       if (currentUserCompanyId !== null) {
         updateUser({ companyId: null })
       }
+      setHasResolvedCompanies(true)
     } finally {
       setLoadingCompanies(false)
     }
@@ -107,9 +113,10 @@ export function CompanyProvider({ children }) {
     companies,
     activeCompanyId,
     loadingCompanies,
+    hasResolvedCompanies,
     refreshCompanies,
     setActiveCompanyId: changeActiveCompanyId,
-  }), [companies, activeCompanyId, loadingCompanies, refreshCompanies, changeActiveCompanyId])
+  }), [companies, activeCompanyId, loadingCompanies, hasResolvedCompanies, refreshCompanies, changeActiveCompanyId])
 
   return <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>
 }

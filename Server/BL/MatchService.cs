@@ -26,7 +26,46 @@ namespace FinalProjectAuthAPI.BL
 
         public MatchRow? GetById(long id) => _db.GetMatchById(id);
 
-        // ── Suggestions: Date + Amount filter → Gemini name comparison ────
+        // ── Simple suggestions: exact date + exact amount match ────────────
+
+        public List<SimpleMatchSuggestion> GetSimpleSuggestions(long companyId)
+        {
+            var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
+            var transactions = _db.GetCandidateTransactions(companyId);
+
+            var results = new List<SimpleMatchSuggestion>();
+
+            foreach (var invoice in invoices)
+            {
+                var remaining = invoice.TotalAmount - invoice.MatchedAmount;
+                if (remaining <= 0) continue;
+
+                foreach (var txn in transactions)
+                {
+                    if (txn.TransactionDate.Date == invoice.InvoiceDate.Date &&
+                        Math.Abs(txn.Amount) == remaining)
+                    {
+                        results.Add(new SimpleMatchSuggestion
+                        {
+                            InvoiceId              = invoice.Id,
+                            InvoiceNumber          = invoice.InvoiceNumber,
+                            VendorName             = invoice.VendorName,
+                            InvoiceAmount          = invoice.TotalAmount,
+                            InvoiceDate            = invoice.InvoiceDate,
+                            TransactionId          = txn.Id,
+                            TransactionDescription = txn.Description,
+                            TransactionAmount      = Math.Abs(txn.Amount),
+                            TransactionDate        = txn.TransactionDate,
+                            TransactionType        = txn.TransactionType,
+                        });
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        // ── AI Suggestions: Date + Amount filter → Gemini name comparison ────
 
         public async Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId)
         {

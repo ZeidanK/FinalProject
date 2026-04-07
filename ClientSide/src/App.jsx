@@ -54,9 +54,9 @@ RoleRoute.propTypes = {
 
 function CompanyRoute({ children }) {
   const location = useLocation()
-  const { activeCompanyId, loadingCompanies } = useCompany()
+  const { activeCompanyId, loadingCompanies, hasResolvedCompanies } = useCompany()
 
-  if (loadingCompanies) {
+  if (loadingCompanies || !hasResolvedCompanies) {
     return <div>Resolving company access...</div>
   }
 

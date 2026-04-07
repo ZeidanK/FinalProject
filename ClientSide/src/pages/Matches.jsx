@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import PropTypes from 'prop-types'
 import {
   Alert,
@@ -40,12 +41,14 @@ import { useCompany } from '../context/useCompany'
 import { getInvoiceById, updateInvoice } from '../services/invoices'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
 import { itemVariants } from '../utils/motionVariants'
+import { invoiceKeys, matchKeys, transactionKeys } from '../queries/queryKeys'
 import {
   useAutoMatchOnLoadMutation,
   useCreateMatchMutation,
   useDeleteMatchMutation,
   useMatchSuggestionsQuery,
   useMatchesByCompanyQuery,
+  useSimpleSuggestionsQuery,
   useUnmatchedInvoicesQuery,
   useUnmatchedTransactionsQuery,
 } from '../hooks/queries/useMatchesQueries'
@@ -264,9 +267,166 @@ SelectionPanel.defaultProps = {
   renderActions: null,
 }
 
+// ── Quick Match Suggestions component ──────────────────────────────────────
+
+function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBusy }) {
+  const rawSuggestions = Array.isArray(query.data) ? query.data : []
+  const suggestions = rawSuggestions.filter(
+    (s) => !deniedPairs.has(`${s.invoiceId}-${s.transactionId}`),
+  )
+
+  if (!query.isLoading && suggestions.length === 0) return null
+
+  return (
+    <Card
+      component={motion.div}
+      variants={itemVariants}
+      elevation={0}
+      sx={{
+        ...cardBaseSx,
+        borderColor: 'rgba(55,214,122,0.35)',
+        background: 'linear-gradient(135deg, rgba(14,30,22,0.96), rgba(10,20,16,0.96))',
+      }}
+    >
+      <CardContent>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <CompareArrowsRoundedIcon sx={{ color: '#37d67a' }} />
+          <Typography variant="subtitle1" fontWeight={700}>
+            Quick Match Suggestions
+          </Typography>
+          <Chip
+            label={suggestions.length}
+            size="small"
+            sx={{ bgcolor: 'rgba(55,214,122,0.15)', color: '#37d67a' }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Same date &amp; exact amount
+          </Typography>
+        </Stack>
+
+        {query.isLoading ? (
+          <Stack spacing={1}>
+            {['qs-1', 'qs-2', 'qs-3'].map((k) => (
+              <Skeleton key={k} variant="rectangular" height={72} sx={{ borderRadius: 2 }} />
+            ))}
+          </Stack>
+        ) : (
+          <Stack spacing={1.5}>
+            <AnimatePresence>
+              {suggestions.map((s) => {
+                const pairKey = `${s.invoiceId}-${s.transactionId}`
+                return (
+                  <Box
+                    key={pairKey}
+                    component={motion.div}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      alignItems={{ sm: 'center' }}
+                      justifyContent="space-between"
+                      spacing={2}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'rgba(55,214,122,0.2)',
+                        bgcolor: 'rgba(55,214,122,0.04)',
+                      }}
+                    >
+                      {/* Invoice side */}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Invoice
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {s.invoiceNumber || `#${s.invoiceId}`}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {s.vendorName || '—'}
+                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {fmtDate(s.invoiceDate)}
+                          </Typography>
+                          <Typography variant="caption" fontWeight={700} sx={{ color: '#37d67a' }}>
+                            ${fmtAmount(s.invoiceAmount)}
+                          </Typography>
+                        </Stack>
+                      </Box>
+
+                      <CompareArrowsRoundedIcon sx={{ color: 'rgba(55,214,122,0.5)', flexShrink: 0 }} />
+
+                      {/* Transaction side */}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Transaction
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {s.transactionDescription || `#${s.transactionId}`}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {s.transactionType || '—'}
+                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {fmtDate(s.transactionDate)}
+                          </Typography>
+                          <Typography variant="caption" fontWeight={700} sx={{ color: '#37d67a' }}>
+                            ${fmtAmount(s.transactionAmount)}
+                          </Typography>
+                        </Stack>
+                      </Box>
+
+                      {/* Actions */}
+                      <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => onDeny(s.invoiceId, s.transactionId)}
+                          disabled={matchBusy}
+                        >
+                          Deny
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          startIcon={<CheckCircleRoundedIcon fontSize="small" />}
+                          onClick={() => onConfirm(s)}
+                          disabled={matchBusy}
+                        >
+                          Confirm
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                )
+              })}
+            </AnimatePresence>
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+QuickMatchSuggestions.propTypes = {
+  query: PropTypes.object.isRequired,
+  deniedPairs: PropTypes.instanceOf(Set).isRequired,
+  onDeny: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  matchBusy: PropTypes.bool.isRequired,
+}
+
 function MatchesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
+  const queryClient = useQueryClient()
 
   // ----- Data state -----
   const [invoices, setInvoices] = useState([])
@@ -294,6 +454,9 @@ function MatchesPage() {
   // ----- Unmatch confirmation dialog -----
   const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null })
 
+  // ----- Simple suggestions denied pairs (session-only) -----
+  const [deniedPairs, setDeniedPairs] = useState(new Set())
+
   // ----- Prevent double auto-match in StrictMode -----
   const autoMatchRanRef = useRef(false)
 
@@ -308,6 +471,7 @@ function MatchesPage() {
     token,
     enabled: Boolean(selectedInvoiceId),
   })
+  const simpleSuggestionsQuery = useSimpleSuggestionsQuery({ companyId: activeCompanyId, token })
 
   const getConfidenceChipColor = (confidence) => {
     if (confidence >= 0.8) return 'success'
@@ -319,11 +483,11 @@ function MatchesPage() {
 
   const loadData = useCallback(async () => {
     await Promise.all([
-      invoicesQuery.refetch(),
-      transactionsQuery.refetch(),
-      matchesQuery.refetch(),
+      queryClient.invalidateQueries({ queryKey: matchKeys.all }),
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
     ])
-  }, [invoicesQuery, matchesQuery, transactionsQuery])
+  }, [queryClient])
 
   useEffect(() => {
     setInvoices(Array.isArray(invoicesQuery.data) ? invoicesQuery.data : [])
@@ -379,7 +543,6 @@ function MatchesPage() {
             message: `✓ ${matchResult.successfulMatches} automatic match(es) found`,
             severity: 'success',
           })
-          await loadData()
         }
       } catch (matchErr) {
         console.warn('[MATCH] Auto-match on load failed:', matchErr)
@@ -417,13 +580,12 @@ function MatchesPage() {
       setSelectedTransactionId(null)
       setSuggestions([])
       setSnack({ open: true, message: 'Match created successfully!', severity: 'success' })
-      await loadData()
     } catch (err) {
       setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
     } finally {
       setMatchBusy(false)
     }
-  }, [selectedInvoiceId, selectedTransactionId, invoices, transactions, createMatchMutation, loadData])
+  }, [selectedInvoiceId, selectedTransactionId, invoices, transactions, createMatchMutation])
 
   const confirmUnmatch = useCallback((matchId) => {
     setUnmatchDialog({ open: true, matchId })
@@ -436,11 +598,10 @@ function MatchesPage() {
     try {
       await deleteMatchMutation.mutateAsync(matchId)
       setSnack({ open: true, message: 'Match removed.', severity: 'success' })
-      await loadData()
     } catch (err) {
       setSnack({ open: true, message: err.message || 'Failed to remove match.', severity: 'error' })
     }
-  }, [unmatchDialog.matchId, deleteMatchMutation, loadData])
+  }, [unmatchDialog.matchId, deleteMatchMutation])
 
   const handleAcceptSuggestion = useCallback((transactionId) => {
     setSelectedTransactionId(transactionId)
@@ -957,6 +1118,34 @@ function MatchesPage() {
               {matchedItemsContent}
             </CardContent>
           </Card>
+
+          {/* ---- Quick Match Suggestions ---- */}
+          <QuickMatchSuggestions
+            query={simpleSuggestionsQuery}
+            deniedPairs={deniedPairs}
+            onDeny={(invoiceId, transactionId) =>
+              setDeniedPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
+            }
+            onConfirm={async (suggestion) => {
+              setMatchBusy(true)
+              try {
+                await createMatchMutation.mutateAsync({
+                  invoiceId: suggestion.invoiceId,
+                  transactionId: suggestion.transactionId,
+                  matchedAmount: suggestion.invoiceAmount,
+                  matchMethod: 'simple',
+                  matchType: 'full',
+                  matchConfidence: 1,
+                })
+                setSnack({ open: true, message: 'Match confirmed!', severity: 'success' })
+              } catch (err) {
+                setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
+              } finally {
+                setMatchBusy(false)
+              }
+            }}
+            matchBusy={matchBusy}
+          />
       </PageSectionLayout>
 
       {/* ---- Unmatch Confirmation Dialog ---- */}
