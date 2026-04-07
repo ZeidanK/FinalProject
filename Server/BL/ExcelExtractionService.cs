@@ -272,10 +272,6 @@ namespace FinalProjectAuthAPI.BL
             // Type column overrides auto-detected type
             string finalTransactionType = GetTransactionType(sheet, row, map, transactionType);
 
-            // If no dedicated description column, fall back to vendor name
-            if (string.IsNullOrWhiteSpace(description))
-                description = vendorName ?? "No description";
-
             return new ExtractedTransaction
             {
                 TransactionDate  = date.Value,

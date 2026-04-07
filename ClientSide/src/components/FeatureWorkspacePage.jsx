@@ -40,7 +40,11 @@ function FeatureWorkspacePage({
         py: { xs: 1, md: 2 },
       }}
     >
-      <Container maxWidth="lg" disableGutters>
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+      >
         <Stack
           spacing={2.5}
           component={motion.div}

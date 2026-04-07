@@ -93,7 +93,11 @@ function LandingPage() {
           py: 1,
         }}
       >
-        <Container maxWidth="lg">
+        <Container
+          maxWidth={false}
+          disableGutters
+          sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+        >
           <Toolbar
             disableGutters
             sx={{
@@ -140,7 +144,11 @@ function LandingPage() {
         </Container>
       </AppBar>
 
-      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: { xs: 5, md: 8 }, width: '100%' }}
+      >
         <Grid container spacing={{ xs: 4, md: 6 }} alignItems="center">
           <Grid size={{ xs: 12, md: 7 }}>
             <Stack

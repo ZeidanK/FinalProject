@@ -321,7 +321,7 @@ function AuthenticatedLayout() {
           transition={{ duration: 0.34, ease: 'easeOut' }}
           sx={{
             flexGrow: 1,
-            p: { xs: 2, md: 3.2 },
+            p: { xs: 1.5, md: 2.5, xl: 3 },
           }}
         >
           <Outlet />

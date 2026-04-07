@@ -122,7 +122,11 @@ function DashboardPage() {
           'radial-gradient(circle at 0% 5%, rgba(88, 166, 255, 0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66, 130, 255, 0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
       }}
     >
-      <Container maxWidth="lg">
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+      >
         <Stack
           component={motion.div}
           variants={containerVariants}

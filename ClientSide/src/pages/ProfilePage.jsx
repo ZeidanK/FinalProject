@@ -426,7 +426,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
+    <Container
+      maxWidth={false}
+      disableGutters
+      sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%' }}
+    >
       <Box>
         {requiresCompanySetup && (
           <Alert severity="warning" sx={{ mb: 2.5 }}>

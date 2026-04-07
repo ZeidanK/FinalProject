@@ -577,7 +577,7 @@ function TransactionsPage() {
   } else {
     transactionTableContent = (
       <TableContainer>
-        <Table size="small">
+        <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
               <TableCell padding="checkbox">
@@ -589,12 +589,12 @@ function TransactionsPage() {
                 />
               </TableCell>
               <TableCell>Date</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Vendor</TableCell>
+              <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
+              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
               <TableCell align="right">Amount</TableCell>
-              <TableCell align="center">Type</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Reference</TableCell>
+              <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
+              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
+              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
               <TableCell align="center">Matched</TableCell>
               <TableCell align="center">Action</TableCell>
             </TableRow>
@@ -629,12 +629,12 @@ function TransactionsPage() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 240 }}>
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                       {desc}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                       {vendor}
                     </Typography>
                   </TableCell>
@@ -660,12 +660,12 @@ function TransactionsPage() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                       {cat}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                       {ref}
                     </Typography>
                   </TableCell>
@@ -719,7 +719,11 @@ function TransactionsPage() {
           'radial-gradient(circle at 0% 5%, rgba(88,166,255,0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66,130,255,0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
       }}
     >
-      <Container maxWidth="lg">
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+      >
         <Stack
           component={motion.div}
           variants={containerVariants}
@@ -904,17 +908,17 @@ function TransactionsPage() {
                 {importing && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
                 <TableContainer sx={{ maxHeight: 400 }}>
-                  <Table size="small" stickyHeader>
+                  <Table size="small" stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
                         <TableCell padding="checkbox" />
                         <TableCell>Date</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Vendor</TableCell>
+                        <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
+                        <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
                         <TableCell align="right">Amount</TableCell>
-                        <TableCell align="center">Type</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Reference</TableCell>
+                        <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
+                        <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
+                        <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
                         <TableCell align="center">Status</TableCell>
                       </TableRow>
                     </TableHead>
@@ -937,12 +941,12 @@ function TransactionsPage() {
                             <Typography variant="body2">{row.transactionDate || '—'}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" noWrap sx={{ maxWidth: 220 }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                               {row.description || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                               {row.vendorName || '—'}
                             </Typography>
                           </TableCell>
@@ -972,12 +976,12 @@ function TransactionsPage() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                               {row.category || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                               {row.referenceNumber || '—'}
                             </Typography>
                           </TableCell>
