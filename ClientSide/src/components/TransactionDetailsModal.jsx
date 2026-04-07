@@ -36,12 +36,19 @@ function normalizeTransaction(tx) {
     transactionDate: tx.transactionDate ?? tx.transaction_date ?? null,
     postedDate: tx.postedDate ?? tx.posted_date ?? null,
     description: tx.description ?? '',
+    vendorName: tx.vendorName ?? tx.vendor_name ?? null,
+    cardLast4: tx.cardLast4 ?? tx.card_last4 ?? null,
     amount: tx.amount ?? 0,
-    balanceAfter: tx.balanceAfter ?? tx.balance_after ?? null,
     transactionType: String(tx.transactionType ?? tx.transaction_type ?? 'debit').toLowerCase(),
     category: tx.category ?? '—',
+    categoryConfidence: tx.categoryConfidence ?? tx.category_confidence ?? null,
     referenceNumber: tx.referenceNumber ?? tx.reference_number ?? '—',
+    chargeAmount: tx.chargeAmount ?? tx.charge_amount ?? null,
+    chargeCurrency: tx.chargeCurrency ?? tx.charge_currency ?? null,
+    originalCurrency: tx.originalCurrency ?? tx.original_currency ?? null,
+    exchangeRate: tx.exchangeRate ?? tx.exchange_rate ?? null,
     isMatched: tx.isMatched ?? tx.is_matched ?? false,
+    isAnomaly: tx.isAnomaly ?? tx.is_anomaly ?? false,
     isDuplicate: tx.isDuplicate ?? tx.is_duplicate ?? false,
     status: tx.status ?? 'confirmed',
     createdByUserId: tx.createdByUserId ?? tx.created_by_user_id ?? null,
@@ -107,6 +114,7 @@ function TransactionDetailsContent({ data }) {
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
         <Chip label={data.transactionType} color={data.transactionType === 'credit' ? 'success' : 'error'} variant="outlined" />
         <Chip label={data.isMatched ? 'Matched' : 'Unmatched'} color={data.isMatched ? 'success' : 'default'} variant="outlined" />
+        <Chip label={data.isAnomaly ? 'Anomaly' : 'Normal'} color={data.isAnomaly ? 'error' : 'default'} variant="outlined" />
         <Chip label={data.isDuplicate ? 'Duplicate' : 'Unique'} color={data.isDuplicate ? 'warning' : 'default'} variant="outlined" />
         <Chip label={data.status || 'confirmed'} color={chipColorForStatus(data.status)} variant="outlined" />
       </Stack>
@@ -121,17 +129,35 @@ function TransactionDetailsContent({ data }) {
         <Grid size={{ xs: 12 }}>
           <DetailRow label="Description" value={data.description || '—'} />
         </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Vendor Name" value={data.vendorName || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Card Last 4" value={data.cardLast4 || '—'} />
+        </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
           <DetailRow label="Amount" value={formatNumber(data.amount)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <DetailRow label="Balance After" value={data.balanceAfter == null ? '—' : formatNumber(data.balanceAfter)} />
+          <DetailRow label="Charge Amount" value={data.chargeAmount == null ? '—' : formatNumber(data.chargeAmount)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <DetailRow label="Exchange Rate" value={data.exchangeRate == null ? '—' : formatNumber(data.exchangeRate, 4)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <DetailRow label="Category" value={data.category || '—'} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Category Confidence" value={data.categoryConfidence == null ? '—' : formatNumber(data.categoryConfidence, 4)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <DetailRow label="Reference Number" value={data.referenceNumber || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Charge Currency" value={data.chargeCurrency || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <DetailRow label="Original Currency" value={data.originalCurrency || '—'} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <DetailRow label="Created At" value={formatDate(data.createdAt)} />
