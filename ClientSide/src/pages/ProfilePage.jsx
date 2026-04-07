@@ -32,6 +32,7 @@ import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { getAllCompanies } from '../services/companies'
 import {
   useChangePasswordMutation,
   useCreateCompanyMutation,
@@ -129,6 +130,9 @@ export default function ProfilePage() {
   const [savingCompany, setSavingCompany] = useState(false)
   const [deletingCompanyId, setDeletingCompanyId] = useState(null)
   const [companyMsg, setCompanyMsg] = useState(null)
+  const [accountantCompanies, setAccountantCompanies] = useState([])
+  const [loadingAccountantCompanies, setLoadingAccountantCompanies] = useState(false)
+  const [accountantCompaniesError, setAccountantCompaniesError] = useState('')
 
   const isBusinessOwner = useMemo(
     () => user?.role === 'business_owner' || user?.role === 'accountant_business_owner',
@@ -172,6 +176,38 @@ export default function ProfilePage() {
       phone: profileQuery.data.phone || '',
     })
   }, [profileQuery.data])
+
+  useEffect(() => {
+    if (!isAccountant || !token) {
+      setAccountantCompanies([])
+      setAccountantCompaniesError('')
+      setLoadingAccountantCompanies(false)
+      return
+    }
+
+    let mounted = true
+    setLoadingAccountantCompanies(true)
+    setAccountantCompaniesError('')
+
+    getAllCompanies(token)
+      .then((data) => {
+        if (!mounted) return
+        setAccountantCompanies(Array.isArray(data) ? data : [])
+      })
+      .catch((err) => {
+        if (!mounted) return
+        setAccountantCompanies([])
+        setAccountantCompaniesError(err.message || 'Failed to load companies list.')
+      })
+      .finally(() => {
+        if (!mounted) return
+        setLoadingAccountantCompanies(false)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [isAccountant, token])
 
   // ── Profile picture helpers ────────────────────────────────
   const handleProfilePicChange = (e) => {
@@ -360,22 +396,31 @@ export default function ProfilePage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
+  const pickerCompanies = isAccountant ? accountantCompanies : companies
+  const activeCompanyIdNumber = Number(activeCompanyId)
+
   let assignedCompaniesContent
-  if (loadingCompanies) {
+  if (loadingCompanies || loadingAccountantCompanies) {
     assignedCompaniesContent = (
       <Stack spacing={2}>
         <Skeleton variant="rounded" height={60} />
         <Skeleton variant="rounded" height={60} />
       </Stack>
     )
-  } else if (companies.length === 0) {
+  } else if (accountantCompaniesError) {
     assignedCompaniesContent = (
-      <Typography color="text.secondary">No companies assigned to you yet.</Typography>
+      <Alert severity="error" variant="outlined">
+        {accountantCompaniesError}
+      </Alert>
+    )
+  } else if (pickerCompanies.length === 0) {
+    assignedCompaniesContent = (
+      <Typography color="text.secondary">No companies available to select yet.</Typography>
     )
   } else {
     assignedCompaniesContent = (
       <Stack spacing={1.5}>
-        {companies.map((c) => (
+        {pickerCompanies.map((c) => (
           <Box
             key={c.id}
             sx={{
@@ -409,7 +454,7 @@ export default function ProfilePage() {
                     textTransform: 'capitalize',
                   }}
                 />
-                {activeCompanyId === c.id ? (
+                {activeCompanyIdNumber === Number(c.id) ? (
                   <Chip
                     label="Active"
                     size="small"
@@ -818,7 +863,7 @@ export default function ProfilePage() {
               <CardContent sx={{ p: 3 }}>
                 {sectionHeader(
                   <BusinessRoundedIcon sx={{ color: 'secondary.main' }} />,
-                  'Assigned Companies',
+                  'Choose Company',
                 )}
 
                 {loadingCompanies ? (

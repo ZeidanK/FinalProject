@@ -57,14 +57,15 @@ export function CompanyProvider({ children }) {
       .map((company) => parseCompanyId(company.id ?? company.companyId))
       .filter(Boolean)
 
-    if (!availableIds.includes(parsedId)) {
+    const isAccountantRole = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
+
+    if (!availableIds.includes(parsedId) && !isAccountantRole) {
       return
     }
 
     setActiveCompanyId(parsedId)
     persistCompanyId(parsedId)
-    updateUser({ companyId: parsedId })
-  }, [companies, updateUser])
+  }, [companies, user?.role])
 
   const refreshCompanies = useCallback(async () => {
     if (!isAuthenticated || !user?.id || !token) {

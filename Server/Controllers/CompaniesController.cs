@@ -20,7 +20,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // GET api/companies
         [HttpGet]
-        [Authorize(Roles = "admin")]
+        [Authorize(Roles = "admin,accountant,accountant_business_owner")]
         public IActionResult GetAll() =>
             Ok(_svc.GetAll());
 

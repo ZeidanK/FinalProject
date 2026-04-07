@@ -37,6 +37,10 @@ namespace FinalProjectAuthAPI.BL
 
             foreach (var invoice in invoices)
             {
+                // Skip installment invoices — matched by GetInstallmentSuggestions instead
+                if (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1)
+                    continue;
+
                 var remaining = invoice.TotalAmount - invoice.MatchedAmount;
                 if (remaining <= 0) continue;
 
@@ -94,12 +98,12 @@ namespace FinalProjectAuthAPI.BL
                 var matchingTxns = transactions
                     .Where(txn =>
                         txn.TransactionDate.Date == invoice.InvoiceDate.Date &&
-                        Math.Abs(txn.Amount) == installmentAmount)
+                        Math.Abs(txn.ChargeAmount ?? txn.Amount) == installmentAmount)
                     .Select(txn => new InstallmentTransactionCandidate
                     {
                         TransactionId   = txn.Id,
                         Description     = txn.Description,
-                        Amount          = Math.Abs(txn.Amount),
+                        Amount          = Math.Abs(txn.ChargeAmount ?? txn.Amount),
                         TransactionDate = txn.TransactionDate,
                         TransactionType = txn.TransactionType,
                     })

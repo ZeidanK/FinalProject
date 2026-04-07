@@ -12,6 +12,11 @@ export async function getCompaniesByUser(userId, token) {
   return unwrapEnvelope(response)
 }
 
+export async function getAllCompanies(token) {
+  const response = await apiRequest(URLS.companies.base, { token })
+  return unwrapEnvelope(response)
+}
+
 export async function createCompany(payload, token) {
   const response = await apiRequest(URLS.companies.base, {
     method: 'POST',

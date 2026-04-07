@@ -80,7 +80,8 @@ namespace FinalProjectAuthAPI.Models
         public long     Id              { get; set; }
         public DateTime TransactionDate { get; set; }
         public string   Description     { get; set; } = string.Empty;
-        public decimal  Amount          { get; set; }
+        public decimal  Amount          { get; set; }  // total transaction amount (full sum if installment plan)
+        public decimal? ChargeAmount    { get; set; }  // per-period charge amount (populated only for installment transactions)
         public string   TransactionType { get; set; } = string.Empty;
         public string?  ReferenceNumber { get; set; }
     }
