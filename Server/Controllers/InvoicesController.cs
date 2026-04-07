@@ -24,6 +24,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // GET api/invoices/company/{companyId}?status=&startDate=&endDate=&isMatched=
         [HttpGet("company/{companyId:long}")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<Invoice>))]
         public IActionResult GetByCompany(
             long companyId,
             [FromQuery] string? status,

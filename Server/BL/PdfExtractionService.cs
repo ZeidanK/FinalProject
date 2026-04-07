@@ -115,8 +115,6 @@ namespace FinalProjectAuthAPI.BL
                 if (!Directory.Exists(_tessdataPath))
                     return string.Empty;
 
-                // Convert PDF pages to images using iText, then OCR each image
-                // For simplicity, extract any embedded images from the PDF
                 using var engine = new TesseractEngine(_tessdataPath, "eng", EngineMode.Default);
                 var sb = new StringBuilder();
 
@@ -125,32 +123,7 @@ namespace FinalProjectAuthAPI.BL
 
                 for (int i = 1; i <= pdfDoc.GetNumberOfPages(); i++)
                 {
-                    var page = pdfDoc.GetPage(i);
-                    var resources = page.GetResources();
-                    var xObjects = resources?.GetResource(PdfName.XObject);
-
-                    if (xObjects == null) continue;
-
-                    foreach (var name in xObjects.KeySet())
-                    {
-                        var obj = xObjects.GetAsStream(name);
-                        if (obj == null) continue;
-
-                        var subtype = obj.GetAsName(PdfName.Subtype);
-                        if (!PdfName.Image.Equals(subtype)) continue;
-
-                        try
-                        {
-                            var imageBytes = obj.GetBytes();
-                            using var pix = Pix.LoadFromMemory(imageBytes);
-                            using var ocrPage = engine.Process(pix);
-                            sb.AppendLine(ocrPage.GetText());
-                        }
-                        catch
-                        {
-                            // Skip images that can't be processed
-                        }
-                    }
+                    ExtractTextFromPageImages(pdfDoc.GetPage(i), engine, sb);
                 }
 
                 return sb.ToString();
@@ -158,6 +131,39 @@ namespace FinalProjectAuthAPI.BL
             catch
             {
                 return string.Empty;
+            }
+        }
+
+        private static void ExtractTextFromPageImages(PdfPage page, TesseractEngine engine, StringBuilder sb)
+        {
+            var resources = page.GetResources();
+            var xObjects = resources?.GetResource(PdfName.XObject);
+
+            if (xObjects == null) return;
+
+            foreach (var name in xObjects.KeySet())
+            {
+                ProcessImageObject(xObjects.GetAsStream(name), engine, sb);
+            }
+        }
+
+        private static void ProcessImageObject(PdfStream obj, TesseractEngine engine, StringBuilder sb)
+        {
+            if (obj == null) return;
+
+            var subtype = obj.GetAsName(PdfName.Subtype);
+            if (!PdfName.Image.Equals(subtype)) return;
+
+            try
+            {
+                var imageBytes = obj.GetBytes();
+                using var pix = Pix.LoadFromMemory(imageBytes);
+                using var ocrPage = engine.Process(pix);
+                sb.AppendLine(ocrPage.GetText());
+            }
+            catch
+            {
+                // Skip images that can't be processed
             }
         }
 
@@ -454,131 +460,148 @@ namespace FinalProjectAuthAPI.BL
                             .Where(l => l.Length > 0)
                             .ToList();
 
-            // Step 1: Find the header row — must contain BOTH a description-like
-            //         word AND a quantity/price word to identify the table start.
-            int headerIdx = -1;
+            int headerIdx = FindHeaderIndex(lines);
+            if (headerIdx == -1)
+                return FallbackExtractLineItems(lines);
+
+            int footerIdx = FindFooterIndex(lines, headerIdx);
+            var bodyLines = ExtractBodyLines(lines, headerIdx, footerIdx);
+
+            bool qtyFirst = DetectColumnOrder(lines[headerIdx]);
+            return ParseBodyLines(bodyLines, qtyFirst);
+        }
+
+        private static int FindHeaderIndex(List<string> lines)
+        {
             for (int i = 0; i < lines.Count; i++)
             {
                 var l = lines[i];
                 if (Regex.IsMatch(l, @"(?:description|item|service|product|particulars|פירוט|תיאור)", RegexOptions.IgnoreCase) &&
                     Regex.IsMatch(l, @"(?:qty|quantity|hours|units|amount|price|מחיר|כמות)", RegexOptions.IgnoreCase))
                 {
-                    headerIdx = i;
-                    break;
+                    return i;
                 }
             }
+            return -1;
+        }
 
-            if (headerIdx == -1)
-                return FallbackExtractLineItems(lines);
-
-            // Step 2: Find the first footer row (subtotal / total / taxes)
-            int footerIdx = -1;
+        private static int FindFooterIndex(List<string> lines, int headerIdx)
+        {
             for (int i = headerIdx + 1; i < lines.Count; i++)
             {
                 if (Regex.IsMatch(lines[i],
                     @"^\s*(?:subtotal|sub[\s-]*total|total|amount\s*due|balance\s*due|סה""כ)", RegexOptions.IgnoreCase))
                 {
-                    footerIdx = i;
-                    break;
+                    return i;
                 }
             }
+            return -1;
+        }
 
-            var bodyLines = lines
+        private static List<string> ExtractBodyLines(List<string> lines, int headerIdx, int footerIdx)
+        {
+            return lines
                 .Skip(headerIdx + 1)
                 .Take((footerIdx == -1 ? lines.Count : footerIdx) - headerIdx - 1)
                 .ToList();
+        }
 
-            // Step 3: Detect column order from header line
-            var headerLine = lines[headerIdx].ToLower();
-            var qtyMatch = Regex.Match(headerLine, @"qty|quantity|hours|units|כמות");
-            var descMatch = Regex.Match(headerLine, @"desc|item|service|product|particular|פירוט|תיאור");
-            bool qtyFirst = qtyMatch.Success && descMatch.Success && qtyMatch.Index < descMatch.Index;
+        private static bool DetectColumnOrder(string headerLine)
+        {
+            var headerLineLower = headerLine.ToLower();
+            var qtyMatch = Regex.Match(headerLineLower, @"qty|quantity|hours|units|כמות");
+            var descMatch = Regex.Match(headerLineLower, @"desc|item|service|product|particular|פירוט|תיאור");
+            return qtyMatch.Success && descMatch.Success && qtyMatch.Index < descMatch.Index;
+        }
 
-            // Step 4: Parse body lines using the appropriate patterns
+        private static List<ExtractedLineItem> ParseBodyLines(List<string> bodyLines, bool qtyFirst)
+        {
             var items = new List<ExtractedLineItem>();
-
-            // ── QTY-first patterns: "1  Web Design  500.00  $500.00"
-            var patQtyFirst4 = new Regex(
-                @"^(\d[\d,]*(?:\.\d{1,2})?)\s+(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
-            var patQtyFirst3 = new Regex(
-                @"^(\d[\d,]*(?:\.\d{1,2})?)\s+(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
-
-            // ── Description-first patterns: "Web Design  1  500.00  $500.00"
-            var patDescFirst4 = new Regex(
-                @"^(.+?)\s+(\d[\d,]*(?:\.\d{1,2})?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
-            var patDescFirst3 = new Regex(
-                @"^(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
-            var patDescFirst2 = new Regex(
-                @"^(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patQtyFirst4 = new Regex(@"^(\d[\d,]*(?:\.\d{1,2})?)\s+(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patQtyFirst3 = new Regex(@"^(\d[\d,]*(?:\.\d{1,2})?)\s+(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patDescFirst4 = new Regex(@"^(.+?)\s+(\d[\d,]*(?:\.\d{1,2})?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patDescFirst3 = new Regex(@"^(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patDescFirst2 = new Regex(@"^(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
 
             foreach (var line in bodyLines)
             {
-                if (string.IsNullOrWhiteSpace(line) || Regex.IsMatch(line, @"^[-=\s]+$"))
-                    continue;
-                // Skip tax/discount/shipping lines inside the table body
-                if (Regex.IsMatch(line, @"(?:sales\s*tax|vat|tax|gst|discount|shipping|delivery|מע""מ)",
-                        RegexOptions.IgnoreCase))
+                if (ShouldSkipLine(line))
                     continue;
 
-                Match m;
-
-                if (qtyFirst)
-                {
-                    m = patQtyFirst4.Match(line);
-                    if (m.Success)
-                    {
-                        if (TryParseLineItem4ColQtyFirst(m, 0.85m, out var item))
-                            items.Add(item);
-                        continue;
-                    }
-                    m = patQtyFirst3.Match(line);
-                    if (m.Success)
-                    {
-                        if (TryParseLineItem3ColQtyFirst(m, 0.72m, out var item))
-                            items.Add(item);
-                        continue;
-                    }
-                }
-
-                // Description-first (default)
-                m = patDescFirst4.Match(line);
-                if (m.Success)
-                {
-                    if (TryParseLineItem4ColDescFirst(m, 0.85m, out var item))
-                        items.Add(item);
-                    continue;
-                }
-                m = patDescFirst3.Match(line);
-                if (m.Success)
-                {
-                    if (TryParseLineItem3ColDescFirst(m, 0.75m, out var item))
-                        items.Add(item);
-                    continue;
-                }
-                m = patDescFirst2.Match(line);
-                if (m.Success)
-                {
-                    var desc = m.Groups[1].Value.Trim();
-                    if (desc.Length > 1 && !Regex.IsMatch(desc, @"^\d[\d.]*$") &&
-                        !Regex.IsMatch(desc, @"(?:total|subtotal|vat|tax|discount|balance)", RegexOptions.IgnoreCase))
-                    {
-                        if (decimal.TryParse(m.Groups[2].Value.Replace(",", ""),
-                                NumberStyles.Number, CultureInfo.InvariantCulture, out var total))
-                        {
-                            items.Add(new ExtractedLineItem
-                            {
-                                Description = desc,
-                                Quantity = 1,
-                                UnitPrice = total,
-                                TotalAmount = total,
-                                AiConfidenceScore = 0.55m
-                            });
-                        }
-                    }
-                }
+                var item = TryParseLineFromPatterns(line, qtyFirst, patQtyFirst4, patQtyFirst3, patDescFirst4, patDescFirst3, patDescFirst2);
+                if (item != null)
+                    items.Add(item);
             }
 
             return items;
+        }
+
+        private static bool ShouldSkipLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line) || Regex.IsMatch(line, @"^[-=\s]+$"))
+                return true;
+            if (Regex.IsMatch(line, @"(?:sales\s*tax|vat|tax|gst|discount|shipping|delivery|מע""מ)", RegexOptions.IgnoreCase))
+                return true;
+            return false;
+        }
+
+        private static ExtractedLineItem? TryParseLineFromPatterns(
+            string line,
+            bool qtyFirst,
+            Regex patQtyFirst4,
+            Regex patQtyFirst3,
+            Regex patDescFirst4,
+            Regex patDescFirst3,
+            Regex patDescFirst2)
+        {
+            if (qtyFirst)
+            {
+                var m = patQtyFirst4.Match(line);
+                if (m.Success && TryParseLineItem4ColQtyFirst(m, 0.85m, out var item))
+                    return item;
+
+                m = patQtyFirst3.Match(line);
+                if (m.Success && TryParseLineItem3ColQtyFirst(m, 0.72m, out item))
+                    return item;
+            }
+
+            var match = patDescFirst4.Match(line);
+            if (match.Success && TryParseLineItem4ColDescFirst(match, 0.85m, out var item2))
+                return item2;
+
+            match = patDescFirst3.Match(line);
+            if (match.Success && TryParseLineItem3ColDescFirst(match, 0.75m, out item2))
+                return item2;
+
+            match = patDescFirst2.Match(line);
+            if (match.Success && TryParseLineItem2ColDescFirst(match, out item2))
+                return item2;
+
+            return null;
+        }
+
+        private static bool TryParseLineItem2ColDescFirst(Match m, out ExtractedLineItem item)
+        {
+            item = new ExtractedLineItem();
+            var desc = m.Groups[1].Value.Trim();
+            if (desc.Length <= 1 || Regex.IsMatch(desc, @"^\d[\d.]*$"))
+                return false;
+            if (Regex.IsMatch(desc, @"(?:total|subtotal|vat|tax|discount|balance)", RegexOptions.IgnoreCase))
+                return false;
+
+            if (!decimal.TryParse(m.Groups[2].Value.Replace(",", ""),
+                NumberStyles.Number, CultureInfo.InvariantCulture, out var total))
+                return false;
+
+            item = new ExtractedLineItem
+            {
+                Description = desc,
+                Quantity = 1,
+                UnitPrice = total,
+                TotalAmount = total,
+                AiConfidenceScore = 0.55m
+            };
+            return true;
         }
 
         /// <summary>

@@ -36,6 +36,24 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\11dbc502fd8047ba949e7aeffa2d0360_RC259001426_1_.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\19ae4ee174b4411cacf3e50150f10305_IN254000484.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/19ae4ee174b4411cacf3e50150f10305_IN254000484.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>hps5l4uvi5</Fingerprint>
+      <Integrity>lYXcH0WSfNFtn38YmsCYKM1YECE9Q5+yXQned6fsthQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\19ae4ee174b4411cacf3e50150f10305_IN254000484.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\1b392dde9383495999297ae4e4e1fa14_github-ZeidanK-receipt-2025-10-11_1_.pdf'))">
       <SourceType>Package</SourceType>
       <SourceId>FinalProjectAuthAPI</SourceId>
@@ -126,6 +144,24 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\32d6aec836e64196b9988e1bf38b2412_RC259001426_1_.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\335b9a493ca844f5b7645d15abd28161_IN254000484.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/335b9a493ca844f5b7645d15abd28161_IN254000484.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>hps5l4uvi5</Fingerprint>
+      <Integrity>lYXcH0WSfNFtn38YmsCYKM1YECE9Q5+yXQned6fsthQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\335b9a493ca844f5b7645d15abd28161_IN254000484.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\33c9201fc5bb48cea38c38c6e8a06f08_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))">
       <SourceType>Package</SourceType>
       <SourceId>FinalProjectAuthAPI</SourceId>
@@ -162,6 +198,24 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\349ffb98c86f4e9394f1227ddd102246_Invoice-917C7AA3-0002_1_.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\381f1c3a5f1a402299533a54ac1d7bfe_D324057617.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/381f1c3a5f1a402299533a54ac1d7bfe_D324057617.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>poweih3fm4</Fingerprint>
+      <Integrity>Bz0awQVBiEfSl7sFZqPSyeQss8jAD3aNfGak5CEgkFo=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\381f1c3a5f1a402299533a54ac1d7bfe_D324057617.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\3bb60fadfe5d4c1fa7dbc03a7ec75461_RC259001426_1_.pdf'))">
       <SourceType>Package</SourceType>
       <SourceId>FinalProjectAuthAPI</SourceId>
@@ -179,6 +233,42 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\3bb60fadfe5d4c1fa7dbc03a7ec75461_RC259001426_1_.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\3c22250b0d3b4f9dbdd83671d9a31f09_IN254000484.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/3c22250b0d3b4f9dbdd83671d9a31f09_IN254000484.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>hps5l4uvi5</Fingerprint>
+      <Integrity>lYXcH0WSfNFtn38YmsCYKM1YECE9Q5+yXQned6fsthQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\3c22250b0d3b4f9dbdd83671d9a31f09_IN254000484.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\5d18cc03f0e84ae8aa3a0c03e2b818ed_invoice_2866377_with_receipt_for_order_26566245.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/5d18cc03f0e84ae8aa3a0c03e2b818ed_invoice_2866377_with_receipt_for_order_26566245.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>yvje3ooq1d</Fingerprint>
+      <Integrity>0mCYz+MCvJqu/goAZDEckTmoyJKgBpqfdvngCwkQzdg=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\5d18cc03f0e84ae8aa3a0c03e2b818ed_invoice_2866377_with_receipt_for_order_26566245.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\5d8a1b0a9ef1414281fd037d33775a72_RC259001426_1_.pdf'))">
       <SourceType>Package</SourceType>
@@ -270,6 +360,42 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\734f111cb6d04f699648a99326c968da_חשבונית_מס_קבלה_17270_1_.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\7bf5c919f51b452bae6942c9ffa42bbe_invoice_2156946_for_order_20108134__1_.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/7bf5c919f51b452bae6942c9ffa42bbe_invoice_2156946_for_order_20108134__1_.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>opiky5wpcx</Fingerprint>
+      <Integrity>RI7eXYMBQL3DDLuWycwFq5UA4ZNVPnM3E6c8RDenyOw=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\7bf5c919f51b452bae6942c9ffa42bbe_invoice_2156946_for_order_20108134__1_.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\80a8dc88eb8c416290088de69b77faf7_invoice_2156946_for_order_20108134.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/80a8dc88eb8c416290088de69b77faf7_invoice_2156946_for_order_20108134.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>opiky5wpcx</Fingerprint>
+      <Integrity>RI7eXYMBQL3DDLuWycwFq5UA4ZNVPnM3E6c8RDenyOw=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\80a8dc88eb8c416290088de69b77faf7_invoice_2156946_for_order_20108134.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\8755416f59884d2f9976f9a00f3933a6_invoice_2866377_with_receipt_for_order_26566245_1_.pdf'))">
       <SourceType>Package</SourceType>
       <SourceId>FinalProjectAuthAPI</SourceId>
@@ -341,6 +467,24 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\8bdc66e55a0a451d9c6ae70f84fd4dae_Invoice-917C7AA3-0002_1_.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\8fd97555715f4c2c9a3e520f7b50a9f9_github-ZeidanK-receipt-2025-10-11.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/8fd97555715f4c2c9a3e520f7b50a9f9_github-ZeidanK-receipt-2025-10-11.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>crsm568lqr</Fingerprint>
+      <Integrity>6Ad2xzhSnXuP12BZhJRfXnVopebjt2J7tLA2TUuNsW8=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\8fd97555715f4c2c9a3e520f7b50a9f9_github-ZeidanK-receipt-2025-10-11.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\9033a128e1d040cea1632721bc062a78_RC259001426_1_.pdf'))">
       <SourceType>Package</SourceType>
@@ -648,6 +792,24 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\ed3b8d6144ae4df09910b7e8b96a019d_RC259001426_1_.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\f80776b218ef49828a73314086c2c326_IN254000484.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/1/f80776b218ef49828a73314086c2c326_IN254000484.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>hps5l4uvi5</Fingerprint>
+      <Integrity>lYXcH0WSfNFtn38YmsCYKM1YECE9Q5+yXQned6fsthQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\f80776b218ef49828a73314086c2c326_IN254000484.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\fb987580a1aa4d9e9340fd8c8e2f8aeb_Invoice-917C7AA3-0002_1_.pdf'))">
       <SourceType>Package</SourceType>
       <SourceId>FinalProjectAuthAPI</SourceId>
@@ -683,6 +845,24 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\1\fefb903ef12c4cc5aa2babc127b914d0_חשבונית_מס_קבלה_17270_1_.pdf'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\3\d758d73e698e4aa5ae58f8272298498a_IN254000484.pdf'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/invoices/3/d758d73e698e4aa5ae58f8272298498a_IN254000484.pdf</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>hps5l4uvi5</Fingerprint>
+      <Integrity>lYXcH0WSfNFtn38YmsCYKM1YECE9Q5+yXQned6fsthQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\3\d758d73e698e4aa5ae58f8272298498a_IN254000484.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
   </ItemGroup>
 </Project>

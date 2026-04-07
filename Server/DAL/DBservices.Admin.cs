@@ -7,6 +7,9 @@ namespace FinalProjectAuthAPI.DAL
     public partial class DBservices
     {
         // ── Admin ─────────────────────────────────────────────────────────────
+        private const string COL_USER_ID = "user_id";
+        private const string COL_USER_NAME = "user_name";
+        private const string COL_COMPANY_ID = "company_id";
 
         public AdminStatsRow GetAdminStats()
         {
@@ -136,7 +139,7 @@ namespace FinalProjectAuthAPI.DAL
                             Category  = reader["category"]  as string,
                             Message   = reader["message"]?.ToString()!,
                             Details   = reader["details"]   as string,
-                            UserId    = reader["user_id"]   != DBNull.Value ? Convert.ToInt64(reader["user_id"]) : null,
+                            UserId    = reader[COL_USER_ID]   != DBNull.Value ? Convert.ToInt64(reader[COL_USER_ID]) : null,
                             IpAddress = reader["ip_address"] as string,
                             CreatedAt = Convert.ToDateTime(reader["created_at"]),
                         });
@@ -174,9 +177,9 @@ namespace FinalProjectAuthAPI.DAL
                         result.Items.Add(new AuditLogRow
                         {
                             Id         = Convert.ToInt64(reader["id"]),
-                            UserId     = reader["user_id"]    != DBNull.Value ? Convert.ToInt64(reader["user_id"]) : null,
-                            UserName   = reader["user_name"]  as string,
-                            CompanyId  = reader["company_id"] != DBNull.Value ? Convert.ToInt64(reader["company_id"]) : null,
+                            UserId     = reader[COL_USER_ID]    != DBNull.Value ? Convert.ToInt64(reader[COL_USER_ID]) : null,
+                            UserName   = reader[COL_USER_NAME]  as string,
+                            CompanyId  = reader[COL_COMPANY_ID] != DBNull.Value ? Convert.ToInt64(reader[COL_COMPANY_ID]) : null,
                             Action     = reader["action"]?.ToString()!,
                             EntityType = reader["entity_type"] as string,
                             EntityId   = reader["entity_id"]  != DBNull.Value ? Convert.ToInt64(reader["entity_id"]) : null,

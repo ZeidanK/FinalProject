@@ -8,6 +8,8 @@ namespace FinalProjectAuthAPI.BL
         private readonly string _uploadsRoot;
         private readonly string _excelUploadsRoot;
 
+        private const string UploadsFolder = "uploads";
+
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".pdf" };
         private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -36,8 +38,8 @@ namespace FinalProjectAuthAPI.BL
         public FileStorageService(IWebHostEnvironment env)
         {
             var wwwroot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-            _uploadsRoot = Path.Combine(wwwroot, "uploads", "invoices");
-            _excelUploadsRoot = Path.Combine(wwwroot, "uploads", "transactions");
+            _uploadsRoot = Path.Combine(wwwroot, UploadsFolder, "invoices");
+            _excelUploadsRoot = Path.Combine(wwwroot, UploadsFolder, "transactions");
         }
 
         public async Task<(string RelativePath, string FullPath)> SaveAsync(IFormFile file, long companyId)
@@ -71,7 +73,7 @@ namespace FinalProjectAuthAPI.BL
                 await file.CopyToAsync(stream);
             }
 
-            var relativePath = Path.Combine("uploads", "invoices", companyId.ToString(), uniqueName)
+            var relativePath = Path.Combine(UploadsFolder, "invoices", companyId.ToString(), uniqueName)
                                    .Replace("\\", "/");
 
             return (relativePath, fullPath);
@@ -104,7 +106,7 @@ namespace FinalProjectAuthAPI.BL
                 await file.CopyToAsync(stream);
             }
 
-            var relativePath = Path.Combine("uploads", "transactions", companyId.ToString(), uniqueName)
+            var relativePath = Path.Combine(UploadsFolder, "transactions", companyId.ToString(), uniqueName)
                                    .Replace("\\", "/");
 
             return (relativePath, fullPath);
@@ -155,7 +157,7 @@ namespace FinalProjectAuthAPI.BL
             var uniqueName = $"{userId}_{Guid.NewGuid():N}{extension}";
 
             var wwwroot = Directory.GetParent(_uploadsRoot)!.Parent!.FullName;
-            var profileDir = Path.Combine(wwwroot, "uploads", "profiles");
+            var profileDir = Path.Combine(wwwroot, UploadsFolder, "profiles");
             Directory.CreateDirectory(profileDir);
 
             var fullPath = Path.Combine(profileDir, uniqueName);

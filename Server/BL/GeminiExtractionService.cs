@@ -111,7 +111,7 @@ namespace FinalProjectAuthAPI.BL
             }
         }
 
-        private string BuildInvoiceExtractionPrompt(string rawText)
+        private static string BuildInvoiceExtractionPrompt(string rawText)
         {
             return $@"You are an invoice data extraction expert. Extract structured data from the following invoice text.
 The invoice may be in Hebrew or English. Extract all available fields with high accuracy.
@@ -261,7 +261,7 @@ Look for phrases like:
         }
 
         // Internal class for deserializing Gemini response
-        private class GeminiInvoiceResponse
+        private sealed class GeminiInvoiceResponse
         {
             [JsonPropertyName("vendorName")]
             public string? VendorName { get; set; }
@@ -309,7 +309,7 @@ Look for phrases like:
             public decimal? OverallConfidence { get; set; }
         }
 
-        private class GeminiLineItem
+        private sealed class GeminiLineItem
         {
             [JsonPropertyName("description")]
             public string? Description { get; set; }
@@ -333,7 +333,7 @@ Look for phrases like:
             public decimal? AiConfidenceScore { get; set; }
         }
 
-        private class GeminiPaymentPlan
+        private sealed class GeminiPaymentPlan
         {
             [JsonPropertyName("totalInstallments")]
             public int? TotalInstallments { get; set; }

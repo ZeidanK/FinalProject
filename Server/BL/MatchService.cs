@@ -59,51 +59,55 @@ namespace FinalProjectAuthAPI.BL
             List<TransactionCandidate> candidates)
         {
             var remaining = invoice.TotalAmount - invoice.MatchedAmount;
-            var installmentAmount = invoice.PaymentPlanInstallmentAmount;
+            var filtered = FilterByDateAndAmount(invoice, candidates, remaining);
 
-            // ── Step 1: Filter by exact date and exact amount ────────────
+            if (!filtered.Any())
+            {
+                Console.WriteLine("[MATCH] No candidates after date+amount filter. Returning empty.");
+                var sampleTxns = candidates.Take(5).ToList();
+                foreach (var s in sampleTxns)
+                    Console.WriteLine($"[MATCH]   Sample txn: id={s.Id} date={s.TransactionDate:yyyy-MM-dd} amount={s.Amount} desc=\"{s.Description}\"");
+                return new List<MatchSuggestionRow>();
+            }
+
+            return await CompareWithGeminiAsync(invoice, filtered, remaining);
+        }
+
+        private static List<(TransactionCandidate Txn, string AmountReason)> FilterByDateAndAmount(
+            InvoiceRow invoice,
+            List<TransactionCandidate> candidates,
+            decimal remaining)
+        {
+            var installmentAmount = invoice.PaymentPlanInstallmentAmount;
             Console.WriteLine($"[MATCH] Step 1: Filtering {candidates.Count} candidates by date={invoice.InvoiceDate:yyyy-MM-dd} and amount (remaining={remaining}, installment={installmentAmount})");
 
             var filtered = new List<(TransactionCandidate Txn, string AmountReason)>();
-
             int dateRejects = 0;
             int amountRejects = 0;
 
             foreach (var txn in candidates)
             {
-                // Exact date match
                 if (txn.TransactionDate.Date != invoice.InvoiceDate.Date)
                 {
                     dateRejects++;
                     continue;
                 }
 
-                // Exact amount match against remaining, installment, or undeclared installment
                 if (txn.Amount == remaining)
                 {
                     filtered.Add((txn, "Exact amount match"));
                     Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} date={txn.TransactionDate:yyyy-MM-dd} amount={txn.Amount} desc=\"{txn.Description}\" → Exact amount match");
                 }
-                else if (installmentAmount.HasValue && installmentAmount.Value > 0
-                         && txn.Amount == installmentAmount.Value)
+                else if (installmentAmount.HasValue && installmentAmount.Value > 0 && txn.Amount == installmentAmount.Value)
                 {
                     filtered.Add((txn, $"Matches installment amount ({installmentAmount.Value:F2})"));
                     Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} amount={txn.Amount} → Installment match");
                 }
-                else if (remaining > 0 && txn.Amount > 0 && txn.Amount < remaining)
+                else if (IsUndeclaredInstallment(invoice, txn, remaining))
                 {
-                    // Detect undeclared installments: amount divides evenly into total
-                    var ratio = invoice.TotalAmount / txn.Amount;
-                    var rounded = Math.Round(ratio);
-                    if (rounded >= 2 && rounded <= 12 && Math.Abs(ratio - rounded) < 0.02m)
-                    {
-                        filtered.Add((txn, $"Possible installment: 1/{rounded:F0} of total ({invoice.TotalAmount:F2})"));
-                        Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} amount={txn.Amount} → Undeclared installment 1/{rounded:F0}");
-                    }
-                    else
-                    {
-                        amountRejects++;
-                    }
+                    var ratio = Math.Round(invoice.TotalAmount / txn.Amount);
+                    filtered.Add((txn, $"Possible installment: 1/{ratio:F0} of total ({invoice.TotalAmount:F2})"));
+                    Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} amount={txn.Amount} → Undeclared installment 1/{ratio:F0}");
                 }
                 else
                 {
@@ -112,21 +116,24 @@ namespace FinalProjectAuthAPI.BL
             }
 
             Console.WriteLine($"[MATCH] Step 1 result: {filtered.Count} passed, {dateRejects} rejected by date, {amountRejects} rejected by amount (same date but wrong amount)");
+            return filtered;
+        }
 
-            if (!filtered.Any())
-            {
-                Console.WriteLine("[MATCH] No candidates after date+amount filter. Returning empty.");
+        private static bool IsUndeclaredInstallment(InvoiceRow invoice, TransactionCandidate txn, decimal remaining)
+        {
+            if (remaining <= 0 || txn.Amount <= 0 || txn.Amount >= remaining)
+                return false;
 
-                // Log a sample of what dates/amounts exist for debugging
-                var sampleTxns = candidates.Take(5).ToList();
-                foreach (var s in sampleTxns)
-                    Console.WriteLine($"[MATCH]   Sample txn: id={s.Id} date={s.TransactionDate:yyyy-MM-dd} amount={s.Amount} desc=\"{s.Description}\"");
+            var ratio = invoice.TotalAmount / txn.Amount;
+            var rounded = Math.Round(ratio);
+            return rounded >= 2 && rounded <= 12 && Math.Abs(ratio - rounded) < 0.02m;
+        }
 
-                return new List<MatchSuggestionRow>();
-            }
-
-            // ── Step 2: Send to Gemini for vendor name comparison ────────
-            // Use transaction vendor_name if available, fall back to description
+        private async Task<List<MatchSuggestionRow>> CompareWithGeminiAsync(
+            InvoiceRow invoice,
+            List<(TransactionCandidate Txn, string AmountReason)> filtered,
+            decimal remaining)
+        {
             var vendorNames = filtered
                 .Select(f => !string.IsNullOrWhiteSpace(f.Txn.VendorName) ? f.Txn.VendorName : f.Txn.Description)
                 .ToList();
@@ -134,41 +141,51 @@ namespace FinalProjectAuthAPI.BL
             foreach (var (vn, i) in vendorNames.Select((v, i) => (v, i)))
                 Console.WriteLine($"[MATCH]   Txn vendor[{i}]: \"{vn}\" (from {(!string.IsNullOrWhiteSpace(filtered[i].Txn.VendorName) ? "vendor_name" : "description")})");
 
-            // Build results — if invoice vendor name is empty, skip Gemini and return date+amount matches as-is
             if (string.IsNullOrWhiteSpace(invoice.VendorName))
             {
                 Console.WriteLine("[MATCH] Invoice vendor name is empty — skipping Gemini, returning all date+amount matches with score=50");
-                return filtered.Select(f => new MatchSuggestionRow
-                {
-                    Id              = f.Txn.Id,
-                    TransactionDate = f.Txn.TransactionDate,
-                    Description     = f.Txn.Description,
-                    Amount          = f.Txn.Amount,
-                    TransactionType = f.Txn.TransactionType,
-                    ReferenceNumber = f.Txn.ReferenceNumber,
-                    AmountDifference = Math.Abs(f.Txn.Amount - remaining),
-                    MatchScore      = 50, // No name comparison possible
-                    DaysDifference  = 0,
-                    MatchReasons    = new List<string> { "Same date", f.AmountReason, "Vendor name not available" }
-                }).ToList();
+                return BuildResultsWithoutGemini(filtered, remaining);
             }
 
             var comparisonResults = await _gemini.CompareVendorNamesAsync(invoice.VendorName, vendorNames);
             Console.WriteLine($"[MATCH] Gemini returned {comparisonResults.Count} comparison results");
-
             foreach (var cr in comparisonResults)
                 Console.WriteLine($"[MATCH]   Gemini: \"{cr.TransactionDescription}\" → similarity={cr.SimilarityScore}%");
 
+            return BuildResultsWithGemini(filtered, comparisonResults, remaining);
+        }
+
+        private List<MatchSuggestionRow> BuildResultsWithoutGemini(
+            List<(TransactionCandidate Txn, string AmountReason)> filtered,
+            decimal remaining)
+        {
+            return filtered.Select(f => new MatchSuggestionRow
+            {
+                Id              = f.Txn.Id,
+                TransactionDate = f.Txn.TransactionDate,
+                Description     = f.Txn.Description,
+                Amount          = f.Txn.Amount,
+                TransactionType = f.Txn.TransactionType,
+                ReferenceNumber = f.Txn.ReferenceNumber,
+                AmountDifference = Math.Abs(f.Txn.Amount - remaining),
+                MatchScore      = 50,
+                DaysDifference  = 0,
+                MatchReasons    = new List<string> { "Same date", f.AmountReason, "Vendor name not available" }
+            }).ToList();
+        }
+
+        private List<MatchSuggestionRow> BuildResultsWithGemini(
+            List<(TransactionCandidate Txn, string AmountReason)> filtered,
+            List<dynamic> comparisonResults,
+            decimal remaining)
+        {
             var results = new List<MatchSuggestionRow>();
 
             for (int i = 0; i < filtered.Count; i++)
             {
                 var (txn, amountReason) = filtered[i];
-                var vendorNameUsed = vendorNames[i];
-                // If Gemini returned empty (API down), give score at threshold so date+amount matches still appear
-                var similarity = comparisonResults.Count == 0
-                    ? MIN_SUGGESTION_THRESHOLD
-                    : (i < comparisonResults.Count ? comparisonResults[i].SimilarityScore : 0);
+                decimal geminiScore = i < comparisonResults.Count ? comparisonResults[i].SimilarityScore : 0;
+                var similarity = comparisonResults.Count == 0 ? MIN_SUGGESTION_THRESHOLD : geminiScore;
 
                 if (similarity < MIN_SUGGESTION_THRESHOLD)
                     continue;
@@ -277,7 +294,7 @@ namespace FinalProjectAuthAPI.BL
             if (!suggestions.Any())
                 return (false, null, "No potential matches found.", null);
 
-            var best = suggestions.First();
+            var best = suggestions[0];
 
             if (best.MatchScore < minConfidenceThreshold)
                 return (false, null,

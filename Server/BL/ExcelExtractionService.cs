@@ -7,6 +7,19 @@ namespace FinalProjectAuthAPI.BL
 {
     public class ExcelExtractionService : IExcelExtractionService
     {
+        // ── Header role constants ────────────────────────────────────────
+        private const string HeaderDate = "date";
+        private const string HeaderPostedDate = "postedDate";
+        private const string HeaderDescription = "description";
+        private const string HeaderAmount = "amount";
+        private const string HeaderDebit = "debit";
+        private const string HeaderCredit = "credit";
+        private const string HeaderBalance = "balance";
+        private const string HeaderReference = "reference";
+        private const string HeaderType = "type";
+        private const string HeaderCategory = "category";
+        private const string HeaderVendorName = "vendorName";
+
         // ── Known header patterns (English + Hebrew) ─────────────────────
 
         private static readonly string[] DateHeaders =
@@ -87,7 +100,7 @@ namespace FinalProjectAuthAPI.BL
             for (int r = firstRow; r <= Math.Min(firstRow + 10, lastRow); r++)
             {
                 var candidate = DetectHeaders(sheet, r, firstCol, lastCol);
-                if (candidate.Count >= 2 && candidate.ContainsKey("date"))
+                if (candidate.Count >= 2 && candidate.ContainsKey(HeaderDate))
                 {
                     headerRowNumber = r;
                     columnMap = candidate;
@@ -102,8 +115,8 @@ namespace FinalProjectAuthAPI.BL
             }
 
             // Require at least a date column and either amount or debit/credit columns
-            bool hasAmount = columnMap.ContainsKey("amount") ||
-                             (columnMap.ContainsKey("debit") || columnMap.ContainsKey("credit"));
+            bool hasAmount = columnMap.ContainsKey(HeaderAmount) ||
+                             (columnMap.ContainsKey(HeaderDebit) || columnMap.ContainsKey(HeaderCredit));
             if (!hasAmount)
             {
                 sheetInfo.Errors.Add("No amount, debit, or credit column found.");
@@ -138,7 +151,7 @@ namespace FinalProjectAuthAPI.BL
             return (sheetInfo, transactions);
         }
 
-        private Dictionary<string, int> DetectHeaders(IXLWorksheet sheet, int row, int firstCol, int lastCol)
+        private static Dictionary<string, int> DetectHeaders(IXLWorksheet sheet, int row, int firstCol, int lastCol)
         {
             var map = new Dictionary<string, int>();
 
@@ -149,32 +162,37 @@ namespace FinalProjectAuthAPI.BL
                 if (string.IsNullOrWhiteSpace(text)) continue;
 
                 var lower = text.ToLowerInvariant();
-
-                if (MatchesAny(lower, DateHeaders) && !map.ContainsKey("date"))
-                    map["date"] = c;
-                else if (MatchesAny(lower, PostedDateHeaders) && !map.ContainsKey("postedDate"))
-                    map["postedDate"] = c;
-                else if (MatchesAny(lower, DescriptionHeaders) && !map.ContainsKey("description"))
-                    map["description"] = c;
-                else if (MatchesAny(lower, AmountHeaders) && !map.ContainsKey("amount"))
-                    map["amount"] = c;
-                else if (MatchesAny(lower, DebitHeaders) && !map.ContainsKey("debit"))
-                    map["debit"] = c;
-                else if (MatchesAny(lower, CreditHeaders) && !map.ContainsKey("credit"))
-                    map["credit"] = c;
-                else if (MatchesAny(lower, BalanceHeaders) && !map.ContainsKey("balance"))
-                    map["balance"] = c;
-                else if (MatchesAny(lower, ReferenceHeaders) && !map.ContainsKey("reference"))
-                    map["reference"] = c;
-                else if (MatchesAny(lower, TypeHeaders) && !map.ContainsKey("type"))
-                    map["type"] = c;
-                else if (MatchesAny(lower, CategoryHeaders) && !map.ContainsKey("category"))
-                    map["category"] = c;
-                else if (MatchesAny(lower, VendorNameHeaders) && !map.ContainsKey("vendorName"))
-                    map["vendorName"] = c;
+                TryAddHeaderMapping(map, lower, c);
             }
 
             return map;
+        }
+
+        private static void TryAddHeaderMapping(Dictionary<string, int> map, string lower, int columnNumber)
+        {
+            var headerMappings = new (string HeaderKey, string[] Headers)[]
+            {
+                (HeaderDate, DateHeaders),
+                (HeaderPostedDate, PostedDateHeaders),
+                (HeaderDescription, DescriptionHeaders),
+                (HeaderAmount, AmountHeaders),
+                (HeaderDebit, DebitHeaders),
+                (HeaderCredit, CreditHeaders),
+                (HeaderBalance, BalanceHeaders),
+                (HeaderReference, ReferenceHeaders),
+                (HeaderType, TypeHeaders),
+                (HeaderCategory, CategoryHeaders),
+                (HeaderVendorName, VendorNameHeaders)
+            };
+
+            foreach (var (headerKey, headers) in headerMappings)
+            {
+                if (!map.ContainsKey(headerKey) && MatchesAny(lower, headers))
+                {
+                    map[headerKey] = columnNumber;
+                    break;
+                }
+            }
         }
 
         private static bool MatchesAny(string value, string[] patterns) =>
@@ -185,80 +203,29 @@ namespace FinalProjectAuthAPI.BL
         private ExtractedTransaction? ParseRow(IXLWorksheet sheet, int row, Dictionary<string, int> map)
         {
             // Skip entirely empty rows
-            bool allEmpty = true;
-            foreach (var col in map.Values)
-            {
-                if (!sheet.Cell(row, col).IsEmpty()) { allEmpty = false; break; }
-            }
-            if (allEmpty) return null;
+            if (map.Values.All(col => sheet.Cell(row, col).IsEmpty()))
+                return null;
 
             // 1. Date (required)
-            var date = ParseDate(sheet.Cell(row, map["date"]));
+            var date = ParseDate(sheet.Cell(row, map[HeaderDate]));
             if (date == null) return null;
 
             // 2. Amount (required) – from single "amount" column or merged debit/credit
-            decimal? amount = null;
-            string transactionType = "debit";
-
-            if (map.ContainsKey("amount"))
-            {
-                amount = ParseDecimal(sheet.Cell(row, map["amount"]));
-                if (amount.HasValue)
-                    transactionType = amount.Value >= 0 ? "credit" : "debit";
-            }
-            else
-            {
-                // Split debit / credit columns
-                decimal? debitVal = map.ContainsKey("debit") ? ParseDecimal(sheet.Cell(row, map["debit"])) : null;
-                decimal? creditVal = map.ContainsKey("credit") ? ParseDecimal(sheet.Cell(row, map["credit"])) : null;
-
-                if (debitVal.HasValue && debitVal.Value != 0)
-                {
-                    amount = -Math.Abs(debitVal.Value);
-                    transactionType = "debit";
-                }
-                else if (creditVal.HasValue && creditVal.Value != 0)
-                {
-                    amount = Math.Abs(creditVal.Value);
-                    transactionType = "credit";
-                }
-            }
-
+            var (amount, transactionType) = ParseAmount(sheet, row, map);
             if (amount == null || amount.Value == 0) return null;
 
             // 3. Description
-            string description = map.ContainsKey("description")
-                ? sheet.Cell(row, map["description"]).GetString().Trim()
-                : string.Empty;
+            string description = GetCellString(sheet, row, map, HeaderDescription, string.Empty);
 
             // 4. Optional fields
-            DateTime? postedDate = map.ContainsKey("postedDate")
-                ? ParseDate(sheet.Cell(row, map["postedDate"]))
-                : null;
-
-            decimal? balanceAfter = map.ContainsKey("balance")
-                ? ParseDecimal(sheet.Cell(row, map["balance"]))
-                : null;
-
-            string? reference = map.ContainsKey("reference")
-                ? NullIfEmpty(sheet.Cell(row, map["reference"]).GetString().Trim())
-                : null;
-
-            string? category = map.ContainsKey("category")
-                ? NullIfEmpty(sheet.Cell(row, map["category"]).GetString().Trim())
-                : null;
-
-            string? vendorName = map.ContainsKey("vendorName")
-                ? NullIfEmpty(sheet.Cell(row, map["vendorName"]).GetString().Trim())
-                : null;
+            DateTime? postedDate = GetCellDate(sheet, row, map, HeaderPostedDate);
+            decimal? balanceAfter = GetCellDecimal(sheet, row, map, HeaderBalance);
+            string? reference = GetCellNullableString(sheet, row, map, HeaderReference);
+            string? category = GetCellNullableString(sheet, row, map, HeaderCategory);
+            string? vendorName = GetCellNullableString(sheet, row, map, HeaderVendorName);
 
             // Type column overrides auto-detected type
-            if (map.ContainsKey("type"))
-            {
-                var typeVal = sheet.Cell(row, map["type"]).GetString().Trim();
-                if (!string.IsNullOrWhiteSpace(typeVal))
-                    transactionType = typeVal.ToLowerInvariant();
-            }
+            string finalTransactionType = GetTransactionType(sheet, row, map, transactionType);
 
             return new ExtractedTransaction
             {
@@ -267,11 +234,75 @@ namespace FinalProjectAuthAPI.BL
                 Description = string.IsNullOrWhiteSpace(description) ? "No description" : description,
                 Amount = amount.Value,
                 BalanceAfter = balanceAfter,
-                TransactionType = transactionType,
+                TransactionType = finalTransactionType,
                 Category = category,
                 ReferenceNumber = reference,
                 VendorName = vendorName
             };
+        }
+
+        private static (decimal?, string) ParseAmount(IXLWorksheet sheet, int row, Dictionary<string, int> map)
+        {
+            string transactionType = "debit";
+
+            if (map.ContainsKey(HeaderAmount))
+            {
+                decimal? amount = ParseDecimal(sheet.Cell(row, map[HeaderAmount]));
+                if (amount.HasValue)
+                    transactionType = amount.Value >= 0 ? HeaderCredit : HeaderDebit;
+                return (amount, transactionType);
+            }
+
+            // Split debit / credit columns
+            decimal? debitVal = map.ContainsKey(HeaderDebit) ? ParseDecimal(sheet.Cell(row, map[HeaderDebit])) : null;
+            decimal? creditVal = map.ContainsKey(HeaderCredit) ? ParseDecimal(sheet.Cell(row, map[HeaderCredit])) : null;
+
+            if (debitVal.HasValue && debitVal.Value != 0)
+                return (-Math.Abs(debitVal.Value), HeaderDebit);
+
+            if (creditVal.HasValue && creditVal.Value != 0)
+                return (Math.Abs(creditVal.Value), HeaderCredit);
+
+            return (null, transactionType);
+        }
+
+        private static string GetCellString(IXLWorksheet sheet, int row, Dictionary<string, int> map, string headerKey, string defaultValue)
+        {
+            return map.ContainsKey(headerKey)
+                ? sheet.Cell(row, map[headerKey]).GetString().Trim()
+                : defaultValue;
+        }
+
+        private static string? GetCellNullableString(IXLWorksheet sheet, int row, Dictionary<string, int> map, string headerKey)
+        {
+            return map.ContainsKey(headerKey)
+                ? NullIfEmpty(sheet.Cell(row, map[headerKey]).GetString().Trim())
+                : null;
+        }
+
+        private static DateTime? GetCellDate(IXLWorksheet sheet, int row, Dictionary<string, int> map, string headerKey)
+        {
+            return map.ContainsKey(headerKey)
+                ? ParseDate(sheet.Cell(row, map[headerKey]))
+                : null;
+        }
+
+        private static decimal? GetCellDecimal(IXLWorksheet sheet, int row, Dictionary<string, int> map, string headerKey)
+        {
+            return map.ContainsKey(headerKey)
+                ? ParseDecimal(sheet.Cell(row, map[headerKey]))
+                : null;
+        }
+
+        private static string GetTransactionType(IXLWorksheet sheet, int row, Dictionary<string, int> map, string defaultType)
+        {
+            if (map.ContainsKey(HeaderType))
+            {
+                var typeVal = sheet.Cell(row, map[HeaderType]).GetString().Trim();
+                if (!string.IsNullOrWhiteSpace(typeVal))
+                    return typeVal.ToLowerInvariant();
+            }
+            return defaultType;
         }
 
         // ── Helpers ──────────────────────────────────────────────────────
@@ -325,7 +356,7 @@ namespace FinalProjectAuthAPI.BL
                        .Replace(",", "").Replace(" ", "").Trim();
 
             // Handle parentheses as negative: (123.45) => -123.45
-            if (text.StartsWith("(") && text.EndsWith(")"))
+            if (text.StartsWith('(') && text.EndsWith(')'))
             {
                 text = "-" + text.Trim('(', ')');
             }
