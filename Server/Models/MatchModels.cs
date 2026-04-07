@@ -80,8 +80,7 @@ namespace FinalProjectAuthAPI.Models
         public long     Id              { get; set; }
         public DateTime TransactionDate { get; set; }
         public string   Description     { get; set; } = string.Empty;
-        public decimal  Amount          { get; set; }  // total transaction amount (full sum if installment plan)
-        public decimal? ChargeAmount    { get; set; }  // per-period charge amount (populated only for installment transactions)
+        public decimal  Amount          { get; set; }
         public string   TransactionType { get; set; } = string.Empty;
         public string?  ReferenceNumber { get; set; }
     }
@@ -96,7 +95,9 @@ namespace FinalProjectAuthAPI.Models
 
     public class TransactionCandidate : TransactionMatchBase
     {
-        public string?  VendorName      { get; set; }
+        public string?   VendorName    { get; set; }
+        public decimal?  ChargeAmount  { get; set; }
+        public DateTime? PostedDate    { get; set; }
     }
 
     public class VendorAlias
@@ -126,27 +127,31 @@ namespace FinalProjectAuthAPI.Models
         public string   TransactionType         { get; set; } = string.Empty;
     }
 
-    // ── Installment match suggestion ─────────────────────────────────────────
-    public class InstallmentTransactionCandidate
+    // ── Installment group suggestion ──────────────────────────────────────────
+    public class InstallmentGroupSuggestion
     {
-        public long     TransactionId   { get; set; }
-        public string   Description     { get; set; } = string.Empty;
-        public decimal  Amount          { get; set; }
-        public DateTime TransactionDate { get; set; }
-        public string   TransactionType { get; set; } = string.Empty;
+        public long     InvoiceId               { get; set; }
+        public string   InvoiceNumber           { get; set; } = string.Empty;
+        public string   VendorName              { get; set; } = string.Empty;
+        public decimal  TotalAmount             { get; set; }
+        public DateTime InvoiceDate             { get; set; }
+        public decimal  AlreadyMatchedAmount    { get; set; }
+        public decimal  RemainingAmount         { get; set; }
+        public int?     ExpectedInstallments    { get; set; }
+        public int?     DetectedInstallmentCount { get; set; }
+        public int      AlreadyMatchedCount     { get; set; }
+        public decimal  InstallmentAmount       { get; set; }
+        public List<SuggestedInstallmentTransaction> SuggestedTransactions { get; set; } = new();
+        public List<MatchRow>                        ExistingMatches       { get; set; } = new();
     }
 
-    public class InstallmentMatchSuggestion
+    public class SuggestedInstallmentTransaction
     {
-        public long     InvoiceId           { get; set; }
-        public string   InvoiceNumber       { get; set; } = string.Empty;
-        public string?  VendorName          { get; set; }
-        public decimal  InvoiceTotal        { get; set; }
-        public decimal  InstallmentAmount   { get; set; }
-        public int      TotalInstallments   { get; set; }
-        public int      AlreadyMatchedCount { get; set; }
-        public decimal  MatchedAmount       { get; set; }
-        public DateTime InvoiceDate         { get; set; }
-        public List<InstallmentTransactionCandidate> MatchingTransactions { get; set; } = new();
+        public long      TransactionId    { get; set; }
+        public DateTime  TransactionDate  { get; set; }
+        public DateTime? PostedDate       { get; set; }
+        public string    Description      { get; set; } = string.Empty;
+        public decimal   Amount           { get; set; }
+        public string?   VendorName       { get; set; }
     }
 }

@@ -31,6 +31,9 @@ BEGIN
         m.match_reason,
         m.matched_by_user_id,
         u.name          AS matched_by_name,
+        m.installment_number,
+        m.installment_note,
+        t.transaction_type,
         m.created_at
     FROM dbo.FP26_invoice_transaction_matches m
     INNER JOIN dbo.FP26_invoices     i ON i.id = m.invoice_id     AND i.company_id = @CompanyId

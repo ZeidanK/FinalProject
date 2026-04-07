@@ -37,15 +37,15 @@ namespace FinalProjectAuthAPI.BL
 
             foreach (var invoice in invoices)
             {
-                // Skip installment invoices — matched by GetInstallmentSuggestions instead
-                if (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1)
-                    continue;
-
                 var remaining = invoice.TotalAmount - invoice.MatchedAmount;
                 if (remaining <= 0) continue;
 
                 foreach (var txn in transactions)
                 {
+                    // Skip installment transactions — they are handled by GetInstallmentSuggestions
+                    if (string.Equals(txn.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
                     if (txn.TransactionDate.Date == invoice.InvoiceDate.Date &&
                         Math.Abs(txn.Amount) == remaining)
                     {
@@ -69,64 +69,102 @@ namespace FinalProjectAuthAPI.BL
             return results;
         }
 
-        // ── Installment suggestions: same date + installment_amount per invoice ──
+        // ── Installment suggestions: grouped by invoice with partial-match progress ────────
 
-        public List<InstallmentMatchSuggestion> GetInstallmentSuggestions(long companyId)
+        public List<InstallmentGroupSuggestion> GetInstallmentSuggestions(long companyId)
         {
             var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
-            var transactions = _db.GetCandidateTransactions(companyId);
+            var allCandidates = _db.GetCandidateTransactions(companyId);
 
-            var results = new List<InstallmentMatchSuggestion>();
+            var installmentTxns = allCandidates
+                .Where(t => string.Equals(t.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var results = new List<InstallmentGroupSuggestion>();
 
             foreach (var invoice in invoices)
             {
-                if (!invoice.PaymentPlanTotalInstallments.HasValue || invoice.PaymentPlanTotalInstallments.Value <= 1)
-                    continue;
-
-                if (!invoice.PaymentPlanInstallmentAmount.HasValue || invoice.PaymentPlanInstallmentAmount.Value <= 0)
-                    continue;
-
                 var remaining = invoice.TotalAmount - invoice.MatchedAmount;
                 if (remaining <= 0) continue;
 
-                var installmentAmount = invoice.PaymentPlanInstallmentAmount.Value;
-                var totalInstallments = invoice.PaymentPlanTotalInstallments.Value;
-                var alreadyMatchedCount = installmentAmount > 0
-                    ? (int)Math.Round(invoice.MatchedAmount / installmentAmount)
-                    : 0;
-
-                var matchingTxns = transactions
-                    .Where(txn =>
-                        txn.TransactionDate.Date == invoice.InvoiceDate.Date &&
-                        Math.Abs(txn.ChargeAmount ?? txn.Amount) == installmentAmount)
-                    .Select(txn => new InstallmentTransactionCandidate
-                    {
-                        TransactionId   = txn.Id,
-                        Description     = txn.Description,
-                        Amount          = Math.Abs(txn.ChargeAmount ?? txn.Amount),
-                        TransactionDate = txn.TransactionDate,
-                        TransactionType = txn.TransactionType,
-                    })
+                // Must share the same transaction_date as the invoice date
+                var dateCandidates = installmentTxns
+                    .Where(t => t.TransactionDate.Date == invoice.InvoiceDate.Date)
                     .ToList();
 
-                if (!matchingTxns.Any()) continue;
+                if (!dateCandidates.Any()) continue;
 
-                results.Add(new InstallmentMatchSuggestion
+                // Filter to transactions whose amount is consistent with an installment of this invoice
+                var amountCandidates = dateCandidates
+                    .Where(t => IsInstallmentAmountForInvoice(invoice, t))
+                    .ToList();
+
+                if (!amountCandidates.Any()) continue;
+
+                // Determine the per-installment amount from invoice or from detected candidates
+                var firstAmt = Math.Abs(amountCandidates[0].Amount);
+                var installmentAmt = invoice.PaymentPlanInstallmentAmount ?? firstAmt;
+
+                // Detect expected number of installments
+                int? detectedN = null;
+                if (installmentAmt > 0)
                 {
-                    InvoiceId            = invoice.Id,
-                    InvoiceNumber        = invoice.InvoiceNumber,
-                    VendorName           = invoice.VendorName,
-                    InvoiceTotal         = invoice.TotalAmount,
-                    InstallmentAmount    = installmentAmount,
-                    TotalInstallments    = totalInstallments,
-                    AlreadyMatchedCount  = alreadyMatchedCount,
-                    MatchedAmount        = invoice.MatchedAmount,
-                    InvoiceDate          = invoice.InvoiceDate,
-                    MatchingTransactions = matchingTxns,
+                    var ratio = invoice.TotalAmount / installmentAmt;
+                    var rounded = (int)Math.Round(ratio);
+                    if (rounded >= 2 && rounded <= 12)
+                        detectedN = rounded;
+                }
+
+                var expectedInstallments = invoice.PaymentPlanTotalInstallments ?? detectedN;
+
+                // Fetch existing matches for progress tracking
+                var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
+
+                results.Add(new InstallmentGroupSuggestion
+                {
+                    InvoiceId               = invoice.Id,
+                    InvoiceNumber           = invoice.InvoiceNumber,
+                    VendorName              = invoice.VendorName,
+                    TotalAmount             = invoice.TotalAmount,
+                    InvoiceDate             = invoice.InvoiceDate,
+                    AlreadyMatchedAmount    = invoice.MatchedAmount,
+                    RemainingAmount         = remaining,
+                    ExpectedInstallments    = expectedInstallments,
+                    DetectedInstallmentCount = detectedN,
+                    AlreadyMatchedCount     = existingMatches.Count,
+                    InstallmentAmount       = installmentAmt,
+                    SuggestedTransactions   = amountCandidates.Select(t => new SuggestedInstallmentTransaction
+                    {
+                        TransactionId   = t.Id,
+                        TransactionDate = t.TransactionDate,
+                        PostedDate      = t.PostedDate,
+                        Description     = t.Description,
+                        Amount          = Math.Abs(t.Amount),
+                        VendorName      = t.VendorName,
+                    }).ToList(),
+                    ExistingMatches = existingMatches,
                 });
             }
 
             return results;
+        }
+
+        private static bool IsInstallmentAmountForInvoice(InvoiceRow invoice, TransactionCandidate txn)
+        {
+            var amt = Math.Abs(txn.Amount);
+            if (amt <= 0) return false;
+
+            // Explicitly declared installment amount
+            if (invoice.PaymentPlanInstallmentAmount.HasValue &&
+                invoice.PaymentPlanInstallmentAmount.Value > 0 &&
+                amt == invoice.PaymentPlanInstallmentAmount.Value)
+                return true;
+
+            // Undeclared installment: amt × N ≈ TotalAmount (N = 2..12, within 2% tolerance)
+            if (invoice.TotalAmount <= 0) return false;
+            var ratio = invoice.TotalAmount / amt;
+            var rounded = Math.Round(ratio);
+            return rounded >= 2 && rounded <= 12 && Math.Abs(ratio - rounded) < 0.02m;
         }
 
         // ── AI Suggestions: Date + Amount filter → Gemini name comparison ────

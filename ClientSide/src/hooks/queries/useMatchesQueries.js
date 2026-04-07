@@ -3,10 +3,10 @@ import {
   autoMatchOnLoad,
   createMatch,
   deleteMatch,
+  getInstallmentSuggestions,
   getMatchSuggestions,
   getMatchesByCompany,
   getSimpleSuggestions,
-  getInstallmentSuggestions,
 } from '../../services/matches'
 import { getInvoicesByCompany } from '../../services/invoices'
 import { getTransactionsByCompany } from '../../services/transactions'

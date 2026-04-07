@@ -207,7 +207,7 @@ namespace FinalProjectAuthAPI.DAL
             {
                 con = Connect();
                 var cmd = new SqlCommand(
-                    @"SELECT id, transaction_date, description, amount, charge_amount,
+                    @"SELECT id, transaction_date, posted_date, description, amount, charge_amount,
                              transaction_type, reference_number, vendor_name
                       FROM dbo.FP26_transactions
                       WHERE company_id = @CompanyId AND is_matched = 0",
@@ -221,9 +221,10 @@ namespace FinalProjectAuthAPI.DAL
                     {
                         Id              = Convert.ToInt64(reader["id"]),
                         TransactionDate = Convert.ToDateTime(reader["transaction_date"]),
+                        PostedDate      = reader["posted_date"] != DBNull.Value ? Convert.ToDateTime(reader["posted_date"]) : null,
                         Description     = reader["description"]?.ToString() ?? string.Empty,
                         Amount          = Convert.ToDecimal(reader["amount"]),
-                        ChargeAmount    = reader["charge_amount"] as decimal?,
+                        ChargeAmount    = reader["charge_amount"] != DBNull.Value ? Convert.ToDecimal(reader["charge_amount"]) : null,
                         TransactionType = reader["transaction_type"]?.ToString() ?? string.Empty,
                         ReferenceNumber = reader["reference_number"] as string,
                         VendorName      = reader["vendor_name"] as string
