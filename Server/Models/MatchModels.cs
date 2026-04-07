@@ -124,4 +124,28 @@ namespace FinalProjectAuthAPI.Models
         public DateTime TransactionDate         { get; set; }
         public string   TransactionType         { get; set; } = string.Empty;
     }
+
+    // ── Installment match suggestion ─────────────────────────────────────────
+    public class InstallmentTransactionCandidate
+    {
+        public long     TransactionId   { get; set; }
+        public string   Description     { get; set; } = string.Empty;
+        public decimal  Amount          { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string   TransactionType { get; set; } = string.Empty;
+    }
+
+    public class InstallmentMatchSuggestion
+    {
+        public long     InvoiceId           { get; set; }
+        public string   InvoiceNumber       { get; set; } = string.Empty;
+        public string?  VendorName          { get; set; }
+        public decimal  InvoiceTotal        { get; set; }
+        public decimal  InstallmentAmount   { get; set; }
+        public int      TotalInstallments   { get; set; }
+        public int      AlreadyMatchedCount { get; set; }
+        public decimal  MatchedAmount       { get; set; }
+        public DateTime InvoiceDate         { get; set; }
+        public List<InstallmentTransactionCandidate> MatchingTransactions { get; set; } = new();
+    }
 }

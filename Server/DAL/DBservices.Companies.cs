@@ -65,6 +65,33 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
+        public bool UserHasActiveCompanyAccess(long userId, long companyId)
+        {
+            if (userId <= 0 || companyId <= 0)
+                return false;
+
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+SELECT TOP 1 1
+FROM dbo.FP26_user_company_access uca
+INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
+WHERE uca.user_id = @UserId
+  AND uca.company_id = @CompanyId
+  AND uca.status = 'active'
+  AND c.is_active = 1;", con);
+
+                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
+                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+
+                var result = cmd.ExecuteScalar();
+                return result != null && result != DBNull.Value;
+            }
+            finally { con?.Close(); }
+        }
+
         public long CreateCompany(
             string name, long createdByUserId,
             string? registrationNumber, string? street, string? city,

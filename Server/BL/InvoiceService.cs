@@ -36,6 +36,9 @@ namespace FinalProjectAuthAPI.BL
             string? fileOriginalName, string? filePath, string? fileType,
             long? fileSize, decimal? aiConfidence)
         {
+            if (!_db.UserHasActiveCompanyAccess(uploadedByUserId, req.CompanyId))
+                return (false, 0, "You do not have access to the selected company.");
+
             if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
                 return (false, 0, "Invoice number is required.");
             if (string.IsNullOrWhiteSpace(req.VendorName))

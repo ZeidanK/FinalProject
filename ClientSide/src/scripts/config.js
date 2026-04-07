@@ -58,6 +58,7 @@ export const URLS = {
     byCompany: (companyId) => buildApiPath(`/Matches/company/${companyId}`),
     suggestions: (invoiceId) => buildApiPath(`/Matches/suggestions/${invoiceId}`),
     simpleSuggestions: (companyId) => buildApiPath(`/Matches/simple-suggestions/${companyId}`),
+    installmentSuggestions: (companyId) => buildApiPath(`/Matches/installment-suggestions/${companyId}`),
     autoMatch: (invoiceId) => buildApiPath(`/Matches/auto-match/${invoiceId}`),
     autoMatchBatch: (companyId) => buildApiPath(`/Matches/auto-match-batch/${companyId}`),
     autoMatchOnLoad: (companyId) => buildApiPath(`/Matches/auto-match-on-load/${companyId}`),

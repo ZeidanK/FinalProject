@@ -6,6 +6,7 @@ import {
   getMatchSuggestions,
   getMatchesByCompany,
   getSimpleSuggestions,
+  getInstallmentSuggestions,
 } from '../../services/matches'
 import { getInvoicesByCompany } from '../../services/invoices'
 import { getTransactionsByCompany } from '../../services/transactions'
@@ -54,6 +55,7 @@ export function useCreateMatchMutation({ companyId, token }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: matchKeys.byCompany(companyId) }),
         queryClient.invalidateQueries({ queryKey: matchKeys.simpleSuggestions(companyId) }),
+        queryClient.invalidateQueries({ queryKey: matchKeys.installmentSuggestions(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
       ])
@@ -70,6 +72,7 @@ export function useDeleteMatchMutation({ companyId, token }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: matchKeys.byCompany(companyId) }),
         queryClient.invalidateQueries({ queryKey: matchKeys.simpleSuggestions(companyId) }),
+        queryClient.invalidateQueries({ queryKey: matchKeys.installmentSuggestions(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
       ])
@@ -81,6 +84,14 @@ export function useSimpleSuggestionsQuery({ companyId, token }) {
   return useQuery({
     queryKey: matchKeys.simpleSuggestions(companyId),
     queryFn: () => getSimpleSuggestions(companyId, token),
+    enabled: Boolean(companyId) && Boolean(token),
+  })
+}
+
+export function useInstallmentSuggestionsQuery({ companyId, token }) {
+  return useQuery({
+    queryKey: matchKeys.installmentSuggestions(companyId),
+    queryFn: () => getInstallmentSuggestions(companyId, token),
     enabled: Boolean(companyId) && Boolean(token),
   })
 }

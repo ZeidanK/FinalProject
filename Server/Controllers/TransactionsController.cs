@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,15 +14,18 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly ITransactionService _svc;
         private readonly IExcelExtractionService _excelSvc;
         private readonly IFileStorageService _fileSvc;
+        private readonly DBservices _db;
 
         public TransactionsController(
             ITransactionService svc,
             IExcelExtractionService excelSvc,
-            IFileStorageService fileSvc)
+            IFileStorageService fileSvc,
+            DBservices db)
         {
             _svc = svc;
             _excelSvc = excelSvc;
             _fileSvc = fileSvc;
+            _db = db;
         }
 
         // GET api/transactions/company/{companyId}?type=&isMatched=&startDate=&endDate=
@@ -105,6 +109,10 @@ namespace FinalProjectAuthAPI.Controllers
             IFormFile file,
             [FromForm] long companyId)
         {
+            var userId = GetCurrentUserId();
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
+
             var validationError = ValidateExcelFile(file);
             if (validationError != null)
                 return validationError;
@@ -142,6 +150,10 @@ namespace FinalProjectAuthAPI.Controllers
         {
             if (request == null || request.CompanyId <= 0)
                 return BadRequest(new { message = "A valid companyId is required." });
+
+            var userId = GetCurrentUserId();
+            if (!_db.UserHasActiveCompanyAccess(userId, request.CompanyId))
+                return Forbid();
 
             if (string.IsNullOrWhiteSpace(request.SavedFilePath))
                 return BadRequest(new { message = "savedFilePath is required." });
@@ -196,7 +208,6 @@ namespace FinalProjectAuthAPI.Controllers
             if (extractionResult.TotalExtracted == 0)
                 return BadRequest(new { message = "No transactions could be extracted from the file.", sheets = extractionResult.Sheets });
 
-            var userId = GetCurrentUserId();
             var bulkRequest = new BulkCreateTransactionsRequest
             {
                 CompanyId = request.CompanyId,
@@ -242,6 +253,10 @@ namespace FinalProjectAuthAPI.Controllers
             [FromForm] long companyId,
             [FromForm] long? bankAccountId)
         {
+            var userId = GetCurrentUserId();
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
+
             var validationError = ValidateExcelFile(file);
             if (validationError != null)
                 return validationError;
@@ -257,7 +272,6 @@ namespace FinalProjectAuthAPI.Controllers
                     return extractionError;
 
                 // 3. Map extracted transactions to bulk create request
-                var userId = GetCurrentUserId();
                 var bulkRequest = new BulkCreateTransactionsRequest
                 {
                     CompanyId = companyId,

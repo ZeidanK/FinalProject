@@ -65,6 +65,66 @@ namespace FinalProjectAuthAPI.BL
             return results;
         }
 
+        // ── Installment suggestions: same date + installment_amount per invoice ──
+
+        public List<InstallmentMatchSuggestion> GetInstallmentSuggestions(long companyId)
+        {
+            var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
+            var transactions = _db.GetCandidateTransactions(companyId);
+
+            var results = new List<InstallmentMatchSuggestion>();
+
+            foreach (var invoice in invoices)
+            {
+                if (!invoice.PaymentPlanTotalInstallments.HasValue || invoice.PaymentPlanTotalInstallments.Value <= 1)
+                    continue;
+
+                if (!invoice.PaymentPlanInstallmentAmount.HasValue || invoice.PaymentPlanInstallmentAmount.Value <= 0)
+                    continue;
+
+                var remaining = invoice.TotalAmount - invoice.MatchedAmount;
+                if (remaining <= 0) continue;
+
+                var installmentAmount = invoice.PaymentPlanInstallmentAmount.Value;
+                var totalInstallments = invoice.PaymentPlanTotalInstallments.Value;
+                var alreadyMatchedCount = installmentAmount > 0
+                    ? (int)Math.Round(invoice.MatchedAmount / installmentAmount)
+                    : 0;
+
+                var matchingTxns = transactions
+                    .Where(txn =>
+                        txn.TransactionDate.Date == invoice.InvoiceDate.Date &&
+                        Math.Abs(txn.Amount) == installmentAmount)
+                    .Select(txn => new InstallmentTransactionCandidate
+                    {
+                        TransactionId   = txn.Id,
+                        Description     = txn.Description,
+                        Amount          = Math.Abs(txn.Amount),
+                        TransactionDate = txn.TransactionDate,
+                        TransactionType = txn.TransactionType,
+                    })
+                    .ToList();
+
+                if (!matchingTxns.Any()) continue;
+
+                results.Add(new InstallmentMatchSuggestion
+                {
+                    InvoiceId            = invoice.Id,
+                    InvoiceNumber        = invoice.InvoiceNumber,
+                    VendorName           = invoice.VendorName,
+                    InvoiceTotal         = invoice.TotalAmount,
+                    InstallmentAmount    = installmentAmount,
+                    TotalInstallments    = totalInstallments,
+                    AlreadyMatchedCount  = alreadyMatchedCount,
+                    MatchedAmount        = invoice.MatchedAmount,
+                    InvoiceDate          = invoice.InvoiceDate,
+                    MatchingTransactions = matchingTxns,
+                });
+            }
+
+            return results;
+        }
+
         // ── AI Suggestions: Date + Amount filter → Gemini name comparison ────
 
         public async Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId)

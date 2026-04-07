@@ -41,6 +41,11 @@ namespace FinalProjectAuthAPI.Controllers
         public IActionResult GetSimpleSuggestions(long companyId) =>
             Ok(_svc.GetSimpleSuggestions(companyId));
 
+        // GET api/matches/installment-suggestions/{companyId}
+        [HttpGet("installment-suggestions/{companyId:long}")]
+        public IActionResult GetInstallmentSuggestions(long companyId) =>
+            Ok(_svc.GetInstallmentSuggestions(companyId));
+
         // POST api/matches
         [HttpPost]
         public IActionResult Create([FromBody] CreateMatchRequest request)

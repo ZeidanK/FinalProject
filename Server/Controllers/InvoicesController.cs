@@ -177,7 +177,8 @@ namespace FinalProjectAuthAPI.Controllers
         [RequestSizeLimit(10 * 1024 * 1024)]
         public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] long companyId)
         {
-            var (success, response, error) = await _uploadSvc.UploadPdfAsync(file, companyId);
+            var userId = GetCurrentUserId();
+            var (success, response, error) = await _uploadSvc.UploadPdfAsync(file, companyId, userId);
 
             return success
                 ? Ok(response)

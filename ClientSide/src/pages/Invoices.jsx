@@ -213,10 +213,19 @@ function InvoicesPage() {
         )
       }
     },
-    [activeCompanyId, token],
+    [activeCompanyId, uploadInvoiceMutation],
   )
 
   const addFiles = useCallback((fileList) => {
+    if (!activeCompanyId) {
+      setSnack({
+        open: true,
+        message: 'Select an assigned company before uploading invoices.',
+        severity: 'warning',
+      })
+      return
+    }
+
     const entries = Array.from(fileList).map((file) => {
       const error = validateFile(file)
       return {
@@ -237,7 +246,7 @@ function InvoicesPage() {
     entries
       .filter((e) => e.status === 'pending')
       .forEach((entry) => processFile(entry))
-  }, [processFile])
+  }, [activeCompanyId, processFile])
 
   const removeFile = useCallback((id) => {
     setFiles((prev) => prev.filter((f) => f.id !== id))
@@ -423,7 +432,7 @@ function InvoicesPage() {
         setSaving(false)
       }
     },
-    [activeCompanyId, token, modal.file, invoicesQuery],
+    [activeCompanyId, createInvoiceMutation, updateInvoiceMutation, modal.file, invoicesQuery],
   )
 
   const handleOpenInvoice = useCallback(
@@ -499,7 +508,7 @@ function InvoicesPage() {
         setDeletingInvoiceIds((prev) => prev.filter((id) => id !== invoiceId))
       }
     },
-    [token],
+    [deleteInvoiceMutation],
   )
 
   const handleBulkDeleteInvoices = useCallback(async () => {
@@ -695,6 +704,12 @@ function InvoicesPage() {
           />
 
           {/* ---- Upload Drop Zone ---- */}
+          {!activeCompanyId && (
+            <Alert severity="warning" variant="outlined">
+              Select a company from your assigned companies before uploading invoice PDFs.
+            </Alert>
+          )}
+
           <Card
             component={motion.div}
             variants={itemVariants}

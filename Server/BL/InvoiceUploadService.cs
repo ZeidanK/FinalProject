@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL
@@ -12,22 +13,25 @@ namespace FinalProjectAuthAPI.BL
         private readonly IInvoiceService _invoiceSvc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IFileStorageService _fileSvc;
+        private readonly DBservices _db;
 
         public InvoiceUploadService(
             IInvoiceService invoiceSvc,
             IPdfExtractionService pdfSvc,
-            IFileStorageService fileSvc)
+            IFileStorageService fileSvc,
+            DBservices db)
         {
             _invoiceSvc = invoiceSvc;
             _pdfSvc = pdfSvc;
             _fileSvc = fileSvc;
+            _db = db;
         }
 
         /// <summary>
         /// Uploads a PDF file, saves it to disk, and extracts data without creating an invoice record.
         /// </summary>
         public async Task<(bool Success, UploadInvoicePdfResponse? Response, string Error)> UploadPdfAsync(
-            IFormFile file, long companyId)
+            IFormFile file, long companyId, long userId)
         {
             try
             {
@@ -37,6 +41,12 @@ namespace FinalProjectAuthAPI.BL
 
                 if (companyId <= 0)
                     return (false, null, "Company ID is required.");
+
+                if (userId <= 0)
+                    return (false, null, "User ID is required.");
+
+                if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                    return (false, null, "You do not have access to the selected company.");
 
                 // Save the file to disk
                 var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
@@ -86,6 +96,9 @@ namespace FinalProjectAuthAPI.BL
 
                 if (userId <= 0)
                     return (false, 0, null, "User ID is required.");
+
+                if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                    return (false, 0, null, "You do not have access to the selected company.");
 
                 // Save the file
                 var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);

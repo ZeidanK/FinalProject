@@ -73,3 +73,8 @@ export async function getSimpleSuggestions(companyId, token) {
   const response = await apiRequest(URLS.matches.simpleSuggestions(companyId), { token })
   return unwrapEnvelope(response)
 }
+
+export async function getInstallmentSuggestions(companyId, token) {
+  const response = await apiRequest(URLS.matches.installmentSuggestions(companyId), { token })
+  return unwrapEnvelope(response)
+}

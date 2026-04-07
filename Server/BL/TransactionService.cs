@@ -29,6 +29,9 @@ namespace FinalProjectAuthAPI.BL
         public (bool Success, long Id, string Error) Create(
             CreateTransactionRequest req, long createdByUserId)
         {
+            if (!_db.UserHasActiveCompanyAccess(createdByUserId, req.CompanyId))
+                return (false, 0, "You do not have access to the selected company.");
+
             if (string.IsNullOrWhiteSpace(req.Description))
                 return (false, 0, "Description is required.");
             if (req.Amount == 0)
@@ -61,6 +64,9 @@ namespace FinalProjectAuthAPI.BL
         public (bool Success, List<long> Ids, string Error) BulkCreate(
             BulkCreateTransactionsRequest req, long createdByUserId)
         {
+            if (!_db.UserHasActiveCompanyAccess(createdByUserId, req.CompanyId))
+                return (false, new List<long>(), "You do not have access to the selected company.");
+
             if (req.Transactions == null || req.Transactions.Count == 0)
                 return (false, new List<long>(), "No transactions provided.");
 

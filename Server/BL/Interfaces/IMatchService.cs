@@ -9,6 +9,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         MatchRow? GetById(long id);
         Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId);
         List<SimpleMatchSuggestion> GetSimpleSuggestions(long companyId);
+        List<InstallmentMatchSuggestion> GetInstallmentSuggestions(long companyId);
         (bool Success, long Id, string Error) Create(CreateMatchRequest req, long matchedByUserId);
         bool Delete(long id);
         Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAsync(

@@ -92,6 +92,8 @@ export default function ProfilePage() {
   const {
     refreshCompanies,
     companies,
+    activeCompanyId,
+    setActiveCompanyId,
     loadingCompanies: loadingCompaniesFromContext,
   } = useCompany()
   const location = useLocation()
@@ -312,7 +314,6 @@ export default function ProfilePage() {
         await createCompanyMutation.mutateAsync({
           ...companyForm,
           name: parsed.data.name,
-          createdByUserId: user.id,
         })
         setCompanyMsg({ type: 'success', text: 'Company created successfully.' })
       } else {
@@ -394,19 +395,37 @@ export default function ProfilePage() {
                   {c.currency || 'USD'}
                 </Typography>
               </Stack>
-              <Chip
-                label={c.accessLevel || c.access_level || 'view_only'}
-                size="small"
-                sx={{
-                  bgcolor: 'rgba(55, 214, 122, 0.14)',
-                  border: '1px solid',
-                  borderColor: 'rgba(55, 214, 122, 0.38)',
-                  color: '#b3ffd0',
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                  textTransform: 'capitalize',
-                }}
-              />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip
+                  label={c.accessLevel || c.access_level || 'view_only'}
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(55, 214, 122, 0.14)',
+                    border: '1px solid',
+                    borderColor: 'rgba(55, 214, 122, 0.38)',
+                    color: '#b3ffd0',
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                    textTransform: 'capitalize',
+                  }}
+                />
+                {activeCompanyId === c.id ? (
+                  <Chip
+                    label="Active"
+                    size="small"
+                    color="primary"
+                    variant="filled"
+                  />
+                ) : (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setActiveCompanyId(c.id)}
+                  >
+                    Select
+                  </Button>
+                )}
+              </Stack>
             </Stack>
           </Box>
         ))}

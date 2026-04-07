@@ -8,9 +8,6 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(255)]
         public string Name { get; set; } = string.Empty;
 
-        [Required]
-        public long CreatedByUserId { get; set; }
-
         [StringLength(100)]
         public string? RegistrationNumber { get; set; }
 

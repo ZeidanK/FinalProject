@@ -37,4 +37,5 @@ export const matchKeys = {
   byCompany: (companyId) => [...matchKeys.all, 'company', companyId],
   suggestions: (invoiceId) => [...matchKeys.all, 'suggestions', invoiceId],
   simpleSuggestions: (companyId) => [...matchKeys.all, 'simple-suggestions', companyId],
+  installmentSuggestions: (companyId) => [...matchKeys.all, 'installment-suggestions', companyId],
 }

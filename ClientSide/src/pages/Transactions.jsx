@@ -187,6 +187,11 @@ function TransactionsPage() {
   }, [])
 
   const handleCSVFile = useCallback((file) => {
+    if (!activeCompanyId) {
+      setParseError('Select an assigned company before uploading transactions.')
+      return
+    }
+
     const error = validateFile(file)
     if (error) {
       setParseError(error)
@@ -338,6 +343,11 @@ function TransactionsPage() {
   // ===================== Import =====================
 
   const handleImport = useCallback(async () => {
+    if (!activeCompanyId) {
+      setSnack({ open: true, message: 'Select an assigned company before importing.', severity: 'warning' })
+      return
+    }
+
     const validRows = parsedRows.filter((r) => r._valid)
     if (validRows.length === 0) {
       setSnack({ open: true, message: 'No valid rows to import.', severity: 'warning' })
@@ -789,6 +799,12 @@ function TransactionsPage() {
             }}
           >
             <CardContent>
+              {!activeCompanyId && (
+                <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
+                  Select a company from your assigned companies before uploading or importing transactions.
+                </Alert>
+              )}
+
               {/* CSV drop zone */}
               <Box
                 sx={{

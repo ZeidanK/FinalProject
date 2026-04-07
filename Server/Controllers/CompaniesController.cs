@@ -39,10 +39,12 @@ namespace FinalProjectAuthAPI.Controllers
 
         // POST api/companies
         [HttpPost]
+        [Authorize(Roles = "admin,business_owner,accountant_business_owner")]
         public IActionResult Create([FromBody] CreateCompanyRequest request)
         {
+            var currentUserId = GetCurrentUserId();
             var (success, id, error) = _svc.Create(
-                request.Name, request.CreatedByUserId,
+                request.Name, currentUserId,
                 request.RegistrationNumber, request.Street, request.City,
                 request.State, request.PostalCode, request.Country,
                 request.Email, request.Phone, request.Website,
