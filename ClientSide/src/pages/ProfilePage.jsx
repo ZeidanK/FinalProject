@@ -39,7 +39,6 @@ import {
   useUpdateCompanyMutation,
   useUpdateProfileMutation,
   useUploadProfilePictureMutation,
-  useUserCompaniesQuery,
   useUserProfileQuery,
 } from '../hooks/queries/useProfileQueries'
 import { companySchema, passwordChangeSchema, profileUpdateSchema } from '../schemas/profile'
@@ -90,7 +89,11 @@ const passwordFieldMeta = {
 
 export default function ProfilePage() {
   const { user, token, updateUser: updateAuthUser } = useAuth()
-  const { refreshCompanies } = useCompany()
+  const {
+    refreshCompanies,
+    companies,
+    loadingCompanies: loadingCompaniesFromContext,
+  } = useCompany()
   const location = useLocation()
   const requiresCompanySetup = Boolean(location.state?.noCompany)
 
@@ -118,7 +121,6 @@ export default function ProfilePage() {
   const [passwordMsg, setPasswordMsg] = useState(null)
 
   // ── Companies state ────────────────────────────────────────
-  const [companies, setCompanies] = useState([])
   const [editingCompanyId, setEditingCompanyId] = useState(null)
   const [companyForm, setCompanyForm] = useState({ ...emptyCompanyForm })
   const [addingCompany, setAddingCompany] = useState(false)
@@ -150,12 +152,6 @@ export default function ProfilePage() {
     enabled: Boolean(user?.id && token),
   })
 
-  const companiesQuery = useUserCompaniesQuery({
-    userId: user?.id,
-    token,
-    enabled: Boolean(user?.id && token),
-  })
-
   const updateProfileMutation = useUpdateProfileMutation({ userId: user?.id, token })
   const uploadProfilePictureMutation = useUploadProfilePictureMutation({ userId: user?.id, token })
   const changePasswordMutation = useChangePasswordMutation({ userId: user?.id, token })
@@ -164,7 +160,7 @@ export default function ProfilePage() {
   const deleteCompanyMutation = useDeleteCompanyMutation({ userId: user?.id, token })
 
   const loadingProfile = profileQuery.isLoading || profileQuery.isFetching
-  const loadingCompanies = companiesQuery.isLoading || companiesQuery.isFetching
+  const loadingCompanies = loadingCompaniesFromContext
 
   useEffect(() => {
     if (!profileQuery.data) return
@@ -174,11 +170,6 @@ export default function ProfilePage() {
       phone: profileQuery.data.phone || '',
     })
   }, [profileQuery.data])
-
-  useEffect(() => {
-    const nextCompanies = Array.isArray(companiesQuery.data) ? companiesQuery.data : []
-    setCompanies(nextCompanies)
-  }, [companiesQuery.data])
 
   // ── Profile picture helpers ────────────────────────────────
   const handleProfilePicChange = (e) => {
@@ -333,7 +324,6 @@ export default function ProfilePage() {
       }
       setEditingCompanyId(null)
       setAddingCompany(false)
-      await companiesQuery.refetch()
       await refreshCompanies()
     } catch (err) {
       setCompanyMsg({ type: 'error', text: err.message || 'Failed to save company.' })
@@ -360,7 +350,6 @@ export default function ProfilePage() {
       if (editingCompanyId === company.id) {
         setEditingCompanyId(null)
       }
-      await companiesQuery.refetch()
       await refreshCompanies()
     } catch (err) {
       setCompanyMsg({ type: 'error', text: err.message || 'Failed to delete company.' })

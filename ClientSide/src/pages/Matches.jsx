@@ -67,6 +67,19 @@ const fmtAmount = (v) =>
     maximumFractionDigits: 2,
   })
 
+const fmtCurrency = (v, currency = 'USD') => {
+  try {
+    return (Number(v) || 0).toLocaleString(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  } catch {
+    return `${currency} ${fmtAmount(v)}`
+  }
+}
+
 const fmtDate = (d) => {
   if (!d) return '—'
   return new Date(d).toLocaleDateString()
@@ -269,13 +282,11 @@ SelectionPanel.defaultProps = {
 
 // ── Quick Match Suggestions component ──────────────────────────────────────
 
-function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBusy }) {
+function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBusy, invoices, transactions }) {
   const rawSuggestions = Array.isArray(query.data) ? query.data : []
   const suggestions = rawSuggestions.filter(
     (s) => !deniedPairs.has(`${s.invoiceId}-${s.transactionId}`),
   )
-
-  if (!query.isLoading && suggestions.length === 0) return null
 
   return (
     <Card
@@ -304,17 +315,30 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
           </Typography>
         </Stack>
 
-        {query.isLoading ? (
+        {query.isLoading && (
           <Stack spacing={1}>
             {['qs-1', 'qs-2', 'qs-3'].map((k) => (
               <Skeleton key={k} variant="rectangular" height={72} sx={{ borderRadius: 2 }} />
             ))}
           </Stack>
-        ) : (
+        )}
+        {!query.isLoading && suggestions.length === 0 && (
+          <Stack alignItems="center" sx={{ py: 3 }}>
+            <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary">
+              No current suggestions.
+            </Typography>
+          </Stack>
+        )}
+        {!query.isLoading && suggestions.length > 0 && (
           <Stack spacing={1.5}>
             <AnimatePresence>
               {suggestions.map((s) => {
                 const pairKey = `${s.invoiceId}-${s.transactionId}`
+                const _inv = invoices.find((i) => i.id === s.invoiceId)
+                const _trx = transactions.find((t) => t.id === s.transactionId)
+                const invCurrency = _inv?.currency || 'USD'
+                const trxCurrency = _trx?.charge_currency || _trx?.chargeCurrency || invCurrency
                 return (
                   <Box
                     key={pairKey}
@@ -353,7 +377,7 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
                             {fmtDate(s.invoiceDate)}
                           </Typography>
                           <Typography variant="caption" fontWeight={700} sx={{ color: '#37d67a' }}>
-                            ${fmtAmount(s.invoiceAmount)}
+                            {fmtCurrency(s.invoiceAmount, invCurrency)}
                           </Typography>
                         </Stack>
                       </Box>
@@ -376,7 +400,7 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
                             {fmtDate(s.transactionDate)}
                           </Typography>
                           <Typography variant="caption" fontWeight={700} sx={{ color: '#37d67a' }}>
-                            ${fmtAmount(s.transactionAmount)}
+                            {fmtCurrency(s.transactionAmount, trxCurrency)}
                           </Typography>
                         </Stack>
                       </Box>
@@ -421,6 +445,8 @@ QuickMatchSuggestions.propTypes = {
   onDeny: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
   matchBusy: PropTypes.bool.isRequired,
+  invoices: PropTypes.array.isRequired,
+  transactions: PropTypes.array.isRequired,
 }
 
 function MatchesPage() {
@@ -511,21 +537,15 @@ function MatchesPage() {
     setError(nextError)
     setLoading(
       matchesQuery.isLoading ||
-      matchesQuery.isFetching ||
       invoicesQuery.isLoading ||
-      invoicesQuery.isFetching ||
-      transactionsQuery.isLoading ||
-      transactionsQuery.isFetching,
+      transactionsQuery.isLoading,
     )
   }, [
     invoicesQuery.error,
-    invoicesQuery.isFetching,
     invoicesQuery.isLoading,
     matchesQuery.error,
-    matchesQuery.isFetching,
     matchesQuery.isLoading,
     transactionsQuery.error,
-    transactionsQuery.isFetching,
     transactionsQuery.isLoading,
   ])
 
@@ -1026,7 +1046,7 @@ function MatchesPage() {
                 items={filteredTransactions}
                 selectedId={selectedTransactionId}
                 onSelect={setSelectedTransactionId}
-                renderPrimary={(trx) => trx.description || '—'}
+                renderPrimary={(trx) => trx.vendor_name || trx.vendorName || trx.description || '—'}
                 renderSecondary={(trx) => trx.type || trx.transaction_type || ''}
                 renderAmount={(trx) => fmtAmount(trx.amount)}
                 renderDate={(trx) => fmtDate(trx.transaction_date || trx.transactionDate)}
@@ -1073,7 +1093,7 @@ function MatchesPage() {
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
                         {selectedTransaction
-                          ? selectedTransaction.description || `#${selectedTransaction.id}`
+                          ? selectedTransaction.vendor_name || selectedTransaction.vendorName || selectedTransaction.description || `#${selectedTransaction.id}`
                           : 'None'}
                       </Typography>
                     </Box>
@@ -1123,6 +1143,8 @@ function MatchesPage() {
           <QuickMatchSuggestions
             query={simpleSuggestionsQuery}
             deniedPairs={deniedPairs}
+            invoices={invoices}
+            transactions={transactions}
             onDeny={(invoiceId, transactionId) =>
               setDeniedPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
             }

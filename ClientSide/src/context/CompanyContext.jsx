@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PropTypes from 'prop-types'
 import { getCompaniesByUser } from '../services/companies'
 import { useAuth } from './useAuth'
@@ -31,6 +31,8 @@ export function CompanyProvider({ children }) {
   const [activeCompanyId, setActiveCompanyId] = useState(() => readStoredCompanyId())
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [hasResolvedCompanies, setHasResolvedCompanies] = useState(false)
+  const inFlightRequestKeyRef = useRef(null)
+  const inFlightPromiseRef = useRef(null)
 
   const resolveInitialCompanyId = useCallback((availableCompanies, currentUserCompanyId) => {
     const ids = availableCompanies
@@ -66,6 +68,8 @@ export function CompanyProvider({ children }) {
 
   const refreshCompanies = useCallback(async () => {
     if (!isAuthenticated || !user?.id || !token) {
+      inFlightRequestKeyRef.current = null
+      inFlightPromiseRef.current = null
       setCompanies([])
       setActiveCompanyId(null)
       persistCompanyId(null)
@@ -74,34 +78,56 @@ export function CompanyProvider({ children }) {
       return
     }
 
-    setLoadingCompanies(true)
-    setHasResolvedCompanies(false)
+    const requestKey = `${user.id}:${token}`
+    if (
+      inFlightPromiseRef.current
+      && inFlightRequestKeyRef.current === requestKey
+    ) {
+      await inFlightPromiseRef.current
+      return
+    }
+
+    const requestPromise = (async () => {
+      setLoadingCompanies(true)
+      setHasResolvedCompanies(false)
+      try {
+        const response = await getCompaniesByUser(user.id, token)
+        const nextCompanies = Array.isArray(response) ? response : []
+        setCompanies(nextCompanies)
+
+        const nextActiveCompanyId = resolveInitialCompanyId(nextCompanies, user?.companyId)
+        setActiveCompanyId(nextActiveCompanyId)
+        persistCompanyId(nextActiveCompanyId)
+
+        const currentUserCompanyId = parseCompanyId(user?.companyId)
+        if (currentUserCompanyId !== nextActiveCompanyId) {
+          updateUser({ companyId: nextActiveCompanyId })
+        }
+        setHasResolvedCompanies(true)
+      } catch {
+        setCompanies([])
+        setActiveCompanyId(null)
+        persistCompanyId(null)
+
+        const currentUserCompanyId = parseCompanyId(user?.companyId)
+        if (currentUserCompanyId !== null) {
+          updateUser({ companyId: null })
+        }
+        setHasResolvedCompanies(true)
+      } finally {
+        setLoadingCompanies(false)
+      }
+    })()
+
+    inFlightRequestKeyRef.current = requestKey
+    inFlightPromiseRef.current = requestPromise
+
     try {
-      const response = await getCompaniesByUser(user.id, token)
-      const nextCompanies = Array.isArray(response) ? response : []
-      setCompanies(nextCompanies)
-
-      const nextActiveCompanyId = resolveInitialCompanyId(nextCompanies, user?.companyId)
-      setActiveCompanyId(nextActiveCompanyId)
-      persistCompanyId(nextActiveCompanyId)
-
-      const currentUserCompanyId = parseCompanyId(user?.companyId)
-      if (currentUserCompanyId !== nextActiveCompanyId) {
-        updateUser({ companyId: nextActiveCompanyId })
-      }
-      setHasResolvedCompanies(true)
-    } catch {
-      setCompanies([])
-      setActiveCompanyId(null)
-      persistCompanyId(null)
-
-      const currentUserCompanyId = parseCompanyId(user?.companyId)
-      if (currentUserCompanyId !== null) {
-        updateUser({ companyId: null })
-      }
-      setHasResolvedCompanies(true)
+      await requestPromise
     } finally {
-      setLoadingCompanies(false)
+      if (inFlightRequestKeyRef.current === requestKey) {
+        inFlightPromiseRef.current = null
+      }
     }
   }, [isAuthenticated, resolveInitialCompanyId, token, updateUser, user?.companyId, user?.id])
 
