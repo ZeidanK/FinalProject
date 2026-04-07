@@ -213,6 +213,30 @@
       "PackagePath": "staticwebassets\\uploads\\invoices\\3\\d758d73e698e4aa5ae58f8272298498a_IN254000484.pdf"
     },
     {
+      "Id": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx",
+      "PackagePath": "staticwebassets\\uploads\\transactions\\1\\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Id": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx",
+      "PackagePath": "staticwebassets\\uploads\\transactions\\1\\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Id": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx",
+      "PackagePath": "staticwebassets\\uploads\\transactions\\1\\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Id": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx",
+      "PackagePath": "staticwebassets\\uploads\\transactions\\1\\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Id": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx",
+      "PackagePath": "staticwebassets\\uploads\\transactions\\1\\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Id": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx",
+      "PackagePath": "staticwebassets\\uploads\\transactions\\1\\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
       "Id": "obj\\Debug\\net6.0\\staticwebassets\\msbuild.FinalProjectAuthAPI.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
       "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
     },

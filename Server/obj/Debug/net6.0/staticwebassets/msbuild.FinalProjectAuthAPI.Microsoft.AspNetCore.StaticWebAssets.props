@@ -954,5 +954,113 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\invoices\3\d758d73e698e4aa5ae58f8272298498a_IN254000484.pdf'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/transactions/1/235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>nbpp0indkp</Fingerprint>
+      <Integrity>jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/transactions/1/341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>nbpp0indkp</Fingerprint>
+      <Integrity>jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/transactions/1/54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>nbpp0indkp</Fingerprint>
+      <Integrity>jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/transactions/1/5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>nbpp0indkp</Fingerprint>
+      <Integrity>jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/transactions/1/6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>nbpp0indkp</Fingerprint>
+      <Integrity>jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx'))">
+      <SourceType>Package</SourceType>
+      <SourceId>FinalProjectAuthAPI</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>_content/FinalProjectAuthAPI</BasePath>
+      <RelativePath>uploads/transactions/1/c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>nbpp0indkp</Fingerprint>
+      <Integrity>jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\uploads\transactions\1\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx'))</OriginalItemSpec>
+    </StaticWebAsset>
   </ItemGroup>
 </Project>

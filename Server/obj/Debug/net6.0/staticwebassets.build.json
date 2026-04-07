@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "+Le0S4xMiFD4tch5MqNE4gliKc1JQQTmT40mgp4CelM=",
+  "Hash": "CMH3OEGL013jLhSfa+75+VA5MuSi/Oo66XLutYF91YY=",
   "Source": "FinalProjectAuthAPI",
   "BasePath": "_content/FinalProjectAuthAPI",
   "Mode": "Default",
@@ -1128,6 +1128,132 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\uploads\\invoices\\3\\d758d73e698e4aa5ae58f8272298498a_IN254000484.pdf"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/transactions/1/235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_#[.{fingerprint}]?.xlsx",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "nbpp0indkp",
+      "Integrity": "jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\transactions\\1\\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/transactions/1/341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_#[.{fingerprint}]?.xlsx",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "nbpp0indkp",
+      "Integrity": "jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\transactions\\1\\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/transactions/1/54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_#[.{fingerprint}]?.xlsx",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "nbpp0indkp",
+      "Integrity": "jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\transactions\\1\\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/transactions/1/5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_#[.{fingerprint}]?.xlsx",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "nbpp0indkp",
+      "Integrity": "jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\transactions\\1\\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/transactions/1/6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_#[.{fingerprint}]?.xlsx",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "nbpp0indkp",
+      "Integrity": "jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\transactions\\1\\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx"
+    },
+    {
+      "Identity": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx",
+      "SourceId": "FinalProjectAuthAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\",
+      "BasePath": "_content/FinalProjectAuthAPI",
+      "RelativePath": "uploads/transactions/1/c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_#[.{fingerprint}]?.xlsx",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "nbpp0indkp",
+      "Integrity": "jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\transactions\\1\\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx"
     }
   ],
   "Endpoints": [
@@ -5474,6 +5600,498 @@
         {
           "Name": "integrity",
           "Value": "sha256-lYXcH0WSfNFtn38YmsCYKM1YECE9Q5+yXQned6fsthQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.nbpp0indkp.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:43:23 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "nbpp0indkp"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/transactions/1/235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\235c5455870842e88d71fa1203e5352c_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:43:23 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.nbpp0indkp.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:47:42 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "nbpp0indkp"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/transactions/1/341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\341a394f32a44bd6a85e8d7ca45b5133_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:47:42 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.nbpp0indkp.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:44:33 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "nbpp0indkp"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/transactions/1/54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\54892615f53a4be986bd9660322b7320_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:44:33 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.nbpp0indkp.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:45:03 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "nbpp0indkp"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/transactions/1/5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\5f46c65c1b974e6a924039b64b46aca2_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:45:03 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.nbpp0indkp.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:41:03 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "nbpp0indkp"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/transactions/1/6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\6496af60b5c147209225325b47f75ec4_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:41:03 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.nbpp0indkp.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:52:27 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "nbpp0indkp"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/transactions/1/c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/transactions/1/c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx",
+      "AssetFile": "C:\\Users\\GOD\\Documents\\FinalProject\\Server\\wwwroot\\uploads\\transactions\\1\\c54d99c063b54e1c8a1460867696ade6_transaction-details_export_1760637532438_1_.xlsx",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "32309"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 07 Apr 2026 15:52:27 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXuCp5gKgd3wYlrevn+n5DATFFIkxpygaY58YghA9DQ="
         }
       ]
     }

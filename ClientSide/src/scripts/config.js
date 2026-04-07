@@ -50,6 +50,7 @@ export const URLS = {
     bulk: buildApiPath('/Transactions/bulk'),
     bulkDelete: buildApiPath('/Transactions/bulk'),
     previewExcel: buildApiPath('/Transactions/preview-excel'),
+    importExcel: buildApiPath('/Transactions/import-excel'),
   },
   matches: {
     base: buildApiPath('/Matches'),

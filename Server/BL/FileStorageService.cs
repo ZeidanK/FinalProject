@@ -112,6 +112,30 @@ namespace FinalProjectAuthAPI.BL
             return (relativePath, fullPath);
         }
 
+        public string GetExcelFullPath(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                throw new ArgumentException("File path is required.");
+
+            var normalized = relativePath.Replace("\\", "/");
+
+            // Prevent path traversal
+            if (normalized.Contains(".."))
+                throw new ArgumentException("Invalid file path.");
+
+            // Scope to the excel uploads folder only
+            if (!normalized.StartsWith("uploads/transactions/", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Invalid file path.");
+
+            var wwwroot = Directory.GetParent(_excelUploadsRoot)!.Parent!.FullName;
+            var fullPath = Path.Combine(wwwroot, normalized.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException("Excel file not found on server.", fullPath);
+
+            return fullPath;
+        }
+
         public bool Delete(string relativePath)
         {
             if (string.IsNullOrWhiteSpace(relativePath))

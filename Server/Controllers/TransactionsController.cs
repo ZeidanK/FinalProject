@@ -101,7 +101,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // POST api/transactions/preview-excel
         [HttpPost("preview-excel")]
-        public IActionResult PreviewExcel(
+        public async Task<IActionResult> PreviewExcel(
             IFormFile file,
             [FromForm] long companyId)
         {
@@ -109,19 +109,133 @@ namespace FinalProjectAuthAPI.Controllers
             if (validationError != null)
                 return validationError;
 
-            var (extractionResult, extractionError) = TryExtractExcel(file);
-            if (extractionError != null)
-                return extractionError;
-
-            return Ok(new UploadExcelResponse
+            try
             {
-                FileOriginalName = file.FileName,
-                FileSize = file.Length,
-                ExtractionResult = extractionResult!
+                // Save the file so it can be imported later by path
+                var (relativePath, _) = await _fileSvc.SaveExcelAsync(file, companyId);
+
+                var (extractionResult, extractionError) = TryExtractExcel(file);
+                if (extractionError != null)
+                    return extractionError;
+
+                return Ok(new UploadExcelResponse
+                {
+                    FileOriginalName = file.FileName,
+                    FileSize = file.Length,
+                    FilePath = relativePath,
+                    ExtractionResult = extractionResult!
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" });
+            }
+        }
+
+        // POST api/transactions/import-excel
+        [HttpPost("import-excel")]
+        public IActionResult ImportExcel([FromBody] ImportExcelRequest request)
+        {
+            if (request == null || request.CompanyId <= 0)
+                return BadRequest(new { message = "A valid companyId is required." });
+
+            if (string.IsNullOrWhiteSpace(request.SavedFilePath))
+                return BadRequest(new { message = "savedFilePath is required." });
+
+            // If the user rejected the import, delete the saved file and return early.
+            if (string.Equals(request.Status, "Deny", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var discardPath = _fileSvc.GetExcelFullPath(request.SavedFilePath);
+                    System.IO.File.Delete(discardPath);
+                }
+                catch (ArgumentException ex)
+                {
+                    return BadRequest(new { message = ex.Message });
+                }
+                catch (FileNotFoundException)
+                {
+                    // Already gone — treat as success.
+                }
+
+                return Ok(new { message = "Preview file discarded." });
+            }
+
+            string fullPath;
+            try
+            {
+                fullPath = _fileSvc.GetExcelFullPath(request.SavedFilePath);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound(new { message = "The uploaded file could not be found on the server." });
+            }
+
+            var fileName = request.FileOriginalName ?? Path.GetFileName(request.SavedFilePath);
+
+            ExcelExtractionResult extractionResult;
+            try
+            {
+                using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                extractionResult = _excelSvc.Extract(stream, fileName);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" });
+            }
+
+            if (extractionResult.TotalExtracted == 0)
+                return BadRequest(new { message = "No transactions could be extracted from the file.", sheets = extractionResult.Sheets });
+
+            var userId = GetCurrentUserId();
+            var bulkRequest = new BulkCreateTransactionsRequest
+            {
+                CompanyId = request.CompanyId,
+                CreatedByUserId = userId,
+                Transactions = extractionResult.Transactions.Select(t => new CreateTransactionRequest
+                {
+                    CompanyId        = request.CompanyId,
+                    TransactionDate  = t.TransactionDate,
+                    PostedDate       = t.PostedDate,
+                    Description      = t.Description,
+                    Amount           = t.Amount,
+                    BalanceAfter     = t.BalanceAfter,
+                    TransactionType  = t.TransactionType,
+                    Category         = t.Category,
+                    ReferenceNumber  = t.ReferenceNumber,
+                    VendorName       = t.VendorName,
+                    CardLast4        = t.CardLast4,
+                    ChargeAmount     = t.ChargeAmount,
+                    ChargeCurrency   = t.ChargeCurrency,
+                    OriginalCurrency = t.OriginalCurrency,
+                    ExchangeRate     = t.ExchangeRate,
+                    BankAccountId    = request.BankAccountId,
+                    CreatedByUserId  = userId
+                }).ToList()
+            };
+
+            var (success, ids, error) = _svc.BulkCreate(bulkRequest, userId);
+
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return StatusCode(201, new
+            {
+                count = ids.Count,
+                ids,
+                message = $"Successfully imported {ids.Count} transaction(s)."
             });
         }
 
-        // POST api/transactions/upload-excel
         [HttpPost("upload-excel")]
         public async Task<IActionResult> UploadExcel(
             IFormFile file,

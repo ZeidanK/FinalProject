@@ -37,6 +37,16 @@ export async function createTransactionsBulk(payload, token) {
   return unwrapEnvelope(response)
 }
 
+export async function importExcelTransactions(payload, token) {
+  const response = await apiRequest(URLS.transactions.importExcel, {
+    method: 'POST',
+    body: payload,
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
 export async function deleteTransaction(transactionId, token) {
   const response = await apiRequest(URLS.transactions.byId(transactionId), {
     method: 'DELETE',

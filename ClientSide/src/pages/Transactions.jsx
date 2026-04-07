@@ -44,6 +44,7 @@ import {
   createTransactionsBulk,
   deleteTransaction,
   getTransactionById,
+  importExcelTransactions,
   previewExcel,
 } from '../services/transactions'
 import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
@@ -114,7 +115,7 @@ function parseCSVData(text) {
 // ==================== Main Page ====================
 
 function TransactionsPage() {
-  const { user, token } = useAuth()
+  const { token } = useAuth()
   const { activeCompanyId } = useCompany()
 
   // --- Transaction list ---
@@ -131,6 +132,7 @@ function TransactionsPage() {
 
   // --- Import state ---
   const [importing, setImporting] = useState(false)
+  const [clearingDecision, setClearingDecision] = useState(false)
 
   // --- Filters ---
   const [typeFilter, setTypeFilter] = useState('all')
@@ -192,7 +194,7 @@ function TransactionsPage() {
     }
 
     setParseError('')
-    setCsvFile({ name: file.name, size: file.size })
+    setCsvFile({ name: file.name, size: file.size, filePath: null, isExcel: EXCEL_EXTENSIONS.has(file.name.split('.').pop()?.toLowerCase()) })
 
     const ext = file.name.split('.').pop()?.toLowerCase()
 
@@ -203,11 +205,19 @@ function TransactionsPage() {
       previewExcel(file, activeCompanyId, token)
         .then((data) => {
           const txns = data?.extractionResult?.transactions || []
+          const filePath = data?.filePath || data?.FilePath || null
           if (txns.length === 0) {
             setParseError('No transactions could be extracted from the Excel file.')
             setParsedRows([])
             return
           }
+          setCsvFile((prev) => ({
+            ...(prev || { name: file.name, size: file.size }),
+            name: file.name,
+            size: file.size,
+            filePath,
+            isExcel: true,
+          }))
           const rows = txns.map((t, idx) => ({
             _rowId: idx,
             transactionDate: t.transactionDate || '',
@@ -280,6 +290,51 @@ function TransactionsPage() {
     setParseError('')
   }, [])
 
+  const handleClearUpload = useCallback(async () => {
+    if (!csvFile?.isExcel) {
+      clearUpload()
+      return
+    }
+
+    const filePath = csvFile?.filePath
+    if (!filePath) {
+      setSnack({
+        open: true,
+        message: 'Missing file path for deny request. Please upload again.',
+        severity: 'warning',
+      })
+      return
+    }
+
+    setClearingDecision(true)
+    try {
+      await importExcelTransactions(
+        {
+          status: 'Deny',
+          savedFilePath: filePath,
+          companyId: activeCompanyId,
+          fileOriginalName: csvFile?.name || null,
+        },
+        token,
+      )
+
+      clearUpload()
+      setSnack({
+        open: true,
+        message: 'File denied and cleared.',
+        severity: 'success',
+      })
+    } catch (err) {
+      setSnack({
+        open: true,
+        message: err.message || 'Failed to deny file on server.',
+        severity: 'error',
+      })
+    } finally {
+      setClearingDecision(false)
+    }
+  }, [csvFile, clearUpload, token, activeCompanyId])
+
   // ===================== Import =====================
 
   const handleImport = useCallback(async () => {
@@ -289,30 +344,68 @@ function TransactionsPage() {
       return
     }
 
-    setImporting(true)
-    try {
-      const payload = {
-        companyId: activeCompanyId,
-        createdByUserId: user?.id || user?.userId,
-        transactions: validRows.map((r) => ({
-          companyId: activeCompanyId,
-          transactionDate: r.transactionDate,
-          description: r.description,
-          amount: r.amount,
-          transactionType: r.transactionType,
-          postedDate: r.postedDate || null,
-          category: r.category || null,
-          referenceNumber: r.referenceNumber || null,
-          vendorName: r.vendorName || null,
-        })),
-      }
-
-      await createTransactionsBulk(payload, token)
+    const fileName = csvFile?.name
+    if (!fileName) {
       setSnack({
         open: true,
-        message: `Successfully imported ${validRows.length} transaction(s)!`,
-        severity: 'success',
+        message: 'Missing file name. Please upload the file again.',
+        severity: 'warning',
       })
+      return
+    }
+
+    setImporting(true)
+    try {
+      if (csvFile?.isExcel) {
+        const savedFilePath = csvFile?.filePath
+        if (!savedFilePath) {
+          setSnack({
+            open: true,
+            message: 'Missing saved file path. Please re-upload the Excel file.',
+            severity: 'warning',
+          })
+          return
+        }
+
+        const response = await importExcelTransactions(
+          {
+            companyId: activeCompanyId,
+            savedFilePath,
+            fileOriginalName: fileName,
+          },
+          token,
+        )
+
+        const importedCount = response?.count ?? 0
+        setSnack({
+          open: true,
+          message: `Successfully imported ${importedCount} transaction(s) from ${fileName}.`,
+          severity: 'success',
+        })
+      } else {
+        const payload = {
+          companyId: activeCompanyId,
+          transactions: validRows.map((r) => ({
+            companyId: activeCompanyId,
+            transactionDate: r.transactionDate,
+            description: r.description,
+            amount: r.amount,
+            transactionType: r.transactionType,
+            postedDate: r.postedDate || null,
+            category: r.category || null,
+            referenceNumber: r.referenceNumber || null,
+            vendorName: r.vendorName || null,
+          })),
+        }
+
+        await createTransactionsBulk(payload, token)
+        setSnack({
+          open: true,
+          message: `Successfully imported ${validRows.length} transaction(s)!`,
+          severity: 'success',
+        })
+      }
+
       clearUpload()
       await transactionsQuery.refetch()
     } catch (err) {
@@ -324,7 +417,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, activeCompanyId, user, token, clearUpload, transactionsQuery])
+  }, [parsedRows, csvFile, token, clearUpload, activeCompanyId, transactionsQuery])
 
   const openTransactionDetails = useCallback(
     async (tx) => {
@@ -785,14 +878,20 @@ function TransactionsPage() {
                     )}
                   </Stack>
                   <Stack direction="row" spacing={1}>
-                    <Button size="small" variant="outlined" color="inherit" onClick={clearUpload}>
-                      Clear
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="inherit"
+                      onClick={handleClearUpload}
+                      disabled={importing || clearingDecision}
+                    >
+                      {clearingDecision ? 'Clearing...' : 'Clear'}
                     </Button>
                     <Button
                       size="small"
                       variant="contained"
                       onClick={handleImport}
-                      disabled={importing || validCount === 0}
+                      disabled={importing || clearingDecision || validCount === 0}
                       startIcon={
                         importing ? <CircularProgress size={16} /> : <CheckCircleRoundedIcon />
                       }

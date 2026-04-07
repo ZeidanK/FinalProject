@@ -119,6 +119,22 @@ namespace FinalProjectAuthAPI.Models
         public List<long>? CreatedTransactionIds { get; set; }
     }
 
+    public class ImportExcelRequest
+    {
+        [Required]
+        public long CompanyId { get; set; }
+
+        [Required]
+        public string SavedFilePath { get; set; } = string.Empty;
+
+        public string? FileOriginalName { get; set; }
+
+        public long? BankAccountId { get; set; }
+
+        /// <summary>Pass "Deny" to discard the preview file without importing.</summary>
+        public string? Status { get; set; }
+    }
+
     // ── Insert DTO used by DAL to keep parameter count low ─────────────────────
     public class TransactionInsertData
     {
