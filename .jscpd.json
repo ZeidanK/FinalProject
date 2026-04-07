@@ -1,0 +1,31 @@
+{
+  "path": [
+    "ClientSide/src",
+    "Server/BL",
+    "Server/Controllers",
+    "Server/DAL"
+  ],
+  "ignore": [
+    "mock/**",
+    "**/mock/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.git/**"
+  ],
+  "format": [
+    "javascript",
+    "jsx",
+    "csharp"
+  ],
+  "minTokens": 60,
+  "threshold": 100,
+  "reporters": [
+    "console",
+    "json"
+  ],
+  "output": "reports/jscpd"
+}
