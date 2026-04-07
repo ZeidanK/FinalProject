@@ -20,6 +20,7 @@ BEGIN
         i.vendor_name,
         i.total_amount  AS invoice_amount,
         m.transaction_id,
+        t.vendor_name   AS transaction_vendor_name,
         t.description   AS transaction_description,
         t.transaction_date,
         t.amount        AS transaction_amount,

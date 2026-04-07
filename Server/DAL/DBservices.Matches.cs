@@ -177,6 +177,7 @@ namespace FinalProjectAuthAPI.DAL
             VendorName             = r.HasColumn("vendor_name")              ? r["vendor_name"]               as string  : null,
             InvoiceAmount          = r.HasColumn("invoice_amount")           && r["invoice_amount"]           != DBNull.Value ? Convert.ToDecimal(r["invoice_amount"])  : null,
             TransactionId          = Convert.ToInt64(r["transaction_id"]),
+            TransactionVendorName  = r.HasColumn("transaction_vendor_name")  ? r["transaction_vendor_name"]   as string  : null,
             TransactionDescription = r.HasColumn("transaction_description")  ? r["transaction_description"]   as string  : null,
             TransactionDate        = r.HasColumn("transaction_date")         && r["transaction_date"]         != DBNull.Value ? Convert.ToDateTime(r["transaction_date"]) : null,
             TransactionAmount      = r.HasColumn("transaction_amount")       && r["transaction_amount"]       != DBNull.Value ? Convert.ToDecimal(r["transaction_amount"]) : null,

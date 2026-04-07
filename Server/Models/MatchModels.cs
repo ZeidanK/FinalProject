@@ -57,6 +57,7 @@ namespace FinalProjectAuthAPI.Models
         public string?  VendorName                  { get; set; }
         public decimal? InvoiceAmount               { get; set; }
         public long     TransactionId               { get; set; }
+        public string?  TransactionVendorName        { get; set; }
         public string?  TransactionDescription      { get; set; }
         public DateTime? TransactionDate            { get; set; }
         public decimal? TransactionAmount           { get; set; }

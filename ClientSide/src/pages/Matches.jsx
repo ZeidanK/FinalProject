@@ -390,7 +390,7 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
                           Transaction
                         </Typography>
                         <Typography variant="body2" fontWeight={600}>
-                          {s.transactionDescription || `#${s.transactionId}`}
+                          {(_trx?.vendor_name || _trx?.vendorName || s.transactionDescription) || `#${s.transactionId}`}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {s.transactionType || '—'}
@@ -781,6 +781,8 @@ function MatchesPage() {
             const invLabel =
               m.invoice_number || m.invoiceNumber || `Invoice #${m.invoice_id ?? m.invoiceId ?? '?'}`
             const trxLabel =
+              m.transaction_vendor_name ||
+              m.transactionVendorName ||
               m.transaction_description ||
               m.transactionDescription ||
               `Transaction #${m.transaction_id ?? m.transactionId ?? '?'}`
