@@ -29,11 +29,27 @@ builder.Services.AddScoped<IPdfExtractionService, PdfExtractionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IExcelExtractionService, ExcelExtractionService>();
 
-// Gemini AI configuration and service
-var geminiSettings = new GeminiSettings();
-builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettings);
-builder.Services.AddSingleton(geminiSettings);
-builder.Services.AddScoped<IGeminiExtractionService, GeminiExtractionService>();
+// AI provider toggle: set "AiProvider" in appsettings.json to "gemini" or "ollama"
+var aiProvider = builder.Configuration["AiProvider"] ?? "gemini";
+
+if (aiProvider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
+{
+    var ollamaSettings = new OllamaSettings();
+    builder.Configuration.GetSection("OllamaSettings").Bind(ollamaSettings);
+    builder.Services.AddSingleton(ollamaSettings);
+    builder.Services.AddHttpClient("ollama", client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(10);
+    });
+    builder.Services.AddScoped<IGeminiExtractionService, OllamaExtractionService>();
+}
+else
+{
+    var geminiSettings = new GeminiSettings();
+    builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettings);
+    builder.Services.AddSingleton(geminiSettings);
+    builder.Services.AddScoped<IGeminiExtractionService, GeminiExtractionService>();
+}
 
 // CORS – allow the React frontend (and any localhost port during dev)
 builder.Services.AddCors(options =>
