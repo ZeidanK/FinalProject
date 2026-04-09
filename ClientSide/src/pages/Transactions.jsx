@@ -25,6 +25,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material'
@@ -146,6 +147,8 @@ function TransactionsPage() {
   // --- Filters ---
   const [typeFilter, setTypeFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [sortKey, setSortKey] = useState('date')
+  const [sortDirection, setSortDirection] = useState('desc')
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
@@ -189,22 +192,98 @@ function TransactionsPage() {
     }
   }, [transactionTypeOptions, typeFilter])
 
+  const handleSort = useCallback((columnKey) => {
+    if (sortKey === columnKey) {
+      setSortDirection((prevDirection) => (prevDirection === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+
+    setSortKey(columnKey)
+    setSortDirection('asc')
+  }, [sortKey])
+
+  const compareNullableValues = useCallback((a, b, direction = 'asc') => {
+    const aMissing = a == null
+    const bMissing = b == null
+
+    if (aMissing && bMissing) return 0
+    if (aMissing) return 1
+    if (bMissing) return -1
+
+    let result = 0
+
+    if (typeof a === 'number' && typeof b === 'number') {
+      result = a - b
+    } else if (typeof a === 'boolean' && typeof b === 'boolean') {
+      result = Number(a) - Number(b)
+    } else {
+      result = String(a).localeCompare(String(b), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      })
+    }
+
+    return direction === 'desc' ? -result : result
+  }, [])
+
+  const getSortValue = useCallback((transaction, columnKey) => {
+    switch (columnKey) {
+      case 'date': {
+        const rawDate = transaction.transaction_date || transaction.transactionDate
+        if (!rawDate) return null
+
+        const timestamp = new Date(rawDate).getTime()
+        return Number.isNaN(timestamp) ? null : timestamp
+      }
+      case 'vendor': {
+        const vendor = transaction.vendor_name || transaction.vendorName || ''
+        return vendor.trim() || null
+      }
+      case 'description': {
+        const description = transaction.description || ''
+        return description.trim() || null
+      }
+      case 'amount': {
+        const numericAmount = Number(transaction.chargeAmount ?? transaction.charge_amount ?? transaction.amount)
+        return Number.isFinite(numericAmount) ? numericAmount : null
+      }
+      case 'type':
+        return normalizeTransactionType(transaction)
+      case 'category': {
+        const category = transaction.category || ''
+        return category.trim() || null
+      }
+      case 'matched':
+        return Boolean(transaction.is_matched ?? transaction.isMatched ?? false)
+      default:
+        return null
+    }
+  }, [])
+
   // Client-side filtering for type + search
   const filteredTransactions = useMemo(() => {
     const byType = filterTransactionsByType(transactions, typeFilter)
-    if (!searchTerm.trim()) return byType
 
-    const term = searchTerm.toLowerCase().trim()
-    return byType.filter((tx) => {
-      const vendor = (tx.vendor_name || tx.vendorName || '').toLowerCase()
-      const description = (tx.description || '').toLowerCase()
-      const amount = String(tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0)
-      const date = tx.transaction_date || tx.transactionDate
-      const formattedDate = date ? new Date(date).toLocaleDateString() : ''
+    let filtered = byType
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim()
+      filtered = byType.filter((tx) => {
+        const vendor = (tx.vendor_name || tx.vendorName || '').toLowerCase()
+        const description = (tx.description || '').toLowerCase()
+        const amount = String(tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0)
+        const date = tx.transaction_date || tx.transactionDate
+        const formattedDate = date ? new Date(date).toLocaleDateString() : ''
 
-      return vendor.includes(term) || description.includes(term) || amount.includes(term) || formattedDate.toLowerCase().includes(term)
+        return vendor.includes(term) || description.includes(term) || amount.includes(term) || formattedDate.toLowerCase().includes(term)
+      })
+    }
+
+    return [...filtered].sort((a, b) => {
+      const valueA = getSortValue(a, sortKey)
+      const valueB = getSortValue(b, sortKey)
+      return compareNullableValues(valueA, valueB, sortDirection)
     })
-  }, [transactions, typeFilter, searchTerm])
+  }, [transactions, typeFilter, searchTerm, sortKey, sortDirection, getSortValue, compareNullableValues])
 
   // ===================== File Handlers =====================
 
@@ -630,13 +709,78 @@ function TransactionsPage() {
                   onChange={toggleSelectAllTransactions}
                 />
               </TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
-              <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
-              <TableCell align="center">Charge Amount</TableCell>
-              <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
-              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
-              <TableCell align="center">Matched</TableCell>
+              <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('date')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell
+                sx={{ width: { xs: 140, md: 180 } }}
+                sortDirection={sortKey === 'vendor' ? sortDirection : false}
+              >
+                <TableSortLabel
+                  active={sortKey === 'vendor'}
+                  direction={sortKey === 'vendor' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('vendor')}
+                >
+                  Vendor
+                </TableSortLabel>
+              </TableCell>
+              <TableCell
+                sx={{ width: { xs: 180, md: 260 } }}
+                sortDirection={sortKey === 'description' ? sortDirection : false}
+              >
+                <TableSortLabel
+                  active={sortKey === 'description'}
+                  direction={sortKey === 'description' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('description')}
+                >
+                  Description
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'amount' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'amount'}
+                  direction={sortKey === 'amount' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('amount')}
+                >
+                  Charge Amount
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sx={{ width: 96 }} sortDirection={sortKey === 'type' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'type'}
+                  direction={sortKey === 'type' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('type')}
+                >
+                  Type
+                </TableSortLabel>
+              </TableCell>
+              <TableCell
+                sx={{ width: { xs: 140, md: 180 } }}
+                sortDirection={sortKey === 'category' ? sortDirection : false}
+              >
+                <TableSortLabel
+                  active={sortKey === 'category'}
+                  direction={sortKey === 'category' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('category')}
+                >
+                  Category
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'matched' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'matched'}
+                  direction={sortKey === 'matched' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('matched')}
+                >
+                  Matched
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center">Action</TableCell>
             </TableRow>
           </TableHead>
