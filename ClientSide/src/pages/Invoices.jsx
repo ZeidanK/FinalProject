@@ -879,7 +879,7 @@ function InvoicesPage() {
           >
             <CardContent>
               <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                Invoice Records
+                Invoice Records {listLoading ? '' : `(${invoices.length})`}
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>

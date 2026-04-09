@@ -1213,7 +1213,7 @@ function TransactionsPage() {
                 sx={{ minWidth: 0 }}
               >
                 <Typography variant="subtitle1" fontWeight={700}>
-                  Transaction Records
+                  Transaction Records {listLoading ? '' : `(${transactions.length})`}
                 </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <TextField
