@@ -10,35 +10,39 @@ namespace FinalProjectAuthAPI.BL
     {
         public string ApiKey { get; set; } = string.Empty;
         public string Model { get; set; } = "gemini-2.5-flash";
+        public List<string> Models { get; set; } = new();
     }
 
     public class GeminiExtractionService : IGeminiExtractionService
     {
         private readonly GeminiSettings _settings;
         private readonly ILogger<GeminiExtractionService> _logger;
-        private readonly GenerativeModel? _model;
+        private readonly GoogleAI? _googleAI;
+        private readonly List<string> _models = new();
 
         public GeminiExtractionService(GeminiSettings settings, ILogger<GeminiExtractionService> logger)
         {
             _settings = settings;
             _logger = logger;
-            
+
             if (string.IsNullOrWhiteSpace(_settings.ApiKey))
             {
                 _logger.LogWarning("Gemini API key is not configured. Service will be unavailable.");
             }
             else
             {
-                var googleAI = new GoogleAI(_settings.ApiKey);
-                _model = googleAI.GenerativeModel(model: _settings.Model);
+                _googleAI = new GoogleAI(_settings.ApiKey);
+                _models = _settings.Models.Count > 0
+                    ? _settings.Models
+                    : new List<string> { _settings.Model };
             }
         }
 
         public async Task<PdfExtractionResult?> ParseInvoiceTextAsync(string rawText)
         {
             Console.WriteLine("\n========== GEMINI EXTRACTION ATTEMPT ==========");
-            
-            if (_model == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
+
+            if (_googleAI == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
             {
                 Console.WriteLine("[ERROR] Gemini service not initialized. API key missing.");
                 _logger.LogWarning("Gemini service not initialized. API key missing.");
@@ -51,23 +55,19 @@ namespace FinalProjectAuthAPI.BL
                 _logger.LogWarning("Raw text is empty. Cannot parse invoice.");
                 return null;
             }
-            
+
             Console.WriteLine($"[INFO] Extracted text length: {rawText.Length} characters");
             Console.WriteLine($"[INFO] Text preview (first 500 chars):\n{rawText.Substring(0, Math.Min(500, rawText.Length))}...");
 
-            try
+            var prompt = BuildInvoiceExtractionPrompt(rawText);
+            Console.WriteLine("\n[INFO] Sending request to Gemini API...");
+            _logger.LogInformation("Sending invoice text to Gemini for parsing...");
+
+            var result = await TryAllModelsAsync<PdfExtractionResult>(async model =>
             {
-                var prompt = BuildInvoiceExtractionPrompt(rawText);
-                
-                Console.WriteLine("\n[INFO] Sending request to Gemini API...");
-                Console.WriteLine($"[INFO] Using model: {_settings.Model}");
-                _logger.LogInformation("Sending invoice text to Gemini for parsing...");
-                
-                var response = await _model.GenerateContent(prompt);
+                var response = await model.GenerateContent(prompt);
                 var responseText = response?.Text;
 
-                Console.WriteLine("\n[SUCCESS] Received response from Gemini!");
-                
                 if (string.IsNullOrWhiteSpace(responseText))
                 {
                     Console.WriteLine("[WARNING] Gemini returned empty response.");
@@ -79,36 +79,26 @@ namespace FinalProjectAuthAPI.BL
                 Console.WriteLine("\n========== GEMINI RAW RESPONSE ==========\n");
                 Console.WriteLine(responseText);
                 Console.WriteLine("\n========================================\n");
-                
                 _logger.LogDebug("Gemini response: {Response}", responseText);
 
-                // Parse the JSON response
-                var result = ParseGeminiResponse(responseText);
-                
-                if (result != null)
-                {
-                    Console.WriteLine($"[SUCCESS] Successfully parsed invoice with Gemini. Confidence: {result.ExtractionConfidence}");
-                    Console.WriteLine($"[INFO] Vendor: {result.VendorName}, Invoice#: {result.InvoiceNumber}, Total: {result.TotalAmount}");
-                    Console.WriteLine($"[INFO] Line items found: {result.LineItems?.Count ?? 0}");
-                    Console.WriteLine("================================================\n");
-                    _logger.LogInformation("Successfully parsed invoice with Gemini. Confidence: {Confidence}", result.ExtractionConfidence);
-                }
-                else
-                {
-                    Console.WriteLine("[ERROR] Failed to parse Gemini response into structured data.");
-                    Console.WriteLine("================================================\n");
-                }
-                
-                return result;
-            }
-            catch (Exception ex)
+                return ParseGeminiResponse(responseText);
+            }, "ParseInvoice");
+
+            if (result != null)
             {
-                Console.WriteLine($"\n[ERROR] Exception calling Gemini API: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+                Console.WriteLine($"[SUCCESS] Successfully parsed invoice with Gemini. Confidence: {result.ExtractionConfidence}");
+                Console.WriteLine($"[INFO] Vendor: {result.VendorName}, Invoice#: {result.InvoiceNumber}, Total: {result.TotalAmount}");
+                Console.WriteLine($"[INFO] Line items found: {result.LineItems?.Count ?? 0}");
                 Console.WriteLine("================================================\n");
-                _logger.LogError(ex, "Error calling Gemini API: {Message}", ex.Message);
-                return null;
+                _logger.LogInformation("Successfully parsed invoice with Gemini. Confidence: {Confidence}", result.ExtractionConfidence);
             }
+            else
+            {
+                Console.WriteLine("[ERROR] All Gemini models failed to parse invoice.");
+                Console.WriteLine("================================================\n");
+            }
+
+            return result;
         }
 
         private static string BuildInvoiceExtractionPrompt(string rawText)
@@ -371,12 +361,10 @@ Look for phrases like:
             finally { _cacheLock.Release(); }
 
             // If Gemini is unavailable, return original only
-            if (_model == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
+            if (_googleAI == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
                 return new List<string> { vendorName };
 
-            try
-            {
-                var prompt = @$"Given this company/vendor name: ""{vendorName}""
+            var translatePrompt = @$"Given this company/vendor name: ""{vendorName}""
 
 Return a JSON array of all likely name variants that might appear in a bank transaction description.
 Include:
@@ -389,33 +377,30 @@ Include:
 Return ONLY a JSON array of strings, nothing else. Example: [""Original Name"", ""Translated Name"", ""Abbreviation""]
 If you cannot translate, just return the original name in an array.";
 
-                var response = await _model.GenerateContent(prompt);
+            var variants = await TryAllModelsAsync<List<string>>(async model =>
+            {
+                var response = await model.GenerateContent(translatePrompt);
                 var text = response?.Text?.Trim();
 
                 if (string.IsNullOrWhiteSpace(text))
-                    return CacheAndReturn(vendorName, new List<string> { vendorName });
+                    return null;
 
                 // Clean markdown fencing if present
                 if (text.StartsWith("```"))
-                {
                     text = text.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```")).Aggregate("", (a, b) => a + b);
-                }
 
-                var variants = JsonSerializer.Deserialize<List<string>>(text);
-                if (variants == null || variants.Count == 0)
-                    return CacheAndReturn(vendorName, new List<string> { vendorName });
+                var parsed = JsonSerializer.Deserialize<List<string>>(text);
+                if (parsed == null || parsed.Count == 0)
+                    return null;
 
                 // Always include the original
-                if (!variants.Contains(vendorName, StringComparer.OrdinalIgnoreCase))
-                    variants.Insert(0, vendorName);
+                if (!parsed.Contains(vendorName, StringComparer.OrdinalIgnoreCase))
+                    parsed.Insert(0, vendorName);
 
-                return CacheAndReturn(vendorName, variants);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Gemini vendor name translation failed for: {Name}", vendorName);
-                return CacheAndReturn(vendorName, new List<string> { vendorName });
-            }
+                return parsed;
+            }, "TranslateVendorName");
+
+            return CacheAndReturn(vendorName, variants ?? new List<string> { vendorName });
         }
 
         private static List<string> CacheAndReturn(string key, List<string> values)
@@ -426,15 +411,48 @@ If you cannot translate, just return the original name in an array.";
             return values;
         }
 
+        private async Task<T?> TryAllModelsAsync<T>(Func<GenerativeModel, Task<T?>> action, string operationName) where T : class
+        {
+            for (int i = 0; i < _models.Count; i++)
+            {
+                var modelName = _models[i];
+                try
+                {
+                    Console.WriteLine($"[INFO] [{operationName}] Trying model [{i + 1}/{_models.Count}]: {modelName}");
+                    _logger.LogInformation("{Operation}: trying model [{Index}/{Total}]: {Model}", operationName, i + 1, _models.Count, modelName);
+
+                    var model = _googleAI!.GenerativeModel(model: modelName);
+                    var result = await action(model);
+
+                    if (result != null)
+                    {
+                        Console.WriteLine($"[SUCCESS] [{operationName}] Succeeded with model: {modelName}");
+                        _logger.LogInformation("{Operation}: succeeded with model: {Model}", operationName, modelName);
+                        return result;
+                    }
+
+                    Console.WriteLine($"[WARNING] [{operationName}] Model {modelName} returned null, trying next.");
+                    _logger.LogWarning("{Operation}: model {Model} returned null, trying next.", operationName, modelName);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARNING] [{operationName}] Model {modelName} failed: {ex.Message}. Trying next.");
+                    _logger.LogWarning(ex, "{Operation}: model {Model} failed ({Message}), trying next.", operationName, modelName, ex.Message);
+                }
+            }
+
+            Console.WriteLine($"[ERROR] [{operationName}] All {_models.Count} Gemini models exhausted.");
+            _logger.LogError("{Operation}: all {Count} Gemini models exhausted.", operationName, _models.Count);
+            return null;
+        }
+
         public async Task<List<VendorComparisonResult>> CompareVendorNamesAsync(string invoiceVendorName, List<string> transactionDescriptions)
         {
-            if (_model == null || string.IsNullOrWhiteSpace(_settings.ApiKey) || transactionDescriptions.Count == 0)
+            if (_googleAI == null || string.IsNullOrWhiteSpace(_settings.ApiKey) || transactionDescriptions.Count == 0)
                 return new List<VendorComparisonResult>();
 
-            try
-            {
-                var descriptionsJson = JsonSerializer.Serialize(transactionDescriptions);
-                var prompt = @$"You are a vendor name matching expert. Compare the invoice vendor name against each transaction description and rate their similarity.
+            var descriptionsJson = JsonSerializer.Serialize(transactionDescriptions);
+            var prompt = @$"You are a vendor name matching expert. Compare the invoice vendor name against each transaction description and rate their similarity.
 
 Invoice vendor name: ""{invoiceVendorName}""
 
@@ -451,24 +469,22 @@ Return ONLY a JSON array with one object per transaction (same order), each with
 Example output: [{{""transactionDescription"":""AMAZON"",""similarityScore"":95}}]
 Return ONLY the JSON array, no markdown, no explanation.";
 
-                var response = await _model.GenerateContent(prompt);
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var results = await TryAllModelsAsync<List<VendorComparisonResult>>(async model =>
+            {
+                var response = await model.GenerateContent(prompt);
                 var text = response?.Text?.Trim();
 
                 if (string.IsNullOrWhiteSpace(text))
-                    return new List<VendorComparisonResult>();
+                    return null;
 
                 if (text.StartsWith("```"))
                     text = string.Join("\n", text.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```")));
 
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var results = JsonSerializer.Deserialize<List<VendorComparisonResult>>(text.Trim(), options);
-                return results ?? new List<VendorComparisonResult>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Gemini vendor name comparison failed for: {Name}", invoiceVendorName);
-                return new List<VendorComparisonResult>();
-            }
+                return JsonSerializer.Deserialize<List<VendorComparisonResult>>(text.Trim(), options);
+            }, "CompareVendorNames");
+
+            return results ?? new List<VendorComparisonResult>();
         }
     }
 }
