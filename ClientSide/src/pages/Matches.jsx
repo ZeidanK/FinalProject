@@ -73,7 +73,7 @@ const fmtCurrency = (v, currency = 'USD') => {
   try {
     return (Number(v) || 0).toLocaleString(undefined, {
       style: 'currency',
-      currency,
+      currency, 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
@@ -748,13 +748,20 @@ function MatchesPage() {
     if (!q) return true
     const vendor = (inv.vendor_name || inv.vendorName || '').toLowerCase()
     const num = (inv.invoice_number || inv.invoiceNumber || '').toLowerCase()
-    return vendor.includes(q) || num.includes(q)
+    const invoiceDate = fmtDate(inv.invoice_date || inv.invoiceDate).toLowerCase()
+    return vendor.includes(q) || num.includes(q) || invoiceDate.includes(q)
   })
 
   const filteredTransactions = transactions.filter((trx) => {
     const q = transactionSearch.toLowerCase()
     if (!q) return true
-    return (trx.description || '').toLowerCase().includes(q)
+
+    const vendorName = (trx.vendor_name || trx.vendorName || '').toLowerCase()
+    const chargeAmountRaw = trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? ''
+    const chargeAmountText = `${chargeAmountRaw} ${fmtAmount(chargeAmountRaw)}`.toLowerCase()
+    const transactionDate = fmtDate(trx.transaction_date || trx.transactionDate).toLowerCase()
+
+    return transactionDate.includes(q) || vendorName.includes(q) || chargeAmountText.includes(q)
   })
 
   const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId)
@@ -1006,7 +1013,7 @@ function MatchesPage() {
                 icon={ReceiptLongRoundedIcon}
                 title="Unmatched Invoices"
                 count={filteredInvoices.length}
-                searchPlaceholder="Search by vendor or invoice #…"
+                searchPlaceholder="Search by date, vendor, or invoice #…"
                 searchValue={invoiceSearch}
                 onSearchChange={setInvoiceSearch}
                 loading={loading}
@@ -1042,7 +1049,7 @@ function MatchesPage() {
                 icon={AccountBalanceRoundedIcon}
                 title="Unmatched Transactions"
                 count={filteredTransactions.length}
-                searchPlaceholder="Search by description…"
+                searchPlaceholder="Search by date, vendor, or amount…"
                 searchValue={transactionSearch}
                 onSearchChange={setTransactionSearch}
                 loading={loading}
@@ -1056,7 +1063,7 @@ function MatchesPage() {
                 onSelect={setSelectedTransactionId}
                 renderPrimary={(trx) => trx.vendor_name || trx.vendorName || trx.description || '—'}
                 renderSecondary={(trx) => trx.type || trx.transaction_type || ''}
-                renderAmount={(trx) => fmtAmount(trx.amount)}
+                renderAmount={(trx) => fmtAmount(trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? 0)}
                 renderDate={(trx) => fmtDate(trx.transaction_date || trx.transactionDate)}
               />
             </Grid>

@@ -34,9 +34,11 @@ BEGIN
         t.is_duplicate,
         t.status,
         t.created_by_user_id,
+        u.name AS created_by_name,
         t.created_at,
         t.updated_at
     FROM dbo.FP26_transactions t
+    LEFT JOIN dbo.FP26_users u ON u.id = t.created_by_user_id
     WHERE t.id = @Id;
 END
 GO

@@ -92,6 +92,48 @@ WHERE uca.user_id = @UserId
             finally { con?.Close(); }
         }
 
+        public bool EnsureUserHasFullCompanyAccess(long userId, long companyId)
+        {
+            if (userId <= 0 || companyId <= 0)
+                return false;
+
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+IF EXISTS (
+    SELECT 1
+    FROM dbo.FP26_user_company_access
+    WHERE user_id = @UserId
+      AND company_id = @CompanyId
+)
+BEGIN
+    UPDATE dbo.FP26_user_company_access
+    SET access_level = 'full',
+        status = 'active',
+        granted_at = GETDATE()
+    WHERE user_id = @UserId
+      AND company_id = @CompanyId;
+END
+ELSE
+BEGIN
+    INSERT INTO dbo.FP26_user_company_access
+        (user_id, company_id, access_level, status, granted_by_user_id, granted_at, created_at)
+    VALUES
+        (@UserId, @CompanyId, 'full', 'active', @GrantedByUserId, GETDATE(), GETDATE());
+END", con);
+
+                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
+                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                cmd.Parameters.Add("@GrantedByUserId", SqlDbType.BigInt).Value = userId;
+
+                cmd.ExecuteNonQuery();
+                return true;
+            }
+            finally { con?.Close(); }
+        }
+
         public long CreateCompany(
             string name, long createdByUserId,
             string? registrationNumber, string? street, string? city,

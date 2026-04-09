@@ -177,6 +177,7 @@ namespace FinalProjectAuthAPI.Models
         public bool      IsDuplicate         { get; set; }
         public string    Status              { get; set; } = "confirmed";
         public long?     CreatedByUserId     { get; set; }   // uploader user id
+        public string?   CreatedByName       { get; set; }
         public DateTime  CreatedAt           { get; set; }
         public DateTime  UpdatedAt           { get; set; }
     }

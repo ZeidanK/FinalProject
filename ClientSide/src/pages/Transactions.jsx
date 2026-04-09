@@ -11,6 +11,7 @@ import {
   Checkbox,
   FormControl,
   IconButton,
+  InputAdornment,
   InputLabel,
   LinearProgress,
   MenuItem,
@@ -24,6 +25,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
+  TextField,
   Typography,
 } from '@mui/material'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
@@ -33,6 +36,7 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import FileUploadRoundedIcon from '@mui/icons-material/FileUploadRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
@@ -48,6 +52,12 @@ import {
   previewExcel,
 } from '../services/transactions'
 import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
+import {
+  filterTransactionsByType,
+  formatTransactionTypeLabel,
+  getTransactionTypes,
+  normalizeTransactionType,
+} from '../utils/transactionHelpers'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const EXCEL_EXTENSIONS = new Set(['xlsx', 'xls'])
@@ -91,7 +101,7 @@ function parseCSVData(text) {
     const description = raw.description || raw.memo || ''
     const amountValue = Number.parseFloat(raw.amount)
     const amount = Number.isNaN(amountValue) ? 0 : amountValue
-    const transactionType = (raw.transactionType || raw.transaction_type || 'debit').toLowerCase()
+    const transactionType = (raw.transactionType || raw.transaction_type || raw.type || 'debit').toLowerCase()
     const category = raw.category || ''
     const referenceNumber = raw.referenceNumber || raw.reference_number || ''
     const postedDate = raw.postedDate || raw.posted_date || ''
@@ -136,6 +146,9 @@ function TransactionsPage() {
 
   // --- Filters ---
   const [typeFilter, setTypeFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortKey, setSortKey] = useState('date')
+  const [sortDirection, setSortDirection] = useState('desc')
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
@@ -151,15 +164,10 @@ function TransactionsPage() {
 
   // ===================== Data Fetching =====================
 
-  const transactionFilters = useMemo(() => {
-    if (typeFilter === 'all') return {}
-    return { type: typeFilter }
-  }, [typeFilter])
-
   const transactionsQuery = useTransactionsByCompanyQuery({
     companyId: activeCompanyId,
     token,
-    filters: transactionFilters,
+    filters: undefined,
   })
 
   const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
@@ -175,6 +183,107 @@ function TransactionsPage() {
     setTransactions(data)
     setSelectedTransactionIds([])
   }, [transactionsQuery.data, transactionsQuery.error])
+
+  const transactionTypeOptions = useMemo(() => getTransactionTypes(transactions), [transactions])
+
+  useEffect(() => {
+    if (!transactionTypeOptions.includes(typeFilter)) {
+      setTypeFilter('all')
+    }
+  }, [transactionTypeOptions, typeFilter])
+
+  const handleSort = useCallback((columnKey) => {
+    if (sortKey === columnKey) {
+      setSortDirection((prevDirection) => (prevDirection === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+
+    setSortKey(columnKey)
+    setSortDirection('asc')
+  }, [sortKey])
+
+  const compareNullableValues = useCallback((a, b, direction = 'asc') => {
+    const aMissing = a == null
+    const bMissing = b == null
+
+    if (aMissing && bMissing) return 0
+    if (aMissing) return 1
+    if (bMissing) return -1
+
+    let result = 0
+
+    if (typeof a === 'number' && typeof b === 'number') {
+      result = a - b
+    } else if (typeof a === 'boolean' && typeof b === 'boolean') {
+      result = Number(a) - Number(b)
+    } else {
+      result = String(a).localeCompare(String(b), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      })
+    }
+
+    return direction === 'desc' ? -result : result
+  }, [])
+
+  const getSortValue = useCallback((transaction, columnKey) => {
+    switch (columnKey) {
+      case 'date': {
+        const rawDate = transaction.transaction_date || transaction.transactionDate
+        if (!rawDate) return null
+
+        const timestamp = new Date(rawDate).getTime()
+        return Number.isNaN(timestamp) ? null : timestamp
+      }
+      case 'vendor': {
+        const vendor = transaction.vendor_name || transaction.vendorName || ''
+        return vendor.trim() || null
+      }
+      case 'description': {
+        const description = transaction.description || ''
+        return description.trim() || null
+      }
+      case 'amount': {
+        const numericAmount = Number(transaction.chargeAmount ?? transaction.charge_amount ?? transaction.amount)
+        return Number.isFinite(numericAmount) ? numericAmount : null
+      }
+      case 'type':
+        return normalizeTransactionType(transaction)
+      case 'category': {
+        const category = transaction.category || ''
+        return category.trim() || null
+      }
+      case 'matched':
+        return Boolean(transaction.is_matched ?? transaction.isMatched ?? false)
+      default:
+        return null
+    }
+  }, [])
+
+  // Client-side filtering for type + search
+  const filteredTransactions = useMemo(() => {
+    const byType = filterTransactionsByType(transactions, typeFilter)
+
+    let filtered = byType
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim()
+      filtered = byType.filter((tx) => {
+        const vendor = (tx.vendor_name || tx.vendorName || '').toLowerCase()
+        const description = (tx.description || '').toLowerCase()
+        const amount = String(tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0)
+        const date = tx.transaction_date || tx.transactionDate
+        const formattedDate = date ? new Date(date).toLocaleDateString() : ''
+
+        return vendor.includes(term) || description.includes(term) || amount.includes(term) || formattedDate.toLowerCase().includes(term)
+      })
+    }
+
+    return [...filtered].sort((a, b) => {
+      const valueA = getSortValue(a, sortKey)
+      const valueB = getSortValue(b, sortKey)
+      return compareNullableValues(valueA, valueB, sortDirection)
+    })
+  }, [transactions, typeFilter, searchTerm, sortKey, sortDirection, getSortValue, compareNullableValues])
 
   // ===================== File Handlers =====================
 
@@ -455,7 +564,7 @@ function TransactionsPage() {
     setDetailsModal({ open: false, loading: false, error: '', transaction: null })
   }, [])
 
-  const visibleTransactionIds = transactions
+  const visibleTransactionIds = filteredTransactions
     .map((tx) => tx.id ?? tx.transactionId)
     .filter((id) => typeof id === 'number' && id > 0)
 
@@ -573,14 +682,16 @@ function TransactionsPage() {
         ))}
       </Stack>
     )
-  } else if (transactions.length === 0) {
+  } else if (filteredTransactions.length === 0) {
     transactionTableContent = (
       <Box sx={{ py: 6, textAlign: 'center' }}>
         <DescriptionRoundedIcon
           sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
         />
         <Typography color="text.secondary">
-          No transactions yet. Import a CSV above to get started.
+          {transactions.length === 0
+            ? 'No transactions yet. Import a CSV above to get started.'
+            : 'No transactions match your search criteria.'}
         </Typography>
       </Box>
     )
@@ -598,30 +709,89 @@ function TransactionsPage() {
                   onChange={toggleSelectAllTransactions}
                 />
               </TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
-              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
-              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
-              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
-              <TableCell align="center">Matched</TableCell>
+              <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('date')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell
+                sx={{ width: { xs: 140, md: 180 } }}
+                sortDirection={sortKey === 'vendor' ? sortDirection : false}
+              >
+                <TableSortLabel
+                  active={sortKey === 'vendor'}
+                  direction={sortKey === 'vendor' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('vendor')}
+                >
+                  Vendor
+                </TableSortLabel>
+              </TableCell>
+              <TableCell
+                sx={{ width: { xs: 180, md: 260 } }}
+                sortDirection={sortKey === 'description' ? sortDirection : false}
+              >
+                <TableSortLabel
+                  active={sortKey === 'description'}
+                  direction={sortKey === 'description' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('description')}
+                >
+                  Description
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'amount' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'amount'}
+                  direction={sortKey === 'amount' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('amount')}
+                >
+                  Charge Amount
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sx={{ width: 96 }} sortDirection={sortKey === 'type' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'type'}
+                  direction={sortKey === 'type' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('type')}
+                >
+                  Type
+                </TableSortLabel>
+              </TableCell>
+              <TableCell
+                sx={{ width: { xs: 140, md: 180 } }}
+                sortDirection={sortKey === 'category' ? sortDirection : false}
+              >
+                <TableSortLabel
+                  active={sortKey === 'category'}
+                  direction={sortKey === 'category' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('category')}
+                >
+                  Category
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'matched' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'matched'}
+                  direction={sortKey === 'matched' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('matched')}
+                >
+                  Matched
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center">Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {transactions.map((tx) => {
+            {filteredTransactions.map((tx) => {
               const date = tx.transaction_date || tx.transactionDate
               const desc = tx.description || '—'
               const vendor = tx.vendor_name || tx.vendorName || '—'
-              const amount = tx.amount ?? 0
-              const type = (
-                tx.transaction_type ||
-                tx.transactionType ||
-                'debit'
-              ).toLowerCase()
+              const amount = tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0
+              const type = normalizeTransactionType(tx)
               const cat = tx.category || '—'
-              const ref = tx.reference_number || tx.referenceNumber || '—'
               const matched = tx.is_matched ?? tx.isMatched ?? false
 
               return (
@@ -640,15 +810,15 @@ function TransactionsPage() {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                      {desc}
+                      {vendor}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                      {vendor}
+                      {desc}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="center">
                     <Typography
                       variant="body2"
                       fontWeight={600}
@@ -663,7 +833,7 @@ function TransactionsPage() {
                   </TableCell>
                   <TableCell align="center">
                     <Chip
-                      label={type}
+                      label={formatTransactionTypeLabel(type)}
                       size="small"
                       color={typeColors[type] || 'default'}
                       variant="outlined"
@@ -672,11 +842,6 @@ function TransactionsPage() {
                   <TableCell>
                     <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                       {cat}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                      {ref}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
@@ -931,12 +1096,11 @@ function TransactionsPage() {
                       <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
                         <TableCell padding="checkbox" />
                         <TableCell>Date</TableCell>
-                        <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
                         <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
-                        <TableCell align="right">Amount</TableCell>
+                        <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
+                        <TableCell align="center">Amount</TableCell>
                         <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
                         <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
-                        <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
                         <TableCell align="center">Status</TableCell>
                       </TableRow>
                     </TableHead>
@@ -960,15 +1124,15 @@ function TransactionsPage() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                              {row.description || '—'}
+                              {row.vendorName || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                              {row.vendorName || '—'}
+                              {row.description || '—'}
                             </Typography>
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell align="center">
                             <Typography
                               variant="body2"
                               fontWeight={600}
@@ -996,11 +1160,6 @@ function TransactionsPage() {
                           <TableCell>
                             <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                               {row.category || '—'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                              {row.referenceNumber || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
@@ -1054,20 +1213,38 @@ function TransactionsPage() {
                 sx={{ minWidth: 0 }}
               >
                 <Typography variant="subtitle1" fontWeight={700}>
-                  Transaction Records
+                  Transaction Records {listLoading ? '' : `(${transactions.length})`}
                 </Typography>
-                <FormControl size="small" sx={{ minWidth: 140 }}>
-                  <InputLabel>Type</InputLabel>
-                  <Select
-                    value={typeFilter}
-                    label="Type"
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                  >
-                    <MenuItem value="all">All</MenuItem>
-                    <MenuItem value="debit">Debit</MenuItem>
-                    <MenuItem value="credit">Credit</MenuItem>
-                  </Select>
-                </FormControl>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <TextField
+                    size="small"
+                    placeholder="Search vendor, description, amount, date..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchRoundedIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ minWidth: 250 }}
+                  />
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Type</InputLabel>
+                    <Select
+                      value={typeFilter}
+                      label="Type"
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                    >
+                      {transactionTypeOptions.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {formatTransactionTypeLabel(type)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Stack>
               </Stack>
 
               <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', rowGap: 1 }}>

@@ -72,6 +72,9 @@ namespace FinalProjectAuthAPI.BL
                 postalCode, country, email, phone, website,
                 taxId, vatNumber, isActive);
 
+        public bool EnsureUserHasFullCompanyAccess(long userId, long companyId) =>
+            _db.EnsureUserHasFullCompanyAccess(userId, companyId);
+
         public bool Delete(long id) =>
             _db.UpdateCompany(id,
                 name: null,

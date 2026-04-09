@@ -171,7 +171,7 @@ function SidebarContent({ onNavigate, user, onLogout }) {
         <Chip
           label={roleLabel}
           sx={{
-            alignSelf: 'flex-start',
+            alignSelf: 'center',
             bgcolor: 'rgba(88, 166, 255, 0.16)',
             border: '1px solid',
             borderColor: 'rgba(129, 191, 255, 0.38)',
