@@ -51,6 +51,12 @@ import {
   previewExcel,
 } from '../services/transactions'
 import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
+import {
+  filterTransactionsByType,
+  formatTransactionTypeLabel,
+  getTransactionTypes,
+  normalizeTransactionType,
+} from '../utils/transactionHelpers'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const EXCEL_EXTENSIONS = new Set(['xlsx', 'xls'])
@@ -94,7 +100,7 @@ function parseCSVData(text) {
     const description = raw.description || raw.memo || ''
     const amountValue = Number.parseFloat(raw.amount)
     const amount = Number.isNaN(amountValue) ? 0 : amountValue
-    const transactionType = (raw.transactionType || raw.transaction_type || 'debit').toLowerCase()
+    const transactionType = (raw.transactionType || raw.transaction_type || raw.type || 'debit').toLowerCase()
     const category = raw.category || ''
     const referenceNumber = raw.referenceNumber || raw.reference_number || ''
     const postedDate = raw.postedDate || raw.posted_date || ''
@@ -155,15 +161,10 @@ function TransactionsPage() {
 
   // ===================== Data Fetching =====================
 
-  const transactionFilters = useMemo(() => {
-    if (typeFilter === 'all') return {}
-    return { type: typeFilter }
-  }, [typeFilter])
-
   const transactionsQuery = useTransactionsByCompanyQuery({
     companyId: activeCompanyId,
     token,
-    filters: transactionFilters,
+    filters: undefined,
   })
 
   const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
@@ -180,12 +181,21 @@ function TransactionsPage() {
     setSelectedTransactionIds([])
   }, [transactionsQuery.data, transactionsQuery.error])
 
-  // Client-side filtering for search
+  const transactionTypeOptions = useMemo(() => getTransactionTypes(transactions), [transactions])
+
+  useEffect(() => {
+    if (!transactionTypeOptions.includes(typeFilter)) {
+      setTypeFilter('all')
+    }
+  }, [transactionTypeOptions, typeFilter])
+
+  // Client-side filtering for type + search
   const filteredTransactions = useMemo(() => {
-    if (!searchTerm.trim()) return transactions
+    const byType = filterTransactionsByType(transactions, typeFilter)
+    if (!searchTerm.trim()) return byType
 
     const term = searchTerm.toLowerCase().trim()
-    return transactions.filter((tx) => {
+    return byType.filter((tx) => {
       const vendor = (tx.vendor_name || tx.vendorName || '').toLowerCase()
       const description = (tx.description || '').toLowerCase()
       const amount = String(tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0)
@@ -194,7 +204,7 @@ function TransactionsPage() {
 
       return vendor.includes(term) || description.includes(term) || amount.includes(term) || formattedDate.toLowerCase().includes(term)
     })
-  }, [transactions, searchTerm])
+  }, [transactions, typeFilter, searchTerm])
 
   // ===================== File Handlers =====================
 
@@ -636,11 +646,7 @@ function TransactionsPage() {
               const desc = tx.description || '—'
               const vendor = tx.vendor_name || tx.vendorName || '—'
               const amount = tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0
-              const type = (
-                tx.transaction_type ||
-                tx.transactionType ||
-                'debit'
-              ).toLowerCase()
+              const type = normalizeTransactionType(tx)
               const cat = tx.category || '—'
               const matched = tx.is_matched ?? tx.isMatched ?? false
 
@@ -683,7 +689,7 @@ function TransactionsPage() {
                   </TableCell>
                   <TableCell align="center">
                     <Chip
-                      label={type}
+                      label={formatTransactionTypeLabel(type)}
                       size="small"
                       color={typeColors[type] || 'default'}
                       variant="outlined"
@@ -1087,9 +1093,11 @@ function TransactionsPage() {
                       label="Type"
                       onChange={(e) => setTypeFilter(e.target.value)}
                     >
-                      <MenuItem value="all">All</MenuItem>
-                      <MenuItem value="debit">Debit</MenuItem>
-                      <MenuItem value="credit">Credit</MenuItem>
+                      {transactionTypeOptions.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {formatTransactionTypeLabel(type)}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Stack>
