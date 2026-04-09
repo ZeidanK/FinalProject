@@ -100,32 +100,16 @@ namespace FinalProjectAuthAPI.BL
 
                 if (!dateCandidates.Any()) continue;
 
-                // Filter to transactions whose amount is consistent with an installment of this invoice
+                // Filter to transactions whose amount equals the invoice total amount
                 var amountCandidates = dateCandidates
-                    .Where(t => IsInstallmentAmountForInvoice(invoice, t))
+                    .Where(t => Math.Abs(t.Amount) == invoice.TotalAmount)
                     .ToList();
 
-                Console.WriteLine($"[DEBUG][תשלומים]   → {amountCandidates.Count} passed amount filter (remaining={remaining})");
+                Console.WriteLine($"[DEBUG][תשלומים]   → {amountCandidates.Count} passed amount filter (invoiceTotal={invoice.TotalAmount})");
                 foreach (var c in amountCandidates)
                     Console.WriteLine($"[DEBUG][תשלומים]     ✓ TxnId={c.Id} | TransactionDate={c.TransactionDate:yyyy-MM-dd} | ChargeDate={c.PostedDate:yyyy-MM-dd} | Amount={c.Amount} | ChargeAmount={c.ChargeAmount} | Desc={c.Description}");
 
                 if (!amountCandidates.Any()) continue;
-
-                // Determine the per-installment amount from invoice or from detected candidates
-                var firstAmt = Math.Abs(amountCandidates[0].Amount);
-                var installmentAmt = invoice.PaymentPlanInstallmentAmount ?? firstAmt;
-
-                // Detect expected number of installments
-                int? detectedN = null;
-                if (installmentAmt > 0)
-                {
-                    var ratio = invoice.TotalAmount / installmentAmt;
-                    var rounded = (int)Math.Round(ratio);
-                    if (rounded >= 2 && rounded <= 12)
-                        detectedN = rounded;
-                }
-
-                var expectedInstallments = invoice.PaymentPlanTotalInstallments ?? detectedN;
 
                 // Fetch existing matches for progress tracking
                 var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
@@ -139,10 +123,10 @@ namespace FinalProjectAuthAPI.BL
                     InvoiceDate             = invoice.InvoiceDate,
                     AlreadyMatchedAmount    = invoice.MatchedAmount,
                     RemainingAmount         = remaining,
-                    ExpectedInstallments    = expectedInstallments,
-                    DetectedInstallmentCount = detectedN,
+                    ExpectedInstallments    = null,
+                    DetectedInstallmentCount = null,
                     AlreadyMatchedCount     = existingMatches.Count,
-                    InstallmentAmount       = installmentAmt,
+                    InstallmentAmount       = invoice.TotalAmount,
                     SuggestedTransactions   = amountCandidates.Select(t => new SuggestedInstallmentTransaction
                     {
                         TransactionId   = t.Id,
@@ -157,24 +141,6 @@ namespace FinalProjectAuthAPI.BL
             }
 
             return results;
-        }
-
-        private static bool IsInstallmentAmountForInvoice(InvoiceRow invoice, TransactionCandidate txn)
-        {
-            var amt = Math.Abs(txn.Amount);
-            if (amt <= 0) return false;
-
-            // Explicitly declared installment amount
-            if (invoice.PaymentPlanInstallmentAmount.HasValue &&
-                invoice.PaymentPlanInstallmentAmount.Value > 0 &&
-                amt == invoice.PaymentPlanInstallmentAmount.Value)
-                return true;
-
-            // Undeclared installment: amt × N ≈ TotalAmount (N = 2..12, within 2% tolerance)
-            if (invoice.TotalAmount <= 0) return false;
-            var ratio = invoice.TotalAmount / amt;
-            var rounded = Math.Round(ratio);
-            return rounded >= 2 && rounded <= 12 && Math.Abs(ratio - rounded) < 0.02m;
         }
 
         // ── AI Suggestions: Date + Amount filter → Gemini name comparison ────
