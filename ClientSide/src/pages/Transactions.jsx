@@ -601,7 +601,7 @@ function TransactionsPage() {
               <TableCell>Date</TableCell>
               <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
               <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
-              <TableCell align="right">Amount</TableCell>
+              <TableCell align="right">Charge Amount</TableCell>
               <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
               <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
               <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
@@ -614,7 +614,7 @@ function TransactionsPage() {
               const date = tx.transaction_date || tx.transactionDate
               const desc = tx.description || '—'
               const vendor = tx.vendor_name || tx.vendorName || '—'
-              const amount = tx.amount ?? 0
+              const amount = tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0
               const type = (
                 tx.transaction_type ||
                 tx.transactionType ||

@@ -1056,7 +1056,7 @@ function MatchesPage() {
                 onSelect={setSelectedTransactionId}
                 renderPrimary={(trx) => trx.vendor_name || trx.vendorName || trx.description || '—'}
                 renderSecondary={(trx) => trx.type || trx.transaction_type || ''}
-                renderAmount={(trx) => fmtAmount(trx.amount)}
+                renderAmount={(trx) => fmtAmount(trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? 0)}
                 renderDate={(trx) => fmtDate(trx.transaction_date || trx.transactionDate)}
               />
             </Grid>
