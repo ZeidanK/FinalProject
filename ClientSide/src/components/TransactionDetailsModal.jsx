@@ -52,6 +52,7 @@ function normalizeTransaction(tx) {
     isDuplicate: tx.isDuplicate ?? tx.is_duplicate ?? false,
     status: tx.status ?? 'confirmed',
     createdByUserId: tx.createdByUserId ?? tx.created_by_user_id ?? null,
+    createdByName: tx.createdByName ?? tx.created_by_name ?? null,
     createdAt: tx.createdAt ?? tx.created_at ?? null,
     updatedAt: tx.updatedAt ?? tx.updated_at ?? null,
   }
@@ -124,7 +125,7 @@ function TransactionDetailsContent({ data }) {
           <DetailRow label="Transaction Date" value={formatDate(data.transactionDate)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Posted Date" value={formatDate(data.postedDate)} />
+          <DetailRow label="Charge Date" value={formatDate(data.postedDate)} />
         </Grid>
         <Grid size={{ xs: 12 }}>
           <DetailRow label="Description" value={data.description || '—'} />
@@ -166,10 +167,7 @@ function TransactionDetailsContent({ data }) {
           <DetailRow label="Updated At" value={formatDate(data.updatedAt)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Created By User" value={data.createdByUserId == null ? '—' : String(data.createdByUserId)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Transaction Id" value={data.id == null ? '—' : String(data.id)} />
+          <DetailRow label="Created By User" value={data.createdByName || (data.createdByUserId == null ? '—' : String(data.createdByUserId))} />
         </Grid>
       </Grid>
 

@@ -262,6 +262,7 @@ namespace FinalProjectAuthAPI.DAL
             IsDuplicate      = r.GetBoolOrDefault("is_duplicate", false),
             Status           = r.GetStringOrDefault("status", "confirmed"),
             CreatedByUserId  = r.GetInt64OrNull("created_by_user_id"),
+            CreatedByName    = r.GetStringOrNull("created_by_name"),
             CreatedAt        = Convert.ToDateTime(r["created_at"]),
             UpdatedAt        = Convert.ToDateTime(r["updated_at"]),
         };
