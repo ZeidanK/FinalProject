@@ -134,6 +134,7 @@ namespace FinalProjectAuthAPI.BL
                         PostedDate      = t.PostedDate,
                         Description     = t.Description,
                         Amount          = Math.Abs(t.Amount),
+                        ChargeAmount    = t.ChargeAmount,
                         VendorName      = t.VendorName,
                     }).ToList(),
                     ExistingMatches = existingMatches,

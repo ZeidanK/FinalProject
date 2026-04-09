@@ -273,7 +273,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy })
                       </Box>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
                         <Typography variant="body2" fontWeight={700} sx={{ color: '#fbbf24' }}>
-                          {fmtAmount(txn.amount)}
+                          {fmtAmount(txn.chargeAmount ?? txn.charge_amount ?? txn.amount)}
                         </Typography>
                         <Tooltip title="Skip this installment for now">
                           <Button
