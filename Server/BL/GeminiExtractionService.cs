@@ -418,30 +418,18 @@ If you cannot translate, just return the original name in an array.";
                 var modelName = _models[i];
                 try
                 {
-                    Console.WriteLine($"[INFO] [{operationName}] Trying model [{i + 1}/{_models.Count}]: {modelName}");
-                    _logger.LogInformation("{Operation}: trying model [{Index}/{Total}]: {Model}", operationName, i + 1, _models.Count, modelName);
-
                     var model = _googleAI!.GenerativeModel(model: modelName);
                     var result = await action(model);
 
                     if (result != null)
-                    {
-                        Console.WriteLine($"[SUCCESS] [{operationName}] Succeeded with model: {modelName}");
-                        _logger.LogInformation("{Operation}: succeeded with model: {Model}", operationName, modelName);
                         return result;
-                    }
-
-                    Console.WriteLine($"[WARNING] [{operationName}] Model {modelName} returned null, trying next.");
-                    _logger.LogWarning("{Operation}: model {Model} returned null, trying next.", operationName, modelName);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[WARNING] [{operationName}] Model {modelName} failed: {ex.Message}. Trying next.");
-                    _logger.LogWarning(ex, "{Operation}: model {Model} failed ({Message}), trying next.", operationName, modelName, ex.Message);
+                    _logger.LogDebug("{Operation}: model {Model} failed, trying next. Error: {Message}", operationName, modelName, ex.Message);
                 }
             }
 
-            Console.WriteLine($"[ERROR] [{operationName}] All {_models.Count} Gemini models exhausted.");
             _logger.LogError("{Operation}: all {Count} Gemini models exhausted.", operationName, _models.Count);
             return null;
         }

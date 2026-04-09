@@ -80,6 +80,10 @@ namespace FinalProjectAuthAPI.BL
                 .Where(t => string.Equals(t.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
+            Console.WriteLine($"[DEBUG][תשלומים] Found {installmentTxns.Count} installment transactions for companyId={companyId}");
+            foreach (var txn in installmentTxns)
+                Console.WriteLine($"[DEBUG][תשלומים]   TxnId={txn.Id} | TransactionDate={txn.TransactionDate:yyyy-MM-dd} | ChargeDate={txn.PostedDate:yyyy-MM-dd} | Amount={txn.Amount} | ChargeAmount={txn.ChargeAmount} | Desc={txn.Description}");
+
             var results = new List<InstallmentGroupSuggestion>();
 
             foreach (var invoice in invoices)
@@ -92,12 +96,18 @@ namespace FinalProjectAuthAPI.BL
                     .Where(t => t.TransactionDate.Date == invoice.InvoiceDate.Date)
                     .ToList();
 
+                Console.WriteLine($"[DEBUG][תשלומים] Invoice #{invoice.InvoiceNumber} (Id={invoice.Id}, Date={invoice.InvoiceDate:yyyy-MM-dd}, Total={invoice.TotalAmount}) — {dateCandidates.Count} date-matching txns");
+
                 if (!dateCandidates.Any()) continue;
 
                 // Filter to transactions whose amount is consistent with an installment of this invoice
                 var amountCandidates = dateCandidates
                     .Where(t => IsInstallmentAmountForInvoice(invoice, t))
                     .ToList();
+
+                Console.WriteLine($"[DEBUG][תשלומים]   → {amountCandidates.Count} passed amount filter (remaining={remaining})");
+                foreach (var c in amountCandidates)
+                    Console.WriteLine($"[DEBUG][תשלומים]     ✓ TxnId={c.Id} | TransactionDate={c.TransactionDate:yyyy-MM-dd} | ChargeDate={c.PostedDate:yyyy-MM-dd} | Amount={c.Amount} | ChargeAmount={c.ChargeAmount} | Desc={c.Description}");
 
                 if (!amountCandidates.Any()) continue;
 
@@ -195,7 +205,7 @@ namespace FinalProjectAuthAPI.BL
             return await FilterAndCompareAsync(invoice, candidates);
         }
 
-        private async Task<List<MatchSuggestionRow>> FilterAndCompareAsync(
+        private Task<List<MatchSuggestionRow>> FilterAndCompareAsync(
             InvoiceRow invoice,
             List<TransactionCandidate> candidates)
         {
@@ -203,15 +213,11 @@ namespace FinalProjectAuthAPI.BL
             var filtered = FilterByDateAndAmount(invoice, candidates, remaining);
 
             if (!filtered.Any())
-            {
-                Console.WriteLine("[MATCH] No candidates after date+amount filter. Returning empty.");
-                var sampleTxns = candidates.Take(5).ToList();
-                foreach (var s in sampleTxns)
-                    Console.WriteLine($"[MATCH]   Sample txn: id={s.Id} date={s.TransactionDate:yyyy-MM-dd} amount={s.Amount} desc=\"{s.Description}\"");
-                return new List<MatchSuggestionRow>();
-            }
+                return Task.FromResult(new List<MatchSuggestionRow>());
 
-            return await CompareWithGeminiAsync(invoice, filtered, remaining);
+            // TODO: Gemini vendor-name matching temporarily disabled — re-enable when ready
+            // return CompareWithGeminiAsync(invoice, filtered, remaining);
+            return Task.FromResult(BuildResultsWithoutGemini(filtered, remaining));
         }
 
         private static List<(TransactionCandidate Txn, string AmountReason)> FilterByDateAndAmount(
