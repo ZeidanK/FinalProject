@@ -17,6 +17,14 @@ export async function getAllCompanies(token) {
   return unwrapEnvelope(response)
 }
 
+export async function grantCompanyAccess(companyId, token) {
+  const response = await apiRequest(URLS.companies.grantAccess(companyId), {
+    method: 'POST',
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
 export async function createCompany(payload, token) {
   const response = await apiRequest(URLS.companies.base, {
     method: 'POST',

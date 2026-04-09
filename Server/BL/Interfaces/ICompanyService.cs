@@ -24,5 +24,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
             string? email, string? phone, string? website,
             string? taxId, string? vatNumber, bool? isActive);
         bool Delete(long id);
+        bool EnsureUserHasFullCompanyAccess(long userId, long companyId);
     }
 }

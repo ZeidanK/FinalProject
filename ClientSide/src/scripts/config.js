@@ -28,6 +28,7 @@ export const URLS = {
     base: buildApiPath('/Companies'),
     byId: (id) => buildApiPath(`/Companies/${id}`),
     byUser: (userId) => buildApiPath(`/Companies/user/${userId}`),
+    grantAccess: (companyId) => buildApiPath(`/Companies/${companyId}/access`),
   },
   invoices: {
     base: buildApiPath('/Invoices'),

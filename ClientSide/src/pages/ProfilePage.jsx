@@ -32,7 +32,7 @@ import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
-import { getAllCompanies } from '../services/companies'
+import { getAllCompanies, grantCompanyAccess } from '../services/companies'
 import {
   useChangePasswordMutation,
   useCreateCompanyMutation,
@@ -395,6 +395,30 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSelectCompany = async (company) => {
+    if (!company?.id) return
+
+    setCompanyMsg(null)
+
+    if (isAccountant) {
+      try {
+        await grantCompanyAccess(company.id, token)
+        await refreshCompanies()
+        setActiveCompanyId(company.id)
+        setCompanyMsg({ type: 'success', text: 'Company selected with full access.' })
+        return
+      } catch (err) {
+        setCompanyMsg({
+          type: 'error',
+          text: err.message || 'Failed to enable access for selected company.',
+        })
+        return
+      }
+    }
+
+    setActiveCompanyId(company.id)
+  }
+
   // ── Render ─────────────────────────────────────────────────
   const pickerCompanies = isAccountant ? accountantCompanies : companies
   const activeCompanyIdNumber = Number(activeCompanyId)
@@ -442,7 +466,7 @@ export default function ProfilePage() {
               </Stack>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Chip
-                  label={c.accessLevel || c.access_level || 'view_only'}
+                  label={c.accessLevel || c.access_level || 'Full Access'}
                   size="small"
                   sx={{
                     bgcolor: 'rgba(55, 214, 122, 0.14)',
@@ -465,7 +489,7 @@ export default function ProfilePage() {
                   <Button
                     size="small"
                     variant="outlined"
-                    onClick={() => setActiveCompanyId(c.id)}
+                    onClick={() => handleSelectCompany(c)}
                   >
                     Select
                   </Button>
@@ -863,7 +887,7 @@ export default function ProfilePage() {
               <CardContent sx={{ p: 3 }}>
                 {sectionHeader(
                   <BusinessRoundedIcon sx={{ color: 'secondary.main' }} />,
-                  'Choose Company',
+                  'Choose Business to Work With',
                 )}
 
                 {loadingCompanies ? (
