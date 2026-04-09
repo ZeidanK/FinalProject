@@ -41,6 +41,7 @@ BEGIN
         i.last_four_digits_card,
         i.uploaded_by_user_id,
         i.verified_by_user_id,
+        i.is_duplicate,
         i.created_at,
         i.updated_at
     FROM dbo.FP26_invoices i

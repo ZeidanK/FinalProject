@@ -30,7 +30,8 @@ CREATE PROCEDURE dbo.FP26_sp_Invoices_Insert
     @PaymentPlanTotalInstallments INT = NULL,
     @PaymentPlanInstallmentAmount DECIMAL(15,2) = NULL,
     @PaymentPlanFrequency VARCHAR(50) = NULL,
-    @PaymentPlanDescription VARCHAR(500) = NULL
+    @PaymentPlanDescription VARCHAR(500) = NULL,
+    @IsDuplicate BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -45,7 +46,7 @@ BEGIN
          last_four_digits_card, item_count,
          payment_plan_total_installments, payment_plan_installment_amount,
          payment_plan_frequency, payment_plan_description,
-         uploaded_by_user_id,
+         uploaded_by_user_id, is_duplicate,
          created_at, updated_at)
     VALUES
         (@CompanyId, @InvoiceNumber, @VendorName, @VendorTaxId,
@@ -57,7 +58,7 @@ BEGIN
          @LastFourDigitsCard, @ItemCount,
          @PaymentPlanTotalInstallments, @PaymentPlanInstallmentAmount,
          @PaymentPlanFrequency, @PaymentPlanDescription,
-         @UploadedByUserId,
+         @UploadedByUserId, @IsDuplicate,
          GETDATE(), GETDATE());
 
     SELECT SCOPE_IDENTITY() AS id;

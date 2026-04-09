@@ -40,6 +40,7 @@ BEGIN
         i.matched_amount,
         i.uploaded_by_user_id,
         u.name AS uploaded_by_name,
+        i.is_duplicate,
         i.created_at,
         i.updated_at
     FROM dbo.FP26_invoices i

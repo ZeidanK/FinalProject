@@ -199,6 +199,7 @@ namespace FinalProjectAuthAPI.Models
         public long?     UploadedByUserId         { get; set; }
         public string?   UploadedByName           { get; set; }
         public long?     VerifiedByUserId         { get; set; }
+        public bool      IsDuplicate              { get; set; }
         public DateTime  CreatedAt                { get; set; }
         public DateTime  UpdatedAt                { get; set; }
         public List<LineItemRow> LineItems        { get; set; } = new();

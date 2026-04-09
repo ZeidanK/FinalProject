@@ -143,7 +143,7 @@ namespace FinalProjectAuthAPI.BL
                 };
 
                 // Create the invoice record
-                var (success, id, error) = _invoiceSvc.Create(request, userId,
+                var (success, id, error, _) = _invoiceSvc.Create(request, userId,
                     file.FileName, relativePath, file.ContentType,
                     file.Length, extracted.ExtractionConfidence);
 

@@ -74,7 +74,8 @@ namespace FinalProjectAuthAPI.DAL
             int? paymentPlanTotalInstallments = null,
             decimal? paymentPlanInstallmentAmount = null,
             string? paymentPlanFrequency = null,
-            string? paymentPlanDescription = null)
+            string? paymentPlanDescription = null,
+            bool isDuplicate = false)
         {
             SqlConnection? con = null;
             try
@@ -107,11 +108,34 @@ namespace FinalProjectAuthAPI.DAL
                         { "@PaymentPlanTotalInstallments",  paymentPlanTotalInstallments  },
                         { "@PaymentPlanInstallmentAmount", paymentPlanInstallmentAmount },
                         { "@PaymentPlanFrequency",          paymentPlanFrequency         },
-                        { "@PaymentPlanDescription",        paymentPlanDescription       }
+                        { "@PaymentPlanDescription",        paymentPlanDescription       },
+                        { "@IsDuplicate",                   isDuplicate                  }
                     });
 
                 var result = cmd.ExecuteScalar();
                 return result != null ? Convert.ToInt64(result) : 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        /// <summary>
+        /// Returns the ID of the original (non-duplicate) invoice for a given
+        /// company + invoice number, or null if none exists.
+        /// </summary>
+        public long? GetInvoiceIdByNumber(long companyId, string invoiceNumber)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    "SELECT TOP 1 id FROM dbo.FP26_invoices " +
+                    "WHERE company_id = @CompanyId AND invoice_number = @InvoiceNumber AND is_duplicate = 0",
+                    con);
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                cmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
+                var result = cmd.ExecuteScalar();
+                return result != null && result != DBNull.Value ? Convert.ToInt64(result) : null;
             }
             finally { con?.Close(); }
         }
@@ -448,6 +472,7 @@ namespace FinalProjectAuthAPI.DAL
             UploadedByUserId       = r["uploaded_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["uploaded_by_user_id"]) : null,
             UploadedByName         = r.HasColumn("uploaded_by_name") ? r["uploaded_by_name"] as string : null,
             VerifiedByUserId       = r.HasColumn("verified_by_user_id") && r["verified_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["verified_by_user_id"]) : null,
+            IsDuplicate            = r.HasColumn("is_duplicate") && r["is_duplicate"] != DBNull.Value && Convert.ToBoolean(r["is_duplicate"]),
             CreatedAt              = Convert.ToDateTime(r["created_at"]),
             UpdatedAt              = Convert.ToDateTime(r["updated_at"]),
         };

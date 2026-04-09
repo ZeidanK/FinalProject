@@ -403,16 +403,26 @@ function InvoicesPage() {
             ),
           )
 
-          // Show success message with auto-match result
-          const autoMatchResult = result?.autoMatchResult
-          if (autoMatchResult?.matched) {
+          // Handle duplicate invoice — saved but flagged as anomaly
+          if (result?.isDuplicate) {
             setSnack({
               open: true,
-              message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`,
-              severity: 'success',
+              message:
+                'This invoice number already exists. The upload was saved and flagged as a duplicate — check the Anomalies page for details.',
+              severity: 'warning',
             })
           } else {
-            setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+            // Show success message with auto-match result
+            const autoMatchResult = result?.autoMatchResult
+            if (autoMatchResult?.matched) {
+              setSnack({
+                open: true,
+                message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`,
+                severity: 'success',
+              })
+            } else {
+              setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+            }
           }
         }
 
