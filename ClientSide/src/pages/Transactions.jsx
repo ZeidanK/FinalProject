@@ -11,6 +11,7 @@ import {
   Checkbox,
   FormControl,
   IconButton,
+  InputAdornment,
   InputLabel,
   LinearProgress,
   MenuItem,
@@ -24,6 +25,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
@@ -33,6 +35,7 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import FileUploadRoundedIcon from '@mui/icons-material/FileUploadRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
@@ -136,6 +139,7 @@ function TransactionsPage() {
 
   // --- Filters ---
   const [typeFilter, setTypeFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
@@ -175,6 +179,22 @@ function TransactionsPage() {
     setTransactions(data)
     setSelectedTransactionIds([])
   }, [transactionsQuery.data, transactionsQuery.error])
+
+  // Client-side filtering for search
+  const filteredTransactions = useMemo(() => {
+    if (!searchTerm.trim()) return transactions
+
+    const term = searchTerm.toLowerCase().trim()
+    return transactions.filter((tx) => {
+      const vendor = (tx.vendor_name || tx.vendorName || '').toLowerCase()
+      const description = (tx.description || '').toLowerCase()
+      const amount = String(tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0)
+      const date = tx.transaction_date || tx.transactionDate
+      const formattedDate = date ? new Date(date).toLocaleDateString() : ''
+
+      return vendor.includes(term) || description.includes(term) || amount.includes(term) || formattedDate.toLowerCase().includes(term)
+    })
+  }, [transactions, searchTerm])
 
   // ===================== File Handlers =====================
 
@@ -455,7 +475,7 @@ function TransactionsPage() {
     setDetailsModal({ open: false, loading: false, error: '', transaction: null })
   }, [])
 
-  const visibleTransactionIds = transactions
+  const visibleTransactionIds = filteredTransactions
     .map((tx) => tx.id ?? tx.transactionId)
     .filter((id) => typeof id === 'number' && id > 0)
 
@@ -573,14 +593,16 @@ function TransactionsPage() {
         ))}
       </Stack>
     )
-  } else if (transactions.length === 0) {
+  } else if (filteredTransactions.length === 0) {
     transactionTableContent = (
       <Box sx={{ py: 6, textAlign: 'center' }}>
         <DescriptionRoundedIcon
           sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
         />
         <Typography color="text.secondary">
-          No transactions yet. Import a CSV above to get started.
+          {transactions.length === 0
+            ? 'No transactions yet. Import a CSV above to get started.'
+            : 'No transactions match your search criteria.'}
         </Typography>
       </Box>
     )
@@ -599,18 +621,17 @@ function TransactionsPage() {
                 />
               </TableCell>
               <TableCell>Date</TableCell>
-              <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
               <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
-              <TableCell align="right">Charge Amount</TableCell>
+              <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
+              <TableCell align="center">Charge Amount</TableCell>
               <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
               <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
-              <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
               <TableCell align="center">Matched</TableCell>
               <TableCell align="center">Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {transactions.map((tx) => {
+            {filteredTransactions.map((tx) => {
               const date = tx.transaction_date || tx.transactionDate
               const desc = tx.description || '—'
               const vendor = tx.vendor_name || tx.vendorName || '—'
@@ -621,7 +642,6 @@ function TransactionsPage() {
                 'debit'
               ).toLowerCase()
               const cat = tx.category || '—'
-              const ref = tx.reference_number || tx.referenceNumber || '—'
               const matched = tx.is_matched ?? tx.isMatched ?? false
 
               return (
@@ -640,15 +660,15 @@ function TransactionsPage() {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                      {desc}
+                      {vendor}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                      {vendor}
+                      {desc}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="center">
                     <Typography
                       variant="body2"
                       fontWeight={600}
@@ -672,11 +692,6 @@ function TransactionsPage() {
                   <TableCell>
                     <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                       {cat}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                      {ref}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
@@ -931,12 +946,11 @@ function TransactionsPage() {
                       <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
                         <TableCell padding="checkbox" />
                         <TableCell>Date</TableCell>
-                        <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
                         <TableCell sx={{ width: { xs: 140, md: 180 } }}>Vendor</TableCell>
-                        <TableCell align="right">Amount</TableCell>
+                        <TableCell sx={{ width: { xs: 180, md: 260 } }}>Description</TableCell>
+                        <TableCell align="center">Amount</TableCell>
                         <TableCell align="center" sx={{ width: 96 }}>Type</TableCell>
                         <TableCell sx={{ width: { xs: 140, md: 180 } }}>Category</TableCell>
-                        <TableCell sx={{ width: { xs: 140, md: 180 } }}>Reference</TableCell>
                         <TableCell align="center">Status</TableCell>
                       </TableRow>
                     </TableHead>
@@ -960,15 +974,15 @@ function TransactionsPage() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                              {row.description || '—'}
+                              {row.vendorName || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                              {row.vendorName || '—'}
+                              {row.description || '—'}
                             </Typography>
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell align="center">
                             <Typography
                               variant="body2"
                               fontWeight={600}
@@ -996,11 +1010,6 @@ function TransactionsPage() {
                           <TableCell>
                             <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                               {row.category || '—'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                              {row.referenceNumber || '—'}
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
@@ -1056,18 +1065,34 @@ function TransactionsPage() {
                 <Typography variant="subtitle1" fontWeight={700}>
                   Transaction Records
                 </Typography>
-                <FormControl size="small" sx={{ minWidth: 140 }}>
-                  <InputLabel>Type</InputLabel>
-                  <Select
-                    value={typeFilter}
-                    label="Type"
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                  >
-                    <MenuItem value="all">All</MenuItem>
-                    <MenuItem value="debit">Debit</MenuItem>
-                    <MenuItem value="credit">Credit</MenuItem>
-                  </Select>
-                </FormControl>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <TextField
+                    size="small"
+                    placeholder="Search vendor, description, amount, date..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchRoundedIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ minWidth: 250 }}
+                  />
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Type</InputLabel>
+                    <Select
+                      value={typeFilter}
+                      label="Type"
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="debit">Debit</MenuItem>
+                      <MenuItem value="credit">Credit</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
               </Stack>
 
               <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
