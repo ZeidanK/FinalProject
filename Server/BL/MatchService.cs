@@ -100,9 +100,35 @@ namespace FinalProjectAuthAPI.BL
 
                 if (!dateCandidates.Any()) continue;
 
-                // Filter to transactions whose amount equals the invoice total amount
+                decimal GetEffectiveInstallmentAmount(TransactionCandidate t)
+                {
+                    if (t.ChargeAmount.HasValue && t.ChargeAmount.Value > 0)
+                        return Math.Abs(t.ChargeAmount.Value);
+
+                    return Math.Abs(t.Amount);
+                }
+
+                var expectedInstallmentAmount =
+                    invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0
+                        ? invoice.PaymentPlanInstallmentAmount.Value
+                        : (decimal?)null;
+
+                // Keep installment candidates tied to the per-charge amount when available,
+                // and fall back to remaining-balance matching for invoices without plan metadata.
                 var amountCandidates = dateCandidates
-                    .Where(t => Math.Abs(t.Amount) == invoice.TotalAmount)
+                    .Where(t =>
+                    {
+                        var effectiveAmount = GetEffectiveInstallmentAmount(t);
+                        if (effectiveAmount <= 0)
+                            return false;
+
+                        if (expectedInstallmentAmount.HasValue)
+                            return Math.Abs(effectiveAmount - expectedInstallmentAmount.Value) < 0.01m;
+
+                        return Math.Abs(effectiveAmount - remaining) < 0.01m ||
+                               Math.Abs(Math.Abs(t.Amount) - remaining) < 0.01m ||
+                               effectiveAmount < remaining;
+                    })
                     .ToList();
 
                 Console.WriteLine($"[DEBUG][תשלומים]   → {amountCandidates.Count} passed amount filter (invoiceTotal={invoice.TotalAmount})");
@@ -123,17 +149,17 @@ namespace FinalProjectAuthAPI.BL
                     InvoiceDate             = invoice.InvoiceDate,
                     AlreadyMatchedAmount    = invoice.MatchedAmount,
                     RemainingAmount         = remaining,
-                    ExpectedInstallments    = null,
+                    ExpectedInstallments    = invoice.PaymentPlanTotalInstallments,
                     DetectedInstallmentCount = null,
                     AlreadyMatchedCount     = existingMatches.Count,
-                    InstallmentAmount       = invoice.TotalAmount,
+                    InstallmentAmount       = expectedInstallmentAmount ?? 0,
                     SuggestedTransactions   = amountCandidates.Select(t => new SuggestedInstallmentTransaction
                     {
                         TransactionId   = t.Id,
                         TransactionDate = t.TransactionDate,
                         PostedDate      = t.PostedDate,
                         Description     = t.Description,
-                        Amount          = Math.Abs(t.Amount),
+                        Amount          = GetEffectiveInstallmentAmount(t),
                         ChargeAmount    = t.ChargeAmount,
                         VendorName      = t.VendorName,
                     }).ToList(),
@@ -343,6 +369,17 @@ namespace FinalProjectAuthAPI.BL
             if (req.MatchedAmount <= 0)
                 return (false, 0, "Matched amount must be greater than zero.");
 
+            var invoice = _db.GetInvoiceById(req.InvoiceId);
+            if (invoice == null)
+                return (false, 0, "Invoice not found.");
+
+            var remaining = invoice.TotalAmount - invoice.MatchedAmount;
+            if (remaining <= 0)
+                return (false, 0, "Invoice is already fully matched.");
+
+            if (req.MatchedAmount - remaining > 0.01m)
+                return (false, 0, $"Matched amount exceeds remaining balance ({remaining:F2}).");
+
             var id = _db.CreateMatch(
                 req.InvoiceId, req.TransactionId, req.MatchedAmount,
                 req.MatchMethod ?? "manual", matchedByUserId,
@@ -357,13 +394,13 @@ namespace FinalProjectAuthAPI.BL
             {
                 try
                 {
-                    var invoice = _db.GetInvoiceById(req.InvoiceId);
+                    var matchedInvoice = _db.GetInvoiceById(req.InvoiceId);
                     var txn = _db.GetTransactionById(req.TransactionId);
-                    if (invoice != null && txn != null
-                        && !string.IsNullOrWhiteSpace(invoice.VendorName)
+                    if (matchedInvoice != null && txn != null
+                        && !string.IsNullOrWhiteSpace(matchedInvoice.VendorName)
                         && !string.IsNullOrWhiteSpace(txn.Description))
                     {
-                        _db.RecordVendorAlias(invoice.CompanyId, invoice.VendorName, txn.Description);
+                        _db.RecordVendorAlias(matchedInvoice.CompanyId, matchedInvoice.VendorName, txn.Description);
                     }
                 }
                 catch { /* alias learning is best-effort */ }

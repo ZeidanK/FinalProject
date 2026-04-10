@@ -1197,12 +1197,25 @@ function MatchesPage() {
                 const installmentNumber = (group.alreadyMatchedCount || 0) + 1
                 const expected = group.expectedInstallments
                 const suffix = expected ? ` of ${expected}` : ''
+                const totalAmount = Number(group.totalAmount) || 0
+                const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
+                const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
+                const suggestedAmount = Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
+                const effectiveAmount = Math.min(
+                  suggestedAmount > 0 ? suggestedAmount : remainingAmount,
+                  remainingAmount,
+                )
+
+                if (effectiveAmount <= 0) {
+                  throw new Error('No remaining balance to match for this invoice.')
+                }
+
                 await createMatchMutation.mutateAsync({
                   invoiceId: group.invoiceId,
                   transactionId: txn.transactionId,
-                  matchedAmount: txn.amount,
+                  matchedAmount: effectiveAmount,
                   matchMethod: 'installment_simple',
-                  matchType: 'partial',
+                  matchType: effectiveAmount >= remainingAmount ? 'full' : 'partial',
                   matchConfidence: 1,
                   installmentNumber,
                   installmentNote: `Installment ${installmentNumber}${suffix}`,
