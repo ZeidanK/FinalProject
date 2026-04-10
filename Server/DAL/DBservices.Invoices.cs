@@ -382,12 +382,22 @@ namespace FinalProjectAuthAPI.DAL
                 }
 
                 var cleanupCmd = new SqlCommand(@"
+                    DECLARE @AffectedMatches TABLE (match_id BIGINT PRIMARY KEY);
                     DECLARE @AffectedTransactions TABLE (transaction_id BIGINT PRIMARY KEY);
+
+                    INSERT INTO @AffectedMatches(match_id)
+                    SELECT id
+                    FROM dbo.FP26_invoice_transaction_matches
+                    WHERE invoice_id = @InvoiceId;
 
                     INSERT INTO @AffectedTransactions(transaction_id)
                     SELECT DISTINCT transaction_id
                     FROM dbo.FP26_invoice_transaction_matches
                     WHERE invoice_id = @InvoiceId;
+
+                    DELETE FROM dbo.FP26_anomalies
+                    WHERE related_invoice_id = @InvoiceId
+                       OR related_match_id IN (SELECT match_id FROM @AffectedMatches);
 
                     DELETE FROM dbo.FP26_invoice_transaction_matches
                     WHERE invoice_id = @InvoiceId;
