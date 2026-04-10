@@ -27,6 +27,13 @@ export function mapExtractedToForm(ext, overallConfidence) {
       subtotal: { value: '', confidence: 0 },
       vatAmount: { value: '', confidence: 0 },
       totalAmount: { value: '', confidence: 0 },
+      paymentPlan: {
+        totalInstallments: { value: '', confidence: 0 },
+        installmentAmount: { value: '', confidence: 0 },
+        frequency: { value: '', confidence: 0 },
+        currentInstallment: { value: '', confidence: 0 },
+        description: { value: '', confidence: 0 },
+      },
       lineItems: [],
     }
 
@@ -73,6 +80,28 @@ export function mapExtractedToForm(ext, overallConfidence) {
     totalAmount: {
       value: ext.totalAmount != null ? ext.totalAmount : '',
       confidence: fieldConf(ext.totalAmount),
+    },
+    paymentPlan: {
+      totalInstallments: {
+        value: ext.paymentPlan?.totalInstallments ?? '',
+        confidence: fieldConf(ext.paymentPlan?.totalInstallments),
+      },
+      installmentAmount: {
+        value: ext.paymentPlan?.installmentAmount ?? '',
+        confidence: fieldConf(ext.paymentPlan?.installmentAmount),
+      },
+      frequency: {
+        value: ext.paymentPlan?.frequency || '',
+        confidence: fieldConf(ext.paymentPlan?.frequency),
+      },
+      currentInstallment: {
+        value: ext.paymentPlan?.currentInstallment ?? '',
+        confidence: fieldConf(ext.paymentPlan?.currentInstallment),
+      },
+      description: {
+        value: ext.paymentPlan?.description || '',
+        confidence: fieldConf(ext.paymentPlan?.description),
+      },
     },
     lineItems: (ext.lineItems || []).map(function (li, idx) {
       return {

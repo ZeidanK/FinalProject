@@ -67,6 +67,14 @@ export default function InvoiceVerificationModal(props) {
   const updateField = useCallback(function (field, value) {
     setForm(function (prev) {
       const next = { ...prev}
+
+      if (field.startsWith('paymentPlan.')) {
+        const subfield = field.split('.')[1]
+        next.paymentPlan = { ...prev.paymentPlan }
+        next.paymentPlan[subfield] = { ...prev.paymentPlan?.[subfield], value: value }
+        return next
+      }
+
       next[field] = { ...prev[field], value: value}
 
       if (field === 'vatRate') {
@@ -263,6 +271,70 @@ export default function InvoiceVerificationModal(props) {
                 value={(form.lastFourDigitsCard?.value) || ''}
                 onChange={function (e) { updateField('lastFourDigitsCard', e.target.value) }}
                 placeholder="e.g., 1234"
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle1" fontWeight={700}>Payment Plan</Typography>
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FieldLabel
+                label="Total Installments"
+                confidence={form.paymentPlan?.totalInstallments?.confidence}
+              />
+              <TextField
+                fullWidth size="small" type="number" sx={fieldSx}
+                value={form.paymentPlan?.totalInstallments?.value ?? ''}
+                onChange={function (e) { updateField('paymentPlan.totalInstallments', e.target.value) }}
+                slotProps={{ htmlInput: { min: 0, step: 1 } }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FieldLabel
+                label="Installment Amount"
+                confidence={form.paymentPlan?.installmentAmount?.confidence}
+              />
+              <TextField
+                fullWidth size="small" type="number" sx={fieldSx}
+                value={form.paymentPlan?.installmentAmount?.value ?? ''}
+                onChange={function (e) { updateField('paymentPlan.installmentAmount', e.target.value) }}
+                slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FieldLabel label="Frequency" confidence={form.paymentPlan?.frequency?.confidence} />
+              <TextField
+                fullWidth size="small" sx={fieldSx}
+                value={(form.paymentPlan?.frequency?.value) || ''}
+                onChange={function (e) { updateField('paymentPlan.frequency', e.target.value) }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FieldLabel
+                label="Current Installment"
+                confidence={form.paymentPlan?.currentInstallment?.confidence}
+              />
+              <TextField
+                fullWidth size="small" type="number" sx={fieldSx}
+                value={form.paymentPlan?.currentInstallment?.value ?? ''}
+                onChange={function (e) { updateField('paymentPlan.currentInstallment', e.target.value) }}
+                slotProps={{ htmlInput: { min: 0, step: 1 } }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <FieldLabel
+                label="Description"
+                confidence={form.paymentPlan?.description?.confidence}
+              />
+              <TextField
+                fullWidth size="small" multiline minRows={2} sx={fieldSx}
+                value={(form.paymentPlan?.description?.value) || ''}
+                onChange={function (e) { updateField('paymentPlan.description', e.target.value) }}
               />
             </Grid>
           </Grid>

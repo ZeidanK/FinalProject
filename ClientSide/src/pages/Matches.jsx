@@ -112,6 +112,16 @@ const mapSavedInvoiceToForm = (invoice) => {
       currency: invoice?.currency ?? 'USD',
       vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
       lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
+      paymentPlan: {
+        totalInstallments:
+          invoice?.paymentPlanTotalInstallments ?? invoice?.payment_plan_total_installments ?? null,
+        installmentAmount:
+          invoice?.paymentPlanInstallmentAmount ?? invoice?.payment_plan_installment_amount ?? null,
+        frequency: invoice?.paymentPlanFrequency ?? invoice?.payment_plan_frequency ?? null,
+        currentInstallment:
+          invoice?.paymentPlanCurrentInstallment ?? invoice?.payment_plan_current_installment ?? null,
+        description: invoice?.paymentPlanDescription ?? invoice?.payment_plan_description ?? null,
+      },
       lineItems: lineItems.map((li, idx) => ({
         description: li?.description || '',
         quantity: li?.quantity ?? 1,
@@ -674,6 +684,31 @@ function MatchesPage() {
       const sourceInvoice = invoiceModal.file?.sourceInvoice || {}
       setInvoiceSaving(true)
       try {
+        const paymentPlanTotalInstallmentsInput = formData.paymentPlan?.totalInstallments?.value
+        const paymentPlanInstallmentAmountInput = formData.paymentPlan?.installmentAmount?.value
+        const paymentPlanCurrentInstallmentInput = formData.paymentPlan?.currentInstallment?.value
+
+        const paymentPlanTotalInstallments =
+          paymentPlanTotalInstallmentsInput === '' || paymentPlanTotalInstallmentsInput == null
+            ? sourceInvoice.paymentPlanTotalInstallments ??
+              sourceInvoice.payment_plan_total_installments ??
+              null
+            : Number.parseInt(paymentPlanTotalInstallmentsInput, 10) || 0
+
+        const paymentPlanInstallmentAmount =
+          paymentPlanInstallmentAmountInput === '' || paymentPlanInstallmentAmountInput == null
+            ? sourceInvoice.paymentPlanInstallmentAmount ??
+              sourceInvoice.payment_plan_installment_amount ??
+              null
+            : Number.parseFloat(paymentPlanInstallmentAmountInput) || 0
+
+        const paymentPlanCurrentInstallment =
+          paymentPlanCurrentInstallmentInput === '' || paymentPlanCurrentInstallmentInput == null
+            ? sourceInvoice.paymentPlanCurrentInstallment ??
+              sourceInvoice.payment_plan_current_installment ??
+              null
+            : Number.parseInt(paymentPlanCurrentInstallmentInput, 10) || 0
+
         const payload = {
           companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
           invoiceNumber: formData.invoiceNumber?.value || '',
@@ -689,17 +724,16 @@ function MatchesPage() {
           dueDate: formData.dueDate?.value || null,
           paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
           itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
-          paymentPlanTotalInstallments:
-            sourceInvoice.paymentPlanTotalInstallments ||
-            sourceInvoice.payment_plan_total_installments ||
-            null,
-          paymentPlanInstallmentAmount:
-            sourceInvoice.paymentPlanInstallmentAmount ||
-            sourceInvoice.payment_plan_installment_amount ||
-            null,
+          paymentPlanTotalInstallments,
+          paymentPlanInstallmentAmount,
           paymentPlanFrequency:
-            sourceInvoice.paymentPlanFrequency || sourceInvoice.payment_plan_frequency || null,
+            formData.paymentPlan?.frequency?.value ||
+            sourceInvoice.paymentPlanFrequency ||
+            sourceInvoice.payment_plan_frequency ||
+            null,
+          paymentPlanCurrentInstallment,
           paymentPlanDescription:
+            formData.paymentPlan?.description?.value ||
             sourceInvoice.paymentPlanDescription ||
             sourceInvoice.payment_plan_description ||
             null,
