@@ -479,6 +479,12 @@ namespace FinalProjectAuthAPI.DAL
             IsMatched              = r["is_matched"] != DBNull.Value && Convert.ToBoolean(r["is_matched"]),
             MatchedAmount          = r["matched_amount"] != DBNull.Value ? Convert.ToDecimal(r["matched_amount"]) : 0,
             LastFourDigitsCard     = r.HasColumn("last_four_digits_card") ? r["last_four_digits_card"] as string : null,
+            PaymentPlanTotalInstallments = r.HasColumn("payment_plan_total_installments") && r["payment_plan_total_installments"] != DBNull.Value
+                                        ? Convert.ToInt32(r["payment_plan_total_installments"]) : null,
+            PaymentPlanInstallmentAmount = r.HasColumn("payment_plan_installment_amount") && r["payment_plan_installment_amount"] != DBNull.Value
+                                        ? Convert.ToDecimal(r["payment_plan_installment_amount"]) : null,
+            PaymentPlanFrequency     = r.HasColumn("payment_plan_frequency") ? r["payment_plan_frequency"] as string : null,
+            PaymentPlanDescription   = r.HasColumn("payment_plan_description") ? r["payment_plan_description"] as string : null,
             UploadedByUserId       = r["uploaded_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["uploaded_by_user_id"]) : null,
             UploadedByName         = r.HasColumn("uploaded_by_name") ? r["uploaded_by_name"] as string : null,
             VerifiedByUserId       = r.HasColumn("verified_by_user_id") && r["verified_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["verified_by_user_id"]) : null,

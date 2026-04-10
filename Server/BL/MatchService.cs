@@ -86,10 +86,35 @@ namespace FinalProjectAuthAPI.BL
 
             var results = new List<InstallmentGroupSuggestion>();
 
+            static bool IsInstallmentMatch(MatchRow m) =>
+                m.InstallmentNumber.HasValue ||
+                !string.IsNullOrWhiteSpace(m.InstallmentNote) ||
+                string.Equals(m.MatchMethod, "installment_simple", StringComparison.OrdinalIgnoreCase);
+
+            static decimal GetEffectiveInstallmentAmount(TransactionCandidate t)
+            {
+                if (t.ChargeAmount.HasValue && t.ChargeAmount.Value > 0)
+                    return Math.Abs(t.ChargeAmount.Value);
+
+                return Math.Abs(t.Amount);
+            }
+
             foreach (var invoice in invoices)
             {
                 var remaining = invoice.TotalAmount - invoice.MatchedAmount;
                 if (remaining <= 0) continue;
+
+                var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
+                var existingInstallmentMatches = existingMatches.Where(IsInstallmentMatch).ToList();
+
+                var hasInstallmentMetadata =
+                    (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 0) ||
+                    (invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0) ||
+                    !string.IsNullOrWhiteSpace(invoice.PaymentPlanDescription);
+
+                var hasInstallmentHistory = existingInstallmentMatches.Any();
+                if (!hasInstallmentMetadata && !hasInstallmentHistory)
+                    continue;
 
                 // Must share the same transaction_date as the invoice date
                 var dateCandidates = installmentTxns
@@ -97,16 +122,6 @@ namespace FinalProjectAuthAPI.BL
                     .ToList();
 
                 Console.WriteLine($"[DEBUG][תשלומים] Invoice #{invoice.InvoiceNumber} (Id={invoice.Id}, Date={invoice.InvoiceDate:yyyy-MM-dd}, Total={invoice.TotalAmount}) — {dateCandidates.Count} date-matching txns");
-
-                if (!dateCandidates.Any()) continue;
-
-                decimal GetEffectiveInstallmentAmount(TransactionCandidate t)
-                {
-                    if (t.ChargeAmount.HasValue && t.ChargeAmount.Value > 0)
-                        return Math.Abs(t.ChargeAmount.Value);
-
-                    return Math.Abs(t.Amount);
-                }
 
                 var expectedInstallmentAmount =
                     invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0
@@ -135,11 +150,6 @@ namespace FinalProjectAuthAPI.BL
                 foreach (var c in amountCandidates)
                     Console.WriteLine($"[DEBUG][תשלומים]     ✓ TxnId={c.Id} | TransactionDate={c.TransactionDate:yyyy-MM-dd} | ChargeDate={c.PostedDate:yyyy-MM-dd} | Amount={c.Amount} | ChargeAmount={c.ChargeAmount} | Desc={c.Description}");
 
-                if (!amountCandidates.Any()) continue;
-
-                // Fetch existing matches for progress tracking
-                var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
-
                 results.Add(new InstallmentGroupSuggestion
                 {
                     InvoiceId               = invoice.Id,
@@ -151,7 +161,7 @@ namespace FinalProjectAuthAPI.BL
                     RemainingAmount         = remaining,
                     ExpectedInstallments    = invoice.PaymentPlanTotalInstallments,
                     DetectedInstallmentCount = null,
-                    AlreadyMatchedCount     = existingMatches.Count,
+                    AlreadyMatchedCount     = existingInstallmentMatches.Count,
                     InstallmentAmount       = expectedInstallmentAmount ?? 0,
                     SuggestedTransactions   = amountCandidates.Select(t => new SuggestedInstallmentTransaction
                     {
@@ -163,7 +173,7 @@ namespace FinalProjectAuthAPI.BL
                         ChargeAmount    = t.ChargeAmount,
                         VendorName      = t.VendorName,
                     }).ToList(),
-                    ExistingMatches = existingMatches,
+                    ExistingMatches = existingInstallmentMatches,
                 });
             }
 

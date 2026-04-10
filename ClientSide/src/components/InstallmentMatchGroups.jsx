@@ -311,12 +311,14 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy })
           </Stack>
         )}
 
-        {/* Waiting state: partially matched, no pending transactions right now */}
-        {pendingCount === 0 && alreadyCount > 0 && (
+        {/* Waiting state: no pending transactions right now */}
+        {pendingCount === 0 && (
           <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 0.5 }}>
             <HourglassEmptyRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
             <Typography variant="caption" color="text.secondary">
-              Waiting for next installment to appear in your transactions.
+              {alreadyCount > 0
+                ? 'Waiting for next installment to appear in your transactions.'
+                : 'No installment transaction found yet. Waiting for first payment to appear in your transactions.'}
             </Typography>
           </Stack>
         )}
@@ -338,13 +340,8 @@ InstallmentGroup.propTypes = {
 export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, onConfirm, matchBusy }) {
   const rawGroups = Array.isArray(query.data) ? query.data : []
 
-  // Only show groups that either have pending suggestions OR have partial progress (waiting state)
-  const groups = rawGroups.filter(
-    (g) =>
-      (g.suggestedTransactions ?? []).some(
-        (t) => !deniedTxnIds.has(`${g.invoiceId}-${t.transactionId}`),
-      ) || (g.alreadyMatchedCount > 0),
-  )
+  // Backend now decides which installment invoices should be tracked in this section.
+  const groups = rawGroups
 
   return (
     <Card
