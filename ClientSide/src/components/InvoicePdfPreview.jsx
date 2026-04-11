@@ -157,8 +157,9 @@ export default function InvoicePdfPreview(props) {
         borderColor: 'divider',
         borderRadius: 2,
         bgcolor: 'rgba(255,255,255,0.02)',
-        minHeight: 580,
+        minHeight: 0,
         height: '100%',
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -219,7 +220,7 @@ export default function InvoicePdfPreview(props) {
       )}
 
       {canPreviewPdf ? (
-        <Box ref={containerRef} sx={{ p: 1, flex: 1, overflow: 'auto' }}>
+        <Box ref={containerRef} sx={{ p: 1, flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
           {loading ? (
             <Stack alignItems="center" justifyContent="center" sx={{ height: '100%', minHeight: 420 }}>
               <CircularProgress size={28} />
