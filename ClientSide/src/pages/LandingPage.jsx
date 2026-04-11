@@ -137,7 +137,7 @@ function LandingPage() {
                 Log In
               </Button>
               <Button component={RouterLink} to="/register" variant="contained">
-                Try for Free
+                Register
               </Button>
             </Stack>
           </Toolbar>
@@ -204,7 +204,7 @@ function LandingPage() {
                     boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)',
                   }}
                 >
-                  Start Free Trial
+                  Start Now
                 </Button>
                 <Button
                   component={RouterLink}
