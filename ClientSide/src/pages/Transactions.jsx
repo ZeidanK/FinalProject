@@ -24,6 +24,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TableSortLabel,
   TextField,
@@ -150,6 +151,8 @@ function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortKey, setSortKey] = useState('date')
   const [sortDirection, setSortDirection] = useState('desc')
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
@@ -192,6 +195,10 @@ function TransactionsPage() {
       setTypeFilter('all')
     }
   }, [transactionTypeOptions, typeFilter])
+
+  useEffect(() => {
+    setPage(0)
+  }, [typeFilter, searchTerm, sortKey, sortDirection, rowsPerPage])
 
   const handleSort = useCallback((columnKey) => {
     if (sortKey === columnKey) {
@@ -285,6 +292,18 @@ function TransactionsPage() {
       return compareNullableValues(valueA, valueB, sortDirection)
     })
   }, [transactions, typeFilter, searchTerm, sortKey, sortDirection, getSortValue, compareNullableValues])
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = page * rowsPerPage
+    return filteredTransactions.slice(startIndex, startIndex + rowsPerPage)
+  }, [filteredTransactions, page, rowsPerPage])
+
+  useEffect(() => {
+    const maxPage = Math.max(Math.ceil(filteredTransactions.length / rowsPerPage) - 1, 0)
+    if (page > maxPage) {
+      setPage(maxPage)
+    }
+  }, [filteredTransactions.length, page, rowsPerPage])
 
   // ===================== File Handlers =====================
 
@@ -718,192 +737,207 @@ function TransactionsPage() {
     )
   } else {
     transactionTableContent = (
-      <TableContainer sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
-        <Table size="small" sx={{ minWidth: 1100 }}>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allTransactionsSelected}
-                  indeterminate={hasTransactionSelection && !allTransactionsSelected}
-                  onChange={toggleSelectAllTransactions}
-                />
-              </TableCell>
-              <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'date'}
-                  direction={sortKey === 'date' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('date')}
+      <Stack spacing={1.2}>
+        <TableContainer sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 1100 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={allTransactionsSelected}
+                    indeterminate={hasTransactionSelection && !allTransactionsSelected}
+                    onChange={toggleSelectAllTransactions}
+                  />
+                </TableCell>
+                <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
+                  <TableSortLabel
+                    active={sortKey === 'date'}
+                    direction={sortKey === 'date' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('date')}
+                  >
+                    Date
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sx={{ width: { xs: 140, md: 180 } }}
+                  sortDirection={sortKey === 'vendor' ? sortDirection : false}
                 >
-                  Date
-                </TableSortLabel>
-              </TableCell>
-              <TableCell
-                sx={{ width: { xs: 140, md: 180 } }}
-                sortDirection={sortKey === 'vendor' ? sortDirection : false}
-              >
-                <TableSortLabel
-                  active={sortKey === 'vendor'}
-                  direction={sortKey === 'vendor' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('vendor')}
+                  <TableSortLabel
+                    active={sortKey === 'vendor'}
+                    direction={sortKey === 'vendor' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('vendor')}
+                  >
+                    Vendor
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sx={{ width: { xs: 180, md: 260 } }}
+                  sortDirection={sortKey === 'description' ? sortDirection : false}
                 >
-                  Vendor
-                </TableSortLabel>
-              </TableCell>
-              <TableCell
-                sx={{ width: { xs: 180, md: 260 } }}
-                sortDirection={sortKey === 'description' ? sortDirection : false}
-              >
-                <TableSortLabel
-                  active={sortKey === 'description'}
-                  direction={sortKey === 'description' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('description')}
+                  <TableSortLabel
+                    active={sortKey === 'description'}
+                    direction={sortKey === 'description' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('description')}
+                  >
+                    Description
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === 'amount' ? sortDirection : false}>
+                  <TableSortLabel
+                    active={sortKey === 'amount'}
+                    direction={sortKey === 'amount' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('amount')}
+                  >
+                    Charge Amount
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sx={{ width: 96 }} sortDirection={sortKey === 'type' ? sortDirection : false}>
+                  <TableSortLabel
+                    active={sortKey === 'type'}
+                    direction={sortKey === 'type' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('type')}
+                  >
+                    Type
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell
+                  sx={{ width: { xs: 140, md: 180 } }}
+                  sortDirection={sortKey === 'category' ? sortDirection : false}
                 >
-                  Description
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center" sortDirection={sortKey === 'amount' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'amount'}
-                  direction={sortKey === 'amount' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('amount')}
-                >
-                  Charge Amount
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center" sx={{ width: 96 }} sortDirection={sortKey === 'type' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'type'}
-                  direction={sortKey === 'type' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('type')}
-                >
-                  Type
-                </TableSortLabel>
-              </TableCell>
-              <TableCell
-                sx={{ width: { xs: 140, md: 180 } }}
-                sortDirection={sortKey === 'category' ? sortDirection : false}
-              >
-                <TableSortLabel
-                  active={sortKey === 'category'}
-                  direction={sortKey === 'category' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('category')}
-                >
-                  Category
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center" sortDirection={sortKey === 'matched' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'matched'}
-                  direction={sortKey === 'matched' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('matched')}
-                >
-                  Matched
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center">Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredTransactions.map((tx) => {
-              const date = tx.transaction_date || tx.transactionDate
-              const desc = tx.description || '—'
-              const vendor = tx.vendor_name || tx.vendorName || '—'
-              const amount = tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0
-              const type = normalizeTransactionType(tx)
-              const cat = tx.category || '—'
-              const matched = tx.is_matched ?? tx.isMatched ?? false
+                  <TableSortLabel
+                    active={sortKey === 'category'}
+                    direction={sortKey === 'category' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('category')}
+                  >
+                    Category
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === 'matched' ? sortDirection : false}>
+                  <TableSortLabel
+                    active={sortKey === 'matched'}
+                    direction={sortKey === 'matched' ? sortDirection : 'asc'}
+                    onClick={() => handleSort('matched')}
+                  >
+                    Matched
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center">Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedTransactions.map((tx) => {
+                const date = tx.transaction_date || tx.transactionDate
+                const desc = tx.description || '—'
+                const vendor = tx.vendor_name || tx.vendorName || '—'
+                const amount = tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0
+                const type = normalizeTransactionType(tx)
+                const cat = tx.category || '—'
+                const matched = tx.is_matched ?? tx.isMatched ?? false
 
-              return (
-                <TableRow key={tx.id ?? tx.transactionId} hover>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={selectedTransactionIds.includes(tx.id ?? tx.transactionId)}
-                      onChange={() => toggleTransactionSelection(tx.id ?? tx.transactionId)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {date ? new Date(date).toLocaleDateString() : '—'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                      {vendor}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                      {desc}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Typography
-                      variant="body2"
-                      fontWeight={600}
-                      color={type === 'credit' ? 'success.main' : 'error.main'}
-                    >
-                      {type === 'credit' ? '+' : '−'}
-                      {Math.abs(amount).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={formatTransactionTypeLabel(type)}
-                      size="small"
-                      color={typeColors[type] || 'default'}
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                      {cat}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={matched ? 'Matched' : 'Unmatched'}
-                      size="small"
-                      color={matched ? 'success' : 'default'}
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" justifyContent="center" spacing={0.5}>
-                      <IconButton
+                return (
+                  <TableRow key={tx.id ?? tx.transactionId} hover>
+                    <TableCell padding="checkbox">
+                      <Checkbox
                         size="small"
-                        onClick={() => openTransactionDetails(tx)}
+                        checked={selectedTransactionIds.includes(tx.id ?? tx.transactionId)}
+                        onChange={() => toggleTransactionSelection(tx.id ?? tx.transactionId)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {date ? new Date(date).toLocaleDateString() : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                        {vendor}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                        {desc}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography
+                        variant="body2"
+                        fontWeight={600}
+                        color={type === 'credit' ? 'success.main' : 'error.main'}
                       >
-                        <VisibilityRoundedIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
+                        {type === 'credit' ? '+' : '−'}
+                        {Math.abs(amount).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={formatTransactionTypeLabel(type)}
                         size="small"
-                        color="error"
-                        onClick={() => handleDeleteTransaction(tx)}
-                        disabled={
-                          deletingTransactionIds.includes(tx.id ?? tx.transactionId) ||
-                          bulkDeletingTransactions
-                        }
-                      >
-                        {deletingTransactionIds.includes(tx.id ?? tx.transactionId) ? (
-                          <CircularProgress size={16} color="error" />
-                        ) : (
-                          <DeleteOutlineRoundedIcon fontSize="small" />
-                        )}
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                        color={typeColors[type] || 'default'}
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                        {cat}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={matched ? 'Matched' : 'Unmatched'}
+                        size="small"
+                        color={matched ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Stack direction="row" justifyContent="center" spacing={0.5}>
+                        <IconButton
+                          size="small"
+                          onClick={() => openTransactionDetails(tx)}
+                        >
+                          <VisibilityRoundedIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteTransaction(tx)}
+                          disabled={
+                            deletingTransactionIds.includes(tx.id ?? tx.transactionId) ||
+                            bulkDeletingTransactions
+                          }
+                        >
+                          {deletingTransactionIds.includes(tx.id ?? tx.transactionId) ? (
+                            <CircularProgress size={16} color="error" />
+                          ) : (
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={filteredTransactions.length}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(Number(event.target.value))
+            setPage(0)
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+        />
+      </Stack>
     )
   }
 

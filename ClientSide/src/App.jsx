@@ -23,6 +23,19 @@ const ROLE_RULES = {
   all: ['accountant', 'business_owner', 'accountant_business_owner'],
 }
 
+/**
+ * ProtectedRoute component
+ *
+ * Wraps children and redirects unauthenticated users to the login page.
+ *
+ * @param {object} props
+ * @param {React.ReactNode} props.children - The protected UI to render when authenticated.
+ * @returns {React.ReactNode} The children when authenticated, otherwise a <Navigate> to /login.
+ *
+ * Notes:
+ * - Uses useAuth() to determine authentication state.
+ * - Uses react-router's <Navigate> with `replace` to avoid adding the login route to history.
+ */
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
 
