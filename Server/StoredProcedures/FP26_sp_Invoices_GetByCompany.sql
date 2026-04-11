@@ -34,6 +34,7 @@ BEGIN
         i.file_path,
         i.file_type,
         i.status,
+        i.ai_extraction_confidence,
         i.ai_processed,
         i.is_verified,
         i.is_matched,

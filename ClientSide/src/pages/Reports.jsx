@@ -345,8 +345,12 @@ function ReportCatalogGrid({ reports }) {
                 </Typography>
 
                 <Stack spacing={0.8}>
-                  {report.metrics.map((metric) => (
-                    <Typography key={metric} variant="body2" color="text.secondary">
+                  {report.metrics.map((metric, metricIndex) => (
+                    <Typography
+                      key={`${report.title}-${metricIndex}-${metric}`}
+                      variant="body2"
+                      color="text.secondary"
+                    >
                       {metric}
                     </Typography>
                   ))}
