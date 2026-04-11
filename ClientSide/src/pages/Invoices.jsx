@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Typography,
 } from '@mui/material'
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
@@ -134,6 +135,8 @@ function InvoicesPage() {
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([])
   const [deletingInvoiceIds, setDeletingInvoiceIds] = useState([])
   const [bulkDeletingInvoices, setBulkDeletingInvoices] = useState(false)
+  const [sortKey, setSortKey] = useState('date')
+  const [sortDirection, setSortDirection] = useState('desc')
 
   // ===================== Data Fetching =====================
 
@@ -511,6 +514,84 @@ function InvoicesPage() {
     [token],
   )
 
+  const handleSort = useCallback((columnKey) => {
+    if (sortKey === columnKey) {
+      setSortDirection((prevDirection) => (prevDirection === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+
+    setSortKey(columnKey)
+    setSortDirection('asc')
+  }, [sortKey])
+
+  const compareNullableValues = useCallback((a, b, direction = 'asc') => {
+    const aMissing = a == null
+    const bMissing = b == null
+
+    if (aMissing && bMissing) return 0
+    if (aMissing) return 1
+    if (bMissing) return -1
+
+    let result = 0
+
+    if (typeof a === 'number' && typeof b === 'number') {
+      result = a - b
+    } else {
+      result = String(a).localeCompare(String(b), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      })
+    }
+
+    return direction === 'desc' ? -result : result
+  }, [])
+
+  const getSortValue = useCallback((invoice, columnKey) => {
+    switch (columnKey) {
+      case 'invoiceNumber': {
+        const invoiceNumber = invoice.invoice_number || invoice.invoiceNumber || ''
+        return invoiceNumber.trim() || null
+      }
+      case 'vendor': {
+        const vendor = invoice.vendor_name || invoice.vendorName || ''
+        return vendor.trim() || null
+      }
+      case 'date': {
+        const rawDate = invoice.invoice_date || invoice.invoiceDate
+        if (!rawDate) return null
+
+        const timestamp = new Date(rawDate).getTime()
+        return Number.isNaN(timestamp) ? null : timestamp
+      }
+      case 'total': {
+        const numericAmount = Number(invoice.total_amount ?? invoice.totalAmount)
+        return Number.isFinite(numericAmount) ? numericAmount : null
+      }
+      case 'currency': {
+        const currency = invoice.currency || ''
+        return currency.trim() || null
+      }
+      case 'status': {
+        const status = invoice.status || ''
+        return status.trim() || null
+      }
+      case 'confidence': {
+        const confidence = Number(invoice.ai_extraction_confidence ?? invoice.aiExtractionConfidence)
+        return Number.isFinite(confidence) ? confidence : null
+      }
+      default:
+        return null
+    }
+  }, [])
+
+  const sortedInvoices = useMemo(() => {
+    return [...invoices].sort((a, b) => {
+      const valueA = getSortValue(a, sortKey)
+      const valueB = getSortValue(b, sortKey)
+      return compareNullableValues(valueA, valueB, sortDirection)
+    })
+  }, [invoices, sortKey, sortDirection, getSortValue, compareNullableValues])
+
   const visibleInvoiceIds = invoices
     .map((inv) => inv.id)
     .filter((id) => typeof id === 'number' && id > 0)
@@ -634,18 +715,74 @@ function InvoicesPage() {
                   onChange={toggleSelectAllInvoices}
                 />
               </TableCell>
-              <TableCell>Invoice #</TableCell>
-              <TableCell>Vendor</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell align="right">Total</TableCell>
-              <TableCell align="center">Currency</TableCell>
-              <TableCell align="center">Status</TableCell>
-              <TableCell align="center">Confidence</TableCell>
+              <TableCell sortDirection={sortKey === 'invoiceNumber' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'invoiceNumber'}
+                  direction={sortKey === 'invoiceNumber' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('invoiceNumber')}
+                >
+                  Invoice #
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sortDirection={sortKey === 'vendor' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'vendor'}
+                  direction={sortKey === 'vendor' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('vendor')}
+                >
+                  Vendor
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('date')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right" sortDirection={sortKey === 'total' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'total'}
+                  direction={sortKey === 'total' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('total')}
+                >
+                  Total
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'currency' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'currency'}
+                  direction={sortKey === 'currency' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('currency')}
+                >
+                  Currency
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'status' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'status'}
+                  direction={sortKey === 'status' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('status')}
+                >
+                  Status
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'confidence' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'confidence'}
+                  direction={sortKey === 'confidence' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('confidence')}
+                >
+                  Confidence
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {invoices.map((inv) => (
+            {sortedInvoices.map((inv) => (
               <TableRow key={inv.id} hover>
                 <TableCell padding="checkbox">
                   <Checkbox
