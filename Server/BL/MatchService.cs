@@ -157,7 +157,7 @@ namespace FinalProjectAuthAPI.BL
                     VendorName              = invoice.VendorName,
                     TotalAmount             = invoice.TotalAmount,
                     InvoiceDate             = invoice.InvoiceDate,
-                    AlreadyMatchedAmount    = invoice.MatchedAmount,
+                    AlreadyMatchedAmount    = existingInstallmentMatches.Sum(m => m.MatchedAmount),
                     RemainingAmount         = remaining,
                     ExpectedInstallments    = invoice.PaymentPlanTotalInstallments,
                     DetectedInstallmentCount = null,
