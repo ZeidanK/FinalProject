@@ -959,6 +959,15 @@ function InvoicesPage() {
         onSave={handleSaveVerification}
         initialData={modal.file?.extractedData}
         fileName={modal.file?.name}
+        fileType={
+          modal.file?.sourceInvoice?.fileType ||
+          modal.file?.sourceInvoice?.file_type ||
+          modal.file?.file?.type ||
+          null
+        }
+        invoiceId={modal.file?.existingInvoiceId || null}
+        token={token}
+        localFile={modal.file?.file || null}
         extractionMethod={modal.file?.serverResponse?.extractedData?.extractionMethod}
         saving={saving}
       />
