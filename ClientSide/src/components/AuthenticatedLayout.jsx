@@ -22,6 +22,7 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import { motion } from 'framer-motion'
+import LogoMark from './LogoMark'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useTheme } from '@mui/material/styles'
@@ -129,15 +130,7 @@ function SidebarContent({ onNavigate, user, onLogout }) {
           background: 'rgba(14, 24, 44, 0.72)',
         }}
       >
-        <Box
-          sx={{
-            width: 30,
-            height: 30,
-            borderRadius: '9px',
-            bgcolor: 'primary.main',
-            boxShadow: '0 8px 24px rgba(88, 166, 255, 0.42)',
-          }}
-        />
+        <LogoMark sx={{ width: 30, height: 30 }} />
         <Typography variant="h6" sx={{ fontSize: '1.05rem' }}>
           ReconFlow
         </Typography>
@@ -266,9 +259,10 @@ function AuthenticatedLayout() {
             <IconButton edge="start" color="inherit" onClick={handleOpen} aria-label="open menu">
               <MenuRoundedIcon />
             </IconButton>
-            <Typography sx={{ ml: 1 }} fontWeight={700}>
-              ReconFlow
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ ml: 1 }}>
+              <LogoMark sx={{ width: 28, height: 28 }} />
+              <Typography fontWeight={700}>ReconFlow</Typography>
+            </Stack>
           </Toolbar>
         </AppBar>
       )}
