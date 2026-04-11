@@ -1299,7 +1299,16 @@ function MatchesPage() {
         onSave={handleSaveInvoiceVerification}
         initialData={invoiceModal.file?.extractedData}
         fileName={invoiceModal.file?.name}
-        extractionMethod={null}
+        fileType={
+          invoiceModal.file?.sourceInvoice?.fileType ||
+          invoiceModal.file?.sourceInvoice?.file_type ||
+          invoiceModal.file?.file?.type ||
+          null
+        }
+        invoiceId={invoiceModal.file?.existingInvoiceId || null}
+        token={token}
+        localFile={invoiceModal.file?.file || null}
+        extractionMethod={invoiceModal.file?.serverResponse?.extractedData?.extractionMethod}
         saving={invoiceSaving}
       />
 
