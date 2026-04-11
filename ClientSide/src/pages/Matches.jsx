@@ -801,6 +801,10 @@ function MatchesPage() {
   const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId)
   const selectedTransaction = transactions.find((t) => t.id === selectedTransactionId)
 
+  const regularMatches = matches.filter(
+    (m) => (m.match_method || m.matchMethod) !== 'installment_simple',
+  )
+
   let matchedItemsContent
   if (loading) {
     matchedItemsContent = (
@@ -810,7 +814,7 @@ function MatchesPage() {
         ))}
       </Stack>
     )
-  } else if (matches.length === 0) {
+  } else if (regularMatches.length === 0) {
     matchedItemsContent = (
       <Stack alignItems="center" sx={{ py: 5 }}>
         <CompareArrowsRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
@@ -823,7 +827,7 @@ function MatchesPage() {
     matchedItemsContent = (
       <Stack spacing={1}>
         <AnimatePresence>
-          {matches.map((m) => {
+          {regularMatches.map((m) => {
             const id = m.id
             const invLabel =
               m.invoice_number || m.invoiceNumber || `Invoice #${m.invoice_id ?? m.invoiceId ?? '?'}`
@@ -1181,7 +1185,7 @@ function MatchesPage() {
           >
             <CardContent>
               <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                Matched Items ({matches.length})
+                Matched Items ({regularMatches.length})
               </Typography>
 
               {matchedItemsContent}
