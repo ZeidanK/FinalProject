@@ -87,7 +87,7 @@ const itemVariants = {
   },
 }
 
-function parseCSVData(text) {
+function parseCSVData(text, baseId = 0) {
   const result = Papa.parse(text, {
     header: true,
     skipEmptyLines: true,
@@ -108,7 +108,7 @@ function parseCSVData(text) {
     const vendorName = raw.vendorName || raw.vendor_name || ''
 
     return {
-      _rowId: index,
+      _rowId: baseId + index,
       transactionDate,
       description,
       amount,
@@ -118,6 +118,7 @@ function parseCSVData(text) {
       postedDate,
       vendorName,
       _valid: Boolean(transactionDate && description && amount !== 0),
+      _source: 'csv',
     }
   })
 }
@@ -133,7 +134,7 @@ function TransactionsPage() {
   const [listError, setListError] = useState('')
 
   // --- File upload ---
-  const [csvFile, setCsvFile] = useState(null)
+  const [uploadedFiles, setUploadedFiles] = useState([])
   const [parsedRows, setParsedRows] = useState([])
   const [parseError, setParseError] = useState('')
   const [dragActive, setDragActive] = useState(false)
@@ -295,79 +296,94 @@ function TransactionsPage() {
     return null
   }, [])
 
-  const handleCSVFile = useCallback((file) => {
-    if (!activeCompanyId) {
-      setParseError('Select an assigned company before uploading transactions.')
-      return
-    }
+  const handleCSVFiles = useCallback(
+    async (files) => {
+      if (!activeCompanyId) {
+        setParseError('Select an assigned company before uploading transactions.')
+        return
+      }
 
-    const error = validateFile(file)
-    if (error) {
-      setParseError(error)
-      return
-    }
-
-    setParseError('')
-    setCsvFile({ name: file.name, size: file.size, filePath: null, isExcel: EXCEL_EXTENSIONS.has(file.name.split('.').pop()?.toLowerCase()) })
-
-    const ext = file.name.split('.').pop()?.toLowerCase()
-
-    if (EXCEL_EXTENSIONS.has(ext)) {
-      // XLSX/XLS: send to server for extraction
+      setParseError('')
       setPreviewing(true)
       setParsedRows([])
-      previewExcel(file, activeCompanyId, token)
-        .then((data) => {
-          const txns = data?.extractionResult?.transactions || []
-          const filePath = data?.filePath || data?.FilePath || null
-          if (txns.length === 0) {
-            setParseError('No transactions could be extracted from the Excel file.')
-            setParsedRows([])
-            return
-          }
-          setCsvFile((prev) => ({
-            ...(prev || { name: file.name, size: file.size }),
-            name: file.name,
-            size: file.size,
-            filePath,
-            isExcel: true,
-          }))
-          const rows = txns.map((t, idx) => ({
-            _rowId: idx,
-            transactionDate: t.transactionDate || '',
-            description: t.description || '',
-            amount: typeof t.amount === 'number' ? t.amount : Number.parseFloat(t.amount) || 0,
-            transactionType: (t.transactionType || 'debit').toLowerCase(),
-            category: t.category || '',
-            referenceNumber: t.referenceNumber || '',
-            postedDate: t.postedDate || '',
-            vendorName: t.vendorName || '',
-            _valid: !!(t.transactionDate && t.description && t.amount && t.amount !== 0),
-          }))
-          setParsedRows(rows)
-        })
-        .catch((err) => {
-          setParseError(err.message || 'Failed to process Excel file.')
-          setParsedRows([])
-        })
-        .finally(() => setPreviewing(false))
-      return
-    }
+      setUploadedFiles([])
 
-    // CSV: parse client-side with PapaParse
-    file.text()
-      .then((text) => {
-        const rows = parseCSVData(text)
-        setParsedRows(rows)
-        if (rows.length === 0) {
-          setParseError('CSV file contains no data rows.')
+      const newUploadedFiles = []
+      const accumulatedRows = []
+      const errors = []
+      let nextRowId = 0
+
+      for (const file of files) {
+        const error = validateFile(file)
+        if (error) {
+          errors.push(`${file.name}: ${error}`)
+          continue
         }
-      })
-      .catch((err) => {
-        setParseError(err.message || 'Failed to read file.')
-        setParsedRows([])
-      })
-  }, [activeCompanyId, token, validateFile])
+
+        const ext = file.name.split('.').pop()?.toLowerCase()
+        const isExcel = EXCEL_EXTENSIONS.has(ext)
+        const fileMeta = {
+          name: file.name,
+          size: file.size,
+          isExcel,
+          filePath: null,
+        }
+
+        if (isExcel) {
+          try {
+            const data = await previewExcel(file, activeCompanyId, token)
+            const txns = data?.extractionResult?.transactions || []
+            const filePath = data?.filePath || data?.FilePath || null
+            if (txns.length === 0) {
+              errors.push(`${file.name}: No transactions could be extracted from the Excel file.`)
+              continue
+            }
+
+            fileMeta.filePath = filePath
+            const rows = txns.map((t) => ({
+              _rowId: nextRowId++,
+              transactionDate: t.transactionDate || '',
+              description: t.description || '',
+              amount: typeof t.amount === 'number' ? t.amount : Number.parseFloat(t.amount) || 0,
+              transactionType: (t.transactionType || 'debit').toLowerCase(),
+              category: t.category || '',
+              referenceNumber: t.referenceNumber || '',
+              postedDate: t.postedDate || '',
+              vendorName: t.vendorName || '',
+              _valid: !!(t.transactionDate && t.description && t.amount && t.amount !== 0),
+              _source: 'excel',
+            }))
+            accumulatedRows.push(...rows)
+          } catch (err) {
+            errors.push(`${file.name}: ${err.message || 'Failed to process Excel file.'}`)
+            continue
+          }
+        } else {
+          try {
+            const text = await file.text()
+            const rows = parseCSVData(text, nextRowId)
+            nextRowId += rows.length
+            if (rows.length === 0) {
+              errors.push(`${file.name}: CSV file contains no data rows.`)
+              continue
+            }
+            accumulatedRows.push(...rows)
+          } catch (err) {
+            errors.push(`${file.name}: ${err.message || 'Failed to read file.'}`)
+            continue
+          }
+        }
+
+        newUploadedFiles.push(fileMeta)
+      }
+
+      setUploadedFiles(newUploadedFiles)
+      setParsedRows(accumulatedRows)
+      if (errors.length > 0) setParseError(errors.join(' '))
+      setPreviewing(false)
+    },
+    [activeCompanyId, token, validateFile],
+  )
 
   const handleDrag = useCallback((e) => {
     e.preventDefault()
@@ -381,17 +397,19 @@ function TransactionsPage() {
       e.preventDefault()
       e.stopPropagation()
       setDragActive(false)
-      if (e.dataTransfer.files?.[0]) handleCSVFile(e.dataTransfer.files[0])
+      const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : []
+      if (files.length > 0) handleCSVFiles(files)
     },
-    [handleCSVFile],
+    [handleCSVFiles],
   )
 
   const handleFileInput = useCallback(
     (e) => {
-      if (e.target.files?.[0]) handleCSVFile(e.target.files[0])
+      const files = e.target.files ? Array.from(e.target.files) : []
+      if (files.length > 0) handleCSVFiles(files)
       e.target.value = ''
     },
-    [handleCSVFile],
+    [handleCSVFiles],
   )
 
   const removeRow = useCallback((rowId) => {
@@ -399,22 +417,23 @@ function TransactionsPage() {
   }, [])
 
   const clearUpload = useCallback(() => {
-    setCsvFile(null)
+    setUploadedFiles([])
     setParsedRows([])
     setParseError('')
   }, [])
 
   const handleClearUpload = useCallback(async () => {
-    if (!csvFile?.isExcel) {
+    const excelFiles = uploadedFiles.filter((file) => file.isExcel)
+    if (excelFiles.length === 0) {
       clearUpload()
       return
     }
 
-    const filePath = csvFile?.filePath
-    if (!filePath) {
+    const missingPathFile = excelFiles.find((file) => !file.filePath)
+    if (missingPathFile) {
       setSnack({
         open: true,
-        message: 'Missing file path for deny request. Please upload again.',
+        message: `Missing saved file path for ${missingPathFile.name}. Please upload again.`,
         severity: 'warning',
       })
       return
@@ -422,32 +441,36 @@ function TransactionsPage() {
 
     setClearingDecision(true)
     try {
-      await importExcelTransactions(
-        {
-          status: 'Deny',
-          savedFilePath: filePath,
-          companyId: activeCompanyId,
-          fileOriginalName: csvFile?.name || null,
-        },
-        token,
+      await Promise.all(
+        excelFiles.map((file) =>
+          importExcelTransactions(
+            {
+              status: 'Deny',
+              savedFilePath: file.filePath,
+              companyId: activeCompanyId,
+              fileOriginalName: file.name,
+            },
+            token,
+          ),
+        ),
       )
 
       clearUpload()
       setSnack({
         open: true,
-        message: 'File denied and cleared.',
+        message: 'Uploaded files denied and cleared.',
         severity: 'success',
       })
     } catch (err) {
       setSnack({
         open: true,
-        message: err.message || 'Failed to deny file on server.',
+        message: err.message || 'Failed to deny uploaded files on server.',
         severity: 'error',
       })
     } finally {
       setClearingDecision(false)
     }
-  }, [csvFile, clearUpload, token, activeCompanyId])
+  }, [uploadedFiles, clearUpload, token, activeCompanyId])
 
   // ===================== Import =====================
 
@@ -457,54 +480,51 @@ function TransactionsPage() {
       return
     }
 
-    const validRows = parsedRows.filter((r) => r._valid)
-    if (validRows.length === 0) {
-      setSnack({ open: true, message: 'No valid rows to import.', severity: 'warning' })
+    if (uploadedFiles.length === 0) {
+      setSnack({ open: true, message: 'Upload at least one file before importing.', severity: 'warning' })
       return
     }
 
-    const fileName = csvFile?.name
-    if (!fileName) {
-      setSnack({
-        open: true,
-        message: 'Missing file name. Please upload the file again.',
-        severity: 'warning',
-      })
+    const csvRows = parsedRows.filter((r) => r._valid && r._source === 'csv')
+    const excelFiles = uploadedFiles.filter((file) => file.isExcel)
+    if (csvRows.length === 0 && excelFiles.length === 0) {
+      setSnack({ open: true, message: 'No valid rows to import.', severity: 'warning' })
       return
     }
 
     setImporting(true)
     try {
-      if (csvFile?.isExcel) {
-        const savedFilePath = csvFile?.filePath
-        if (!savedFilePath) {
-          setSnack({
-            open: true,
-            message: 'Missing saved file path. Please re-upload the Excel file.',
-            severity: 'warning',
-          })
-          return
+      let totalImported = 0
+
+      if (excelFiles.length > 0) {
+        for (const file of excelFiles) {
+          const savedFilePath = file.filePath
+          if (!savedFilePath) {
+            setSnack({
+              open: true,
+              message: `Missing saved file path for ${file.name}. Please re-upload the Excel file.`,
+              severity: 'warning',
+            })
+            return
+          }
+
+          const response = await importExcelTransactions(
+            {
+              companyId: activeCompanyId,
+              savedFilePath,
+              fileOriginalName: file.name,
+            },
+            token,
+          )
+
+          totalImported += response?.count ?? 0
         }
+      }
 
-        const response = await importExcelTransactions(
-          {
-            companyId: activeCompanyId,
-            savedFilePath,
-            fileOriginalName: fileName,
-          },
-          token,
-        )
-
-        const importedCount = response?.count ?? 0
-        setSnack({
-          open: true,
-          message: `Successfully imported ${importedCount} transaction(s) from ${fileName}.`,
-          severity: 'success',
-        })
-      } else {
+      if (csvRows.length > 0) {
         const payload = {
           companyId: activeCompanyId,
-          transactions: validRows.map((r) => ({
+          transactions: csvRows.map((r) => ({
             companyId: activeCompanyId,
             transactionDate: r.transactionDate,
             description: r.description,
@@ -518,13 +538,14 @@ function TransactionsPage() {
         }
 
         await createTransactionsBulk(payload, token)
-        setSnack({
-          open: true,
-          message: `Successfully imported ${validRows.length} transaction(s)!`,
-          severity: 'success',
-        })
+        totalImported += csvRows.length
       }
 
+      setSnack({
+        open: true,
+        message: `Successfully imported ${totalImported} transaction(s).`,
+        severity: 'success',
+      })
       clearUpload()
       await transactionsQuery.refetch()
     } catch (err) {
@@ -536,7 +557,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, csvFile, token, clearUpload, activeCompanyId, transactionsQuery])
+  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, transactionsQuery])
 
   const openTransactionDetails = useCallback(
     async (tx) => {
@@ -996,15 +1017,16 @@ function TransactionsPage() {
                   }}
                 />
                 <Typography variant="h6" sx={{ mb: 0.5 }}>
-                  Drop a CSV or Excel file here or click to browse
+                  Drop one or more CSV or Excel files here or click to browse
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  CSV (.csv) and Excel (.xlsx, .xls) files — up to 10 MB
+                  CSV (.csv) and Excel (.xlsx, .xls) files — up to 10 MB each
                 </Typography>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".csv,.xlsx,.xls"
+                  multiple
                   hidden
                   onChange={handleFileInput}
                 />
@@ -1053,7 +1075,15 @@ function TransactionsPage() {
                     <Typography variant="subtitle1" fontWeight={700}>
                       Import Preview
                     </Typography>
-                    <Chip label={csvFile?.name} size="small" variant="outlined" />
+                    <Chip
+                      label={
+                        uploadedFiles.length === 1
+                          ? uploadedFiles[0].name
+                          : `${uploadedFiles.length} files uploaded`
+                      }
+                      size="small"
+                      variant="outlined"
+                    />
                     <Chip label={`${validCount} valid`} size="small" color="success" variant="outlined" />
                     {invalidCount > 0 && (
                       <Chip
