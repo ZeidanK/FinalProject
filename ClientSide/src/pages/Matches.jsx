@@ -1265,6 +1265,7 @@ function MatchesPage() {
                 setMatchBusy(false)
               }
             }}
+            onRemoveMatch={confirmUnmatch}
             matchBusy={matchBusy}
           />
       </PageSectionLayout>

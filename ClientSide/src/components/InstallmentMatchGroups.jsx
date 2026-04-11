@@ -21,6 +21,7 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import HourglassEmptyRoundedIcon from '@mui/icons-material/HourglassEmptyRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
+import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded'
 import { itemVariants } from '../utils/motionVariants'
 
@@ -51,7 +52,7 @@ const fmtMonth = (d) => {
 
 // ── Single installment group card ─────────────────────────────────────────
 
-function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy }) {
+function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatch, matchBusy }) {
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const visibleSuggestions = group.suggestedTransactions.filter(
@@ -199,9 +200,23 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy })
                           )}
                         </Box>
                       </Stack>
-                      <Typography variant="caption" fontWeight={600} sx={{ color: '#37d67a', ml: 1, flexShrink: 0 }}>
-                        {fmtAmount(amt)}
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ ml: 1, flexShrink: 0 }}>
+                        <Typography variant="caption" fontWeight={600} sx={{ color: '#37d67a' }}>
+                          {fmtAmount(amt)}
+                        </Typography>
+                        <Tooltip title="Remove match">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => onRemoveMatch(matchId)}
+                              disabled={matchBusy || !matchId}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <LinkOffRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Stack>
                     </Stack>
                   )
                 })}
@@ -332,12 +347,13 @@ InstallmentGroup.propTypes = {
   deniedTxnIds: PropTypes.instanceOf(Set).isRequired,
   onDeny: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
+  onRemoveMatch: PropTypes.func.isRequired,
   matchBusy: PropTypes.bool.isRequired,
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, onConfirm, matchBusy }) {
+export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, onConfirm, onRemoveMatch, matchBusy }) {
   const rawGroups = Array.isArray(query.data) ? query.data : []
 
   // Backend now decides which installment invoices should be tracked in this section.
@@ -397,6 +413,7 @@ export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, on
                   deniedTxnIds={deniedTxnIds}
                   onDeny={onDeny}
                   onConfirm={onConfirm}
+                  onRemoveMatch={onRemoveMatch}
                   matchBusy={matchBusy}
                 />
               ))}
@@ -413,5 +430,6 @@ InstallmentMatchGroups.propTypes = {
   deniedTxnIds: PropTypes.instanceOf(Set).isRequired,
   onDeny: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
+  onRemoveMatch: PropTypes.func.isRequired,
   matchBusy: PropTypes.bool.isRequired,
 }
