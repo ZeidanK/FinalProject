@@ -51,8 +51,16 @@ import {
   useUploadInvoicePdfMutation,
 } from '../hooks/queries/useInvoicesQueries'
 
+/**
+ * Maximum supported invoice PDF upload size in bytes.
+ * @type {number}
+ */
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
+/**
+ * Maps invoice processing status values to MUI chip colors.
+ * @type {{[key: string]: string}}
+ */
 const statusColors = {
   uploaded: 'info',
   processing: 'warning',
@@ -62,6 +70,11 @@ const statusColors = {
   rejected: 'error',
 }
 
+/**
+ * Normalizes a date value into an HTML date input string (YYYY-MM-DD).
+ * @param {*} value - Date string or date object to normalize.
+ * @returns {string} A date string suitable for date inputs or empty when invalid.
+ */
 const toDateInput = (value) => {
   if (!value) return ''
   if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
@@ -70,6 +83,13 @@ const toDateInput = (value) => {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Converts a saved invoice record from the API into invoice form values.
+ * Supports both snake_case and camelCase payload formats.
+ *
+ * @param {Object} invoice - Saved invoice payload.
+ * @returns {Object} Normalized form data for invoice verification and editing.
+ */
 const mapSavedInvoiceToForm = (invoice) => {
   const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
   const lineItems = invoice?.lineItems || invoice?.line_items || []
@@ -111,6 +131,12 @@ const mapSavedInvoiceToForm = (invoice) => {
   )
 }
 
+/**
+ * Invoice management page for uploading, reviewing, and editing PDFs.
+ * Handles upload queue processing, verification workflows, and invoice list actions.
+ *
+ * @returns {JSX.Element} Rendered invoice page interface.
+ */
 function InvoicesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
@@ -182,12 +208,21 @@ function InvoicesPage() {
 
   // ===================== Upload Handlers =====================
 
+  /**
+   * Validates an uploaded file before processing.
+   * @param {File} file - The uploaded file to validate.
+   * @returns {string|null} Error message for invalid files, or null when valid.
+   */
   const validateFile = (file) => {
     if (file.type !== 'application/pdf') return 'Only PDF files are accepted.'
     if (file.size > MAX_FILE_SIZE) return 'File exceeds 10 MB limit.'
     return null
   }
 
+  /**
+   * Uploads an invoice PDF to the server and updates the upload queue state.
+   * @param {Object} entry - Upload queue entry containing the file and metadata.
+   */
   const processFile = useCallback(
     async (entry) => {
       setFiles((prev) =>

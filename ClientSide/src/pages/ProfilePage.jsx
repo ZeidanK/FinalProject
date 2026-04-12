@@ -57,6 +57,13 @@ const cardSx = {
     'linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(10, 17, 33, 0.96) 100%)',
 }
 
+/**
+ * Render a section header with icon and title.
+ *
+ * @param {React.ReactNode} icon - Icon element shown before the title.
+ * @param {string} title - Section title text.
+ * @returns {JSX.Element} Section header markup.
+ */
 const sectionHeader = (icon, title) => (
   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2.5 }}>
     {icon}
@@ -88,6 +95,15 @@ const passwordFieldMeta = {
   confirm: { label: 'Confirm New Password', formKey: 'confirmPassword' },
 }
 
+/**
+ * ProfilePage is the user settings page where profile data, password changes,
+ * company management, and company selection are handled.
+ *
+ * The page supports business owners and accountants with separate sections
+ * for managing companies and choosing an active company.
+ *
+ * @returns {JSX.Element} Profile page content.
+ */
 export default function ProfilePage() {
   const { user, token, updateUser: updateAuthUser } = useAuth()
   const {
@@ -210,6 +226,11 @@ export default function ProfilePage() {
   }, [isAccountant, token])
 
   // ── Profile picture helpers ────────────────────────────────
+  /**
+   * Handle a new profile picture file selection and generate a preview.
+   *
+   * @param {React.ChangeEvent<HTMLInputElement>} e - File input change event.
+   */
   const handleProfilePicChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -226,6 +247,10 @@ export default function ProfilePage() {
   }, [profilePicPreview, profile?.profilePicture])
 
   // ── Save profile ───────────────────────────────────────────
+  /**
+   * Validate and persist edited profile information and optional profile picture.
+   * Updates auth context with new values and refreshes the profile query.
+   */
   const handleSaveProfile = async () => {
     const parsed = profileUpdateSchema.safeParse(profileForm)
     if (!parsed.success) {
@@ -270,6 +295,9 @@ export default function ProfilePage() {
   }
 
   // ── Change password ────────────────────────────────────────
+  /**
+   * Validate the password change form and perform a password update request.
+   */
   const handleChangePassword = async () => {
     const parsed = passwordChangeSchema.safeParse(passwordForm)
     if (!parsed.success) {
@@ -298,6 +326,11 @@ export default function ProfilePage() {
   }
 
   // ── Company CRUD ───────────────────────────────────────────
+  /**
+   * Prepare the UI for editing an existing company record.
+   *
+   * @param {object} company - Company record to edit.
+   */
   const startEditCompany = (company) => {
     setEditingCompanyId(company.id)
     setAddingCompany(false)
@@ -319,6 +352,9 @@ export default function ProfilePage() {
     setCompanyMsg(null)
   }
 
+  /**
+   * Reset the form and switch the company section into add-new mode.
+   */
   const startAddCompany = () => {
     setEditingCompanyId(null)
     setAddingCompany(true)
@@ -326,12 +362,18 @@ export default function ProfilePage() {
     setCompanyMsg(null)
   }
 
+  /**
+   * Cancel any active company edit or create flow and reset form state.
+   */
   const cancelCompanyEdit = () => {
     setEditingCompanyId(null)
     setAddingCompany(false)
     setCompanyMsg(null)
   }
 
+  /**
+   * Create or update a company record after validating the company form.
+   */
   const handleSaveCompany = async () => {
     const parsed = companySchema.safeParse(companyForm)
     if (!parsed.success) {
@@ -369,6 +411,11 @@ export default function ProfilePage() {
     }
   }
 
+  /**
+   * Delete a company record and refresh the company list after confirmation.
+   *
+   * @param {object} company - Company record to delete.
+   */
   const handleDeleteCompany = async (company) => {
     if (!company?.id) return
 
@@ -395,6 +442,12 @@ export default function ProfilePage() {
     }
   }
 
+  /**
+   * Select the provided company as the active working company.
+   * For accountant users this also grants access before selection.
+   *
+   * @param {object} company - Company record to select.
+   */
   const handleSelectCompany = async (company) => {
     if (!company?.id) return
 
@@ -911,6 +964,16 @@ export default function ProfilePage() {
 // Sub-components
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * CompanyCard renders a compact summary view for a company record.
+ *
+ * @param {object} props
+ * @param {object} props.company - Company data object.
+ * @param {Function} props.onEdit - Handler for edit action.
+ * @param {Function} props.onDelete - Handler for delete action.
+ * @param {boolean} props.deleting - Whether the company is currently being deleted.
+ * @returns {JSX.Element} Company card markup.
+ */
 function CompanyCard({ company, onEdit, onDelete, deleting }) {
   const c = company
   return (
@@ -978,7 +1041,25 @@ CompanyCard.defaultProps = {
   deleting: false,
 }
 
+/**
+ * CompanyForm renders the create/edit company input form.
+ *
+ * @param {object} props
+ * @param {object} props.form - Current form field values.
+ * @param {Function} props.setForm - Setter for form state.
+ * @param {boolean} props.saving - Loading state for the save action.
+ * @param {Function} props.onSave - Callback when the save button is clicked.
+ * @param {Function} props.onCancel - Callback when the cancel button is clicked.
+ * @param {boolean} props.isNew - Whether the form is creating a new company.
+ * @returns {JSX.Element} Company form markup.
+ */
 function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
+  /**
+   * Create an onChange handler for the company form field.
+   *
+   * @param {string} field - Field key to update.
+   * @returns {Function} Change handler for the field.
+   */
   const handleChange = (field) => (e) =>
     setForm((p) => ({ ...p, [field]: e.target.value }))
 

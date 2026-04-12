@@ -84,9 +84,25 @@ const navItems = [
   },
 ]
 
+/**
+ * Render the authenticated sidebar content for the current user.
+ *
+ * @param {Object} props
+ * @param {function(): void} [props.onNavigate] Callback triggered when a navigation item is clicked.
+ * @param {Object} props.user Authenticated user details.
+ * @param {string} [props.user.name] Display name of the user.
+ * @param {string} [props.user.email] Email address of the user.
+ * @param {string} [props.user.role] Role assigned to the user.
+ * @param {function(): void} props.onLogout Callback invoked to sign the user out.
+ * @returns {JSX.Element}
+ */
 function SidebarContent({ onNavigate, user, onLogout }) {
   const navigate = useNavigate()
 
+  /**
+   * Return the human-friendly label for the current user role.
+   * @returns {string}
+   */
   const getRoleLabel = () => {
     if (!user?.role) return 'Unknown role'
     if (user.role === 'admin') return 'Administrator'
@@ -98,6 +114,10 @@ function SidebarContent({ onNavigate, user, onLogout }) {
 
   const roleLabel = getRoleLabel()
 
+  /**
+   * Sign the user out and navigate to the login page.
+   * @returns {void}
+   */
   const handleLogout = () => {
     onLogout()
     navigate('/login', { replace: true })
@@ -227,6 +247,12 @@ SidebarContent.propTypes = {
   }),
 }
 
+/**
+ * Layout wrapper for authenticated routes that renders either a sidebar
+ * or a mobile drawer depending on screen size.
+ *
+ * @returns {JSX.Element}
+ */
 function AuthenticatedLayout() {
   const { user, logout } = useAuth()
   const theme = useTheme()

@@ -8,6 +8,14 @@ import {
 } from '../../services/admin'
 import { adminKeys } from '../../queries/queryKeys'
 
+/**
+ * Fetches admin statistics using React Query.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for admin stats.
+ */
 export function useAdminStatsQuery({ token, enabled = true }) {
   return useQuery({
     queryKey: adminKeys.stats(),
@@ -16,6 +24,15 @@ export function useAdminStatsQuery({ token, enabled = true }) {
   })
 }
 
+/**
+ * Fetches admin users with an optional search query.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @param {string} [params.query] - Optional search or filter query.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for admin users.
+ */
 export function useAdminUsersQuery({ token, query, enabled = true }) {
   return useQuery({
     queryKey: adminKeys.users(query),
@@ -24,6 +41,15 @@ export function useAdminUsersQuery({ token, query, enabled = true }) {
   })
 }
 
+/**
+ * Fetches admin logs with an optional filter query.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @param {string} [params.query] - Optional search or filter query.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for admin logs.
+ */
 export function useAdminLogsQuery({ token, query, enabled = true }) {
   return useQuery({
     queryKey: adminKeys.logs(query),
@@ -32,6 +58,15 @@ export function useAdminLogsQuery({ token, query, enabled = true }) {
   })
 }
 
+/**
+ * Fetches admin audit records with an optional filter query.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @param {string} [params.query] - Optional search or filter query.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for admin audit logs.
+ */
 export function useAdminAuditQuery({ token, query, enabled = true }) {
   return useQuery({
     queryKey: adminKeys.audit(query),
@@ -40,6 +75,13 @@ export function useAdminAuditQuery({ token, query, enabled = true }) {
   })
 }
 
+/**
+ * Toggles an admin user's active state and invalidates cached admin queries.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
+ */
 export function useToggleAdminUserActiveMutation({ token }) {
   const queryClient = useQueryClient()
 

@@ -27,6 +27,11 @@ import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { getDashboardStats, getRecentActivity, mapDashboardStatsToKpis } from '../services/dashboard'
 
+/**
+ * Quick action cards shown on the dashboard.
+ * Each entry includes a title, description, icon, and navigation path.
+ * @type {{title: string, text: string, icon: React.ReactNode, path: string}[]}
+ */
 const quickActions = [
   {
     title: 'Upload Invoices',
@@ -48,12 +53,21 @@ const quickActions = [
   },
 ]
 
+/**
+ * Display labels for user roles shown in the dashboard welcome panel.
+ * @type {{[key: string]: string}}
+ */
 const roleLabels = {
   accountant: 'Accountant',
   business_owner: 'Business Owner',
   accountant_business_owner: 'Accountant + Business Owner',
 }
 
+/**
+ * Icon components mapped to each KPI title.
+ * Used to visually distinguish dashboard statistic cards.
+ * @type {{[key: string]: React.ReactNode}}
+ */
 const kpiIcons = {
   'Open Runs': <TimelineRoundedIcon sx={{ color: '#a9d5ff' }} />,
   'Pending Matches': <HubRoundedIcon sx={{ color: '#a9d5ff' }} />,
@@ -61,6 +75,9 @@ const kpiIcons = {
   'Total Matches': <TaskAltRoundedIcon sx={{ color: '#b7ffd2' }} />,
 }
 
+/**
+ * Framer Motion variants for the dashboard page container animation.
+ */
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   show: {
@@ -74,11 +91,21 @@ const containerVariants = {
   },
 }
 
+/**
+ * Framer Motion variants applied to individual dashboard cards and rows.
+ */
 const itemVariants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 }
 
+/**
+ * Dashboard landing page for the authenticated user.
+ * Shows KPI cards, recent activity, workspace status, and quick navigation actions.
+ * Data is loaded from dashboard service endpoints for the active company.
+ *
+ * @returns {JSX.Element} The rendered dashboard page.
+ */
 function DashboardPage() {
   const { user, token } = useAuth()
   const { activeCompanyId } = useCompany()

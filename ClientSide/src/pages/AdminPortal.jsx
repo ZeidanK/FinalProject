@@ -75,8 +75,19 @@ const logLevelOptions = [
   { value: 'DEBUG', label: 'DEBUG' },
 ]
 
+/**
+ * Creates an empty paged result shape for table data.
+ *
+ * @returns {{totalCount: number, items: Array}} An empty paged result object.
+ */
 const createEmptyPaged = () => ({ totalCount: 0, items: [] })
 
+/**
+ * Normalizes a paged response object into a safe structure.
+ *
+ * @param {*} data - Raw response data from the server.
+ * @returns {{totalCount: number, items: Array}} Normalized paged result.
+ */
 const normalizePagedResult = (data) => {
   if (!data || typeof data !== 'object') return createEmptyPaged()
 
@@ -86,6 +97,12 @@ const normalizePagedResult = (data) => {
   }
 }
 
+/**
+ * Formats a timestamp into a localized date and time string.
+ *
+ * @param {string|number|Date} value - Date input value.
+ * @returns {string} Formatted date/time or '-' when the value is invalid.
+ */
 const formatDateTime = (value) => {
   if (!value) return '-'
   const date = new Date(value)
@@ -99,6 +116,13 @@ const formatDateTime = (value) => {
   })
 }
 
+/**
+ * Truncates text to a maximum length and appends an ellipsis if needed.
+ *
+ * @param {*} text - Text to truncate.
+ * @param {number} [maxLength=80] - Maximum length before truncation.
+ * @returns {string} Truncated text or '-' when the input is empty.
+ */
 const truncateText = (text, maxLength = 80) => {
   if (!text) return '-'
   const normalized = String(text)
@@ -106,11 +130,27 @@ const truncateText = (text, maxLength = 80) => {
   return `${normalized.slice(0, maxLength)}...`
 }
 
+/**
+ * Returns the label for the user activation toggle button.
+ *
+ * @param {boolean} isUpdating - Whether the toggle action is currently running.
+ * @param {boolean} isActive - Whether the user is currently active.
+ * @returns {string} Button label for the current toggle state.
+ */
 const getToggleActionLabel = (isUpdating, isActive) => {
   if (isUpdating) return 'Updating'
   return isActive ? 'Deactivate' : 'Activate'
 }
 
+/**
+ * Renders a tab panel only when the panel value matches the active tab.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} props.activeTab - The currently selected tab key.
+ * @param {string} props.tabValue - The tab key for this panel.
+ * @param {React.ReactNode} props.children - Panel contents.
+ * @returns {JSX.Element|null} The rendered tab panel or null when inactive.
+ */
 function TabPanel({ activeTab, tabValue, children }) {
   if (activeTab !== tabValue) return null
   return <Box sx={{ pt: 2 }}>{children}</Box>
@@ -122,6 +162,13 @@ TabPanel.propTypes = {
   children: PropTypes.node.isRequired,
 }
 
+/**
+ * Wraps content in a styled card section for the admin portal layout.
+ *
+ * @param {Object} props - Component props.
+ * @param {React.ReactNode} props.children - Section content.
+ * @returns {JSX.Element} The rendered section card.
+ */
 function SectionCard({ children }) {
   return (
     <Card
@@ -144,6 +191,14 @@ SectionCard.propTypes = {
   children: PropTypes.node.isRequired,
 }
 
+/**
+ * Admin portal page for monitoring system metrics, managing users, and reviewing logs.
+ *
+ * This page exposes tabs for platform stats, user management, system logs, and audit events.
+ * Data is loaded via React Query hooks and table filters are applied locally.
+ *
+ * @returns {JSX.Element} The rendered admin portal page.
+ */
 function AdminPortalPage() {
   const { token } = useAuth()
 

@@ -3,6 +3,15 @@ import { getUserById, updateUser, changePassword, uploadProfilePicture } from '.
 import { getCompaniesByUser, createCompany, updateCompany, deleteCompany } from '../../services/companies'
 import { profileKeys } from '../../queries/queryKeys'
 
+/**
+ * Fetches the authenticated user's profile.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.userId - User identifier for profile retrieval.
+ * @param {string} params.token - Authentication token for the request.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for user profile.
+ */
 export function useUserProfileQuery({ userId, token, enabled = true }) {
   return useQuery({
     queryKey: profileKeys.user(userId),
@@ -11,6 +20,15 @@ export function useUserProfileQuery({ userId, token, enabled = true }) {
   })
 }
 
+/**
+ * Fetches companies associated with the current user.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.userId - User identifier for company retrieval.
+ * @param {string} params.token - Authentication token for the request.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for user companies.
+ */
 export function useUserCompaniesQuery({ userId, token, enabled = true }) {
   return useQuery({
     queryKey: profileKeys.companies(userId),
@@ -19,6 +37,14 @@ export function useUserCompaniesQuery({ userId, token, enabled = true }) {
   })
 }
 
+/**
+ * Updates the user's profile and invalidates the cached profile query.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier for profile updates.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for updating the user profile.
+ */
 export function useUpdateProfileMutation({ userId, token }) {
   const queryClient = useQueryClient()
 
@@ -30,6 +56,14 @@ export function useUpdateProfileMutation({ userId, token }) {
   })
 }
 
+/**
+ * Uploads a profile picture and refreshes the cached user profile.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier for profile picture upload.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for uploading a profile picture.
+ */
 export function useUploadProfilePictureMutation({ userId, token }) {
   const queryClient = useQueryClient()
 
@@ -41,12 +75,28 @@ export function useUploadProfilePictureMutation({ userId, token }) {
   })
 }
 
+/**
+ * Changes the authenticated user's password.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier for password change.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for password updates.
+ */
 export function useChangePasswordMutation({ userId, token }) {
   return useMutation({
     mutationFn: (payload) => changePassword(userId, payload, token),
   })
 }
 
+/**
+ * Creates a new company for the authenticated user and refreshes their companies list.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier for company creation cache invalidation.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for company creation.
+ */
 export function useCreateCompanyMutation({ userId, token }) {
   const queryClient = useQueryClient()
 
@@ -58,6 +108,14 @@ export function useCreateCompanyMutation({ userId, token }) {
   })
 }
 
+/**
+ * Updates an existing company and refreshes the user's company list cache.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier for company list cache invalidation.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for company updates.
+ */
 export function useUpdateCompanyMutation({ userId, token }) {
   const queryClient = useQueryClient()
 
@@ -69,6 +127,14 @@ export function useUpdateCompanyMutation({ userId, token }) {
   })
 }
 
+/**
+ * Deletes an existing company and refreshes the cached company list for the user.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier for company list cache invalidation.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for company deletion.
+ */
 export function useDeleteCompanyMutation({ userId, token }) {
   const queryClient = useQueryClient()
 

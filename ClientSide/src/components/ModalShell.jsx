@@ -1,6 +1,19 @@
 import PropTypes from 'prop-types'
 import { Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material'
 
+/**
+ * A reusable dialog wrapper with consistent header, content, and action styling.
+ *
+ * @param {object} props
+ * @param {boolean} props.open - Whether the dialog is open.
+ * @param {function(): void} props.onClose - Callback invoked when the dialog requests to close.
+ * @param {'xs'|'sm'|'md'|'lg'|'xl'|false} [props.maxWidth] - Maximum dialog width.
+ * @param {import('react').ReactNode} props.title - Dialog title node.
+ * @param {import('react').ReactNode} [props.headerAction] - Optional element rendered next to the title.
+ * @param {import('react').ReactNode} props.children - Content displayed inside the dialog body.
+ * @param {import('react').ReactNode} [props.actions] - Action buttons rendered in the dialog footer.
+ * @returns {JSX.Element}
+ */
 export default function ModalShell({ open, onClose, maxWidth, title, headerAction, children, actions }) {
   return (
     <Dialog

@@ -2,6 +2,22 @@ import PropTypes from 'prop-types'
 import { Chip, Stack, TextField, Typography } from '@mui/material'
 import { confidenceColor, confidenceLabel } from '../utils/invoiceExtraction'
 
+/**
+ * Renders a label, confidence badge, and numeric input for an invoice field.
+ *
+ * @param {object} props - Component props.
+ * @param {string} props.label - The label text for the field row.
+ * @param {number|string} props.value - The current value shown in the text field.
+ * @param {number} props.confidence - Confidence score used to render the badge.
+ * @param {function(string): void} props.onChange - Callback when the field value changes.
+ * @param {object} [props.fieldSx] - Custom style overrides for the text field.
+ * @param {string} [props.labelVariant] - Typography variant for the label.
+ * @param {string} [props.labelColor] - Typography color for the label.
+ * @param {string|number} [props.labelFontWeight] - Font weight for the label.
+ * @param {object} [props.rowSx] - Style overrides for the row container.
+ * @param {string|number} [props.inputWeight] - Font weight for the numeric input.
+ * @returns {JSX.Element} The rendered confidence field row.
+ */
 export default function ConfidenceFieldRow({
   label,
   value,

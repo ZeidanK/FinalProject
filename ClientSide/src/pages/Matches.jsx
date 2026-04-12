@@ -55,6 +55,10 @@ import {
   useUnmatchedTransactionsQuery,
 } from '../hooks/queries/useMatchesQueries'
 
+/**
+ * Base card styling shared across the matches page panels.
+ * @type {import('@mui/material').SxProps}
+ */
 const cardBaseSx = {
   borderRadius: 3,
   border: '1px solid',
@@ -63,12 +67,24 @@ const cardBaseSx = {
 }
 
 // --------------- helper ---------------
+/**
+ * Formats a numeric value as a decimal amount string.
+ * @param {*} v - The value to format.
+ * @returns {string} Formatted amount with two decimal places.
+ */
 const fmtAmount = (v) =>
   (Number(v) || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
 
+/**
+ * Formats a numeric value as a currency string.
+ * Falls back to a simple currency prefix if Intl formatting fails.
+ * @param {*} v - The amount to format.
+ * @param {string} [currency='USD'] - Currency code.
+ * @returns {string} Formatted currency string.
+ */
 const fmtCurrency = (v, currency = 'USD') => {
   try {
     return (Number(v) || 0).toLocaleString(undefined, {
@@ -82,11 +98,21 @@ const fmtCurrency = (v, currency = 'USD') => {
   }
 }
 
+/**
+ * Formats a date value for display.
+ * @param {*} d - Date value or string.
+ * @returns {string} Localized date string or dash if invalid.
+ */
 const fmtDate = (d) => {
   if (!d) return '—'
   return new Date(d).toLocaleDateString()
 }
 
+/**
+ * Converts a date value into a YYYY-MM-DD string for date inputs.
+ * @param {*} value - Date value or string.
+ * @returns {string} Date input string or empty when invalid.
+ */
 const toDateInput = (value) => {
   if (!value) return ''
   if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
@@ -136,6 +162,28 @@ const mapSavedInvoiceToForm = (invoice) => {
   )
 }
 
+/**
+ * Render a selectable list panel with search and item actions.
+ *
+ * @param {Object} props - Panel props.
+ * @param {import('@mui/icons-material').SvgIconComponent} props.icon - Icon component for the panel header.
+ * @param {string} props.title - Panel title.
+ * @param {number} props.count - Number of items.
+ * @param {string} props.searchPlaceholder - Placeholder for the search input.
+ * @param {string} props.searchValue - Current search text.
+ * @param {function(string): void} props.onSearchChange - Callback for search input changes.
+ * @param {boolean} props.loading - Whether the panel is loading.
+ * @param {string} props.emptyMessage - Message shown when there are no items.
+ * @param {Array} props.items - Array of items to render.
+ * @param {number|null} props.selectedId - Currently selected item id.
+ * @param {function(number|null): void} props.onSelect - Item selection callback.
+ * @param {function(Object): string|JSX.Element} props.renderPrimary - Renders primary item text.
+ * @param {function(Object): string|JSX.Element} props.renderSecondary - Renders secondary item text.
+ * @param {function(Object): string|JSX.Element} props.renderAmount - Renders amount text.
+ * @param {function(Object): string|JSX.Element} props.renderDate - Renders date text.
+ * @param {function(Object): JSX.Element|null} [props.renderActions] - Optional action render function.
+ * @returns {JSX.Element} Rendered selection panel.
+ */
 function SelectionPanel({
   icon,
   title,
@@ -294,6 +342,20 @@ SelectionPanel.defaultProps = {
 
 // ── Quick Match Suggestions component ──────────────────────────────────────
 
+/**
+ * Renders quick invoice-to-transaction match suggestions.
+ * Filters out any session-denied pairs and provides confirm/deny actions.
+ *
+ * @param {Object} props - Suggestion panel props.
+ * @param {import('@tanstack/react-query').UseQueryResult} props.query - React Query result containing suggestions.
+ * @param {Set<string>} props.deniedPairs - Set of denied invoice-transaction keys.
+ * @param {function(number, number): void} props.onDeny - Callback when a pair is denied.
+ * @param {function(Object): void} props.onConfirm - Callback when a suggestion is confirmed.
+ * @param {boolean} props.matchBusy - Whether a match action is currently in progress.
+ * @param {Array} props.invoices - Available invoice records.
+ * @param {Array} props.transactions - Available transaction records.
+ * @returns {JSX.Element} Rendered suggestion card.
+ */
 function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBusy, invoices, transactions }) {
   const rawSuggestions = Array.isArray(query.data) ? query.data : []
   const suggestions = rawSuggestions.filter(
@@ -461,6 +523,13 @@ QuickMatchSuggestions.propTypes = {
   transactions: PropTypes.array.isRequired,
 }
 
+/**
+ * Main matches page for invoice-to-transaction reconciliation.
+ * Provides unmatched invoice/transaction panels, match actions, AI suggestions,
+ * and uninstallment match grouping workflows.
+ *
+ * @returns {JSX.Element} Rendered matches page.
+ */
 function MatchesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()

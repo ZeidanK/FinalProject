@@ -50,6 +50,17 @@ ProtectedRoute.propTypes = {
   children: PropTypes.node.isRequired,
 }
 
+/**
+ * RoleRoute component
+ *
+ * Restricts access to child routes based on the user's role.
+ * If the current user does not have an allowed role, it redirects to the dashboard.
+ *
+ * @param {object} props
+ * @param {Array<string>} props.allowedRoles - Roles permitted to access the route.
+ * @param {React.ReactNode} props.children - The protected UI to render when allowed.
+ * @returns {React.ReactNode} The children when the user role is authorized, otherwise a redirect.
+ */
 function RoleRoute({ allowedRoles, children }) {
   const { user } = useAuth()
 
@@ -65,6 +76,17 @@ RoleRoute.propTypes = {
   children: PropTypes.node.isRequired,
 }
 
+/**
+ * CompanyRoute component
+ *
+ * Ensures the user has an active company selected before rendering child routes.
+ * While company resolution is in progress, it shows a loading placeholder.
+ * If no company is available, it redirects the user to profile setup.
+ *
+ * @param {object} props
+ * @param {React.ReactNode} props.children - Route content that requires an active company.
+ * @returns {React.ReactNode} The children when a company exists, otherwise a redirect.
+ */
 function CompanyRoute({ children }) {
   const location = useLocation()
   const { activeCompanyId, loadingCompanies, hasResolvedCompanies } = useCompany()
@@ -93,6 +115,14 @@ CompanyRoute.propTypes = {
   children: PropTypes.node.isRequired,
 }
 
+/**
+ * Root application router.
+ *
+ * Configures public and protected routes for the application and applies
+ * authentication, role-based, and company-based access control.
+ *
+ * @returns {React.ReactElement} The top-level application router.
+ */
 function App() {
   return (
     <BrowserRouter>

@@ -3,6 +3,14 @@ import { Box, Button, Card, CardContent, Chip, Container, Stack, Typography } fr
 import { Link as RouterLink } from 'react-router-dom'
 import LogoMark from './LogoMark'
 
+/**
+ * A polished authentication page shell used by login and signup screens.
+ *
+ * @param {object} props - Component props.
+ * @param {string} props.chipLabel - Text displayed in the top label chip.
+ * @param {React.ReactNode} props.children - The auth page content rendered inside the card.
+ * @returns {JSX.Element} The rendered auth shell layout.
+ */
 export default function AuthShellLayout({ chipLabel, children }) {
   return (
     <Box

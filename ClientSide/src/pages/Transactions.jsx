@@ -88,6 +88,13 @@ const itemVariants = {
   },
 }
 
+/**
+ * Parse CSV text into normalized transaction preview rows.
+ *
+ * @param {string} text Raw CSV contents.
+ * @param {number} [baseId=0] Base row identifier for stable preview keys.
+ * @returns {Array<Object>} Parsed transaction rows with validation state.
+ */
 function parseCSVData(text, baseId = 0) {
   const result = Papa.parse(text, {
     header: true,
@@ -126,6 +133,14 @@ function parseCSVData(text, baseId = 0) {
 
 // ==================== Main Page ====================
 
+/**
+ * Transactions page component.
+ *
+ * Renders the transaction list, search and filter controls, CSV/Excel upload zone,
+ * import preview, and bulk transaction management actions for the active company.
+ *
+ * @returns {JSX.Element} Transaction management UI.
+ */
 function TransactionsPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()

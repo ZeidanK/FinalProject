@@ -3,6 +3,12 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import PropTypes from 'prop-types'
 import ModalShell from './ModalShell'
 
+/**
+ * Format a value as a localized date/time string.
+ *
+ * @param {string|number|Date|null|undefined} value - The raw date input.
+ * @returns {string} A localized date/time string or placeholder when invalid.
+ */
 function formatDate(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -10,6 +16,13 @@ function formatDate(value) {
   return date.toLocaleString()
 }
 
+/**
+ * Format a numeric value with a localized thousand separator and fixed decimals.
+ *
+ * @param {string|number|null|undefined} value - The raw numeric input.
+ * @param {number} [digits=2] - The number of decimal places to display.
+ * @returns {string} A formatted number string or placeholder when invalid.
+ */
 function formatNumber(value, digits = 2) {
   const number = Number(value)
   if (Number.isNaN(number)) return '—'
@@ -19,6 +32,12 @@ function formatNumber(value, digits = 2) {
   })
 }
 
+/**
+ * Choose a color theme for the status chip based on the transaction status.
+ *
+ * @param {string|null|undefined} status - The transaction status value.
+ * @returns {'success'|'warning'|'error'|'default'} The MUI chip color.
+ */
 function chipColorForStatus(status) {
   const normalized = String(status || '').toLowerCase()
   if (normalized === 'confirmed' || normalized === 'matched') return 'success'
@@ -27,6 +46,12 @@ function chipColorForStatus(status) {
   return 'default'
 }
 
+/**
+ * Normalize raw transaction payloads to a consistent display model.
+ *
+ * @param {object|null|undefined} tx - The incoming transaction object.
+ * @returns {object|null} A normalized transaction object or null.
+ */
 function normalizeTransaction(tx) {
   if (!tx) return null
 
@@ -58,6 +83,14 @@ function normalizeTransaction(tx) {
   }
 }
 
+/**
+ * Render a single labeled detail row in the transaction details grid.
+ *
+ * @param {object} props
+ * @param {React.ReactNode} props.label - The label shown above the detail value.
+ * @param {React.ReactNode} props.value - The detail value content.
+ * @returns {JSX.Element} A styled detail row block.
+ */
 function DetailRow({ label, value }) {
   return (
     <Stack spacing={0.5} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid', borderColor: 'divider', minHeight: 86 }}>
@@ -76,6 +109,15 @@ DetailRow.propTypes = {
   value: PropTypes.node,
 }
 
+/**
+ * Render loading or error state information above transaction details.
+ *
+ * @param {object} props
+ * @param {boolean} props.loading - Whether the detail payload is currently loading.
+ * @param {string} [props.error] - Error message to display, if any.
+ * @param {object|null} [props.data] - Existing transaction data to fallback on.
+ * @returns {JSX.Element|null} Status feedback content.
+ */
 function TransactionStatusContent({ loading, error, data }) {
   if (loading) {
     return (
@@ -109,6 +151,13 @@ TransactionStatusContent.propTypes = {
   data: PropTypes.object,
 }
 
+/**
+ * Render the main transaction detail display for a normalized transaction object.
+ *
+ * @param {object} props
+ * @param {object} props.data - The normalized transaction data to display.
+ * @returns {JSX.Element} The transaction details view.
+ */
 function TransactionDetailsContent({ data }) {
   return (
     <Stack spacing={3} sx={{ mt: 2 }}>
@@ -186,6 +235,17 @@ TransactionDetailsContent.propTypes = {
   data: PropTypes.object.isRequired,
 }
 
+/**
+ * Modal dialog rendering saved transaction details in a read-only display.
+ *
+ * @param {object} props
+ * @param {boolean} props.open - Whether the dialog is visible.
+ * @param {boolean} [props.loading] - Whether transaction detail data is loading.
+ * @param {string} [props.error] - Optional error message for display.
+ * @param {object|null} [props.transaction] - Raw transaction payload to normalize and render.
+ * @param {() => void} props.onClose - Callback fired to close the dialog.
+ * @returns {JSX.Element} The transaction details modal.
+ */
 export default function TransactionDetailsModal({ open, loading, error, transaction, onClose }) {
   const data = normalizeTransaction(transaction)
 

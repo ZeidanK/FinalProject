@@ -14,12 +14,22 @@ import AuthShellLayout from '../components/AuthShellLayout'
 import { registerSchema } from '../schemas/auth'
 import { useRegisterMutation } from '../hooks/queries/useAuthQueries'
 
+/**
+ * Available registration role options for the onboarding form.
+ *
+ * @type {{label: string, value: string}[]}
+ */
 const ROLE_OPTIONS = [
   { label: 'Accountant', value: 'accountant' },
   { label: 'Business Owner', value: 'business_owner' },
   { label: 'Both', value: 'accountant_business_owner' },
 ]
 
+/**
+ * RegisterPage renders the account creation form and handles registration logic.
+ *
+ * @returns {JSX.Element} The registration page layout.
+ */
 function RegisterPage() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState('')
@@ -42,6 +52,12 @@ function RegisterPage() {
   const registerMutation = useRegisterMutation()
   const selectedRole = watch('role')
 
+  /**
+   * Update the selected role field from the toggle button group.
+   *
+   * @param {React.MouseEvent} _event - Toggle button click event.
+   * @param {string} role - Selected role value.
+   */
   const handleRoleChange = (_event, role) => {
     if (!role) {
       return
@@ -50,6 +66,11 @@ function RegisterPage() {
     setValue('role', role, { shouldDirty: true, shouldValidate: true })
   }
 
+  /**
+   * Validate the form values and call the register mutation.
+   *
+   * @param {object} formValues - Values from the registration form.
+   */
   const onSubmit = async (formValues) => {
     setErrorMessage('')
 

@@ -3,6 +3,13 @@ import { Box, Container, Stack } from '@mui/material'
 import { motion } from 'framer-motion'
 import { containerVariants } from '../utils/motionVariants'
 
+/**
+ * Render a page section wrapper with background styling and animated content.
+ *
+ * @param {{children: import('react').ReactNode}} props
+ * @param {import('react').ReactNode} props.children - Section content to render inside the layout.
+ * @returns {JSX.Element}
+ */
 export default function PageSectionLayout({ children }) {
   return (
     <Box

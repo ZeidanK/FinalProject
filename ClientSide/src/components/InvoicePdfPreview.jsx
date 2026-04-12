@@ -24,12 +24,32 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString()
 
+/**
+ * Check whether the provided file information describes a PDF document.
+ *
+ * @param {string|null|undefined} fileType - MIME type or file type hint.
+ * @param {string|null|undefined} fileName - File name used to infer extension.
+ * @param {File|null|undefined} localFile - Local file object for preview.
+ * @returns {boolean} True when the attachment should be treated as a PDF.
+ */
 function isPdfDocument(fileType, fileName, localFile) {
   if (localFile?.type === 'application/pdf') return true
   if ((fileType || '').toLowerCase().includes('pdf')) return true
   return (fileName || '').toLowerCase().endsWith('.pdf')
 }
 
+/**
+ * Invoice PDF preview panel with zoom, navigation, and inline file loading.
+ *
+ * @param {object} props
+ * @param {boolean} props.open - Whether the preview panel is currently visible.
+ * @param {number|null} props.invoiceId - Invoice identifier for remote PDF fetch.
+ * @param {string|null} props.token - Authentication token for downloading the PDF.
+ * @param {string|null} props.fileType - File MIME type or type hint.
+ * @param {string|null} props.fileName - File name to display above the preview.
+ * @param {File|null} props.localFile - Local PDF file selected for preview.
+ * @returns {JSX.Element} Rendered preview component.
+ */
 export default function InvoicePdfPreview(props) {
   const open = props.open
   const invoiceId = props.invoiceId
@@ -129,23 +149,38 @@ export default function InvoicePdfPreview(props) {
     }
   }, [open])
 
+  /**
+   * Open the current PDF source in a new browser tab.
+   */
   const openInNewTab = useCallback(() => {
     if (!sourceUrl) return
     globalThis.open(sourceUrl, '_blank', 'noopener,noreferrer')
   }, [sourceUrl])
 
+  /**
+   * Navigate to the previous PDF page.
+   */
   const goPrevPage = useCallback(() => {
     setPageNumber((prev) => Math.max(1, prev - 1))
   }, [])
 
+  /**
+   * Navigate to the next PDF page.
+   */
   const goNextPage = useCallback(() => {
     setPageNumber((prev) => Math.min(pageCount, prev + 1))
   }, [pageCount])
 
+  /**
+   * Increase the PDF zoom scale within allowed bounds.
+   */
   const zoomIn = useCallback(() => {
     setScale((prev) => Math.min(2.2, +(prev + 0.15).toFixed(2)))
   }, [])
 
+  /**
+   * Decrease the PDF zoom scale within allowed bounds.
+   */
   const zoomOut = useCallback(() => {
     setScale((prev) => Math.max(0.6, +(prev - 0.15).toFixed(2)))
   }, [])

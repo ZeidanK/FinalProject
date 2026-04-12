@@ -1,3 +1,12 @@
+/**
+ * Normalize and read a transaction type value from a transaction object.
+ *
+ * This helper supports multiple field shapes, including snake_case, camelCase,
+ * and plain type properties.
+ *
+ * @param {object|null|undefined} transaction - Transaction object to inspect.
+ * @returns {string|null} Normalized transaction type or null when unavailable.
+ */
 function readTransactionType(transaction) {
   if (!transaction || typeof transaction !== 'object') return null
 
@@ -8,10 +17,24 @@ function readTransactionType(transaction) {
   return normalized || null
 }
 
+/**
+ * Normalize a transaction type and fall back to 'unknown'.
+ *
+ * @param {object} transaction - Transaction object containing a type field.
+ * @returns {string} Normalized transaction type or 'unknown'.
+ */
 export function normalizeTransactionType(transaction) {
   return readTransactionType(transaction) || 'unknown'
 }
 
+/**
+ * Get a sorted list of available transaction types for filtering.
+ *
+ * Always includes the 'all' option first.
+ *
+ * @param {Array<object>} transactions - List of transaction objects.
+ * @returns {Array<string>} Sorted types with 'all' prefixed.
+ */
 export function getTransactionTypes(transactions) {
   if (!Array.isArray(transactions) || transactions.length === 0) return ['all']
 
@@ -26,6 +49,13 @@ export function getTransactionTypes(transactions) {
   return ['all', ...sortedTypes]
 }
 
+/**
+ * Filter transactions by a selected type.
+ *
+ * @param {Array<object>} transactions - List of transaction objects.
+ * @param {string} selectedType - Selected type to filter by.
+ * @returns {Array<object>} Filtered transaction list.
+ */
 export function filterTransactionsByType(transactions, selectedType) {
   if (!Array.isArray(transactions) || transactions.length === 0) return []
   if (!selectedType || selectedType === 'all') return transactions
@@ -34,6 +64,12 @@ export function filterTransactionsByType(transactions, selectedType) {
   return transactions.filter((transaction) => normalizeTransactionType(transaction) === normalizedSelectedType)
 }
 
+/**
+ * Format a transaction type label for display.
+ *
+ * @param {string} type - Raw transaction type value.
+ * @returns {string} Formatted label suitable for UI display.
+ */
 export function formatTransactionTypeLabel(type) {
   if (!type || type === 'all') return 'All'
   if (type === 'unknown') return 'Unknown'

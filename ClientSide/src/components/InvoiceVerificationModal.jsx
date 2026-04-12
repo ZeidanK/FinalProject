@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
 import {
   Box,
@@ -30,14 +30,30 @@ import ConfidenceFieldRow from './ConfidenceFieldRow'
 import InvoicePdfPreview from './InvoicePdfPreview'
 import ModalShell from './ModalShell'
 
+/**
+ * Supported currency codes used in the invoice verification form.
+ * @type {string[]}
+ */
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'ILS']
 
+/**
+ * Shared styling for editable text fields in the verification modal.
+ * @type {import('@mui/material').SxProps}
+ */
 const fieldSx = {
   '& .MuiOutlinedInput-root': {
     bgcolor: 'rgba(255,255,255,0.04)',
   },
 }
 
+/**
+ * Render a field label with an attached confidence badge.
+ *
+ * @param {{label: string, confidence?: number}} props
+ * @param {string} props.label - Display label text.
+ * @param {number} [props.confidence] - Confidence score used to color the badge.
+ * @returns {JSX.Element}
+ */
 function FieldLabel({ label, confidence }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
@@ -56,6 +72,23 @@ FieldLabel.propTypes = {
   confidence: PropTypes.number,
 }
 
+/**
+ * Modal for reviewing and correcting extracted invoice fields with a PDF preview.
+ *
+ * @param {object} props
+ * @param {boolean} props.open - Whether the modal is visible.
+ * @param {function(): void} props.onClose - Close callback invoked when the modal is dismissed.
+ * @param {function(object): void} props.onSave - Save callback invoked with the current form state.
+ * @param {object} [props.initialData] - Extracted invoice field values with optional confidence metadata.
+ * @param {string} [props.fileName] - Name of the invoice file displayed in the header.
+ * @param {string} [props.fileType] - MIME type of the invoice file.
+ * @param {number} [props.invoiceId] - Invoice identifier used for PDF preview rendering.
+ * @param {string} [props.token] - Authorization token used by the PDF preview component.
+ * @param {File} [props.localFile] - Local file selected for preview when the invoice is not remote.
+ * @param {string} [props.extractionMethod] - Method used to extract invoice data, shown as a badge.
+ * @param {boolean} [props.saving] - Whether the save action is currently in progress.
+ * @returns {JSX.Element}
+ */
 export default function InvoiceVerificationModal(props) {
   const open = props.open
   const onClose = props.onClose
@@ -76,6 +109,13 @@ export default function InvoiceVerificationModal(props) {
     return initialData ? structuredClone(initialData) : {}
   })
 
+  /**
+   * Update a single top-level form field or nested payment plan field.
+   * Automatically recalculates VAT and total amount when related fields change.
+   *
+   * @param {string} field - Field name or nested paymentPlan path.
+   * @param {string|number} value - New field value.
+   */
   const updateField = useCallback(function (field, value) {
     setForm(function (prev) {
       const next = { ...prev}
@@ -109,6 +149,13 @@ export default function InvoiceVerificationModal(props) {
     })
   }, [])
 
+  /**
+   * Update a field value on a specific line item and recalculate line total when needed.
+   *
+   * @param {number} index - Zero-based line item index.
+   * @param {string} key - Line item field key.
+   * @param {string|number} value - New value for the field.
+   */
   const updateLineItem = useCallback(function (index, key, value) {
     setForm(function (prev) {
       const items = prev.lineItems.slice()
@@ -123,6 +170,9 @@ export default function InvoiceVerificationModal(props) {
     })
   }, [])
 
+  /**
+   * Append a new blank line item to the invoice form.
+   */
   const addLineItem = useCallback(function () {
     setForm(function (prev) {
       return { ...prev, lineItems: prev.lineItems.concat([
@@ -131,16 +181,28 @@ export default function InvoiceVerificationModal(props) {
     })
   }, [])
 
+  /**
+   * Remove a line item from the invoice form by index.
+   *
+   * @param {number} index - Zero-based index of the line item to remove.
+   */
   const removeLineItem = useCallback(function (index) {
     setForm(function (prev) {
       return { ...prev, lineItems: prev.lineItems.filter(function (_, i) { return i !== index })}
     })
   }, [])
 
+  /**
+   * Persist the current verification form values by invoking the save callback.
+   */
   const handleSave = useCallback(function () {
     onSave(form)
   }, [form, onSave])
 
+  /**
+   * Compute an aggregate confidence score for the invoice fields.
+   * Returns 0 when there is no extracted initial data.
+   */
   const overallConfidence = useMemo(function () {
     if (!initialData) return 0
     const fields = ['vendorName', 'invoiceNumber', 'invoiceDate', 'totalAmount', 'subtotal', 'vatAmount', 'currency', 'vendorTaxId', 'lastFourDigitsCard']
@@ -154,11 +216,13 @@ export default function InvoiceVerificationModal(props) {
 
   const lineItems = form.lineItems || []
 
-  useEffect(function () {
-    if (!open) {
-      setActiveTab('pdf')
-    }
-  }, [open])
+  /**
+   * Close the modal and reset the active mobile tab to the PDF preview.
+   */
+  const handleClose = useCallback(function () {
+    setActiveTab('pdf')
+    onClose()
+  }, [onClose])
 
   const formContent = (
     <Stack spacing={3} sx={{ pb: 0.5 }}>
@@ -443,7 +507,7 @@ export default function InvoiceVerificationModal(props) {
   return (
     <ModalShell
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="xl"
       title={(
         <Stack spacing={0.5}>
@@ -469,13 +533,13 @@ export default function InvoiceVerificationModal(props) {
         </Stack>
       )}
       headerAction={(
-        <IconButton onClick={onClose} size="small">
+        <IconButton onClick={handleClose} size="small">
           <CloseRoundedIcon />
         </IconButton>
       )}
       actions={(
         <>
-          <Button onClick={onClose} color="inherit">
+          <Button onClick={handleClose} color="inherit">
             Cancel
           </Button>
           <Button

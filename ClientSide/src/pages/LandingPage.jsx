@@ -28,6 +28,11 @@ import SpeedRoundedIcon from '@mui/icons-material/SpeedRounded'
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded'
 import { Link as RouterLink } from 'react-router-dom'
 
+/**
+ * Landing page feature steps shown in the hero section.
+ * Each step includes a title, descriptive text, and a representative icon.
+ * @type {{title: string, text: string, icon: React.ReactNode}[]}
+ */
 const steps = [
   {
     title: 'Upload',
@@ -51,6 +56,12 @@ const steps = [
   },
 ]
 
+/**
+ * Public-facing landing page for the ReconFlow platform.
+ * Presents the product value proposition, hero messaging, and feature steps.
+ *
+ * @returns {JSX.Element} The rendered landing page.
+ */
 function LandingPage() {
   return (
     <Box
