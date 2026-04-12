@@ -26,18 +26,23 @@ Default dev URL is `http://localhost:5173`.
 
 ## Environment Variables
 
-Environment values are loaded from `.env` (or `.env.local`) in `ClientSide`.
+Environment values are loaded from `.env` files in `ClientSide`.
+
+- `.env.development` is used by `npm run dev`
+- `.env.production` is used by `npm run build`
 
 - `VITE_API_BASE_URL`: API base URL used by frontend service modules.
-	- Default behavior in code: `/api`
-	- Recommended for local dev: `/api`
+	- Development recommended value: `/api`
+	- Production value for this deployment: `/cgroup4/test2/tar1/api`
+	- If omitted, frontend falls back to `/api` in development and `/cgroup4/test2/tar1/api` in production.
 
 Proxy behavior in local dev:
 - When `VITE_API_BASE_URL=/api`, Vite forwards `/api/*` to `http://localhost:5050` via `vite.config.js`.
 - This avoids browser CORS issues during local development.
 
 Production behavior:
-- Set `VITE_API_BASE_URL` to your deployed API base path if it is not `/api`.
+- Build the app with production env values (`npm run build`) before uploading `dist`.
+- For this project hosting layout, API calls should resolve to `/cgroup4/test2/tar1/api/*`.
 
 ## Startup Checklist
 

@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
+  base: '/cgroup4/test2/tar2/FinalProject/',
   plugins: [react()],
   server: {
     proxy: {
-      // Forward /api to the C# backend – avoids CORS entirely
       '/api': {
         target: 'http://localhost:5050',
         changeOrigin: true,

@@ -12,7 +12,20 @@ const normalizeBaseUrl = (value) => {
   return value.endsWith('/') ? value.slice(0, -1) : value
 }
 
-const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '/api')
+const resolveApiBaseUrl = () => {
+  const envBaseUrl = import.meta.env.VITE_API_BASE_URL
+  if (envBaseUrl) {
+    return envBaseUrl
+  }
+
+  if (import.meta.env.DEV) {
+    return '/api'
+  }
+
+  return '/cgroup4/test2/tar1/api'
+}
+
+const API_BASE_URL = normalizeBaseUrl(resolveApiBaseUrl())
 
 /**
  * Build a full API path using the configured base URL.
