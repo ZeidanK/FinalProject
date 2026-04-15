@@ -1,6 +1,7 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
+using System.Data.SqlClient;
 
 namespace FinalProjectAuthAPI.BL
 {
@@ -11,12 +12,14 @@ namespace FinalProjectAuthAPI.BL
     {
         private readonly DBservices _db;
         private readonly IMatchService? _matchService;
+        private readonly IAnomalyService? _anomalyService;
 
         // Constructor for DI (optional IMatchService to avoid circular dependency issues)
-        public InvoiceService(DBservices db, IMatchService? matchService = null)
+        public InvoiceService(DBservices db, IMatchService? matchService = null, IAnomalyService? anomalyService = null)
         {
             _db = db;
             _matchService = matchService;
+            _anomalyService = anomalyService;
         }
 
         public List<InvoiceRow> GetByCompany(
@@ -27,40 +30,96 @@ namespace FinalProjectAuthAPI.BL
 
         public InvoiceRow? GetById(long id) => _db.GetInvoiceById(id);
 
-        public (bool Success, long Id, string Error) Create(
+        public (bool Success, long Id, string Error, bool IsDuplicate) Create(
             CreateInvoiceRequest req, long uploadedByUserId)
             => Create(req, uploadedByUserId, null, null, null, null, null);
 
-        public (bool Success, long Id, string Error) Create(
+        public (bool Success, long Id, string Error, bool IsDuplicate) Create(
             CreateInvoiceRequest req, long uploadedByUserId,
             string? fileOriginalName, string? filePath, string? fileType,
             long? fileSize, decimal? aiConfidence)
         {
             if (!_db.UserHasActiveCompanyAccess(uploadedByUserId, req.CompanyId))
-                return (false, 0, "You do not have access to the selected company.");
+                return (false, 0, "You do not have access to the selected company.", false);
 
             if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
-                return (false, 0, "Invoice number is required.");
+                return (false, 0, "Invoice number is required.", false);
             if (string.IsNullOrWhiteSpace(req.VendorName))
-                return (false, 0, "Vendor name is required.");
+                return (false, 0, "Vendor name is required.", false);
 
-            var invoiceId = _db.CreateInvoice(
-                req.CompanyId, req.InvoiceNumber.Trim(), req.VendorName.Trim(),
-                req.InvoiceDate, req.TotalAmount, uploadedByUserId,
-                req.VendorTaxId, req.DueDate, req.PaymentDate,
-                req.Subtotal == 0 ? req.TotalAmount : req.Subtotal,
-                req.VatRate, req.VatAmount,
-                string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
-                fileOriginalName, filePath, fileType, fileSize, aiConfidence,
-                req.LastFourDigitsCard,
-                req.ItemCount,
-                req.PaymentPlanTotalInstallments,
-                req.PaymentPlanInstallmentAmount,
-                req.PaymentPlanFrequency,
-                req.PaymentPlanDescription);
+            long invoiceId;
+
+            try
+            {
+                invoiceId = _db.CreateInvoice(
+                    req.CompanyId, req.InvoiceNumber.Trim(), req.VendorName.Trim(),
+                    req.InvoiceDate, req.TotalAmount, uploadedByUserId,
+                    req.VendorTaxId, req.DueDate, req.PaymentDate,
+                    req.Subtotal == 0 ? req.TotalAmount : req.Subtotal,
+                    req.VatRate, req.VatAmount,
+                    string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
+                    fileOriginalName, filePath, fileType, fileSize, aiConfidence,
+                    req.LastFourDigitsCard,
+                    req.ItemCount,
+                    req.PaymentPlanTotalInstallments,
+                    req.PaymentPlanInstallmentAmount,
+                    req.PaymentPlanFrequency,
+                    req.PaymentPlanDescription);
+            }
+            catch (SqlException ex) when (ex.Number is 2627 or 2601)
+            {
+                // Duplicate invoice number for this company — save it flagged as a duplicate
+                invoiceId = _db.CreateInvoice(
+                    req.CompanyId, req.InvoiceNumber.Trim(), req.VendorName.Trim(),
+                    req.InvoiceDate, req.TotalAmount, uploadedByUserId,
+                    req.VendorTaxId, req.DueDate, req.PaymentDate,
+                    req.Subtotal == 0 ? req.TotalAmount : req.Subtotal,
+                    req.VatRate, req.VatAmount,
+                    string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency,
+                    fileOriginalName, filePath, fileType, fileSize, aiConfidence,
+                    req.LastFourDigitsCard,
+                    req.ItemCount,
+                    req.PaymentPlanTotalInstallments,
+                    req.PaymentPlanInstallmentAmount,
+                    req.PaymentPlanFrequency,
+                    req.PaymentPlanDescription,
+                    isDuplicate: true);
+
+                if (invoiceId <= 0)
+                    return (false, 0, "Invoice number already exists and the duplicate could not be saved.", false);
+
+                // Look up the original invoice to link the anomaly
+                var originalId = _db.GetInvoiceIdByNumber(req.CompanyId, req.InvoiceNumber.Trim());
+
+                _anomalyService?.Create(new CreateAnomalyRequest
+                {
+                    CompanyId         = req.CompanyId,
+                    AnomalyType       = "duplicate",
+                    Title             = $"Duplicate invoice: {req.InvoiceNumber.Trim()}",
+                    Description       = $"Invoice number '{req.InvoiceNumber.Trim()}' from vendor '{req.VendorName.Trim()}' " +
+                                        $"was uploaded again (total: {req.TotalAmount} {(string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency)}). " +
+                                        (originalId.HasValue ? $"Original invoice ID: {originalId.Value}." : string.Empty),
+                    Severity          = "high",
+                    SuggestedAction   = "Review both invoices and determine if this is a duplicate payment or a separate transaction.",
+                    RelatedInvoiceId  = invoiceId,
+                    Amount            = req.TotalAmount,
+                    DetectionMethod   = "manual",
+                    DetectionConfidence = 1m
+                });
+
+                // Insert line items then return early to skip the normal post-insert block below
+                if (req.LineItems != null)
+                    foreach (var li in req.LineItems)
+                        _db.CreateLineItem(
+                            invoiceId, li.Description, li.UnitPrice, li.TotalAmount,
+                            li.LineNumber, li.Category, li.Quantity,
+                            li.VatRate, li.AiConfidenceScore);
+
+                return (true, invoiceId, string.Empty, true);
+            }
 
             if (invoiceId <= 0)
-                return (false, 0, "Failed to create invoice.");
+                return (false, 0, "Failed to create invoice.", false);
 
             // Insert line items if provided
             if (req.LineItems != null)
@@ -70,7 +129,7 @@ namespace FinalProjectAuthAPI.BL
                         li.LineNumber, li.Category, li.Quantity,
                         li.VatRate, li.AiConfidenceScore);
 
-            return (true, invoiceId, string.Empty);
+            return (true, invoiceId, string.Empty, false);
         }
 
         public (bool Success, string Error, bool NotFound) Update(

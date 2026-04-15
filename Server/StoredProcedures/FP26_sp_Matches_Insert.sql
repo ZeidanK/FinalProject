@@ -26,6 +26,28 @@ BEGIN
 
     BEGIN TRANSACTION;
     BEGIN TRY
+        DECLARE @CurrentMatchedAmount DECIMAL(15,2);
+        DECLARE @TotalAmount DECIMAL(15,2);
+
+        SELECT
+            @CurrentMatchedAmount = matched_amount,
+            @TotalAmount = total_amount
+        FROM dbo.FP26_invoices WITH (UPDLOCK, ROWLOCK)
+        WHERE id = @InvoiceId;
+
+        IF @TotalAmount IS NULL
+            THROW 50001, 'Invoice not found.', 1;
+
+        IF @MatchedAmount <= 0
+            THROW 50002, 'Matched amount must be greater than zero.', 1;
+
+        DECLARE @RemainingAmount DECIMAL(15,2) = @TotalAmount - @CurrentMatchedAmount;
+        IF @RemainingAmount <= 0
+            THROW 50003, 'Invoice is already fully matched.', 1;
+
+        IF @MatchedAmount > @RemainingAmount
+            SET @MatchedAmount = @RemainingAmount;
+
         -- Insert the match record
         INSERT INTO dbo.FP26_invoice_transaction_matches
             (invoice_id, transaction_id, match_type, matched_amount,
@@ -42,12 +64,10 @@ BEGIN
 
         -- ACCUMULATE matched amount on invoice (supports installment payments)
         DECLARE @NewMatchedAmount DECIMAL(15,2);
-        DECLARE @TotalAmount DECIMAL(15,2);
         
         UPDATE dbo.FP26_invoices
-        SET matched_amount = matched_amount + @MatchedAmount,
-            @NewMatchedAmount = matched_amount + @MatchedAmount,
-            @TotalAmount = total_amount,
+        SET matched_amount = @CurrentMatchedAmount + @MatchedAmount,
+            @NewMatchedAmount = @CurrentMatchedAmount + @MatchedAmount,
             updated_at = GETDATE()
         WHERE id = @InvoiceId;
 

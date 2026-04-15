@@ -1,16 +1,54 @@
+/**
+ * Normalize a base URL.
+ *
+ * If a value is not provided, defaults to '/api'. If the value ends with a slash,
+ * the trailing slash is removed to keep API paths consistent.
+ *
+ * @param {string} value - The raw value from environment configuration.
+ * @returns {string} Normalized API base URL.
+ */
 const normalizeBaseUrl = (value) => {
   if (!value) return '/api'
   return value.endsWith('/') ? value.slice(0, -1) : value
 }
 
-const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '/api')
+const resolveApiBaseUrl = () => {
+  const envBaseUrl = import.meta.env.VITE_API_BASE_URL
+  if (envBaseUrl) {
+    return envBaseUrl
+  }
 
+  if (import.meta.env.DEV) {
+    return '/api'
+  }
+
+  return '/cgroup4/test2/tar1/api'
+}
+
+const API_BASE_URL = normalizeBaseUrl(resolveApiBaseUrl())
+
+/**
+ * Build a full API path using the configured base URL.
+ *
+ * @param {string} [path=''] - Relative API route path.
+ * @returns {string} Resolved full API endpoint URL.
+ */
 const buildApiPath = (path = '') => `${API_BASE_URL}${path}`
 
+/**
+ * Application-level runtime configuration.
+ *
+ * Exposes the normalized API base URL.
+ */
 export const APP_CONFIG = {
   apiBaseUrl: API_BASE_URL,
 }
 
+/**
+ * Centralized API endpoint mappings.
+ *
+ * Each property returns a fully resolved backend route for the corresponding feature.
+ */
 export const URLS = {
   auth: {
     base: buildApiPath('/Auth'),
@@ -28,6 +66,7 @@ export const URLS = {
     base: buildApiPath('/Companies'),
     byId: (id) => buildApiPath(`/Companies/${id}`),
     byUser: (userId) => buildApiPath(`/Companies/user/${userId}`),
+    grantAccess: (companyId) => buildApiPath(`/Companies/${companyId}/access`),
   },
   invoices: {
     base: buildApiPath('/Invoices'),

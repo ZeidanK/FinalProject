@@ -9,6 +9,15 @@ import {
 } from '../../services/transactions'
 import { transactionKeys } from '../../queries/queryKeys'
 
+/**
+ * Fetches transactions for a specified company using optional filters.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.companyId - Company identifier for transaction retrieval.
+ * @param {Object} [params.filters] - Optional filters to narrow transaction results.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for company transactions.
+ */
 export function useTransactionsByCompanyQuery({ companyId, token, filters }) {
   return useQuery({
     queryKey: transactionKeys.byCompany(companyId, filters),
@@ -17,6 +26,15 @@ export function useTransactionsByCompanyQuery({ companyId, token, filters }) {
   })
 }
 
+/**
+ * Fetches details for a single transaction.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.transactionId - Transaction identifier.
+ * @param {string} params.token - Authentication token for the request.
+ * @param {boolean} [params.enabled=true] - Whether the query should be enabled.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for transaction details.
+ */
 export function useTransactionDetailsQuery({ transactionId, token, enabled = true }) {
   return useQuery({
     queryKey: transactionKeys.detail(transactionId),
@@ -25,6 +43,15 @@ export function useTransactionDetailsQuery({ transactionId, token, enabled = tru
   })
 }
 
+/**
+ * Creates multiple transactions in bulk and invalidates the company transaction cache.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.companyId - Company identifier used for cache invalidation.
+ * @param {Object} [params.filters] - Filters used to refetch the transaction list after creation.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for bulk transaction creation.
+ */
 export function useCreateTransactionsBulkMutation({ companyId, filters, token }) {
   const queryClient = useQueryClient()
 
@@ -36,6 +63,15 @@ export function useCreateTransactionsBulkMutation({ companyId, filters, token })
   })
 }
 
+/**
+ * Deletes a transaction and refreshes the cached transaction list.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.companyId - Company identifier used for cache invalidation.
+ * @param {Object} [params.filters] - Filters used to refetch the transaction list after deletion.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for single transaction deletion.
+ */
 export function useDeleteTransactionMutation({ companyId, filters, token }) {
   const queryClient = useQueryClient()
 
@@ -47,6 +83,15 @@ export function useDeleteTransactionMutation({ companyId, filters, token }) {
   })
 }
 
+/**
+ * Deletes multiple transactions in bulk and refreshes the company transaction cache.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.companyId - Company identifier used for cache invalidation.
+ * @param {Object} [params.filters] - Filters used to refetch the transaction list after bulk deletion.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for bulk transaction deletion.
+ */
 export function useBulkDeleteTransactionsMutation({ companyId, filters, token }) {
   const queryClient = useQueryClient()
 
@@ -58,6 +103,13 @@ export function useBulkDeleteTransactionsMutation({ companyId, filters, token })
   })
 }
 
+/**
+ * Previews an Excel file upload and returns parsed transaction preview data.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for Excel preview.
+ */
 export function usePreviewExcelMutation({ token }) {
   return useMutation({
     mutationFn: ({ file, companyId }) => previewExcel(file, companyId, token),

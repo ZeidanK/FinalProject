@@ -11,6 +11,17 @@ const headerCardSx = {
   boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
 }
 
+/**
+ * Render a page header card with title, description, and a refresh action.
+ *
+ * @param {object} props
+ * @param {string} props.title - Header title text.
+ * @param {string} props.description - Header description text.
+ * @param {function(): void} props.onRefresh - Callback invoked when the refresh button is clicked.
+ * @param {boolean} [props.refreshDisabled] - Whether the refresh button should be disabled.
+ * @param {object} [props.variants] - Framer Motion variants for animated rendering.
+ * @returns {JSX.Element}
+ */
 export default function PageHeaderCard({ title, description, onRefresh, refreshDisabled, variants }) {
   return (
     <Card component={motion.div} variants={variants} elevation={0} sx={headerCardSx}>

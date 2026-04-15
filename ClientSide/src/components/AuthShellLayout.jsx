@@ -1,7 +1,16 @@
 import PropTypes from 'prop-types'
 import { Box, Button, Card, CardContent, Chip, Container, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
+import LogoMark from './LogoMark'
 
+/**
+ * A polished authentication page shell used by login and signup screens.
+ *
+ * @param {object} props - Component props.
+ * @param {string} props.chipLabel - Text displayed in the top label chip.
+ * @param {React.ReactNode} props.children - The auth page content rendered inside the card.
+ * @returns {JSX.Element} The rendered auth shell layout.
+ */
 export default function AuthShellLayout({ chipLabel, children }) {
   return (
     <Box
@@ -20,15 +29,7 @@ export default function AuthShellLayout({ chipLabel, children }) {
         <Stack spacing={3}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Stack direction="row" alignItems="center" spacing={1.2}>
-              <Box
-                sx={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: '10px',
-                  bgcolor: 'primary.main',
-                  boxShadow: '0 10px 28px rgba(88, 166, 255, 0.42)',
-                }}
-              />
+              <LogoMark />
               <Typography variant="h6" fontWeight={700}>
                 ReconFlow
               </Typography>

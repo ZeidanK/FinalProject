@@ -152,6 +152,7 @@ namespace FinalProjectAuthAPI.Models
         public DateTime? PostedDate       { get; set; }
         public string    Description      { get; set; } = string.Empty;
         public decimal   Amount           { get; set; }
+        public decimal?  ChargeAmount     { get; set; }
         public string?   VendorName       { get; set; }
     }
 }

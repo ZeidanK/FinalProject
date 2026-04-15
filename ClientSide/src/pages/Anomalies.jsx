@@ -48,6 +48,10 @@ import {
 import { resolveAnomalySchema } from '../schemas/anomalies'
 import { itemVariants } from '../utils/motionVariants'
 
+/**
+ * Maps anomaly severity levels to Material UI chip color variants.
+ * @type {{[key: string]: string}}
+ */
 const severityColors = {
   low: 'info',
   medium: 'warning',
@@ -55,6 +59,10 @@ const severityColors = {
   critical: 'error',
 }
 
+/**
+ * Maps anomaly statuses to Material UI chip color variants.
+ * @type {{[key: string]: string}}
+ */
 const statusColors = {
   open: 'warning',
   resolved: 'success',
@@ -62,6 +70,10 @@ const statusColors = {
   false_positive: 'info',
 }
 
+/**
+ * Dropdown options used to filter anomalies by status.
+ * @type {{value: string, label: string}[]}
+ */
 const statusOptions = [
   { value: '', label: 'All statuses' },
   { value: 'open', label: 'Open' },
@@ -70,6 +82,10 @@ const statusOptions = [
   { value: 'false_positive', label: 'False Positive' },
 ]
 
+/**
+ * Dropdown options used to filter anomalies by severity.
+ * @type {{value: string, label: string}[]}
+ */
 const severityOptions = [
   { value: '', label: 'All severities' },
   { value: 'low', label: 'Low' },
@@ -78,6 +94,10 @@ const severityOptions = [
   { value: 'critical', label: 'Critical' },
 ]
 
+/**
+ * Dropdown options used to filter anomalies by anomaly type.
+ * @type {{value: string, label: string}[]}
+ */
 const typeOptions = [
   { value: '', label: 'All types' },
   { value: 'amount_mismatch', label: 'Amount Mismatch' },
@@ -87,6 +107,11 @@ const typeOptions = [
   { value: 'manual', label: 'Manual' },
 ]
 
+/**
+ * Formats a numeric amount for display with two decimal places.
+ * @param {*} value - The value to format.
+ * @returns {string} Formatted amount or an em dash when no value is available.
+ */
 const fmtAmount = (value) => {
   if (value === null || value === undefined) return '—'
   return Number(value).toLocaleString(undefined, {
@@ -95,6 +120,11 @@ const fmtAmount = (value) => {
   })
 }
 
+/**
+ * Formats a date value into the user's locale string.
+ * @param {*} value - The date input to format.
+ * @returns {string} Localized date string or an em dash when invalid.
+ */
 const fmtDate = (value) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -102,6 +132,11 @@ const fmtDate = (value) => {
   return date.toLocaleString()
 }
 
+/**
+ * Converts snake_case or other raw values into human-readable labels.
+ * @param {*} value - The raw value to convert.
+ * @returns {string} Human-friendly label or an em dash when empty.
+ */
 const toLabel = (value) => {
   if (!value) return '—'
   return String(value)
@@ -111,6 +146,16 @@ const toLabel = (value) => {
     .join(' ')
 }
 
+/**
+ * Renders the main anomalies list section based on current query state.
+ *
+ * @param {Object} props - List rendering props.
+ * @param {boolean} props.listLoading - Whether anomaly data is currently loading.
+ * @param {string} props.listError - Error message when loading failed.
+ * @param {Array} props.anomalies - List of anomaly records to display.
+ * @param {Function} props.onOpenDetails - Callback to open anomaly details.
+ * @returns {JSX.Element} Rendered list content or placeholder states.
+ */
 function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
   if (listLoading) {
     return (
@@ -200,6 +245,17 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
   )
 }
 
+/**
+ * Renders the anomaly details panel, including the resolution form when the anomaly remains open.
+ *
+ * @param {Object} props - Detail panel rendering props.
+ * @param {boolean} props.detailsLoading - Whether detail data is loading.
+ * @param {string} props.detailsError - Error message when detail fetch failed.
+ * @param {Object|null} props.selectedAnomaly - The currently selected anomaly record.
+ * @param {Object} props.resolutionFieldProps - Props wired for the resolution notes form field.
+ * @param {string} props.resolutionError - Validation error message for resolution notes.
+ * @returns {JSX.Element} Rendered anomaly detail content.
+ */
 function getDetailsContent({
   detailsLoading,
   detailsError,
@@ -300,6 +356,17 @@ function getDetailsContent({
   )
 }
 
+/**
+ * Displays a compact anomaly statistics card.
+ *
+ * @param {Object} props - Card properties.
+ * @param {string} props.title - Card title.
+ * @param {string|number} props.value - Display value.
+ * @param {string} props.hint - Supporting hint text.
+ * @param {React.ReactNode} props.icon - Icon displayed in the card.
+ * @param {string} props.color - Color used for the icon.
+ * @returns {JSX.Element} Rendered statistics card.
+ */
 function StatsCard({ title, value, hint, icon, color }) {
   return (
     <Card
@@ -339,6 +406,14 @@ StatsCard.propTypes = {
   color: PropTypes.string.isRequired,
 }
 
+/**
+ * Main page for anomaly monitoring and resolution workflows.
+ *
+ * This page provides filter controls, anomaly summary cards, a searchable anomaly list,
+ * and a details dialog for resolving open anomalies.
+ *
+ * @returns {JSX.Element} The anomalies page content.
+ */
 function AnomaliesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()

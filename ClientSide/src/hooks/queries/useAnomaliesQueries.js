@@ -7,6 +7,15 @@ import {
 } from '../../services/anomalies'
 import { anomalyKeys } from '../../queries/queryKeys'
 
+/**
+ * Fetches a list of anomalies for a company with optional filters.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.companyId - Company identifier used to fetch anomalies.
+ * @param {string} params.token - Authentication token for the request.
+ * @param {Object} [params.filters] - Optional filter values for the anomaly list.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for the anomaly list.
+ */
 export function useAnomaliesListQuery({ companyId, token, filters }) {
   return useQuery({
     queryKey: anomalyKeys.list(companyId, filters),
@@ -15,6 +24,14 @@ export function useAnomaliesListQuery({ companyId, token, filters }) {
   })
 }
 
+/**
+ * Fetches anomaly statistics for a given company.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.companyId - Company identifier used to fetch stats.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for anomaly stats.
+ */
 export function useAnomalyStatsQuery({ companyId, token }) {
   return useQuery({
     queryKey: anomalyKeys.stats(companyId),
@@ -23,6 +40,15 @@ export function useAnomalyStatsQuery({ companyId, token }) {
   })
 }
 
+/**
+ * Fetches details for a specific anomaly.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.anomalyId - Anomaly identifier.
+ * @param {string} params.token - Authentication token for the request.
+ * @param {boolean} [params.enabled=true] - Whether the query should be active.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for anomaly details.
+ */
 export function useAnomalyDetailsQuery({ anomalyId, token, enabled = true }) {
   return useQuery({
     queryKey: anomalyKeys.detail(anomalyId),
@@ -31,6 +57,14 @@ export function useAnomalyDetailsQuery({ anomalyId, token, enabled = true }) {
   })
 }
 
+/**
+ * Resolves an anomaly and invalidates related query caches.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.companyId - Company identifier for cache invalidation.
+ * @param {string} params.token - Authentication token for the request.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
+ */
 export function useResolveAnomalyMutation({ companyId, token }) {
   const queryClient = useQueryClient()
 

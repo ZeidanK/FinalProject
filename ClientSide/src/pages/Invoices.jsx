@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Typography,
 } from '@mui/material'
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
@@ -50,8 +51,16 @@ import {
   useUploadInvoicePdfMutation,
 } from '../hooks/queries/useInvoicesQueries'
 
+/**
+ * Maximum supported invoice PDF upload size in bytes.
+ * @type {number}
+ */
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
+/**
+ * Maps invoice processing status values to MUI chip colors.
+ * @type {{[key: string]: string}}
+ */
 const statusColors = {
   uploaded: 'info',
   processing: 'warning',
@@ -61,6 +70,11 @@ const statusColors = {
   rejected: 'error',
 }
 
+/**
+ * Normalizes a date value into an HTML date input string (YYYY-MM-DD).
+ * @param {*} value - Date string or date object to normalize.
+ * @returns {string} A date string suitable for date inputs or empty when invalid.
+ */
 const toDateInput = (value) => {
   if (!value) return ''
   if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
@@ -69,6 +83,13 @@ const toDateInput = (value) => {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Converts a saved invoice record from the API into invoice form values.
+ * Supports both snake_case and camelCase payload formats.
+ *
+ * @param {Object} invoice - Saved invoice payload.
+ * @returns {Object} Normalized form data for invoice verification and editing.
+ */
 const mapSavedInvoiceToForm = (invoice) => {
   const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
   const lineItems = invoice?.lineItems || invoice?.line_items || []
@@ -86,6 +107,16 @@ const mapSavedInvoiceToForm = (invoice) => {
       currency: invoice?.currency ?? 'USD',
       vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
       lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
+      paymentPlan: {
+        totalInstallments:
+          invoice?.paymentPlanTotalInstallments ?? invoice?.payment_plan_total_installments ?? null,
+        installmentAmount:
+          invoice?.paymentPlanInstallmentAmount ?? invoice?.payment_plan_installment_amount ?? null,
+        frequency: invoice?.paymentPlanFrequency ?? invoice?.payment_plan_frequency ?? null,
+        currentInstallment:
+          invoice?.paymentPlanCurrentInstallment ?? invoice?.payment_plan_current_installment ?? null,
+        description: invoice?.paymentPlanDescription ?? invoice?.payment_plan_description ?? null,
+      },
       lineItems: lineItems.map((li, idx) => ({
         description: li?.description || '',
         quantity: li?.quantity ?? 1,
@@ -100,6 +131,12 @@ const mapSavedInvoiceToForm = (invoice) => {
   )
 }
 
+/**
+ * Invoice management page for uploading, reviewing, and editing PDFs.
+ * Handles upload queue processing, verification workflows, and invoice list actions.
+ *
+ * @returns {JSX.Element} Rendered invoice page interface.
+ */
 function InvoicesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
@@ -124,6 +161,8 @@ function InvoicesPage() {
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([])
   const [deletingInvoiceIds, setDeletingInvoiceIds] = useState([])
   const [bulkDeletingInvoices, setBulkDeletingInvoices] = useState(false)
+  const [sortKey, setSortKey] = useState('date')
+  const [sortDirection, setSortDirection] = useState('desc')
 
   // ===================== Data Fetching =====================
 
@@ -169,12 +208,21 @@ function InvoicesPage() {
 
   // ===================== Upload Handlers =====================
 
+  /**
+   * Validates an uploaded file before processing.
+   * @param {File} file - The uploaded file to validate.
+   * @returns {string|null} Error message for invalid files, or null when valid.
+   */
   const validateFile = (file) => {
     if (file.type !== 'application/pdf') return 'Only PDF files are accepted.'
     if (file.size > MAX_FILE_SIZE) return 'File exceeds 10 MB limit.'
     return null
   }
 
+  /**
+   * Uploads an invoice PDF to the server and updates the upload queue state.
+   * @param {Object} entry - Upload queue entry containing the file and metadata.
+   */
   const processFile = useCallback(
     async (entry) => {
       setFiles((prev) =>
@@ -351,6 +399,30 @@ function InvoicesPage() {
           serverResponse?.extractedData?.extractionConfidence ??
           serverResponse?.ExtractedData?.ExtractionConfidence ??
           null
+        const paymentPlanTotalInstallmentsInput = formData.paymentPlan?.totalInstallments?.value
+        const paymentPlanInstallmentAmountInput = formData.paymentPlan?.installmentAmount?.value
+        const paymentPlanCurrentInstallmentInput = formData.paymentPlan?.currentInstallment?.value
+
+        const paymentPlanTotalInstallments =
+          paymentPlanTotalInstallmentsInput === '' || paymentPlanTotalInstallmentsInput == null
+            ? sourceInvoice.paymentPlanTotalInstallments ??
+              sourceInvoice.payment_plan_total_installments ??
+              null
+            : Number.parseInt(paymentPlanTotalInstallmentsInput, 10) || 0
+
+        const paymentPlanInstallmentAmount =
+          paymentPlanInstallmentAmountInput === '' || paymentPlanInstallmentAmountInput == null
+            ? sourceInvoice.paymentPlanInstallmentAmount ??
+              sourceInvoice.payment_plan_installment_amount ??
+              null
+            : Number.parseFloat(paymentPlanInstallmentAmountInput) || 0
+
+        const paymentPlanCurrentInstallment =
+          paymentPlanCurrentInstallmentInput === '' || paymentPlanCurrentInstallmentInput == null
+            ? sourceInvoice.paymentPlanCurrentInstallment ??
+              sourceInvoice.payment_plan_current_installment ??
+              null
+            : Number.parseInt(paymentPlanCurrentInstallmentInput, 10) || 0
 
         const payload = {
           companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
@@ -367,14 +439,19 @@ function InvoicesPage() {
           dueDate: formData.dueDate?.value || null,
           paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
           itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
-          paymentPlanTotalInstallments:
-            sourceInvoice.paymentPlanTotalInstallments || sourceInvoice.payment_plan_total_installments || null,
-          paymentPlanInstallmentAmount:
-            sourceInvoice.paymentPlanInstallmentAmount || sourceInvoice.payment_plan_installment_amount || null,
+          paymentPlanTotalInstallments,
+          paymentPlanInstallmentAmount,
           paymentPlanFrequency:
-            sourceInvoice.paymentPlanFrequency || sourceInvoice.payment_plan_frequency || null,
+            formData.paymentPlan?.frequency?.value ||
+            sourceInvoice.paymentPlanFrequency ||
+            sourceInvoice.payment_plan_frequency ||
+            null,
+          paymentPlanCurrentInstallment,
           paymentPlanDescription:
-            sourceInvoice.paymentPlanDescription || sourceInvoice.payment_plan_description || null,
+            formData.paymentPlan?.description?.value ||
+            sourceInvoice.paymentPlanDescription ||
+            sourceInvoice.payment_plan_description ||
+            null,
           fileOriginalName,
           filePath,
           fileType,
@@ -403,16 +480,26 @@ function InvoicesPage() {
             ),
           )
 
-          // Show success message with auto-match result
-          const autoMatchResult = result?.autoMatchResult
-          if (autoMatchResult?.matched) {
+          // Handle duplicate invoice — saved but flagged as anomaly
+          if (result?.isDuplicate) {
             setSnack({
               open: true,
-              message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`,
-              severity: 'success',
+              message:
+                'This invoice number already exists. The upload was saved and flagged as a duplicate — check the Anomalies page for details.',
+              severity: 'warning',
             })
           } else {
-            setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+            // Show success message with auto-match result
+            const autoMatchResult = result?.autoMatchResult
+            if (autoMatchResult?.matched) {
+              setSnack({
+                open: true,
+                message: `Invoice created and automatically matched! (${autoMatchResult.matchScore?.toFixed(1)}% confidence)`,
+                severity: 'success',
+              })
+            } else {
+              setSnack({ open: true, message: 'Invoice created successfully!', severity: 'success' })
+            }
           }
         }
 
@@ -461,6 +548,84 @@ function InvoicesPage() {
     },
     [token],
   )
+
+  const handleSort = useCallback((columnKey) => {
+    if (sortKey === columnKey) {
+      setSortDirection((prevDirection) => (prevDirection === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+
+    setSortKey(columnKey)
+    setSortDirection('asc')
+  }, [sortKey])
+
+  const compareNullableValues = useCallback((a, b, direction = 'asc') => {
+    const aMissing = a == null
+    const bMissing = b == null
+
+    if (aMissing && bMissing) return 0
+    if (aMissing) return 1
+    if (bMissing) return -1
+
+    let result = 0
+
+    if (typeof a === 'number' && typeof b === 'number') {
+      result = a - b
+    } else {
+      result = String(a).localeCompare(String(b), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      })
+    }
+
+    return direction === 'desc' ? -result : result
+  }, [])
+
+  const getSortValue = useCallback((invoice, columnKey) => {
+    switch (columnKey) {
+      case 'invoiceNumber': {
+        const invoiceNumber = invoice.invoice_number || invoice.invoiceNumber || ''
+        return invoiceNumber.trim() || null
+      }
+      case 'vendor': {
+        const vendor = invoice.vendor_name || invoice.vendorName || ''
+        return vendor.trim() || null
+      }
+      case 'date': {
+        const rawDate = invoice.invoice_date || invoice.invoiceDate
+        if (!rawDate) return null
+
+        const timestamp = new Date(rawDate).getTime()
+        return Number.isNaN(timestamp) ? null : timestamp
+      }
+      case 'total': {
+        const numericAmount = Number(invoice.total_amount ?? invoice.totalAmount)
+        return Number.isFinite(numericAmount) ? numericAmount : null
+      }
+      case 'currency': {
+        const currency = invoice.currency || ''
+        return currency.trim() || null
+      }
+      case 'status': {
+        const status = invoice.status || ''
+        return status.trim() || null
+      }
+      case 'confidence': {
+        const confidence = Number(invoice.ai_extraction_confidence ?? invoice.aiExtractionConfidence)
+        return Number.isFinite(confidence) ? confidence : null
+      }
+      default:
+        return null
+    }
+  }, [])
+
+  const sortedInvoices = useMemo(() => {
+    return [...invoices].sort((a, b) => {
+      const valueA = getSortValue(a, sortKey)
+      const valueB = getSortValue(b, sortKey)
+      return compareNullableValues(valueA, valueB, sortDirection)
+    })
+  }, [invoices, sortKey, sortDirection, getSortValue, compareNullableValues])
 
   const visibleInvoiceIds = invoices
     .map((inv) => inv.id)
@@ -585,18 +750,74 @@ function InvoicesPage() {
                   onChange={toggleSelectAllInvoices}
                 />
               </TableCell>
-              <TableCell>Invoice #</TableCell>
-              <TableCell>Vendor</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell align="right">Total</TableCell>
-              <TableCell align="center">Currency</TableCell>
-              <TableCell align="center">Status</TableCell>
-              <TableCell align="center">Confidence</TableCell>
+              <TableCell sortDirection={sortKey === 'invoiceNumber' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'invoiceNumber'}
+                  direction={sortKey === 'invoiceNumber' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('invoiceNumber')}
+                >
+                  Invoice #
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sortDirection={sortKey === 'vendor' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'vendor'}
+                  direction={sortKey === 'vendor' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('vendor')}
+                >
+                  Vendor
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('date')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right" sortDirection={sortKey === 'total' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'total'}
+                  direction={sortKey === 'total' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('total')}
+                >
+                  Total
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'currency' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'currency'}
+                  direction={sortKey === 'currency' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('currency')}
+                >
+                  Currency
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'status' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'status'}
+                  direction={sortKey === 'status' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('status')}
+                >
+                  Status
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center" sortDirection={sortKey === 'confidence' ? sortDirection : false}>
+                <TableSortLabel
+                  active={sortKey === 'confidence'}
+                  direction={sortKey === 'confidence' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('confidence')}
+                >
+                  Confidence
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {invoices.map((inv) => (
+            {sortedInvoices.map((inv) => (
               <TableRow key={inv.id} hover>
                 <TableCell padding="checkbox">
                   <Checkbox
@@ -879,7 +1100,7 @@ function InvoicesPage() {
           >
             <CardContent>
               <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                Invoice Records
+                Invoice Records {listLoading ? '' : `(${invoices.length})`}
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -910,6 +1131,15 @@ function InvoicesPage() {
         onSave={handleSaveVerification}
         initialData={modal.file?.extractedData}
         fileName={modal.file?.name}
+        fileType={
+          modal.file?.sourceInvoice?.fileType ||
+          modal.file?.sourceInvoice?.file_type ||
+          modal.file?.file?.type ||
+          null
+        }
+        invoiceId={modal.file?.existingInvoiceId || null}
+        token={token}
+        localFile={modal.file?.file || null}
         extractionMethod={modal.file?.serverResponse?.extractedData?.extractionMethod}
         saving={saving}
       />

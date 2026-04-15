@@ -46,7 +46,7 @@ namespace FinalProjectAuthAPI.Controllers
         public async Task<IActionResult> Create([FromBody] CreateInvoiceRequest request, [FromQuery] bool autoMatch = false)
         {
             var userId = GetCurrentUserId();
-            var (success, id, error) = _svc.Create(
+            var (success, id, error, isDuplicate) = _svc.Create(
                 request,
                 userId,
                 request.FileOriginalName,
@@ -58,6 +58,15 @@ namespace FinalProjectAuthAPI.Controllers
             if (!success)
                 return BadRequest(new { message = error });
 
+            // Duplicate invoice — saved and flagged; skip auto-match for duplicates
+            if (isDuplicate)
+                return CreatedAtAction(nameof(GetById), new { id }, new
+                {
+                    id,
+                    message = "Invoice already exists and has been saved as a duplicate. It has been flagged in Anomalies.",
+                    isDuplicate = true
+                });
+
             // Optionally attempt automatic matching
             if (autoMatch)
             {
@@ -65,6 +74,7 @@ namespace FinalProjectAuthAPI.Controllers
                 return CreatedAtAction(nameof(GetById), new { id }, new { 
                     id, 
                     message = "Invoice created.",
+                    isDuplicate = false,
                     autoMatchResult = new {
                         matched = matchResult.Success,
                         matchId = matchResult.MatchId,
@@ -74,7 +84,7 @@ namespace FinalProjectAuthAPI.Controllers
                 });
             }
 
-            return CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Invoice created." });
+            return CreatedAtAction(nameof(GetById), new { id }, new { id, message = "Invoice created.", isDuplicate = false });
         }
 
         // PUT api/invoices/{id}

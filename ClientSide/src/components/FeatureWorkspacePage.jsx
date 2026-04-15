@@ -4,12 +4,22 @@ import PropTypes from 'prop-types'
 import EmptyState from './EmptyState'
 import { useAuth } from '../context/useAuth'
 
+/**
+ * Human-readable labels for authenticated user roles.
+ *
+ * @type {{ accountant: string, business_owner: string, accountant_business_owner: string }}
+ */
 const roleLabels = {
   accountant: 'Accountant',
   business_owner: 'Business Owner',
   accountant_business_owner: 'Accountant + Business Owner',
 }
 
+/**
+ * Motion variants used for animating the page container and content.
+ *
+ * @type {{ hidden: { opacity: number, y: number }, show: { opacity: number, y: number, transition: { duration: number, ease: string, staggerChildren: number } } }}
+ */
 const animationVariants = {
   hidden: { opacity: 0, y: 14 },
   show: {
@@ -23,6 +33,19 @@ const animationVariants = {
   },
 }
 
+/**
+ * Feature workspace page layout shown after authentication.
+ *
+ * @param {object} props
+ * @param {string} props.title - Main heading for the feature workspace.
+ * @param {string} props.description - Description text shown below the heading.
+ * @param {string} props.statusLabel - Status badge label displayed at the top.
+ * @param {Array<{title: string, text: string, icon?: import('react').ReactNode}>} props.highlights - Highlight cards data.
+ * @param {string} props.emptyTitle - Title text for the empty state section.
+ * @param {string} props.emptyDescription - Description text for the empty state section.
+ * @param {string} props.emptyActionLabel - Label for the empty state action button.
+ * @returns {JSX.Element}
+ */
 function FeatureWorkspacePage({
   title,
   description,

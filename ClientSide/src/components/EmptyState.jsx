@@ -2,6 +2,16 @@ import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { Button, Card, CardContent, Stack, Typography } from '@mui/material'
 import PropTypes from 'prop-types'
 
+/**
+ * Reusable empty-state card used to display a placeholder message.
+ *
+ * @param {object} props
+ * @param {string} props.title - Heading text shown in the empty state.
+ * @param {string} props.description - Supporting descriptive text.
+ * @param {string} [props.actionLabel] - Optional label for the action button.
+ * @param {function} [props.onAction] - Optional click handler for the action button.
+ * @param {import('react').ReactNode} [props.icon] - Optional custom icon node.
+ */
 function EmptyState({ title, description, actionLabel, onAction, icon }) {
   return (
     <Card

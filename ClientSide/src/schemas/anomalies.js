@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+/**
+ * Validation schema for resolving an anomaly.
+ *
+ * Ensures resolution notes are a trimmed string with a maximum length of 1000 characters.
+ */
 export const resolveAnomalySchema = z.object({
   resolutionNotes: z
     .string()

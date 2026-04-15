@@ -3,15 +3,34 @@ import { getInvoicesByCompany } from './invoices'
 import { getMatchesByCompany } from './matches'
 import { getAnomaliesByCompany } from './anomalies'
 
+/**
+ * Convert a value to a finite number, falling back to a default when invalid.
+ *
+ * @param {unknown} value - Value to convert.
+ * @param {number} [fallback=0] - Default number when conversion fails.
+ * @returns {number} Parsed number or fallback.
+ */
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+/**
+ * Fetch dashboard statistics for the given company.
+ *
+ * @param {{companyId: string|number, token: string}} params - Dashboard request parameters.
+ * @returns {Promise<any>} Dashboard report payload.
+ */
 export async function getDashboardStats({ companyId, token }) {
   return getDashboardReport(companyId, token)
 }
 
+/**
+ * Build a recent activity feed from invoices, matches, and anomalies.
+ *
+ * @param {{companyId: string|number, token: string}} params - Activity request parameters.
+ * @returns {Promise<Array<{date: string, text: string}>>} Recent activity items.
+ */
 export async function getRecentActivity({ companyId, token }) {
   const [invoices, matches, anomalies] = await Promise.allSettled([
     getInvoicesByCompany(companyId, {}, token),
@@ -53,6 +72,12 @@ export async function getRecentActivity({ companyId, token }) {
   return items.slice(0, 8)
 }
 
+/**
+ * Map raw dashboard stats into KPI cards.
+ *
+ * @param {object} stats - Raw dashboard statistics payload.
+ * @returns {Array<{title: string, value: string, subtitle: string}>} KPI card data.
+ */
 export function mapDashboardStatsToKpis(stats) {
   const safeStats = stats || {}
 

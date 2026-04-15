@@ -7,8 +7,8 @@ namespace FinalProjectAuthAPI.BL.Interfaces
     {
         List<InvoiceRow> GetByCompany(long companyId, string? status = null, DateTime? startDate = null, DateTime? endDate = null, bool? isMatched = null);
         InvoiceRow? GetById(long id);
-        (bool Success, long Id, string Error) Create(CreateInvoiceRequest req, long uploadedByUserId);
-        (bool Success, long Id, string Error) Create(CreateInvoiceRequest req, long uploadedByUserId,
+        (bool Success, long Id, string Error, bool IsDuplicate) Create(CreateInvoiceRequest req, long uploadedByUserId);
+        (bool Success, long Id, string Error, bool IsDuplicate) Create(CreateInvoiceRequest req, long uploadedByUserId,
             string? fileOriginalName, string? filePath, string? fileType, long? fileSize, decimal? aiConfidence);
         (bool Success, string Error, bool NotFound) Update(long id, CreateInvoiceRequest req, long verifiedByUserId);
         bool UpdateStatus(long id, string status);

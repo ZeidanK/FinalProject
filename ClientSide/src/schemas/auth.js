@@ -1,16 +1,31 @@
 import { z } from 'zod'
 
+/**
+ * Shared schema for validating form email inputs.
+ *
+ * Trims whitespace and requires a valid email address.
+ */
 const emailSchema = z
   .string()
   .trim()
   .min(1, 'Email is required.')
   .email('Please enter a valid email address.')
 
+/**
+ * Schema for login form validation.
+ *
+ * Requires an email and password.
+ */
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Password is required.'),
 })
 
+/**
+ * Schema for registration form validation.
+ *
+ * Validates name, email, password, confirmation, and role selection.
+ */
 export const registerSchema = z
   .object({
     name: z.string().trim().min(1, 'Name is required.'),

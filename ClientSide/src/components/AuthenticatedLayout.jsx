@@ -22,6 +22,7 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import { motion } from 'framer-motion'
+import LogoMark from './LogoMark'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useTheme } from '@mui/material/styles'
@@ -83,9 +84,25 @@ const navItems = [
   },
 ]
 
+/**
+ * Render the authenticated sidebar content for the current user.
+ *
+ * @param {Object} props
+ * @param {function(): void} [props.onNavigate] Callback triggered when a navigation item is clicked.
+ * @param {Object} props.user Authenticated user details.
+ * @param {string} [props.user.name] Display name of the user.
+ * @param {string} [props.user.email] Email address of the user.
+ * @param {string} [props.user.role] Role assigned to the user.
+ * @param {function(): void} props.onLogout Callback invoked to sign the user out.
+ * @returns {JSX.Element}
+ */
 function SidebarContent({ onNavigate, user, onLogout }) {
   const navigate = useNavigate()
 
+  /**
+   * Return the human-friendly label for the current user role.
+   * @returns {string}
+   */
   const getRoleLabel = () => {
     if (!user?.role) return 'Unknown role'
     if (user.role === 'admin') return 'Administrator'
@@ -97,6 +114,10 @@ function SidebarContent({ onNavigate, user, onLogout }) {
 
   const roleLabel = getRoleLabel()
 
+  /**
+   * Sign the user out and navigate to the login page.
+   * @returns {void}
+   */
   const handleLogout = () => {
     onLogout()
     navigate('/login', { replace: true })
@@ -129,15 +150,7 @@ function SidebarContent({ onNavigate, user, onLogout }) {
           background: 'rgba(14, 24, 44, 0.72)',
         }}
       >
-        <Box
-          sx={{
-            width: 30,
-            height: 30,
-            borderRadius: '9px',
-            bgcolor: 'primary.main',
-            boxShadow: '0 8px 24px rgba(88, 166, 255, 0.42)',
-          }}
-        />
+        <LogoMark sx={{ width: 30, height: 30 }} />
         <Typography variant="h6" sx={{ fontSize: '1.05rem' }}>
           ReconFlow
         </Typography>
@@ -171,7 +184,7 @@ function SidebarContent({ onNavigate, user, onLogout }) {
         <Chip
           label={roleLabel}
           sx={{
-            alignSelf: 'flex-start',
+            alignSelf: 'center',
             bgcolor: 'rgba(88, 166, 255, 0.16)',
             border: '1px solid',
             borderColor: 'rgba(129, 191, 255, 0.38)',
@@ -234,6 +247,12 @@ SidebarContent.propTypes = {
   }),
 }
 
+/**
+ * Layout wrapper for authenticated routes that renders either a sidebar
+ * or a mobile drawer depending on screen size.
+ *
+ * @returns {JSX.Element}
+ */
 function AuthenticatedLayout() {
   const { user, logout } = useAuth()
   const theme = useTheme()
@@ -266,9 +285,10 @@ function AuthenticatedLayout() {
             <IconButton edge="start" color="inherit" onClick={handleOpen} aria-label="open menu">
               <MenuRoundedIcon />
             </IconButton>
-            <Typography sx={{ ml: 1 }} fontWeight={700}>
-              ReconFlow
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ ml: 1 }}>
+              <LogoMark sx={{ width: 28, height: 28 }} />
+              <Typography fontWeight={700}>ReconFlow</Typography>
+            </Stack>
           </Toolbar>
         </AppBar>
       )}

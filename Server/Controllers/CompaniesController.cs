@@ -56,6 +56,17 @@ namespace FinalProjectAuthAPI.Controllers
                 : BadRequest(new { message = error });
         }
 
+        // POST api/companies/{companyId}/access
+        [HttpPost("{companyId:long}/access")]
+        public IActionResult GrantAccess(long companyId)
+        {
+            var userId = GetCurrentUserId();
+            var success = _svc.EnsureUserHasFullCompanyAccess(userId, companyId);
+            return success
+                ? Ok(new { message = "Company access granted." })
+                : BadRequest(new { message = "Failed to grant company access." });
+        }
+
         // PUT api/companies/{id}
         [HttpPut("{id:long}")]
         public IActionResult Update(long id, [FromBody] UpdateCompanyRequest request)

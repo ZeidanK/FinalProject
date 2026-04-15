@@ -14,6 +14,19 @@ import PageSectionLayout from '../components/PageSectionLayout'
 import { itemVariants } from '../utils/motionVariants'
 import { requirementCoverage, stackRationale, techStackSections } from './techStackData'
 
+/**
+ * Renders a single technology stack entry card.
+ *
+ * @param {Object} props
+ * @param {Object} props.entry - The technology stack item to display.
+ * @param {string} props.entry.name - The name of the technology.
+ * @param {string} props.entry.what - What the technology is.
+ * @param {string} props.entry.usedFor - The technology's usage in the project.
+ * @param {string} props.entry.projectExample - A concrete project example for the technology.
+ * @param {string[]} props.entry.positives - Positive aspects of using the technology.
+ * @param {string[]} props.entry.improvements - Improvements enabled by the technology.
+ * @returns {JSX.Element} The rendered stack entry card.
+ */
 function TechStackEntryCard({ entry }) {
   return (
     <Card
@@ -95,6 +108,12 @@ TechStackEntryCard.propTypes = {
   }).isRequired,
 }
 
+/**
+ * Displays the project technology reference section with tech stack cards,
+ * requirement coverage, and stack rationale.
+ *
+ * @returns {JSX.Element} The rendered technology reference page.
+ */
 export default function TechStackPage() {
   return (
     <PageSectionLayout>

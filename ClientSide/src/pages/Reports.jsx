@@ -60,6 +60,12 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 }
 
+/**
+ * Converts a Date object to a string formatted for an HTML date input.
+ *
+ * @param {Date} date - The date to convert.
+ * @returns {string} The date string in YYYY-MM-DD format.
+ */
 const toDateInputValue = (date) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -67,12 +73,24 @@ const toDateInputValue = (date) => {
   return `${year}-${month}-${day}`
 }
 
+/**
+ * Returns a new Date representing the start of the given day.
+ *
+ * @param {Date} date - The original date.
+ * @returns {Date} New date set to 00:00:00.000 of the same day.
+ */
 const startOfDay = (date) => {
   const next = new Date(date)
   next.setHours(0, 0, 0, 0)
   return next
 }
 
+/**
+ * Returns the preset date range values for the given report period.
+ *
+ * @param {string} period - One of the supported range keys.
+ * @returns {{startDate: string, endDate: string}} The date range bounds.
+ */
 const getPresetRange = (period) => {
   const today = startOfDay(new Date())
 
@@ -101,8 +119,21 @@ const getPresetRange = (period) => {
   return { startDate: '', endDate: '' }
 }
 
+/**
+ * Formats a numeric value with locale-aware grouping.
+ *
+ * @param {number|string} value - Numeric input to format.
+ * @returns {string} Formatted number string.
+ */
 const formatNumber = (value) => new Intl.NumberFormat().format(Number(value) || 0)
 
+/**
+ * Formats a numeric value as currency.
+ *
+ * @param {number|string} value - Numeric input to format.
+ * @param {string} [currency='USD'] - Currency code to use.
+ * @returns {string} Currency formatted string.
+ */
 const formatMoney = (value, currency = 'USD') =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -110,6 +141,12 @@ const formatMoney = (value, currency = 'USD') =>
     maximumFractionDigits: 2,
   }).format(Number(value) || 0)
 
+/**
+ * Formats a date value into a user-friendly display string.
+ *
+ * @param {string|Date|null|undefined} value - Date input to format.
+ * @returns {string} Human-readable date or placeholder if invalid.
+ */
 const formatDate = (value) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -121,6 +158,12 @@ const formatDate = (value) => {
   })
 }
 
+/**
+ * Converts a numeric value into a percentage string.
+ *
+ * @param {number|string|null|undefined} value - Numeric input or ratio.
+ * @returns {string} Percentage string or placeholder for invalid values.
+ */
 const formatPercent = (value) => {
   if (value === null || value === undefined) return '—'
 
@@ -132,6 +175,12 @@ const formatPercent = (value) => {
   return `${percentage.toFixed(digits)}%`
 }
 
+/**
+ * Converts a match confidence value into a formatted percentage.
+ *
+ * @param {number|string|null|undefined} value - Confidence ratio or percentage value.
+ * @returns {string} Single-decimal percentage string or placeholder.
+ */
 const formatMatchConfidence = (value) => {
   if (value === null || value === undefined) return '—'
 
@@ -142,6 +191,12 @@ const formatMatchConfidence = (value) => {
   return `${percentage.toFixed(1)}%`
 }
 
+/**
+ * Escapes values for safe inclusion in CSV output.
+ *
+ * @param {*} value - Value to escape.
+ * @returns {string} Escaped CSV field.
+ */
 const escapeCsvValue = (value) => {
   const text = value === null || value === undefined ? '' : String(value)
   if (/[",\n]/.test(text)) {
@@ -150,6 +205,13 @@ const escapeCsvValue = (value) => {
   return text
 }
 
+/**
+ * Generates and downloads a CSV file from report data.
+ *
+ * @param {string} filename - File name for the downloaded CSV.
+ * @param {Array<{label: string, getValue: function}>} columns - Column definitions.
+ * @param {Array} rows - Data rows to include in the export.
+ */
 const downloadCsv = (filename, columns, rows) => {
   if (!rows.length) return
 
@@ -167,6 +229,14 @@ const downloadCsv = (filename, columns, rows) => {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Custom hook that fetches and refreshes report data for the selected company.
+ *
+ * @param {string|number|null} activeCompanyId - Active company identifier.
+ * @param {string} token - Authentication token for backend API requests.
+ * @param {{startDate?: string, endDate?: string}} effectiveRange - The current date range filter.
+ * @returns {{dashboardStats: object|null, vatReport: object|null, reconciliationRows: Array, loading: boolean, errorMessage: string, refresh: function}}
+ */
 function useReportsData(activeCompanyId, token, effectiveRange) {
   const [dashboardStats, setDashboardStats] = useState(null)
   const [vatReport, setVatReport] = useState(null)
@@ -251,6 +321,12 @@ function useReportsData(activeCompanyId, token, effectiveRange) {
   }
 }
 
+/**
+ * Renders the overview summary cards for the reports page.
+ *
+ * @param {{loading: boolean, cards: Array}} props - Component props.
+ * @returns {JSX.Element} Summary cards grid.
+ */
 function SummaryCardsGrid({ loading, cards }) {
   return (
     <Grid container spacing={2} component={motion.div} variants={itemVariants} id="overview">
@@ -309,6 +385,12 @@ function SummaryCardsGrid({ loading, cards }) {
   )
 }
 
+/**
+ * Renders the report catalog cards for the reports page.
+ *
+ * @param {{reports: Array}} props - Catalog entry definitions.
+ * @returns {JSX.Element} Report catalog grid.
+ */
 function ReportCatalogGrid({ reports }) {
   return (
     <Grid container spacing={2} component={motion.div} variants={itemVariants}>
@@ -345,8 +427,12 @@ function ReportCatalogGrid({ reports }) {
                 </Typography>
 
                 <Stack spacing={0.8}>
-                  {report.metrics.map((metric) => (
-                    <Typography key={metric} variant="body2" color="text.secondary">
+                  {report.metrics.map((metric, metricIndex) => (
+                    <Typography
+                      key={`${report.title}-${metricIndex}-${metric}`}
+                      variant="body2"
+                      color="text.secondary"
+                    >
                       {metric}
                     </Typography>
                   ))}
@@ -370,6 +456,18 @@ function ReportCatalogGrid({ reports }) {
   )
 }
 
+/**
+ * Renders the VAT report section including summary chips and invoice table.
+ *
+ * @param {object} props - Component properties.
+ * @param {boolean} props.loading - Whether report data is loading.
+ * @param {object|null} props.vatReport - VAT summary values.
+ * @param {Array} props.vatInvoices - Invoice rows for the VAT report.
+ * @param {string} props.currencyCode - Fallback currency code.
+ * @param {function} props.onReload - Handler to refresh reports.
+ * @param {function} props.onExport - Handler to export VAT CSV.
+ * @returns {JSX.Element} VAT report section.
+ */
 function VatReportSection({ loading, vatReport, vatInvoices, currencyCode, onReload, onExport }) {
   const content = (() => {
     if (loading) {
@@ -510,6 +608,20 @@ function VatReportSection({ loading, vatReport, vatInvoices, currencyCode, onRel
   )
 }
 
+/**
+ * Renders the reconciliation report section with matched invoice detail.
+ *
+ * @param {object} props - Component properties.
+ * @param {boolean} props.loading - Whether report data is loading.
+ * @param {Array} props.reconciliationRows - Rows returned by the reconciliation endpoint.
+ * @param {string} props.currencyCode - Currency code for amounts.
+ * @param {number} props.matchedTransactions - Number of matched transactions.
+ * @param {number} props.totalTransactions - Total transaction count.
+ * @param {number} props.matchRate - Match rate percentage.
+ * @param {function} props.onReload - Handler to refresh reports.
+ * @param {function} props.onExport - Handler to export reconciliation CSV.
+ * @returns {JSX.Element} Reconciliation report section.
+ */
 function ReconciliationReportSection({
   loading,
   reconciliationRows,
@@ -661,6 +773,13 @@ function ReconciliationReportSection({
   )
 }
 
+/**
+ * Main reports page component.
+ *
+ * Loads dashboard, VAT, and reconciliation data and renders the report UI.
+ *
+ * @returns {JSX.Element} The reports page.
+ */
 function ReportsPage() {
   const { token } = useAuth()
   const { companies, activeCompanyId } = useCompany()
@@ -939,6 +1058,13 @@ function ReportsPage() {
   )
 }
 
+/**
+ * Builds a readable label for the currently selected reporting range.
+ *
+ * @param {string} period - Selected reporting period key.
+ * @param {{startDate?: string, endDate?: string}} effectiveRange - The computed date range.
+ * @returns {string} Display label for the selected range.
+ */
 function getSelectedRangeLabel(period, effectiveRange) {
   if (period === 'custom') {
     if (!effectiveRange.startDate && !effectiveRange.endDate) {
@@ -951,6 +1077,12 @@ function getSelectedRangeLabel(period, effectiveRange) {
   return reportPeriods.find((option) => option.value === period)?.label || 'Selected period'
 }
 
+/**
+ * Constructs the summary card definitions shown in the report overview.
+ *
+ * @param {object} params - Summary card state and metrics.
+ * @returns {Array<object>} Array of card definitions.
+ */
 function buildSummaryCards({
   loading,
   dashboardStats,
@@ -989,6 +1121,12 @@ function buildSummaryCards({
   ]
 }
 
+/**
+ * Constructs the report catalog items for the reports page.
+ *
+ * @param {object} params - Report catalog state and metrics.
+ * @returns {Array<object>} Array of report catalog definitions.
+ */
 function buildReportCatalog({ dashboardStats, vatReport, reconciliationRows, currencyCode, matchedTransactions, totalTransactions }) {
   return [
     {

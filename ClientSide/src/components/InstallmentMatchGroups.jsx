@@ -21,9 +21,15 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import HourglassEmptyRoundedIcon from '@mui/icons-material/HourglassEmptyRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
+import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded'
 import { itemVariants } from '../utils/motionVariants'
 
+/**
+ * Base styling for installment match group cards.
+ *
+ * @type {import('@mui/material').SxProps}
+ */
 const cardBaseSx = {
   borderRadius: 3,
   border: '1px solid',
@@ -31,17 +37,35 @@ const cardBaseSx = {
   background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
 }
 
+/**
+ * Format a numeric value as a localized decimal amount.
+ *
+ * @param {number|string} v - Raw amount value.
+ * @returns {string} Formatted amount with two decimal places.
+ */
 const fmtAmount = (v) =>
   (Number(v) || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
 
+/**
+ * Format a date string or timestamp to the current locale's short date.
+ *
+ * @param {string|number|Date|null|undefined} d - Date input.
+ * @returns {string} Localized date or placeholder when missing.
+ */
 const fmtDate = (d) => {
   if (!d) return '—'
   return new Date(d).toLocaleDateString()
 }
 
+/**
+ * Format a date string or timestamp to month and year.
+ *
+ * @param {string|number|Date|null|undefined} d - Date input.
+ * @returns {string|null} Localized month-year string or null when invalid.
+ */
 const fmtMonth = (d) => {
   if (!d) return null
   const date = new Date(d)
@@ -51,7 +75,19 @@ const fmtMonth = (d) => {
 
 // ── Single installment group card ─────────────────────────────────────────
 
-function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy }) {
+/**
+ * Render a single installment group with progress, confirmed matches, and pending suggestions.
+ *
+ * @param {object} props
+ * @param {object} props.group - Installment suggestion group data.
+ * @param {Set<string>} props.deniedTxnIds - IDs of transactions that were skipped.
+ * @param {function(string, string): void} props.onDeny - Handler for denying a suggested transaction.
+ * @param {function(object, object): void} props.onConfirm - Handler for confirming a suggested transaction.
+ * @param {function(string): void} props.onRemoveMatch - Handler for removing an existing match.
+ * @param {boolean} props.matchBusy - Whether matching actions are currently disabled.
+ * @returns {JSX.Element}
+ */
+function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatch, matchBusy }) {
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const visibleSuggestions = group.suggestedTransactions.filter(
@@ -199,9 +235,23 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy })
                           )}
                         </Box>
                       </Stack>
-                      <Typography variant="caption" fontWeight={600} sx={{ color: '#37d67a', ml: 1, flexShrink: 0 }}>
-                        {fmtAmount(amt)}
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ ml: 1, flexShrink: 0 }}>
+                        <Typography variant="caption" fontWeight={600} sx={{ color: '#37d67a' }}>
+                          {fmtAmount(amt)}
+                        </Typography>
+                        <Tooltip title="Remove match">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => onRemoveMatch(matchId)}
+                              disabled={matchBusy || !matchId}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <LinkOffRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Stack>
                     </Stack>
                   )
                 })}
@@ -273,7 +323,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy })
                       </Box>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
                         <Typography variant="body2" fontWeight={700} sx={{ color: '#fbbf24' }}>
-                          {fmtAmount(txn.amount)}
+                          {fmtAmount(txn.chargeAmount ?? txn.charge_amount ?? txn.amount)}
                         </Typography>
                         <Tooltip title="Skip this installment for now">
                           <Button
@@ -311,12 +361,14 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, matchBusy })
           </Stack>
         )}
 
-        {/* Waiting state: partially matched, no pending transactions right now */}
-        {pendingCount === 0 && alreadyCount > 0 && (
+        {/* Waiting state: no pending transactions right now */}
+        {pendingCount === 0 && (
           <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 0.5 }}>
             <HourglassEmptyRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
             <Typography variant="caption" color="text.secondary">
-              Waiting for next installment to appear in your transactions.
+              {alreadyCount > 0
+                ? 'Waiting for next installment to appear in your transactions.'
+                : 'No installment transaction found yet. Waiting for first payment to appear in your transactions.'}
             </Typography>
           </Stack>
         )}
@@ -330,21 +382,29 @@ InstallmentGroup.propTypes = {
   deniedTxnIds: PropTypes.instanceOf(Set).isRequired,
   onDeny: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
+  onRemoveMatch: PropTypes.func.isRequired,
   matchBusy: PropTypes.bool.isRequired,
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, onConfirm, matchBusy }) {
+/**
+ * Display a list of installment match groups with loading and empty states.
+ *
+ * @param {object} props
+ * @param {object} props.query - Query result object containing installment group data and loading state.
+ * @param {Set<string>} props.deniedTxnIds - IDs of transactions that were skipped.
+ * @param {function(string, string): void} props.onDeny - Handler for denying a suggested transaction.
+ * @param {function(object, object): void} props.onConfirm - Handler for confirming a suggested transaction.
+ * @param {function(string): void} props.onRemoveMatch - Handler for removing an existing match.
+ * @param {boolean} props.matchBusy - Whether match actions are currently disabled.
+ * @returns {JSX.Element}
+ */
+export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, onConfirm, onRemoveMatch, matchBusy }) {
   const rawGroups = Array.isArray(query.data) ? query.data : []
 
-  // Only show groups that either have pending suggestions OR have partial progress (waiting state)
-  const groups = rawGroups.filter(
-    (g) =>
-      (g.suggestedTransactions ?? []).some(
-        (t) => !deniedTxnIds.has(`${g.invoiceId}-${t.transactionId}`),
-      ) || (g.alreadyMatchedCount > 0),
-  )
+  // Backend now decides which installment invoices should be tracked in this section.
+  const groups = rawGroups
 
   return (
     <Card
@@ -400,6 +460,7 @@ export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, on
                   deniedTxnIds={deniedTxnIds}
                   onDeny={onDeny}
                   onConfirm={onConfirm}
+                  onRemoveMatch={onRemoveMatch}
                   matchBusy={matchBusy}
                 />
               ))}
@@ -416,5 +477,6 @@ InstallmentMatchGroups.propTypes = {
   deniedTxnIds: PropTypes.instanceOf(Set).isRequired,
   onDeny: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
+  onRemoveMatch: PropTypes.func.isRequired,
   matchBusy: PropTypes.bool.isRequired,
 }

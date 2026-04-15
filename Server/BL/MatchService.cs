@@ -80,45 +80,75 @@ namespace FinalProjectAuthAPI.BL
                 .Where(t => string.Equals(t.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
+            Console.WriteLine($"[DEBUG][תשלומים] Found {installmentTxns.Count} installment transactions for companyId={companyId}");
+            foreach (var txn in installmentTxns)
+                Console.WriteLine($"[DEBUG][תשלומים]   TxnId={txn.Id} | TransactionDate={txn.TransactionDate:yyyy-MM-dd} | ChargeDate={txn.PostedDate:yyyy-MM-dd} | Amount={txn.Amount} | ChargeAmount={txn.ChargeAmount} | Desc={txn.Description}");
+
             var results = new List<InstallmentGroupSuggestion>();
+
+            static bool IsInstallmentMatch(MatchRow m) =>
+                m.InstallmentNumber.HasValue ||
+                !string.IsNullOrWhiteSpace(m.InstallmentNote) ||
+                string.Equals(m.MatchMethod, "installment_simple", StringComparison.OrdinalIgnoreCase);
+
+            static decimal GetEffectiveInstallmentAmount(TransactionCandidate t)
+            {
+                if (t.ChargeAmount.HasValue && t.ChargeAmount.Value > 0)
+                    return Math.Abs(t.ChargeAmount.Value);
+
+                return Math.Abs(t.Amount);
+            }
 
             foreach (var invoice in invoices)
             {
                 var remaining = invoice.TotalAmount - invoice.MatchedAmount;
                 if (remaining <= 0) continue;
 
+                var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
+                var existingInstallmentMatches = existingMatches.Where(IsInstallmentMatch).ToList();
+
+                var hasInstallmentMetadata =
+                    (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 0) ||
+                    (invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0) ||
+                    !string.IsNullOrWhiteSpace(invoice.PaymentPlanDescription);
+
+                var hasInstallmentHistory = existingInstallmentMatches.Any();
+                if (!hasInstallmentMetadata && !hasInstallmentHistory)
+                    continue;
+
                 // Must share the same transaction_date as the invoice date
                 var dateCandidates = installmentTxns
                     .Where(t => t.TransactionDate.Date == invoice.InvoiceDate.Date)
                     .ToList();
 
-                if (!dateCandidates.Any()) continue;
+                Console.WriteLine($"[DEBUG][תשלומים] Invoice #{invoice.InvoiceNumber} (Id={invoice.Id}, Date={invoice.InvoiceDate:yyyy-MM-dd}, Total={invoice.TotalAmount}) — {dateCandidates.Count} date-matching txns");
 
-                // Filter to transactions whose amount is consistent with an installment of this invoice
+                var expectedInstallmentAmount =
+                    invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0
+                        ? invoice.PaymentPlanInstallmentAmount.Value
+                        : (decimal?)null;
+
+                // Keep installment candidates tied to the per-charge amount when available,
+                // and fall back to remaining-balance matching for invoices without plan metadata.
                 var amountCandidates = dateCandidates
-                    .Where(t => IsInstallmentAmountForInvoice(invoice, t))
+                    .Where(t =>
+                    {
+                        var effectiveAmount = GetEffectiveInstallmentAmount(t);
+                        if (effectiveAmount <= 0)
+                            return false;
+
+                        if (expectedInstallmentAmount.HasValue)
+                            return Math.Abs(effectiveAmount - expectedInstallmentAmount.Value) < 0.01m;
+
+                        return Math.Abs(effectiveAmount - remaining) < 0.01m ||
+                               Math.Abs(Math.Abs(t.Amount) - remaining) < 0.01m ||
+                               effectiveAmount < remaining;
+                    })
                     .ToList();
 
-                if (!amountCandidates.Any()) continue;
-
-                // Determine the per-installment amount from invoice or from detected candidates
-                var firstAmt = Math.Abs(amountCandidates[0].Amount);
-                var installmentAmt = invoice.PaymentPlanInstallmentAmount ?? firstAmt;
-
-                // Detect expected number of installments
-                int? detectedN = null;
-                if (installmentAmt > 0)
-                {
-                    var ratio = invoice.TotalAmount / installmentAmt;
-                    var rounded = (int)Math.Round(ratio);
-                    if (rounded >= 2 && rounded <= 12)
-                        detectedN = rounded;
-                }
-
-                var expectedInstallments = invoice.PaymentPlanTotalInstallments ?? detectedN;
-
-                // Fetch existing matches for progress tracking
-                var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
+                Console.WriteLine($"[DEBUG][תשלומים]   → {amountCandidates.Count} passed amount filter (invoiceTotal={invoice.TotalAmount})");
+                foreach (var c in amountCandidates)
+                    Console.WriteLine($"[DEBUG][תשלומים]     ✓ TxnId={c.Id} | TransactionDate={c.TransactionDate:yyyy-MM-dd} | ChargeDate={c.PostedDate:yyyy-MM-dd} | Amount={c.Amount} | ChargeAmount={c.ChargeAmount} | Desc={c.Description}");
 
                 results.Add(new InstallmentGroupSuggestion
                 {
@@ -127,44 +157,27 @@ namespace FinalProjectAuthAPI.BL
                     VendorName              = invoice.VendorName,
                     TotalAmount             = invoice.TotalAmount,
                     InvoiceDate             = invoice.InvoiceDate,
-                    AlreadyMatchedAmount    = invoice.MatchedAmount,
+                    AlreadyMatchedAmount    = existingInstallmentMatches.Sum(m => m.MatchedAmount),
                     RemainingAmount         = remaining,
-                    ExpectedInstallments    = expectedInstallments,
-                    DetectedInstallmentCount = detectedN,
-                    AlreadyMatchedCount     = existingMatches.Count,
-                    InstallmentAmount       = installmentAmt,
+                    ExpectedInstallments    = invoice.PaymentPlanTotalInstallments,
+                    DetectedInstallmentCount = null,
+                    AlreadyMatchedCount     = existingInstallmentMatches.Count,
+                    InstallmentAmount       = expectedInstallmentAmount ?? 0,
                     SuggestedTransactions   = amountCandidates.Select(t => new SuggestedInstallmentTransaction
                     {
                         TransactionId   = t.Id,
                         TransactionDate = t.TransactionDate,
                         PostedDate      = t.PostedDate,
                         Description     = t.Description,
-                        Amount          = Math.Abs(t.Amount),
+                        Amount          = GetEffectiveInstallmentAmount(t),
+                        ChargeAmount    = t.ChargeAmount,
                         VendorName      = t.VendorName,
                     }).ToList(),
-                    ExistingMatches = existingMatches,
+                    ExistingMatches = existingInstallmentMatches,
                 });
             }
 
             return results;
-        }
-
-        private static bool IsInstallmentAmountForInvoice(InvoiceRow invoice, TransactionCandidate txn)
-        {
-            var amt = Math.Abs(txn.Amount);
-            if (amt <= 0) return false;
-
-            // Explicitly declared installment amount
-            if (invoice.PaymentPlanInstallmentAmount.HasValue &&
-                invoice.PaymentPlanInstallmentAmount.Value > 0 &&
-                amt == invoice.PaymentPlanInstallmentAmount.Value)
-                return true;
-
-            // Undeclared installment: amt × N ≈ TotalAmount (N = 2..12, within 2% tolerance)
-            if (invoice.TotalAmount <= 0) return false;
-            var ratio = invoice.TotalAmount / amt;
-            var rounded = Math.Round(ratio);
-            return rounded >= 2 && rounded <= 12 && Math.Abs(ratio - rounded) < 0.02m;
         }
 
         // ── AI Suggestions: Date + Amount filter → Gemini name comparison ────
@@ -195,7 +208,7 @@ namespace FinalProjectAuthAPI.BL
             return await FilterAndCompareAsync(invoice, candidates);
         }
 
-        private async Task<List<MatchSuggestionRow>> FilterAndCompareAsync(
+        private Task<List<MatchSuggestionRow>> FilterAndCompareAsync(
             InvoiceRow invoice,
             List<TransactionCandidate> candidates)
         {
@@ -203,15 +216,11 @@ namespace FinalProjectAuthAPI.BL
             var filtered = FilterByDateAndAmount(invoice, candidates, remaining);
 
             if (!filtered.Any())
-            {
-                Console.WriteLine("[MATCH] No candidates after date+amount filter. Returning empty.");
-                var sampleTxns = candidates.Take(5).ToList();
-                foreach (var s in sampleTxns)
-                    Console.WriteLine($"[MATCH]   Sample txn: id={s.Id} date={s.TransactionDate:yyyy-MM-dd} amount={s.Amount} desc=\"{s.Description}\"");
-                return new List<MatchSuggestionRow>();
-            }
+                return Task.FromResult(new List<MatchSuggestionRow>());
 
-            return await CompareWithGeminiAsync(invoice, filtered, remaining);
+            // TODO: Gemini vendor-name matching temporarily disabled — re-enable when ready
+            // return CompareWithGeminiAsync(invoice, filtered, remaining);
+            return Task.FromResult(BuildResultsWithoutGemini(filtered, remaining));
         }
 
         private static List<(TransactionCandidate Txn, string AmountReason)> FilterByDateAndAmount(
@@ -370,6 +379,17 @@ namespace FinalProjectAuthAPI.BL
             if (req.MatchedAmount <= 0)
                 return (false, 0, "Matched amount must be greater than zero.");
 
+            var invoice = _db.GetInvoiceById(req.InvoiceId);
+            if (invoice == null)
+                return (false, 0, "Invoice not found.");
+
+            var remaining = invoice.TotalAmount - invoice.MatchedAmount;
+            if (remaining <= 0)
+                return (false, 0, "Invoice is already fully matched.");
+
+            if (req.MatchedAmount - remaining > 0.01m)
+                return (false, 0, $"Matched amount exceeds remaining balance ({remaining:F2}).");
+
             var id = _db.CreateMatch(
                 req.InvoiceId, req.TransactionId, req.MatchedAmount,
                 req.MatchMethod ?? "manual", matchedByUserId,
@@ -384,13 +404,13 @@ namespace FinalProjectAuthAPI.BL
             {
                 try
                 {
-                    var invoice = _db.GetInvoiceById(req.InvoiceId);
+                    var matchedInvoice = _db.GetInvoiceById(req.InvoiceId);
                     var txn = _db.GetTransactionById(req.TransactionId);
-                    if (invoice != null && txn != null
-                        && !string.IsNullOrWhiteSpace(invoice.VendorName)
+                    if (matchedInvoice != null && txn != null
+                        && !string.IsNullOrWhiteSpace(matchedInvoice.VendorName)
                         && !string.IsNullOrWhiteSpace(txn.Description))
                     {
-                        _db.RecordVendorAlias(invoice.CompanyId, invoice.VendorName, txn.Description);
+                        _db.RecordVendorAlias(matchedInvoice.CompanyId, matchedInvoice.VendorName, txn.Description);
                     }
                 }
                 catch { /* alias learning is best-effort */ }

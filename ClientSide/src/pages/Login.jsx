@@ -13,6 +13,12 @@ import { useAuth } from '../context/useAuth'
 import { loginSchema } from '../schemas/auth'
 import { useLoginWithSessionMutation } from '../hooks/queries/useAuthQueries'
 
+/**
+ * Login page component for user authentication.
+ * Renders a login form, validates inputs, and performs session-based login.
+ * Displays registration success or authentication error messages.
+ * @returns {JSX.Element} The rendered login page.
+ */
 function Login() {
   const navigate = useNavigate()
   const { login, logout } = useAuth()
@@ -31,8 +37,18 @@ function Login() {
     },
   })
 
+  /**
+   * Login mutation hook bound to the auth context login action.
+   * @type {import('@tanstack/react-query').UseMutationResult}
+   */
   const loginMutation = useLoginWithSessionMutation(login)
 
+  /**
+   * Handles the login form submission.
+   * Validates the form payload with the login schema before triggering the login mutation.
+   * On successful login, navigates the user to the dashboard.
+   * @param {Object} formValues - The raw form values from react-hook-form.
+   */
   const onSubmit = async (formValues) => {
     setErrorMessage('')
 

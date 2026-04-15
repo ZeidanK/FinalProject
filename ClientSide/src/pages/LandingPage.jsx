@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded'
 import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded'
+import LogoMark from '../components/LogoMark'
 import HubRoundedIcon from '@mui/icons-material/HubRounded'
 import FindInPageRoundedIcon from '@mui/icons-material/FindInPageRounded'
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
@@ -27,6 +28,11 @@ import SpeedRoundedIcon from '@mui/icons-material/SpeedRounded'
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded'
 import { Link as RouterLink } from 'react-router-dom'
 
+/**
+ * Landing page feature steps shown in the hero section.
+ * Each step includes a title, descriptive text, and a representative icon.
+ * @type {{title: string, text: string, icon: React.ReactNode}[]}
+ */
 const steps = [
   {
     title: 'Upload',
@@ -50,6 +56,12 @@ const steps = [
   },
 ]
 
+/**
+ * Public-facing landing page for the ReconFlow platform.
+ * Presents the product value proposition, hero messaging, and feature steps.
+ *
+ * @returns {JSX.Element} The rendered landing page.
+ */
 function LandingPage() {
   return (
     <Box
@@ -113,20 +125,7 @@ function LandingPage() {
             }}
           >
             <Stack direction="row" alignItems="center" spacing={1.2}>
-              <Box
-                sx={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: '10px',
-                  bgcolor: 'primary.main',
-                  boxShadow: '0 10px 28px rgba(88, 166, 255, 0.42)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AccountBalanceWalletRoundedIcon sx={{ fontSize: 20, color: '#fff' }} />
-              </Box>
+              <LogoMark />
               <Typography variant="h6" fontWeight={700}>
                 ReconFlow
               </Typography>
@@ -137,7 +136,7 @@ function LandingPage() {
                 Log In
               </Button>
               <Button component={RouterLink} to="/register" variant="contained">
-                Try for Free
+                Register
               </Button>
             </Stack>
           </Toolbar>
@@ -204,7 +203,7 @@ function LandingPage() {
                     boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)',
                   }}
                 >
-                  Start Free Trial
+                  Start Now
                 </Button>
                 <Button
                   component={RouterLink}
