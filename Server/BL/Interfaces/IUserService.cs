@@ -8,5 +8,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         List<User> GetAll();
         bool Update(long id, string? name, string? phone, string? profilePicture);
         bool ChangePassword(long id, string currentPassword, string newPassword);
+        bool UpdateVisibility(long id, bool isPublic);
     }
 }

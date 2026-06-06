@@ -61,6 +61,7 @@ export const URLS = {
     byId: (id) => buildApiPath(`/Users/${id}`),
     changePassword: (id) => buildApiPath(`/Users/${id}/password`),
     profilePicture: (id) => buildApiPath(`/Users/${id}/profile-picture`),
+    visibility: (id) => buildApiPath(`/Users/${id}/visibility`),
   },
   companies: {
     base: buildApiPath('/Companies'),
@@ -122,5 +123,12 @@ export const URLS = {
     toggleUser: (id) => buildApiPath(`/Admin/users/${id}/toggle`),
     logs: buildApiPath('/Admin/logs'),
     auditLogs: buildApiPath('/Admin/audit-logs'),
+  },
+  accountants: {
+    base: buildApiPath('/Accountants'),
+    sendRequest: (id) => buildApiPath(`/Accountants/${id}/request`),
+    requests: (id) => buildApiPath(`/Accountants/${id}/requests`),
+    companies: (id) => buildApiPath(`/Accountants/${id}/companies`),
+    respondToRequest: (requestId) => buildApiPath(`/Accountants/requests/${requestId}/respond`),
   },
 }

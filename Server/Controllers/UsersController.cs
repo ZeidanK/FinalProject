@@ -78,5 +78,20 @@ namespace FinalProjectAuthAPI.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // PATCH api/users/{id}/visibility
+        [HttpPatch("{id:long}/visibility")]
+        public IActionResult UpdateVisibility(long id, [FromBody] UpdateVisibilityRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+            var currentRole = GetCurrentUserRole();
+            if (currentUserId != id && !string.Equals(currentRole, "admin", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            var ok = _svc.UpdateVisibility(id, request.IsPublic);
+            return ok
+                ? Ok(new { message = "Visibility updated." })
+                : BadRequest(new { message = "Update failed." });
+        }
     }
 }

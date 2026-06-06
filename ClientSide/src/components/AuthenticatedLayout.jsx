@@ -21,6 +21,8 @@ import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSetting
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
+import WorkspacesRoundedIcon from '@mui/icons-material/WorkspacesRounded'
+import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded'
 import { motion } from 'framer-motion'
 import LogoMark from './LogoMark'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
@@ -75,6 +77,18 @@ const navItems = [
     to: '/admin',
     icon: <AdminPanelSettingsRoundedIcon fontSize="small" />,
     roles: ['admin'],
+  },
+  {
+    label: 'My Workspace',
+    to: '/accountant-workspace',
+    icon: <WorkspacesRoundedIcon fontSize="small" />,
+    roles: ['accountant', 'accountant_business_owner'],
+  },
+  {
+    label: 'Find Accountant',
+    to: '/find-accountant',
+    icon: <PersonSearchRoundedIcon fontSize="small" />,
+    roles: ['business_owner', 'accountant_business_owner'],
   },
   {
     label: 'Profile',

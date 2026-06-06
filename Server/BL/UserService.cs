@@ -40,5 +40,8 @@ namespace FinalProjectAuthAPI.BL
 
             return _db.ChangePassword(id, User.HashPassword(newPassword));
         }
+
+        public bool UpdateVisibility(long id, bool isPublic) =>
+            _db.UpdateUserVisibility(id, isPublic);
     }
 }

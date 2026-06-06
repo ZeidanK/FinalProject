@@ -286,6 +286,160 @@ END", con, tx);
             return parameters;
         }
 
+        public (bool Success, string Error) CreatePendingAccessRequest(
+            long accountantUserId, long companyId, long requestedByUserId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+
+                // Check for an existing record
+                using var checkCmd = new SqlCommand(@"
+SELECT status
+FROM dbo.FP26_user_company_access
+WHERE user_id = @UserId AND company_id = @CompanyId;", con);
+                checkCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = accountantUserId;
+                checkCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                var existing = checkCmd.ExecuteScalar()?.ToString();
+
+                if (existing == "active")
+                    return (false, "This accountant is already working with your company.");
+                if (existing == "pending")
+                    return (false, "A request is already pending for this accountant.");
+
+                if (existing == null)
+                {
+                    using var insertCmd = new SqlCommand(@"
+INSERT INTO dbo.FP26_user_company_access
+    (user_id, company_id, access_level, status, granted_by_user_id, created_at)
+VALUES
+    (@UserId, @CompanyId, 'view_only', 'pending', @RequestedBy, GETDATE());", con);
+                    insertCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = accountantUserId;
+                    insertCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                    insertCmd.Parameters.Add("@RequestedBy", SqlDbType.BigInt).Value = requestedByUserId;
+                    insertCmd.ExecuteNonQuery();
+                }
+                else
+                {
+                    // Previously revoked — reopen as pending
+                    using var updateCmd = new SqlCommand(@"
+UPDATE dbo.FP26_user_company_access
+SET status              = 'pending',
+    access_level        = 'view_only',
+    granted_by_user_id  = @RequestedBy,
+    granted_at          = NULL,
+    revoked_at          = NULL,
+    revoked_by_user_id  = NULL
+WHERE user_id = @UserId AND company_id = @CompanyId;", con);
+                    updateCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = accountantUserId;
+                    updateCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                    updateCmd.Parameters.Add("@RequestedBy", SqlDbType.BigInt).Value = requestedByUserId;
+                    updateCmd.ExecuteNonQuery();
+                }
+
+                return (true, string.Empty);
+            }
+            finally { con?.Close(); }
+        }
+
+        public List<AccessRequestRow> GetPendingRequestsByAccountant(long accountantId)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            var list = new List<AccessRequestRow>();
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+SELECT uca.id,
+       uca.company_id,
+       c.name             AS company_name,
+       uca.granted_by_user_id AS requested_by_user_id,
+       COALESCE(u.name, 'Unknown') AS requested_by_name,
+       uca.created_at,
+       uca.status
+FROM dbo.FP26_user_company_access uca
+INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
+LEFT  JOIN dbo.FP26_users     u ON u.id = uca.granted_by_user_id
+WHERE uca.user_id = @AccountantId
+  AND uca.status  = 'pending'
+ORDER BY uca.created_at DESC;", con);
+                cmd.Parameters.Add("@AccountantId", SqlDbType.BigInt).Value = accountantId;
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new AccessRequestRow
+                    {
+                        Id                = Convert.ToInt64(reader["id"]),
+                        CompanyId         = Convert.ToInt64(reader["company_id"]),
+                        CompanyName       = reader["company_name"]?.ToString() ?? string.Empty,
+                        RequestedByUserId = reader["requested_by_user_id"] != DBNull.Value
+                                               ? Convert.ToInt64(reader["requested_by_user_id"])
+                                               : 0,
+                        RequestedByName   = reader["requested_by_name"]?.ToString() ?? "Unknown",
+                        CreatedAt         = Convert.ToDateTime(reader["created_at"]),
+                        Status            = reader["status"]?.ToString() ?? "pending",
+                    });
+                }
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+        public List<CompanyRow> GetActiveCompaniesByAccountant(long accountantId)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            var list = new List<CompanyRow>();
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+SELECT c.*, uca.access_level, u.name AS created_by_name
+FROM dbo.FP26_user_company_access uca
+INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
+LEFT  JOIN dbo.FP26_users     u ON u.id = c.created_by_user_id
+WHERE uca.user_id = @AccountantId
+  AND uca.status  = 'active'
+  AND c.is_active = 1
+ORDER BY c.name;", con);
+                cmd.Parameters.Add("@AccountantId", SqlDbType.BigInt).Value = accountantId;
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                    list.Add(MapCompany(reader));
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+        public bool RespondToAccessRequest(long requestId, long accountantUserId, bool accept)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+UPDATE dbo.FP26_user_company_access
+SET status             = @Status,
+    access_level       = CASE WHEN @Accept = 1 THEN 'full' ELSE access_level END,
+    granted_at         = CASE WHEN @Accept = 1 THEN GETDATE() ELSE granted_at END,
+    revoked_at         = CASE WHEN @Accept = 0 THEN GETDATE() ELSE revoked_at END,
+    revoked_by_user_id = CASE WHEN @Accept = 0 THEN @AccountantUserId ELSE revoked_by_user_id END
+WHERE id      = @RequestId
+  AND user_id = @AccountantUserId
+  AND status  = 'pending';
+SELECT @@ROWCOUNT;", con);
+                cmd.Parameters.Add("@RequestId", SqlDbType.BigInt).Value = requestId;
+                cmd.Parameters.Add("@AccountantUserId", SqlDbType.BigInt).Value = accountantUserId;
+                cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = accept ? "active" : "revoked";
+                cmd.Parameters.Add("@Accept", SqlDbType.Bit).Value = accept;
+                var result = cmd.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static CompanyRow MapCompany(SqlDataReader r)

@@ -108,6 +108,64 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
+        public bool UpdateUserVisibility(long userId, bool isPublic)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+UPDATE dbo.FP26_users
+SET is_public = @IsPublic
+WHERE id = @Id;
+SELECT @@ROWCOUNT;", con);
+                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = userId;
+                cmd.Parameters.Add("@IsPublic", SqlDbType.Bit).Value = isPublic;
+                var result = cmd.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        public List<AccountantInfo> GetPublicAccountants(long? requestingCompanyId)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            var list = new List<AccountantInfo>();
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+SELECT u.id, u.name, u.email, u.phone, u.profile_picture,
+       uca.status AS request_status
+FROM dbo.FP26_users u
+LEFT JOIN dbo.FP26_user_company_access uca
+    ON uca.user_id = u.id
+   AND uca.company_id = @CompanyId
+WHERE u.role IN ('accountant', 'accountant_business_owner')
+  AND u.is_public = 1
+  AND u.is_active = 1
+ORDER BY u.name;", con);
+                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value =
+                    (object?)requestingCompanyId ?? DBNull.Value;
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new AccountantInfo
+                    {
+                        Id             = Convert.ToInt64(reader["id"]),
+                        Name           = reader["name"]?.ToString() ?? string.Empty,
+                        Email          = reader["email"]?.ToString() ?? string.Empty,
+                        Phone          = reader["phone"] != DBNull.Value ? reader["phone"]?.ToString() : null,
+                        ProfilePicture = reader["profile_picture"] != DBNull.Value ? reader["profile_picture"]?.ToString() : null,
+                        RequestStatus  = reader["request_status"] != DBNull.Value ? reader["request_status"]?.ToString() : null,
+                    });
+                }
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static User MapUser(SqlDataReader r) => new()
@@ -118,7 +176,8 @@ namespace FinalProjectAuthAPI.DAL
             Role           = r["role"]?.ToString() ?? "business_owner",
             Phone          = r["phone"] != DBNull.Value ? r["phone"]?.ToString() : null,
             ProfilePicture = r["profile_picture"] != DBNull.Value ? r["profile_picture"]?.ToString() : null,
-            IsActive       = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"])
+            IsActive       = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"]),
+            IsPublic       = r.HasColumn("is_public") && r["is_public"] != DBNull.Value && Convert.ToBoolean(r["is_public"]),
         };
     }
 }

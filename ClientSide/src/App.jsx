@@ -12,6 +12,8 @@ import TransactionsPage from './pages/Transactions'
 import ProfilePage from './pages/ProfilePage'
 import AdminPortalPage from './pages/AdminPortal'
 import TechStackPage from './pages/TechStackPage'
+import AccountantWorkspacePage from './pages/AccountantWorkspace'
+import FindAccountantPage from './pages/FindAccountant'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
 import { useAuth } from './context/useAuth'
 import { useCompany } from './context/useCompany'
@@ -90,15 +92,17 @@ RoleRoute.propTypes = {
 function CompanyRoute({ children }) {
   const location = useLocation()
   const { activeCompanyId, loadingCompanies, hasResolvedCompanies } = useCompany()
+  const { user } = useAuth()
 
   if (loadingCompanies || !hasResolvedCompanies) {
     return <div>Resolving company access...</div>
   }
 
   if (!activeCompanyId) {
+    const isPureAccountant = user?.role === 'accountant'
     return (
       <Navigate
-        to="/profile"
+        to={isPureAccountant ? '/accountant-workspace' : '/profile'}
         replace
         state={{
           noCompany: true,
@@ -148,8 +152,24 @@ function App() {
               </CompanyRoute>
             }
           />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route
+          <Route path="/profile" element={<ProfilePage />} />            <Route
+              path="/accountant-workspace"
+              element={
+                <RoleRoute allowedRoles={ROLE_RULES.accountantOnly}>
+                  <AccountantWorkspacePage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/find-accountant"
+              element={
+                <CompanyRoute>
+                  <RoleRoute allowedRoles={ROLE_RULES.ownerOnly}>
+                    <FindAccountantPage />
+                  </RoleRoute>
+                </CompanyRoute>
+              }
+            />          <Route
             path="/admin"
             element={
               <RoleRoute allowedRoles={ROLE_RULES.adminOnly}>

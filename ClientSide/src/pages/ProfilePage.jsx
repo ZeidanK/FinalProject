@@ -32,7 +32,6 @@ import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
-import { getAllCompanies, grantCompanyAccess } from '../services/companies'
 import {
   useChangePasswordMutation,
   useCreateCompanyMutation,
@@ -146,9 +145,6 @@ export default function ProfilePage() {
   const [savingCompany, setSavingCompany] = useState(false)
   const [deletingCompanyId, setDeletingCompanyId] = useState(null)
   const [companyMsg, setCompanyMsg] = useState(null)
-  const [accountantCompanies, setAccountantCompanies] = useState([])
-  const [loadingAccountantCompanies, setLoadingAccountantCompanies] = useState(false)
-  const [accountantCompaniesError, setAccountantCompaniesError] = useState('')
 
   const isBusinessOwner = useMemo(
     () => user?.role === 'business_owner' || user?.role === 'accountant_business_owner',
@@ -192,38 +188,6 @@ export default function ProfilePage() {
       phone: profileQuery.data.phone || '',
     })
   }, [profileQuery.data])
-
-  useEffect(() => {
-    if (!isAccountant || !token) {
-      setAccountantCompanies([])
-      setAccountantCompaniesError('')
-      setLoadingAccountantCompanies(false)
-      return
-    }
-
-    let mounted = true
-    setLoadingAccountantCompanies(true)
-    setAccountantCompaniesError('')
-
-    getAllCompanies(token)
-      .then((data) => {
-        if (!mounted) return
-        setAccountantCompanies(Array.isArray(data) ? data : [])
-      })
-      .catch((err) => {
-        if (!mounted) return
-        setAccountantCompanies([])
-        setAccountantCompaniesError(err.message || 'Failed to load companies list.')
-      })
-      .finally(() => {
-        if (!mounted) return
-        setLoadingAccountantCompanies(false)
-      })
-
-    return () => {
-      mounted = false
-    }
-  }, [isAccountant, token])
 
   // ── Profile picture helpers ────────────────────────────────
   /**
@@ -440,119 +404,6 @@ export default function ProfilePage() {
     } finally {
       setDeletingCompanyId(null)
     }
-  }
-
-  /**
-   * Select the provided company as the active working company.
-   * For accountant users this also grants access before selection.
-   *
-   * @param {object} company - Company record to select.
-   */
-  const handleSelectCompany = async (company) => {
-    if (!company?.id) return
-
-    setCompanyMsg(null)
-
-    if (isAccountant) {
-      try {
-        await grantCompanyAccess(company.id, token)
-        await refreshCompanies()
-        setActiveCompanyId(company.id)
-        setCompanyMsg({ type: 'success', text: 'Company selected with full access.' })
-        return
-      } catch (err) {
-        setCompanyMsg({
-          type: 'error',
-          text: err.message || 'Failed to enable access for selected company.',
-        })
-        return
-      }
-    }
-
-    setActiveCompanyId(company.id)
-  }
-
-  // ── Render ─────────────────────────────────────────────────
-  const pickerCompanies = isAccountant ? accountantCompanies : companies
-  const activeCompanyIdNumber = Number(activeCompanyId)
-
-  let assignedCompaniesContent
-  if (loadingCompanies || loadingAccountantCompanies) {
-    assignedCompaniesContent = (
-      <Stack spacing={2}>
-        <Skeleton variant="rounded" height={60} />
-        <Skeleton variant="rounded" height={60} />
-      </Stack>
-    )
-  } else if (accountantCompaniesError) {
-    assignedCompaniesContent = (
-      <Alert severity="error" variant="outlined">
-        {accountantCompaniesError}
-      </Alert>
-    )
-  } else if (pickerCompanies.length === 0) {
-    assignedCompaniesContent = (
-      <Typography color="text.secondary">No companies available to select yet.</Typography>
-    )
-  } else {
-    assignedCompaniesContent = (
-      <Stack spacing={1.5}>
-        {pickerCompanies.map((c) => (
-          <Box
-            key={c.id}
-            sx={{
-              p: 2,
-              borderRadius: 2.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'rgba(14, 22, 40, 0.5)',
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Stack>
-                <Typography fontWeight={700}>{c.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
-                  {' · '}
-                  {c.currency || 'USD'}
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Chip
-                  label={c.accessLevel || c.access_level || 'Full Access'}
-                  size="small"
-                  sx={{
-                    bgcolor: 'rgba(55, 214, 122, 0.14)',
-                    border: '1px solid',
-                    borderColor: 'rgba(55, 214, 122, 0.38)',
-                    color: '#b3ffd0',
-                    fontWeight: 700,
-                    fontSize: '0.7rem',
-                    textTransform: 'capitalize',
-                  }}
-                />
-                {activeCompanyIdNumber === Number(c.id) ? (
-                  <Chip
-                    label="Active"
-                    size="small"
-                    color="primary"
-                    variant="filled"
-                  />
-                ) : (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => handleSelectCompany(c)}
-                  >
-                    Select
-                  </Button>
-                )}
-              </Stack>
-            </Stack>
-          </Box>
-        ))}
-      </Stack>
-    )
   }
 
   return (
@@ -925,31 +776,6 @@ export default function ProfilePage() {
                       </Button>
                     )}
                   </>
-                )}
-              </CardContent>
-            </Card>
-          </Box>
-        )}
-
-        {/* ══════════════════════════════════════════════════
-            SECTION D — Accountant: Assigned Companies
-           ══════════════════════════════════════════════════ */}
-        {isAccountant && (
-          <Box>
-            <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-              <CardContent sx={{ p: 3 }}>
-                {sectionHeader(
-                  <BusinessRoundedIcon sx={{ color: 'secondary.main' }} />,
-                  'Choose Business to Work With',
-                )}
-
-                {loadingCompanies ? (
-                  <Stack spacing={2}>
-                    <Skeleton variant="rounded" height={60} />
-                    <Skeleton variant="rounded" height={60} />
-                  </Stack>
-                ) : (
-                  assignedCompaniesContent
                 )}
               </CardContent>
             </Card>
