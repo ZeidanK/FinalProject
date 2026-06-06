@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
@@ -7,12 +9,19 @@ using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using Tesseract;
+using Newtonsoft.Json;
 
 namespace FinalProjectAuthAPI.BL
 {
     public class PdfExtractionService : IPdfExtractionService
     {
+        private static readonly string[] PythonExecutables = new[] { "py", "python", "python3" };
+
         private readonly string _tessdataPath;
+        private readonly string _contentRootPath;
+        private readonly string _pythonScriptPath;
+        private readonly string _modelPath;
+        private readonly string _vectorizerPath;
         private readonly IGeminiExtractionService _geminiService;
         private readonly ILogger<PdfExtractionService> _logger;
         private const int MinTextLength = 50;
@@ -22,7 +31,11 @@ namespace FinalProjectAuthAPI.BL
             IGeminiExtractionService geminiService,
             ILogger<PdfExtractionService> logger)
         {
+            _contentRootPath = env.ContentRootPath;
             _tessdataPath = Path.Combine(env.ContentRootPath, "tessdata");
+            _pythonScriptPath = Path.Combine(_contentRootPath, "ML", "test_invoice_model.py");
+            _modelPath = Path.Combine(_contentRootPath, "BL", "path_to_your_trained_model1.pkl");
+            _vectorizerPath = Path.Combine(_contentRootPath, "BL", "path_to_your_vectorizer1.pkl");
             _geminiService = geminiService;
             _logger = logger;
         }
@@ -45,10 +58,13 @@ namespace FinalProjectAuthAPI.BL
                 }
             }
 
+            await LogLocalModelInferenceAsync(extractedText, fileName);
+
             // Step 3: Try parsing with Gemini AI first
             PdfExtractionResult? result = null;
             try
             {
+                
                 _logger.LogInformation("Starting PDF extraction for {FileName} using {ExtractionMethod}", fileName, method);
                 result = await _geminiService.ParseInvoiceTextAsync(extractedText);
                 
@@ -64,6 +80,7 @@ namespace FinalProjectAuthAPI.BL
                 {
                     _logger.LogWarning("Gemini returned null result for {FileName}. Falling back to regex.", fileName);
                 }
+
             }
             catch (Exception ex)
             {
@@ -80,6 +97,125 @@ namespace FinalProjectAuthAPI.BL
 
             return result;
         }
+
+        private async Task LogLocalModelInferenceAsync(string extractedText, string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(extractedText))
+            {
+                _logger.LogInformation("Skipping local model inference for {FileName} because extracted text is empty.", fileName);
+                return;
+            }
+
+            if (!File.Exists(_pythonScriptPath) || !File.Exists(_modelPath) || !File.Exists(_vectorizerPath))
+            {
+                _logger.LogWarning(
+                    "Skipping local model inference for {FileName} because one or more assets are missing. Script: {ScriptExists}, Model: {ModelExists}, Vectorizer: {VectorizerExists}",
+                    fileName,
+                    File.Exists(_pythonScriptPath),
+                    File.Exists(_modelPath),
+                    File.Exists(_vectorizerPath));
+                return;
+            }
+
+            Console.WriteLine("\n========== LOCAL MODEL INFERENCE ==========");
+            Console.WriteLine($"[INFO] File: {fileName}");
+            Console.WriteLine($"[INFO] Extracted text length: {extractedText.Length} characters");
+            Console.WriteLine($"[INFO] Script: {_pythonScriptPath}");
+            Console.WriteLine($"[INFO] Model: {_modelPath}");
+            Console.WriteLine($"[INFO] Vectorizer: {_vectorizerPath}");
+
+            foreach (var pythonExecutable in PythonExecutables)
+            {
+                var result = await RunPythonInferenceAsync(pythonExecutable, extractedText);
+                if (!result.Success)
+                {
+                    _logger.LogWarning(
+                        "Local model inference attempt failed for {FileName} using {PythonExecutable}. Exit code: {ExitCode}. Error: {Error}",
+                        fileName,
+                        pythonExecutable,
+                        result.ExitCode,
+                        result.StandardError);
+                    continue;
+                }
+
+                Console.WriteLine($"[SUCCESS] Local model inference completed using {pythonExecutable}.");
+                if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+                {
+                    Console.WriteLine("\n========== LOCAL MODEL RESULT ==========");
+                    Console.WriteLine(result.StandardOutput.Trim());
+                    Console.WriteLine("========================================\n");
+                }
+
+                if (!string.IsNullOrWhiteSpace(result.StandardError))
+                {
+                    Console.WriteLine("[WARN] Local model stderr:");
+                    Console.WriteLine(result.StandardError.Trim());
+                }
+
+                Console.WriteLine("========================================\n");
+                return;
+            }
+
+            Console.WriteLine("[ERROR] Local model inference could not be executed with any available Python command.");
+            Console.WriteLine("========================================\n");
+        }
+
+private async Task<(bool Success, int ExitCode, string StandardOutput, string StandardError)> RunPythonInferenceAsync(
+    string pythonExecutable,
+    string extractedText)
+{
+    try
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = pythonExecutable,
+            WorkingDirectory = _contentRootPath,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        if (pythonExecutable.Equals("py", StringComparison.OrdinalIgnoreCase))
+        {
+            startInfo.ArgumentList.Add("-3");
+        }
+        startInfo.ArgumentList.Add(_pythonScriptPath);
+        startInfo.ArgumentList.Add("--model");
+        startInfo.ArgumentList.Add(_modelPath);
+        startInfo.ArgumentList.Add("--vectorizer");
+        startInfo.ArgumentList.Add(_vectorizerPath);
+
+        using var process = new Process { StartInfo = startInfo };
+        if (!process.Start())
+            return (false, -1, string.Empty, $"Failed to start {pythonExecutable}.");
+
+        await process.StandardInput.WriteAsync(extractedText);
+        await process.StandardInput.FlushAsync();
+        process.StandardInput.Close();
+
+        // Capture the raw output before parsing
+        var standardOutputTask = process.StandardOutput.ReadToEndAsync();
+        var standardErrorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        var standardOutput = await standardOutputTask;
+        var standardError = await standardErrorTask;
+
+        // Log the raw output for debugging purposes
+        Console.WriteLine("Standard Output:");
+        Console.WriteLine(standardOutput);
+        Console.WriteLine("Standard Error:");
+        Console.WriteLine(standardError);
+
+        // Parse the raw output (no JSON parsing needed)
+        return (true, process.ExitCode, standardOutput, standardError);
+    }
+    catch (Exception ex)
+    {
+        return (false, -1, string.Empty, ex.Message);
+    }
+}
 
         // ── iText7 text extraction ────────────────────────────────────────
 
