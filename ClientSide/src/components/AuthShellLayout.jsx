@@ -22,7 +22,7 @@ export default function AuthShellLayout({ chipLabel, children }) {
       }}
     >
       <Container
-        maxWidth={false}
+        maxWidth="md"
         disableGutters
         sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
       >
