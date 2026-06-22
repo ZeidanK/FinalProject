@@ -47,7 +47,7 @@ obj/
 # ASP.NET Core sensitive config (contains API keys / connection strings)
 appsettings.Development.json
 appsettings.*.json
-!appsettings.json
+appsettings.json
 
 # User-uploaded files
 Server/wwwroot/uploads/
