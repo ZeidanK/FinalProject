@@ -57,7 +57,7 @@ namespace FinalProjectAuthAPI.BL
             }
 
             Console.WriteLine($"[INFO] Extracted text length: {rawText.Length} characters");
-            Console.WriteLine($"[INFO] Text preview (first 500 chars):\n{rawText.Substring(0, Math.Min(500, rawText.Length))}...");
+            Console.WriteLine($"[INFO] Text preview:\n{rawText}...");
 
             var prompt = BuildInvoiceExtractionPrompt(rawText);
             Console.WriteLine("\n[INFO] Sending request to Gemini API...");

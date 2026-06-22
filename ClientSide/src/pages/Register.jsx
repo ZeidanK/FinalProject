@@ -8,8 +8,14 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  InputAdornment, // Added missing component
+  IconButton,     // Added missing component
 } from '@mui/material'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
+// Added missing icon imports
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
+
 import AuthShellLayout from '../components/AuthShellLayout'
 import { registerSchema } from '../schemas/auth'
 import { useRegisterMutation } from '../hooks/queries/useAuthQueries'
@@ -33,12 +39,15 @@ const ROLE_OPTIONS = [
 function RegisterPage() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [selectedRole, setSelectedRole] = useState('business_owner')
+
   const {
     register,
     handleSubmit,
     setError,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -46,11 +55,11 @@ function RegisterPage() {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'business_owner',
+      role: selectedRole,
     },
   })
+
   const registerMutation = useRegisterMutation()
-  const selectedRole = watch('role')
 
   /**
    * Update the selected role field from the toggle button group.
@@ -63,6 +72,7 @@ function RegisterPage() {
       return
     }
 
+    setSelectedRole(role)
     setValue('role', role, { shouldDirty: true, shouldValidate: true })
   }
 
@@ -146,24 +156,52 @@ function RegisterPage() {
             required
             label="Password"
             name="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             error={Boolean(errors.password)}
             helperText={errors.password?.message || ' '}
             {...register('password')}
             autoComplete="new-password"
             fullWidth
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
 
           <TextField
             required
             label="Confirm Password"
             name="confirmPassword"
-            type="password"
+            type={showConfirmPassword ? 'text' : 'password'}
             error={Boolean(errors.confirmPassword)}
             helperText={errors.confirmPassword?.message || ' '}
             {...register('confirmPassword')}
             autoComplete="new-password"
             fullWidth
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      edge="end"
+                    >
+                      {showConfirmPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
         </Stack>
 

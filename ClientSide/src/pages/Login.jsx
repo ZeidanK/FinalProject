@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form'
 import {
   Alert,
   Button,
+  IconButton,
+  InputAdornment,
   Stack,
   TextField,
   Typography,
@@ -12,6 +14,8 @@ import AuthShellLayout from '../components/AuthShellLayout'
 import { useAuth } from '../context/useAuth'
 import { loginSchema } from '../schemas/auth'
 import { useLoginWithSessionMutation } from '../hooks/queries/useAuthQueries'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 
 /**
  * Login page component for user authentication.
@@ -25,17 +29,14 @@ function Login() {
   const location = useLocation()
   const successMessage = location.state?.registrationSuccess || ''
   const [errorMessage, setErrorMessage] = useState('')
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm({
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       email: '',
       password: '',
     },
   })
+
+  const [showPassword, setShowPassword] = useState(false)
 
   /**
    * Login mutation hook bound to the auth context login action.
@@ -107,12 +108,26 @@ function Login() {
           required
           label="Password"
           name="password"
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           error={Boolean(errors.password)}
           helperText={errors.password?.message || ' '}
           {...register('password')}
           autoComplete="current-password"
           fullWidth
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            },
+          }}
         />
 
         <Button
