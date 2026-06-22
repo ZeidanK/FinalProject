@@ -53,6 +53,10 @@ appsettings.json
 Server/wwwroot/uploads/
 !Server/wwwroot/uploads/.gitkeep
 
+Server/appsettings.Development.json
+Server/appsettings.*.json
+Server/appsettings.json
+
 # Generated reports
 reports/
 
