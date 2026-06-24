@@ -218,9 +218,7 @@ namespace FinalProjectAuthAPI.BL
             if (!filtered.Any())
                 return Task.FromResult(new List<MatchSuggestionRow>());
 
-            // TODO: Gemini vendor-name matching temporarily disabled — re-enable when ready
-            // return CompareWithGeminiAsync(invoice, filtered, remaining);
-            return Task.FromResult(BuildResultsWithoutGemini(filtered, remaining));
+            return CompareWithGeminiAsync(invoice, filtered, remaining);
         }
 
         private static List<(TransactionCandidate Txn, string AmountReason)> FilterByDateAndAmount(

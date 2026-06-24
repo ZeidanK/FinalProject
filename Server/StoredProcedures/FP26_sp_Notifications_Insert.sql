@@ -16,4 +16,5 @@ BEGIN
         (@UserId, @EventType, @Title, @Body, @Severity, @CompanyId, @Link, GETDATE());
 
     SELECT SCOPE_IDENTITY() AS id;
+
 END
