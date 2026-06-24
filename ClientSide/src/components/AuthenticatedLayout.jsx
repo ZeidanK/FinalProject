@@ -31,6 +31,7 @@ import { useTheme } from '@mui/material/styles'
 import PropTypes from 'prop-types'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import NotificationBell from './NotificationBell'
 
 const sidebarWidth = 272
 const BUSINESS_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
@@ -301,6 +302,8 @@ function AuthenticatedLayout() {
               <Typography fontWeight={700}>ReconFlow</Typography>
             </Stack>
             {showWorkingWith && workingWithText}
+            <Box sx={{ flexGrow: 1 }} />
+            <NotificationBell />
           </Toolbar>
         </AppBar>
       }

@@ -14,12 +14,14 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IAnomalyService _svc;
         private readonly DBservices _db;
         private readonly IFileStorageService _fileSvc;
+        private readonly IRealtimeNotificationService _realtime;
 
-        public AnomaliesController(IAnomalyService svc, DBservices db, IFileStorageService fileSvc)
+        public AnomaliesController(IAnomalyService svc, DBservices db, IFileStorageService fileSvc, IRealtimeNotificationService realtime)
         {
             _svc = svc;
             _db = db;
             _fileSvc = fileSvc;
+            _realtime = realtime;
         }
 
         // GET api/anomalies/company/{companyId}?status=&severity=&type=
@@ -64,6 +66,23 @@ namespace FinalProjectAuthAPI.Controllers
         public IActionResult Create([FromBody] CreateAnomalyRequest request)
         {
             var (success, id, error) = _svc.Create(request);
+
+            if (success)
+            {
+                _ = _realtime.NotifyCompanyEventAsync(request.CompanyId, "anomaly.created", new
+                {
+                    anomalyId = id,
+                    request.CompanyId,
+                    request.AnomalyType,
+                    request.Severity,
+                    request.Title
+                },
+                title: $"Anomaly detected: {request.Title}",
+                body: request.Description ?? string.Empty,
+                severity: request.Severity == "critical" || request.Severity == "high" ? "error" : "warning",
+                link: "/anomalies");
+            }
+
             return success
                 ? CreatedAtAction(nameof(GetById), new { id }, new
                 {
@@ -94,6 +113,24 @@ namespace FinalProjectAuthAPI.Controllers
                 ? "Anomaly marked unresolved."
                 : "Anomaly resolved.";
             var payload = new { id, status, resolutionNotes = request.ResolutionNotes };
+
+            var anomaly = _svc.GetById(id);
+            if (anomaly != null)
+            {
+                _ = _realtime.NotifyCompanyEventAsync(anomaly.CompanyId, "anomaly.resolved", new
+                {
+                    anomalyId = id,
+                    anomaly.CompanyId,
+                    status,
+                    resolvedByUserId = userId,
+                    request.ResolutionNotes
+                },
+                title: "Anomaly resolved",
+                body: $"Anomaly '{anomaly.Title}' has been marked as {status}.",
+                severity: "success",
+                link: "/anomalies");
+            }
+
             return SuccessWithLegacy(payload, new { message }, message);
         }
 
@@ -109,6 +146,19 @@ namespace FinalProjectAuthAPI.Controllers
             }
 
             var payload = new { id, keepInvoiceId = request.KeepInvoiceId };
+
+            var anomaly = _svc.GetById(id);
+            if (anomaly != null)
+            {
+                _ = _realtime.NotifyCompanyEventAsync(anomaly.CompanyId, "anomaly.duplicate_invoice.decided", new
+                {
+                    anomalyId = id,
+                    anomaly.CompanyId,
+                    keepInvoiceId = request.KeepInvoiceId,
+                    resolvedByUserId = userId
+                });
+            }
+
             return SuccessWithLegacy(payload, new { message = "Duplicate invoice decision saved." }, "Duplicate invoice decision saved.");
         }
 

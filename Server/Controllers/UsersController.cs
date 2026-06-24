@@ -93,5 +93,35 @@ namespace FinalProjectAuthAPI.Controllers
                 ? Ok(new { message = "Visibility updated." })
                 : BadRequest(new { message = "Update failed." });
         }
+
+        // POST api/users/verify-password
+        // Verify user's password (for account deletion confirmation)
+        [HttpPost("verify-password")]
+        public IActionResult VerifyPassword([FromBody] VerifyPasswordRequest request)
+        {
+            var userId = GetCurrentUserId();
+            var ok = _svc.VerifyPassword(userId, request.Password);
+            return ok
+                ? Ok(new { message = "Password verified." })
+                : Unauthorized(new { message = "Password is incorrect." });
+        }
+
+        // DELETE api/users/{id}
+        // Soft-delete user account by disabling it while preserving data
+        [HttpDelete("{id:long}")]
+        public IActionResult DeleteAccount(long id)
+        {
+            var currentUserId = GetCurrentUserId();
+            var currentRole = GetCurrentUserRole();
+
+            // Users can only delete their own account; admins can delete any account
+            if (currentUserId != id && !string.Equals(currentRole, "admin", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            var ok = _svc.DeleteUserAccount(id);
+            return ok
+                ? Ok(new { message = "Account deleted successfully." })
+                : BadRequest(new { message = "Failed to delete account." });
+        }
     }
 }

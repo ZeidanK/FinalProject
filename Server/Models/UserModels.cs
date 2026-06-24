@@ -23,4 +23,10 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
         public string NewPassword { get; set; } = string.Empty;
     }
+
+    public class VerifyPasswordRequest
+    {
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
 }

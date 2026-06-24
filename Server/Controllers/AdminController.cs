@@ -10,10 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     public class AdminController : ApiControllerBase
     {
         private readonly IAdminService _svc;
+        private readonly IRealtimeNotificationService _realtime;
 
-        public AdminController(IAdminService svc)
+        public AdminController(IAdminService svc, IRealtimeNotificationService realtime)
         {
             _svc = svc;
+            _realtime = realtime;
         }
 
         // GET api/admin/stats
@@ -47,6 +49,19 @@ namespace FinalProjectAuthAPI.Controllers
                 isActive,
                 message = isActive ? "User activated." : "User deactivated."
             };
+
+            _ = _realtime.NotifyUserEventAsync(userId, "admin.user.active_toggled", payload,
+                title: isActive ? "Account activated" : "Account deactivated",
+                body: isActive
+                    ? "Your account has been activated by an administrator."
+                    : "Your account has been deactivated. Contact support if this is an error.",
+                severity: isActive ? "success" : "error");
+            _ = _realtime.NotifyAdminsEventAsync("admin.user.active_toggled", new
+            {
+                targetUserId = userId,
+                isActive,
+                changedByUserId = GetCurrentUserId()
+            });
 
             return SuccessWithLegacy(payload, payload, payload.message);
         }

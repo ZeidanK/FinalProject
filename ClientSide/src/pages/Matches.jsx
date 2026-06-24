@@ -412,7 +412,7 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
                 const _inv = invoices.find((i) => i.id === s.invoiceId)
                 const _trx = transactions.find((t) => t.id === s.transactionId)
                 const invCurrency = _inv?.currency || 'USD'
-                const trxCurrency = _trx?.charge_currency || _trx?.chargeCurrency || invCurrency
+                const trxCurrency = _trx?.original_currency || _trx?.originalCurrency || invCurrency
                 return (
                   <Box
                     key={pairKey}

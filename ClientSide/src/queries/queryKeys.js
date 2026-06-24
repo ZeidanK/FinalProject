@@ -1,4 +1,12 @@
 /**
+ * Key factories for notification-related React Query caches.
+ */
+export const notificationKeys = {
+  all: ['notifications'],
+  mine: (take) => [...notificationKeys.all, 'mine', take],
+}
+
+/**
  * Key factories for anomaly-related React Query caches.
  *
  * @type {{all: string[], byCompany: function(string|number): Array, list: function(string|number, any): Array, stats: function(string|number): Array, detail: function(string|number): Array}}

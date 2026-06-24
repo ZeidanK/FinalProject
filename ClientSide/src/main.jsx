@@ -7,6 +7,9 @@ import App from './App.jsx'
 import theme from './theme'
 import { AuthProvider } from './context/AuthContext'
 import { CompanyProvider } from './context/CompanyContext'
+import { NotificationProvider } from './context/NotificationContext'
+import { RealtimeProvider } from './context/RealtimeContext'
+import GlobalNotifications from './components/GlobalNotifications'
 import ErrorBoundary from './components/ErrorBoundary'
 import { queryClient } from './queries/queryClient'
 
@@ -17,9 +20,14 @@ createRoot(document.getElementById('root')).render(
         <CssBaseline />
         <AuthProvider>
           <CompanyProvider>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
+            <NotificationProvider>
+              <RealtimeProvider>
+                <ErrorBoundary>
+                  <App />
+                  <GlobalNotifications />
+                </ErrorBoundary>
+              </RealtimeProvider>
+            </NotificationProvider>
           </CompanyProvider>
         </AuthProvider>
       </ThemeProvider>

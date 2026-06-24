@@ -132,6 +132,14 @@ export const URLS = {
     verified: (id) => buildApiPath(`/UploadJobs/${id}/verified`),
     download: (id) => buildApiPath(`/UploadJobs/${id}/download`),
   },
+  realtime: {
+    notificationsHub: buildApiPath('/realtime/notifications'),
+  },
+  notifications: {
+    mine: buildApiPath('/Notifications'),
+    markRead: (id) => buildApiPath(`/Notifications/${id}/read`),
+    markAllRead: buildApiPath('/Notifications/read-all'),
+  },
   accountants: {
     base: buildApiPath('/Accountants'),
     sendRequest: (id) => buildApiPath(`/Accountants/${id}/request`),

@@ -15,6 +15,7 @@ namespace FinalProjectAuthAPI.BL
         private readonly IExcelExtractionService _excelSvc;
         private readonly ITransactionService _transactionSvc;
         private readonly IAnomalyService _anomalySvc;
+        private readonly IRealtimeNotificationService _realtime;
 
         public UploadJobWorker(
             IUploadJobService jobSvc,
@@ -23,7 +24,8 @@ namespace FinalProjectAuthAPI.BL
             IInvoiceService invoiceSvc,
             IExcelExtractionService excelSvc,
             ITransactionService transactionSvc,
-            IAnomalyService anomalySvc)
+            IAnomalyService anomalySvc,
+            IRealtimeNotificationService realtime)
         {
             _jobSvc = jobSvc;
             _fileSvc = fileSvc;
@@ -32,6 +34,7 @@ namespace FinalProjectAuthAPI.BL
             _excelSvc = excelSvc;
             _transactionSvc = transactionSvc;
             _anomalySvc = anomalySvc;
+            _realtime = realtime;
         }
 
         private static readonly JsonSerializerOptions _camelCase = new()
@@ -48,6 +51,7 @@ namespace FinalProjectAuthAPI.BL
 
             _jobSvc.MarkProcessing(jobId);
             _jobSvc.UpdateProgress(jobId, 10);
+            await NotifyUploadJobUpdatedAsync(jobId);
 
             try
             {
@@ -63,6 +67,7 @@ namespace FinalProjectAuthAPI.BL
                 }
 
                 _jobSvc.UpdateProgress(jobId, 60);
+                await NotifyUploadJobUpdatedAsync(jobId);
 
                 if (string.Equals(job.JobType, UploadJobTypes.InvoiceUploadAndCreate, StringComparison.OrdinalIgnoreCase))
                 {
@@ -79,6 +84,7 @@ namespace FinalProjectAuthAPI.BL
                     if (!success)
                     {
                         _jobSvc.MarkFailed(jobId, error);
+                        await NotifyUploadJobUpdatedAsync(jobId);
                         return;
                     }
 
@@ -93,6 +99,7 @@ namespace FinalProjectAuthAPI.BL
                     }, _camelCase);
 
                     _jobSvc.MarkCompleted(jobId, result);
+                    await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
 
@@ -103,10 +110,12 @@ namespace FinalProjectAuthAPI.BL
                 }, _camelCase);
 
                 _jobSvc.MarkCompleted(jobId, extractOnlyResult);
+                await NotifyUploadJobUpdatedAsync(jobId);
             }
             catch (Exception ex)
             {
                 _jobSvc.MarkFailed(jobId, ex.Message);
+                await NotifyUploadJobUpdatedAsync(jobId);
             }
         }
 
@@ -118,6 +127,7 @@ namespace FinalProjectAuthAPI.BL
 
             _jobSvc.MarkProcessing(jobId);
             _jobSvc.UpdateProgress(jobId, 10);
+            await NotifyUploadJobUpdatedAsync(jobId);
 
             try
             {
@@ -138,6 +148,7 @@ namespace FinalProjectAuthAPI.BL
                 if (!duplicateResult.Success)
                 {
                     _jobSvc.MarkFailed(jobId, duplicateResult.Error);
+                    await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
 
@@ -152,10 +163,12 @@ namespace FinalProjectAuthAPI.BL
                     }, _camelCase);
 
                     _jobSvc.MarkCompleted(jobId, duplicatePayload);
+                    await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
 
                 _jobSvc.UpdateProgress(jobId, 50);
+                await NotifyUploadJobUpdatedAsync(jobId);
 
                 ExcelExtractionResult extraction;
                 using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -166,6 +179,7 @@ namespace FinalProjectAuthAPI.BL
                 if (extraction.TotalExtracted == 0)
                 {
                     _jobSvc.MarkFailed(jobId, "No transactions could be extracted from the file.");
+                    await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
 
@@ -199,10 +213,12 @@ namespace FinalProjectAuthAPI.BL
                 if (!success)
                 {
                     _jobSvc.MarkFailed(jobId, error);
+                    await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
 
                 _jobSvc.UpdateProgress(jobId, 90);
+                await NotifyUploadJobUpdatedAsync(jobId);
 
                 var result = JsonSerializer.Serialize(new
                 {
@@ -218,13 +234,40 @@ namespace FinalProjectAuthAPI.BL
                 }, _camelCase);
 
                 _jobSvc.MarkCompleted(jobId, result);
+                await NotifyUploadJobUpdatedAsync(jobId);
             }
             catch (Exception ex)
             {
                 _jobSvc.MarkFailed(jobId, ex.Message);
+                await NotifyUploadJobUpdatedAsync(jobId);
             }
+        }
 
-            await Task.CompletedTask;
+        private async Task NotifyUploadJobUpdatedAsync(long jobId)
+        {
+            var updated = _jobSvc.GetById(jobId);
+            if (updated == null)
+                return;
+
+            await _realtime.NotifyUploadJobUpdatedAsync(updated);
+
+            var status = updated.Status?.ToLowerInvariant();
+            if (status == UploadJobStatuses.Completed || status == UploadJobStatuses.Failed)
+            {
+                var isCompleted = status == UploadJobStatuses.Completed;
+                var fileName = updated.FileOriginalName ?? "file";
+                await _realtime.NotifyUserEventAsync(
+                    updated.UserId,
+                    isCompleted ? "uploadjob.completed" : "uploadjob.failed",
+                    new { updated.Id, updated.Status },
+                    title: isCompleted ? "Upload complete" : "Upload failed",
+                    body: isCompleted
+                        ? $"'{fileName}' was processed successfully."
+                        : $"'{fileName}' could not be processed: {updated.ErrorMessage}",
+                    severity: isCompleted ? "success" : "error",
+                    companyId: updated.CompanyId,
+                    link: "/invoices");
+            }
         }
 
         private static CreateInvoiceRequest BuildInvoiceRequest(long companyId, PdfExtractionResult extracted)

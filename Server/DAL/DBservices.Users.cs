@@ -172,6 +172,28 @@ ORDER BY u.name;", con);
             finally { reader?.Close(); con?.Close(); }
         }
 
+        // ── Account soft deletion ──────────────────────────────────────────────
+
+        public bool DeleteUserAccount(long userId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+                    UPDATE dbo.FP26_users
+                    SET is_active = 0,
+                        updated_at = GETDATE()
+                    WHERE id = @UserId;
+                    SELECT @@ROWCOUNT;", con);
+                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
+
+                var result = cmd.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static User MapUser(SqlDataReader r) => new()

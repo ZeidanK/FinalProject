@@ -35,6 +35,7 @@ import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { useRealtime } from '../context/useRealtime'
 import {
   downloadInvoicePdf,
   getInvoiceById,
@@ -80,6 +81,7 @@ const statusColors = {
 function InvoicesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
+  const { isConnected: isRealtimeConnected, subscribe: subscribeRealtime } = useRealtime()
 
   // --- Invoice list state ---
   const [invoices, setInvoices] = useState([])
@@ -146,76 +148,105 @@ function InvoicesPage() {
     }
   }, [])
 
+  const applyUploadJobUpdate = useCallback(
+    (job, fileEntryId = null) => {
+      const normalizedJobId = job?.id ?? job?.Id
+      if (!normalizedJobId) return false
+
+      const status = (job?.status ?? job?.Status ?? '').toLowerCase()
+      const progressPercent = job?.progressPercent ?? job?.ProgressPercent ?? 0
+      const errorMessage = job?.errorMessage ?? job?.ErrorMessage
+      const resultJson = job?.resultJson ?? job?.ResultJson
+      const filePath = job?.filePath ?? job?.FilePath
+      const fileOriginalName = job?.fileOriginalName ?? job?.FileOriginalName
+      const fileType = job?.fileType ?? job?.FileType
+      const fileSize = job?.fileSize ?? job?.FileSize
+
+      const isTargetFile = (fileEntry) => {
+        if (fileEntryId) return fileEntry.id === fileEntryId
+        return fileEntry.jobId === normalizedJobId
+      }
+
+      if (status === 'completed') {
+        let extractedData = null
+        let serverResponse = null
+
+        try {
+          const result = JSON.parse(resultJson || 'null')
+          if (result?.extractedData) {
+            serverResponse = {
+              filePath,
+              fileOriginalName,
+              fileType,
+              fileSize,
+              extractedData: result.extractedData,
+            }
+            extractedData = mapExtractedToForm(
+              result.extractedData,
+              result.extractedData?.extractionConfidence,
+            )
+          }
+        } catch {
+          // Ignore malformed result payload and mark as error below.
+        }
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            isTargetFile(f)
+              ? {
+                  ...f,
+                  status: extractedData ? 'completed' : 'error',
+                  progress: 100,
+                  serverResponse,
+                  extractedData,
+                  error: extractedData ? null : 'Extraction finished but returned no data.',
+                  jobId: normalizedJobId,
+                }
+              : f,
+          ),
+        )
+
+        return true
+      }
+
+      if (status === 'failed' || status === 'canceled') {
+        setFiles((prev) =>
+          prev.map((f) =>
+            isTargetFile(f)
+              ? { ...f, status: 'error', progress: 0, error: errorMessage || 'Processing failed.' }
+              : f,
+          ),
+        )
+
+        return true
+      }
+
+      setFiles((prev) =>
+        prev.map((f) =>
+          isTargetFile(f)
+            ? { ...f, progress: Math.min(90, progressPercent || 20), jobId: normalizedJobId }
+            : f,
+        ),
+      )
+
+      return false
+    },
+    [],
+  )
+
   const startPolling = useCallback(
     (jobId, fileEntryId) => {
       const poll = async () => {
         try {
           const job = await getUploadJobStatus(jobId, token)
 
-          if (job.status === 'completed') {
+          const terminal = applyUploadJobUpdate(job, fileEntryId)
+          if (terminal) {
             stopPolling(jobId)
             removeJobFromSession(jobId)
-
-            let extractedData = null
-            let serverResponse = null
-            try {
-              const result = JSON.parse(job.resultJson || 'null')
-              if (result?.extractedData) {
-                serverResponse = {
-                  filePath: job.filePath,
-                  fileOriginalName: job.fileOriginalName,
-                  fileType: job.fileType,
-                  fileSize: job.fileSize,
-                  extractedData: result.extractedData,
-                }
-                extractedData = mapExtractedToForm(
-                  result.extractedData,
-                  result.extractedData?.extractionConfidence,
-                )
-              }
-            } catch {
-              // resultJson parse error
-            }
-
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === fileEntryId
-                  ? {
-                      ...f,
-                      status: extractedData ? 'completed' : 'error',
-                      progress: 100,
-                      serverResponse,
-                      extractedData,
-                      error: extractedData ? null : 'Extraction finished but returned no data.',
-                      jobId,
-                    }
-                  : f,
-              ),
-            )
             return
           }
 
-          if (job.status === 'failed' || job.status === 'canceled') {
-            stopPolling(jobId)
-            removeJobFromSession(jobId)
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === fileEntryId
-                  ? { ...f, status: 'error', progress: 0, error: job.errorMessage || 'Processing failed.' }
-                  : f,
-              ),
-            )
-            return
-          }
-
-          // Still queued/processing — update progress indicator and schedule next check
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileEntryId
-                ? { ...f, progress: Math.min(90, job.progressPercent || 20) }
-                : f,
-            ),
-          )
           pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
         } catch {
           // Transient network error — back off and retry
@@ -225,8 +256,25 @@ function InvoicesPage() {
 
       pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
     },
-    [token, stopPolling, removeJobFromSession],
+    [token, applyUploadJobUpdate, stopPolling, removeJobFromSession],
   )
+
+  useEffect(() => {
+    if (!isRealtimeConnected) return
+
+    const unsubscribe = subscribeRealtime('uploadJobUpdated', (job) => {
+      const normalizedJobId = job?.id ?? job?.Id
+      if (!normalizedJobId) return
+
+      const terminal = applyUploadJobUpdate(job)
+      if (!terminal) return
+
+      stopPolling(normalizedJobId)
+      removeJobFromSession(normalizedJobId)
+    })
+
+    return unsubscribe
+  }, [isRealtimeConnected, subscribeRealtime, applyUploadJobUpdate, stopPolling, removeJobFromSession])
 
   // Restore any in-flight jobs from sessionStorage when the page (re-)mounts or company changes
   useEffect(() => {

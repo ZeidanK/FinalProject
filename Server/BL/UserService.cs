@@ -43,5 +43,17 @@ namespace FinalProjectAuthAPI.BL
 
         public bool UpdateVisibility(long id, bool isPublic) =>
             _db.UpdateUserVisibility(id, isPublic);
+
+        public bool VerifyPassword(long userId, string password)
+        {
+            var storedHash = _db.GetPasswordHash(userId);
+            if (storedHash == null)
+                return false;
+
+            return storedHash == User.HashPassword(password);
+        }
+
+        public bool DeleteUserAccount(long userId) =>
+            _db.DeleteUserAccount(userId);
     }
 }
