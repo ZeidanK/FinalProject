@@ -28,6 +28,7 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
@@ -868,7 +869,7 @@ CompanyCard.defaultProps = {
 }
 
 /**
- * CompanyForm renders the create/edit company input form.
+ * CompanyForm renders the create/edit company input form with organized sections.
  *
  * @param {object} props
  * @param {object} props.form - Current form field values.
@@ -880,6 +881,11 @@ CompanyCard.defaultProps = {
  * @returns {JSX.Element} Company form markup.
  */
 function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
+  const [expandedSections, setExpandedSections] = useState({
+    address: false,
+    financial: false,
+  })
+
   /**
    * Create an onChange handler for the company form field.
    *
@@ -889,10 +895,14 @@ function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
   const handleChange = (field) => (e) =>
     setForm((p) => ({ ...p, [field]: e.target.value }))
 
+  const toggleSection = (section) => {
+    setExpandedSections((p) => ({ ...p, [section]: !p[section] }))
+  }
+
   return (
     <Box
       sx={{
-        p: 2.5,
+        p: 3,
         mb: 1.5,
         borderRadius: 2.5,
         border: '1px solid',
@@ -900,123 +910,231 @@ function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
         bgcolor: 'rgba(88, 166, 255, 0.04)',
       }}
     >
-      <Typography fontWeight={700} sx={{ mb: 2 }}>
-        {isNew ? 'New Company' : 'Edit Company'}
+      <Typography fontWeight={700} sx={{ mb: 2.5, fontSize: '1.1rem' }}>
+        {isNew ? '+ Add New Company' : 'Edit Company'}
       </Typography>
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Company Name *"
-            fullWidth
-            value={form.name}
-            onChange={handleChange('name')}
-          />
+      {/* ─── ESSENTIAL INFORMATION ─── */}
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1.5, fontWeight: 600 }}>
+          Essential Information
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Company Name"
+              placeholder="Enter company name"
+              fullWidth
+              required
+              value={form.name}
+              onChange={handleChange('name')}
+              size="small"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Email"
+              placeholder="company@example.com"
+              fullWidth
+              required
+              type="email"
+              value={form.email}
+              onChange={handleChange('email')}
+              size="small"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Phone"
+              placeholder="+1 (555) 000-0000"
+              fullWidth
+              value={form.phone}
+              onChange={handleChange('phone')}
+              size="small"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Website"
+              placeholder="https://example.com"
+              fullWidth
+              value={form.website}
+              onChange={handleChange('website')}
+              size="small"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Country"
+              placeholder="USA"
+              fullWidth
+              value={form.country}
+              onChange={handleChange('country')}
+              size="small"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Currency"
+              placeholder="USD"
+              fullWidth
+              value={form.currency}
+              onChange={handleChange('currency')}
+              size="small"
+            />
+          </Grid>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Registration Number"
-            fullWidth
-            value={form.registrationNumber}
-            onChange={handleChange('registrationNumber')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Street"
-            fullWidth
-            value={form.street}
-            onChange={handleChange('street')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="City"
-            fullWidth
-            value={form.city}
-            onChange={handleChange('city')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="State"
-            fullWidth
-            value={form.state}
-            onChange={handleChange('state')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="Postal Code"
-            fullWidth
-            value={form.postalCode}
-            onChange={handleChange('postalCode')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="Country"
-            fullWidth
-            value={form.country}
-            onChange={handleChange('country')}
-          />
-        </Grid>
+      </Box>
 
-        <Grid size={12}>
-          <Divider sx={{ my: 0.5 }} />
-        </Grid>
+      <Divider sx={{ my: 2 }} />
 
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Email"
-            fullWidth
-            value={form.email}
-            onChange={handleChange('email')}
+      {/* ─── ADDRESS INFORMATION (Expandable) ─── */}
+      <Box sx={{ mb: 2 }}>
+        <Box
+          onClick={() => toggleSection('address')}
+          sx={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 1,
+            px: 1.5,
+            borderRadius: 1,
+            bgcolor: expandedSections.address ? 'rgba(88, 166, 255, 0.08)' : 'transparent',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              bgcolor: 'rgba(88, 166, 255, 0.08)',
+            },
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            Address Details
+          </Typography>
+          <ExpandMoreRoundedIcon
+            sx={{
+              transform: expandedSections.address ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+              color: 'text.secondary',
+            }}
           />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Phone"
-            fullWidth
-            value={form.phone}
-            onChange={handleChange('phone')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Website"
-            fullWidth
-            value={form.website}
-            onChange={handleChange('website')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="Tax ID"
-            fullWidth
-            value={form.taxId}
-            onChange={handleChange('taxId')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="VAT Number"
-            fullWidth
-            value={form.vatNumber}
-            onChange={handleChange('vatNumber')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="Currency"
-            fullWidth
-            value={form.currency}
-            onChange={handleChange('currency')}
-          />
-        </Grid>
-      </Grid>
+        </Box>
+        <Collapse in={expandedSections.address}>
+          <Box sx={{ pt: 1.5, px: 1.5 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Street"
+                  placeholder="123 Main Street"
+                  fullWidth
+                  value={form.street}
+                  onChange={handleChange('street')}
+                  size="small"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="City"
+                  placeholder="New York"
+                  fullWidth
+                  value={form.city}
+                  onChange={handleChange('city')}
+                  size="small"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="State"
+                  placeholder="NY"
+                  fullWidth
+                  value={form.state}
+                  onChange={handleChange('state')}
+                  size="small"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Postal Code"
+                  placeholder="10001"
+                  fullWidth
+                  value={form.postalCode}
+                  onChange={handleChange('postalCode')}
+                  size="small"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </Collapse>
+      </Box>
 
-      <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 2.5 }}>
+      {/* ─── FINANCIAL DETAILS (Expandable) ─── */}
+      <Box sx={{ mb: 2.5 }}>
+        <Box
+          onClick={() => toggleSection('financial')}
+          sx={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 1,
+            px: 1.5,
+            borderRadius: 1,
+            bgcolor: expandedSections.financial ? 'rgba(88, 166, 255, 0.08)' : 'transparent',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              bgcolor: 'rgba(88, 166, 255, 0.08)',
+            },
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            Financial & Tax Details
+          </Typography>
+          <ExpandMoreRoundedIcon
+            sx={{
+              transform: expandedSections.financial ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+              color: 'text.secondary',
+            }}
+          />
+        </Box>
+        <Collapse in={expandedSections.financial}>
+          <Box sx={{ pt: 1.5, px: 1.5 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Registration Number"
+                  placeholder="e.g., REG-12345"
+                  fullWidth
+                  value={form.registrationNumber}
+                  onChange={handleChange('registrationNumber')}
+                  size="small"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Tax ID"
+                  placeholder="e.g., 12-3456789"
+                  fullWidth
+                  value={form.taxId}
+                  onChange={handleChange('taxId')}
+                  size="small"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="VAT Number"
+                  placeholder="e.g., VAT-12345"
+                  fullWidth
+                  value={form.vatNumber}
+                  onChange={handleChange('vatNumber')}
+                  size="small"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </Collapse>
+      </Box>
+
+      <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 3 }}>
         <Button
           variant="outlined"
           color="secondary"

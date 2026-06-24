@@ -98,6 +98,7 @@ export default function InvoiceVerificationModal(props) {
   const fileName = props.fileName
   const fileType = props.fileType
   const invoiceId = props.invoiceId
+  const uploadJobId = props.uploadJobId
   const token = props.token
   const localFile = props.localFile
   const extractionMethod = props.extractionMethod
@@ -523,6 +524,7 @@ export default function InvoiceVerificationModal(props) {
     <InvoicePdfPreview
       open={open}
       invoiceId={invoiceId}
+      uploadJobId={uploadJobId}
       token={token}
       fileName={fileName}
       fileType={fileType}
@@ -626,6 +628,7 @@ InvoiceVerificationModal.propTypes = {
   fileName: PropTypes.string,
   fileType: PropTypes.string,
   invoiceId: PropTypes.number,
+  uploadJobId: PropTypes.number,
   token: PropTypes.string,
   localFile: PropTypes.instanceOf(File),
   extractionMethod: PropTypes.string,

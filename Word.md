@@ -27,9 +27,10 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes.
 These need backend logic, database updates, or careful flow handling.
 
 13.	Matching page: non-payment plan showing up in the two menus
+
 17.	Login has no validation for email or phone
 18.	Consider adding Google login
-19.	Profile page for business owner: adding a new company — review required data and improve UI
+<!-- 19.	Profile page for business owner: adding a new company — review required data and improve UI -->
 20.	Delete account should be added to the profile page
 21.	When uploading an invoice and the user deletes it, the file should be removed from the server
 22.	Anomalies: detect duplicate Excel files

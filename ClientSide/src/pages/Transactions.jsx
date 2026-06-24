@@ -252,11 +252,21 @@ function TransactionsPage() {
             stopTxPolling(jobId)
             removeTxJobFromSession(jobId)
             const result = (() => { try { return JSON.parse(job.resultJson || 'null') } catch { return null } })()
-            const count = result?.count ?? 0
             upsertImportingJob(jobId, { status: 'completed', progress: 100 })
+            setImportingJobs((prev) => prev.filter((j) => j.jobId !== jobId))
+
+            if (result?.isDuplicate) {
+              setSnack({
+                open: true,
+                message: 'Duplicate Excel file detected. This file has already been imported and was skipped — check the Anomalies page for details.',
+                severity: 'warning',
+              })
+              return
+            }
+
+            const count = result?.count ?? 0
             setSnack({ open: true, message: `Successfully imported ${count} transaction(s) from ${fileName}.`, severity: 'success' })
             await transactionsQuery.refetch()
-            setImportingJobs((prev) => prev.filter((j) => j.jobId !== jobId))
             return
           }
 

@@ -69,8 +69,9 @@ namespace FinalProjectAuthAPI.Models
         public string? Country { get; set; }
 
         [EmailAddress]
+        [Required]
         [StringLength(255)]
-        public string? Email { get; set; }
+        public string Email { get; set; } = string.Empty;
 
         [StringLength(50)]
         public string? Phone { get; set; }

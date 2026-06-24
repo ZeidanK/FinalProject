@@ -1375,10 +1375,12 @@ function InvoicesPage() {
         fileType={
           modal.file?.sourceInvoice?.fileType ||
           modal.file?.sourceInvoice?.file_type ||
+          modal.file?.serverResponse?.fileType ||
           modal.file?.file?.type ||
-          null
+          'application/pdf'
         }
         invoiceId={modal.file?.existingInvoiceId || null}
+        uploadJobId={modal.file?.jobId || null}
         token={token}
         localFile={modal.file?.file || null}
         extractionMethod={modal.file?.serverResponse?.extractedData?.extractionMethod}

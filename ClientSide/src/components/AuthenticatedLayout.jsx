@@ -30,6 +30,7 @@ import { useState } from 'react'
 import { useTheme } from '@mui/material/styles'
 import PropTypes from 'prop-types'
 import { useAuth } from '../context/useAuth'
+import { useCompany } from '../context/useCompany'
 
 const sidebarWidth = 272
 const BUSINESS_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
@@ -249,13 +250,28 @@ SidebarContent.propTypes = {
  * @returns {JSX.Element}
  */
 function AuthenticatedLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout, token } = useAuth()
+  const { companies, activeCompanyId } = useCompany()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleOpen = () => setMobileOpen(true)
   const handleClose = () => setMobileOpen(false)
+
+  const isAccountant = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
+  const activeCompany =
+    activeCompanyId && Array.isArray(companies)
+      ? companies.find((c) => String(c.id) === String(activeCompanyId))
+      : null
+
+  const showWorkingWith = isAccountant && activeCompany && token
+
+  const workingWithText = (
+    <Typography variant="body2" sx={{ ml: 3, color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
+      Working With: <span style={{ color: '#cde7ff', fontWeight: 700 }}>{activeCompany?.name}</span>
+    </Typography>
+  )
 
   return (
     <Box
@@ -284,6 +300,7 @@ function AuthenticatedLayout() {
               <LogoMark sx={{ width: 28, height: 28 }} />
               <Typography fontWeight={700}>ReconFlow</Typography>
             </Stack>
+            {showWorkingWith && workingWithText}
           </Toolbar>
         </AppBar>
       }

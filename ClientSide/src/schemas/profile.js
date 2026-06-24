@@ -29,8 +29,9 @@ export const passwordChangeSchema = z
 /**
  * Schema for validating company details.
  *
- * Ensures the company name is present.
+ * Ensures the company name and email are present with proper format.
  */
 export const companySchema = z.object({
   name: z.string().trim().min(1, 'Company name is required.'),
+  email: z.string().email('Email must contain @').trim().min(1, 'Email is required.'),
 })
