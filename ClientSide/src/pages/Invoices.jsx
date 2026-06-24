@@ -39,6 +39,7 @@ import {
   downloadInvoicePdf,
   getInvoiceById,
 } from '../services/invoices'
+import { getMyUploadJobs, getUploadJobStatus, markUploadJobVerified } from '../services/uploadJobs'
 import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
@@ -102,6 +103,267 @@ function InvoicesPage() {
   const [bulkDeletingInvoices, setBulkDeletingInvoices] = useState(false)
   const [sortKey, setSortKey] = useState('date')
   const [sortDirection, setSortDirection] = useState('desc')
+
+  // ===================== Background-job polling =====================
+
+  const pollingTimers = useRef({})
+  const POLL_INTERVAL_MS = 4000
+
+  const sessionKey = activeCompanyId ? `invoice_upload_jobs_${activeCompanyId}` : null
+
+  const saveJobToSession = useCallback(
+    (entry, jobId) => {
+      if (!sessionKey) return
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(sessionKey) || '[]')
+        const deduped = stored.filter((j) => j.jobId !== jobId)
+        deduped.push({ id: entry.id, jobId, name: entry.name, size: entry.size })
+        sessionStorage.setItem(sessionKey, JSON.stringify(deduped))
+      } catch {
+        // ignore storage errors
+      }
+    },
+    [sessionKey],
+  )
+
+  const removeJobFromSession = useCallback(
+    (jobId) => {
+      if (!sessionKey) return
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(sessionKey) || '[]')
+        sessionStorage.setItem(sessionKey, JSON.stringify(stored.filter((j) => j.jobId !== jobId)))
+      } catch {
+        // ignore storage errors
+      }
+    },
+    [sessionKey],
+  )
+
+  const stopPolling = useCallback((jobId) => {
+    if (pollingTimers.current[jobId]) {
+      clearTimeout(pollingTimers.current[jobId])
+      delete pollingTimers.current[jobId]
+    }
+  }, [])
+
+  const startPolling = useCallback(
+    (jobId, fileEntryId) => {
+      const poll = async () => {
+        try {
+          const job = await getUploadJobStatus(jobId, token)
+
+          if (job.status === 'completed') {
+            stopPolling(jobId)
+            removeJobFromSession(jobId)
+
+            let extractedData = null
+            let serverResponse = null
+            try {
+              const result = JSON.parse(job.resultJson || 'null')
+              if (result?.extractedData) {
+                serverResponse = {
+                  filePath: job.filePath,
+                  fileOriginalName: job.fileOriginalName,
+                  fileType: job.fileType,
+                  fileSize: job.fileSize,
+                  extractedData: result.extractedData,
+                }
+                extractedData = mapExtractedToForm(
+                  result.extractedData,
+                  result.extractedData?.extractionConfidence,
+                )
+              }
+            } catch {
+              // resultJson parse error
+            }
+
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileEntryId
+                  ? {
+                      ...f,
+                      status: extractedData ? 'completed' : 'error',
+                      progress: 100,
+                      serverResponse,
+                      extractedData,
+                      error: extractedData ? null : 'Extraction finished but returned no data.',
+                      jobId,
+                    }
+                  : f,
+              ),
+            )
+            return
+          }
+
+          if (job.status === 'failed' || job.status === 'canceled') {
+            stopPolling(jobId)
+            removeJobFromSession(jobId)
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileEntryId
+                  ? { ...f, status: 'error', progress: 0, error: job.errorMessage || 'Processing failed.' }
+                  : f,
+              ),
+            )
+            return
+          }
+
+          // Still queued/processing — update progress indicator and schedule next check
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileEntryId
+                ? { ...f, progress: Math.min(90, job.progressPercent || 20) }
+                : f,
+            ),
+          )
+          pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
+        } catch {
+          // Transient network error — back off and retry
+          pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS * 2)
+        }
+      }
+
+      pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
+    },
+    [token, stopPolling, removeJobFromSession],
+  )
+
+  // Restore any in-flight jobs from sessionStorage when the page (re-)mounts or company changes
+  useEffect(() => {
+    if (!sessionKey || !token) return
+
+    let stored = []
+    try {
+      stored = JSON.parse(sessionStorage.getItem(sessionKey) || '[]')
+    } catch {
+      return
+    }
+    if (stored.length === 0) return
+
+    const restoredEntries = stored.map((j) => ({
+      id: j.id,
+      file: null,
+      name: j.name,
+      size: j.size,
+      status: 'extracting',
+      error: null,
+      progress: 50,
+      extractedData: null,
+      serverResponse: null,
+      jobId: j.jobId,
+    }))
+
+    setFiles((prev) => {
+      const existingJobIds = new Set(prev.map((f) => f.jobId).filter(Boolean))
+      const newOnes = restoredEntries.filter((e) => !existingJobIds.has(e.jobId))
+      return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+    })
+
+    restoredEntries.forEach((e) => startPolling(e.jobId, e.id))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionKey, token])
+
+  // Clean up all polling timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pollingTimers.current).forEach(clearTimeout)
+      pollingTimers.current = {}
+    }
+  }, [])
+
+  // ===================== Data Fetching =====================
+  // Restore jobs from the server DB — runs on every login / company switch.
+  // This is the persistent path (survives logout). sessionStorage only covers
+  // same-tab navigation within a single session.
+  useEffect(() => {
+    if (!activeCompanyId || !token) return
+
+    let cancelled = false
+
+    const restoreFromServer = async () => {
+      try {
+        const jobs = await getMyUploadJobs(token, { companyId: activeCompanyId, take: 100 })
+        if (cancelled || !Array.isArray(jobs)) return
+
+        // Only invoice PDF jobs that the user hasn't verified yet
+        const pending = jobs.filter(
+          (j) =>
+            j.jobType === 'invoice_upload_pdf' &&
+            (j.status === 'completed' || j.status === 'queued' || j.status === 'processing'),
+        )
+        if (pending.length === 0) return
+
+        setFiles((prev) => {
+          const existingJobIds = new Set(prev.map((f) => f.jobId).filter(Boolean))
+          const toAdd = []
+
+          for (const job of pending) {
+            if (existingJobIds.has(job.id)) continue // already tracked in this session
+
+            if (job.status === 'completed') {
+              let extractedData = null
+              let serverResponse = null
+              try {
+                const result = JSON.parse(job.resultJson || 'null')
+                if (result?.extractedData) {
+                  serverResponse = {
+                    filePath: job.filePath,
+                    fileOriginalName: job.fileOriginalName,
+                    fileType: job.fileType,
+                    fileSize: job.fileSize,
+                    extractedData: result.extractedData,
+                  }
+                  extractedData = mapExtractedToForm(
+                    result.extractedData,
+                    result.extractedData?.extractionConfidence,
+                  )
+                }
+              } catch { /* skip unparseable jobs */ }
+
+              if (!extractedData) continue // can't restore without data
+
+              toAdd.push({
+                id: `restored-${job.id}`,
+                file: null,
+                name: job.fileOriginalName || job.filePath?.split('/').pop() || `Job ${job.id}`,
+                size: job.fileSize || 0,
+                status: 'completed',
+                error: null,
+                progress: 100,
+                extractedData,
+                serverResponse,
+                jobId: job.id,
+              })
+            } else {
+              // queued / processing — add as extracting and resume polling
+              toAdd.push({
+                id: `restored-${job.id}`,
+                file: null,
+                name: job.fileOriginalName || job.filePath?.split('/').pop() || `Job ${job.id}`,
+                size: job.fileSize || 0,
+                status: 'extracting',
+                error: null,
+                progress: Math.max(job.progressPercent || 0, 10),
+                extractedData: null,
+                serverResponse: null,
+                jobId: job.id,
+              })
+              startPolling(job.id, `restored-${job.id}`)
+            }
+          }
+
+          return toAdd.length > 0 ? [...prev, ...toAdd] : prev
+        })
+      } catch {
+        // Non-critical — user just won't see restored jobs this time
+      }
+    }
+
+    restoreFromServer()
+    return () => { cancelled = true }
+  // startPolling is stable (wrapped in useCallback with no changing deps that affect this)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, token])
 
   // ===================== Data Fetching =====================
 
@@ -174,18 +436,37 @@ function InvoicesPage() {
           companyId: activeCompanyId,
         })
 
+        // Async path: server returned a background job id — poll until Gemini finishes
+        const jobId = response?.jobId ?? response?.JobId
+        if (jobId) {
+          saveJobToSession(entry, jobId)
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === entry.id
+                ? { ...f, status: 'extracting', progress: 50, jobId }
+                : f,
+            ),
+          )
+          startPolling(jobId, entry.id)
+          return
+        }
+
+        // Legacy sync path (fallback — should not normally occur after the async migration)
         setFiles((prev) =>
           prev.map((f) =>
             f.id === entry.id
               ? {
                   ...f,
-                  status: 'completed',
+                  status: response?.extractedData ? 'completed' : 'error',
                   progress: 100,
                   serverResponse: response,
-                  extractedData: mapExtractedToForm(
-                    response.extractedData,
-                    response.extractedData?.extractionConfidence,
-                  ),
+                  extractedData: response?.extractedData
+                    ? mapExtractedToForm(
+                        response.extractedData,
+                        response.extractedData?.extractionConfidence,
+                      )
+                    : null,
+                  error: response?.extractedData ? null : 'No extraction data returned.',
                 }
               : f,
           ),
@@ -200,7 +481,7 @@ function InvoicesPage() {
         )
       }
     },
-    [activeCompanyId, uploadInvoiceMutation],
+    [activeCompanyId, uploadInvoiceMutation, saveJobToSession, startPolling],
   )
 
   const addFiles = useCallback((fileList) => {
@@ -225,6 +506,7 @@ function InvoicesPage() {
         progress: 0,
         extractedData: null,
         serverResponse: null,
+        jobId: null,
       }
     })
     setFiles((prev) => [...prev, ...entries])
@@ -412,12 +694,18 @@ function InvoicesPage() {
         } else {
           const result = await createInvoiceMutation.mutateAsync({ payload, autoMatch: true })
 
-          // Mark file as verified
+          // Mark file as verified and clean up session storage
           setFiles((prev) =>
             prev.map((f) =>
               f.id === modal.file?.id ? { ...f, status: 'verified' } : f,
             ),
           )
+          if (modal.file?.jobId) {
+            removeJobFromSession(modal.file.jobId)
+            // Fire-and-forget: mark the job verified in the DB so it won't
+            // reappear in the restoration queue after logout/login
+            markUploadJobVerified(modal.file.jobId, token).catch(() => {})
+          }
 
           // Handle duplicate invoice — saved but flagged as anomaly
           if (result?.isDuplicate) {
@@ -458,7 +746,7 @@ function InvoicesPage() {
         setSaving(false)
       }
     },
-    [activeCompanyId, createInvoiceMutation, updateInvoiceMutation, modal.file, invoicesQuery],
+    [activeCompanyId, createInvoiceMutation, updateInvoiceMutation, modal.file, invoicesQuery, removeJobFromSession, token],
   )
 
   const handleOpenInvoice = useCallback(
@@ -938,6 +1226,8 @@ function InvoicesPage() {
                       entryIcon = <CheckCircleRoundedIcon />
                     } else if (entry.status === 'error') {
                       entryIcon = <ErrorRoundedIcon />
+                    } else if (entry.status === 'uploading' || entry.status === 'extracting') {
+                      entryIcon = <CircularProgress size={22} color="inherit" />
                     }
 
                     return (
@@ -971,6 +1261,18 @@ function InvoicesPage() {
                           </Stack>
                           {entry.status === 'uploading' && (
                             <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
+                          )}
+                          {entry.status === 'extracting' && (
+                            <>
+                              <LinearProgress
+                                variant={entry.progress >= 20 ? 'determinate' : 'indeterminate'}
+                                value={entry.progress}
+                                sx={{ mt: 0.5, borderRadius: 1 }}
+                              />
+                              <Typography variant="caption" color="text.secondary">
+                                Extracting with AI… this may take a few moments
+                              </Typography>
+                            </>
                           )}
                           {entry.status === 'error' && (
                             <Typography variant="caption" color="error.main">

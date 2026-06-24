@@ -1,9 +1,10 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -15,20 +16,23 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly ITransactionService _svc;
         private readonly IExcelExtractionService _excelSvc;
         private readonly IFileStorageService _fileSvc;
-        private readonly IAnomalyService _anomalySvc;
+        private readonly IUploadJobService _jobSvc;
+        private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly DBservices _db;
 
         public TransactionsController(
             ITransactionService svc,
             IExcelExtractionService excelSvc,
             IFileStorageService fileSvc,
-            IAnomalyService anomalySvc,
+            IUploadJobService jobSvc,
+            IBackgroundJobClient backgroundJobClient,
             DBservices db)
         {
             _svc = svc;
             _excelSvc = excelSvc;
             _fileSvc = fileSvc;
-            _anomalySvc = anomalySvc;
+            _jobSvc = jobSvc;
+            _backgroundJobClient = backgroundJobClient;
             _db = db;
         }
 
@@ -197,80 +201,43 @@ namespace FinalProjectAuthAPI.Controllers
             }
 
             var fileName = request.FileOriginalName ?? Path.GetFileName(request.SavedFilePath);
-
-            var fileHash = ComputeFileSha256(fullPath);
-            var duplicateResult = _anomalySvc.RegisterTransactionFileUpload(
-                request.CompanyId,
-                fileName,
-                request.SavedFilePath,
-                new FileInfo(fullPath).Length,
-                userId,
-                fileHash);
-
-            if (!duplicateResult.Success)
-                return BadRequest(new { message = duplicateResult.Error });
-
-            if (duplicateResult.IsDuplicate)
-            {
-                return Conflict(new
-                {
-                    message = "Duplicate Excel file detected. Import was skipped and grouped under an anomaly.",
-                    anomalyId = duplicateResult.AnomalyId,
-                    fileHash
-                });
-            }
-
-            ExcelExtractionResult extractionResult;
             try
             {
-                using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                extractionResult = _excelSvc.Extract(stream, fileName);
+                var payload = JsonSerializer.Serialize(new UploadJobPayload
+                {
+                    BankAccountId = request.BankAccountId,
+                    Source = "import-excel"
+                });
+
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
+                {
+                    JobType = UploadJobTypes.TransactionImportExcel,
+                    FilePath = request.SavedFilePath,
+                    FileOriginalName = fileName,
+                    FileType = Path.GetExtension(fileName),
+                    FileSize = new FileInfo(fullPath).Length,
+                    CompanyId = request.CompanyId,
+                    UserId = userId,
+                    BankAccountId = request.BankAccountId,
+                    PayloadJson = payload
+                });
+
+                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
+                    w => w.ProcessTransactionJobAsync(jobId));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Transaction import accepted and queued for background processing."
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" });
+                return BadRequest(new { message = $"Failed to queue transaction import: {ex.Message}" });
             }
-
-            if (extractionResult.TotalExtracted == 0)
-                return BadRequest(new { message = "No transactions could be extracted from the file.", sheets = extractionResult.Sheets });
-
-            var bulkRequest = new BulkCreateTransactionsRequest
-            {
-                CompanyId = request.CompanyId,
-                CreatedByUserId = userId,
-                Transactions = extractionResult.Transactions.Select(t => new CreateTransactionRequest
-                {
-                    CompanyId = request.CompanyId,
-                    TransactionDate = t.TransactionDate,
-                    PostedDate = t.PostedDate,
-                    Description = t.Description,
-                    Amount = t.Amount,
-                    BalanceAfter = t.BalanceAfter,
-                    TransactionType = t.TransactionType,
-                    Category = t.Category,
-                    ReferenceNumber = t.ReferenceNumber,
-                    VendorName = t.VendorName,
-                    CardLast4 = t.CardLast4,
-                    ChargeAmount = t.ChargeAmount,
-                    ChargeCurrency = t.ChargeCurrency,
-                    OriginalCurrency = t.OriginalCurrency,
-                    ExchangeRate = t.ExchangeRate,
-                    BankAccountId = request.BankAccountId,
-                    CreatedByUserId = userId
-                }).ToList()
-            };
-
-            var (success, ids, error) = _svc.BulkCreate(bulkRequest, userId);
-
-            if (!success)
-                return BadRequest(new { message = error });
-
-            return StatusCode(201, new
-            {
-                count = ids.Count,
-                ids,
-                message = $"Successfully imported {ids.Count} transaction(s)."
-            });
         }
 
         [HttpPost("upload-excel")]
@@ -289,74 +256,38 @@ namespace FinalProjectAuthAPI.Controllers
 
             try
             {
-                // 1. Save the file
+                // Save and enqueue so the upload continues even if the user leaves the page.
                 var (relativePath, _) = await _fileSvc.SaveExcelAsync(file, companyId);
 
-                var fullPath = _fileSvc.GetExcelFullPath(relativePath);
-                var fileHash = ComputeFileSha256(fullPath);
-
-                var duplicateResult = _anomalySvc.RegisterTransactionFileUpload(
-                    companyId,
-                    file.FileName,
-                    relativePath,
-                    file.Length,
-                    userId,
-                    fileHash);
-
-                if (!duplicateResult.Success)
-                    return BadRequest(new { message = duplicateResult.Error, filePath = relativePath });
-
-                if (duplicateResult.IsDuplicate)
+                var payload = JsonSerializer.Serialize(new UploadJobPayload
                 {
-                    return Conflict(new
-                    {
-                        message = "Duplicate Excel file detected. Import was skipped and grouped under an anomaly.",
-                        anomalyId = duplicateResult.AnomalyId,
-                        fileHash,
-                        filePath = relativePath,
-                    });
-                }
+                    BankAccountId = bankAccountId,
+                    Source = "upload-excel"
+                });
 
-                // 2. Extract transactions from the Excel file
-                var (extractionResult, extractionError) = TryExtractExcel(file, relativePath);
-                if (extractionError != null)
-                    return extractionError;
-
-                // 3. Map extracted transactions to bulk create request
-                var bulkRequest = new BulkCreateTransactionsRequest
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
                 {
-                    CompanyId = companyId,
-                    CreatedByUserId = userId,
-                    Transactions = extractionResult!.Transactions.Select(t => new CreateTransactionRequest
-                    {
-                        CompanyId = companyId,
-                        TransactionDate = t.TransactionDate,
-                        PostedDate = t.PostedDate,
-                        Description = t.Description,
-                        Amount = t.Amount,
-                        BalanceAfter = t.BalanceAfter,
-                        TransactionType = t.TransactionType,
-                        Category = t.Category,
-                        ReferenceNumber = t.ReferenceNumber,
-                        VendorName = t.VendorName,
-                        BankAccountId = bankAccountId,
-                        CreatedByUserId = userId
-                    }).ToList()
-                };
-
-                // 4. Bulk insert
-                var (success, ids, error) = _svc.BulkCreate(bulkRequest, userId);
-
-                if (!success)
-                    return BadRequest(new { message = error, filePath = relativePath });
-
-                return StatusCode(201, new UploadExcelResponse
-                {
-                    FileOriginalName = file.FileName,
-                    FileSize = file.Length,
+                    JobType = UploadJobTypes.TransactionUploadExcel,
                     FilePath = relativePath,
-                    ExtractionResult = extractionResult,
-                    CreatedTransactionIds = ids
+                    FileOriginalName = file.FileName,
+                    FileType = file.ContentType,
+                    FileSize = file.Length,
+                    CompanyId = companyId,
+                    UserId = userId,
+                    BankAccountId = bankAccountId,
+                    PayloadJson = payload
+                });
+
+                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
+                    w => w.ProcessTransactionJobAsync(jobId));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Excel upload accepted and queued for background processing."
                 });
             }
             catch (ArgumentException ex)
@@ -420,12 +351,5 @@ namespace FinalProjectAuthAPI.Controllers
             });
         }
 
-        private static string ComputeFileSha256(string fullPath)
-        {
-            using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var sha = SHA256.Create();
-            var hash = sha.ComputeHash(stream);
-            return Convert.ToHexString(hash).ToLowerInvariant();
-        }
     }
 }

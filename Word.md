@@ -1,5 +1,8 @@
 Here is the task list ordered from easy → hard, with the very easy tasks that do not need an AI agent in the first group.
+
 <!-- 1. Very easy tasks — no AI agent needed -->
+
+
 These are mostly UI cleanup, text/display changes, or small frontend fixes.
 <!-- 1.	Remove the app name from the navbar and keep only the logo -->
 <!-- 2.	Remove the name of the user from the navbar -->
@@ -15,12 +18,15 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes.
 <!-- These are still simple, but they need checking data/state or touching both UI and logic. -->
 11.	Accountant active user should show in the header saying "Working With: 'user name'"
 12.	Profile page: password view shows hashed password — fix so hashed password is never shown
-13.	Matching page: non-payment plan showing up in the two menus
 <!-- 14.	Find an accountant: user should be able to remove the accountant -->
 <!-- 15.	Working with on my workspace: add option to remove users -->
-16.	When accountant changes profile to private, it should still show the user they are working with them as long as they do not cancel
+<!-- 16.	When accountant changes profile to private, it should still show the user they are working with them as long as they do not cancel -->
+
 3. Medium tasks
+
 These need backend logic, database updates, or careful flow handling.
+
+13.	Matching page: non-payment plan showing up in the two menus
 17.	Login has no validation for email or phone
 18.	Consider adding Google login
 19.	Profile page for business owner: adding a new company — review required data and improve UI

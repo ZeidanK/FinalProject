@@ -108,7 +108,7 @@ namespace FinalProjectAuthAPI.BL
                 var existingInstallmentMatches = existingMatches.Where(IsInstallmentMatch).ToList();
 
                 var hasInstallmentMetadata =
-                    (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 0) ||
+                    (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1) ||
                     (invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0) ||
                     !string.IsNullOrWhiteSpace(invoice.PaymentPlanDescription);
 

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Hangfire;
+using Hangfire.SqlServer;
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
@@ -29,6 +31,27 @@ builder.Services.AddScoped<IAccountantService, AccountantService>();
 builder.Services.AddScoped<IPdfExtractionService, PdfExtractionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IExcelExtractionService, ExcelExtractionService>();
+builder.Services.AddScoped<IUploadJobService, UploadJobService>();
+builder.Services.AddScoped<IUploadJobWorker, UploadJobWorker>();
+
+var hangfireConnectionString = builder.Configuration.GetConnectionString("myProjDB");
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(hangfireConnectionString, new SqlServerStorageOptions
+    {
+        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+        QueuePollInterval = TimeSpan.FromSeconds(15),
+        UseRecommendedIsolationLevel = true,
+        DisableGlobalLocks = true
+    }));
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = Math.Max(1, Environment.ProcessorCount / 2);
+    options.Queues = new[] { "uploads", "default" };
+});
 
 // AI provider toggle: set "AiProvider" in appsettings.json to "gemini" or "ollama"
 var aiProvider = builder.Configuration["AiProvider"] ?? "gemini";
@@ -111,5 +134,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHangfireDashboard("/hangfire");
 
 app.Run();

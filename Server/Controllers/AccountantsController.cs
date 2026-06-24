@@ -71,15 +71,21 @@ namespace FinalProjectAuthAPI.Controllers
         }
 
         // DELETE api/accountants/{accountantId}/connection?companyId={companyId}
-        // Business owner disconnects from an active accountant.
+        // Business owner/admin disconnects from an accountant, or accountant removes themselves.
         [HttpDelete("{accountantId:long}/connection")]
-        [Authorize(Roles = "business_owner,accountant_business_owner,admin")]
+        [Authorize(Roles = "business_owner,accountant_business_owner,admin,accountant")]
         public IActionResult Disconnect(long accountantId, [FromQuery] long companyId)
         {
             if (companyId <= 0)
                 return BadRequest(new { message = "CompanyId is required." });
 
             var currentUserId = GetCurrentUserId();
+            var currentRole = GetCurrentUserRole();
+
+            // Accountants can only remove themselves; others (business_owner, admin) can remove any accountant
+            if (currentRole == "accountant" && accountantId != currentUserId)
+                return Forbid();
+
             var ok = _svc.DisconnectAccountant(accountantId, companyId, currentUserId);
             return ok ? Ok(new { message = "Accountant disconnected successfully." }) : BadRequest(new { message = "Failed to disconnect accountant." });
         }

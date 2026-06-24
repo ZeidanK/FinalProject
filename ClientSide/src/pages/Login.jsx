@@ -117,10 +117,11 @@ function Login() {
           slotProps={{
             input: {
               endAdornment: (
-                <InputAdornment position="end">
+                <InputAdornment position="end" sx={{ mr: -1 }}>
                   <IconButton
                     onClick={() => setShowPassword(!showPassword)}
                     edge="end"
+                    sx={{ color: 'text.secondary' }}
                   >
                     {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
                   </IconButton>

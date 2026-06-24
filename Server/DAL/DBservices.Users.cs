@@ -143,8 +143,14 @@ LEFT JOIN dbo.FP26_user_company_access uca
     ON uca.user_id = u.id
    AND uca.company_id = @CompanyId
 WHERE u.role IN ('accountant', 'accountant_business_owner')
-  AND u.is_public = 1
   AND u.is_active = 1
+  AND (
+    u.is_public = 1
+    OR (
+      @CompanyId IS NOT NULL
+      AND uca.status = 'active'
+    )
+  )
 ORDER BY u.name;", con);
                 cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value =
                     (object?)requestingCompanyId ?? DBNull.Value;

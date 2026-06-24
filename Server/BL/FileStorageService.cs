@@ -136,6 +136,28 @@ namespace FinalProjectAuthAPI.BL
             return fullPath;
         }
 
+        public string GetInvoiceFullPath(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                throw new ArgumentException("File path is required.");
+
+            var normalized = relativePath.Replace("\\", "/");
+
+            if (normalized.Contains(".."))
+                throw new ArgumentException("Invalid file path.");
+
+            if (!normalized.StartsWith("uploads/invoices/", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Invalid file path.");
+
+            var wwwroot = Directory.GetParent(_uploadsRoot)!.Parent!.FullName;
+            var fullPath = Path.Combine(wwwroot, normalized.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException("Invoice file not found on server.", fullPath);
+
+            return fullPath;
+        }
+
         public bool Delete(string relativePath)
         {
             if (string.IsNullOrWhiteSpace(relativePath))

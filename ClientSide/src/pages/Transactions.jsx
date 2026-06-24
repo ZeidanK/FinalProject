@@ -52,6 +52,7 @@ import {
   importExcelTransactions,
   previewExcel,
 } from '../services/transactions'
+import { getUploadJobStatus } from '../services/uploadJobs'
 import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
 import {
   filterTransactionsByType,
@@ -190,6 +191,115 @@ function TransactionsPage() {
   })
 
   const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
+
+  // ===================== Background-job polling (Excel imports) =====================
+
+  const pollingTimers = useRef({})
+  const POLL_INTERVAL_MS = 4000
+  const txSessionKey = activeCompanyId ? `transaction_upload_jobs_${activeCompanyId}` : null
+
+  const saveTxJobToSession = useCallback(
+    (jobId, fileName) => {
+      if (!txSessionKey) return
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(txSessionKey) || '[]')
+        if (!stored.find((j) => j.jobId === jobId))
+          stored.push({ jobId, fileName })
+        sessionStorage.setItem(txSessionKey, JSON.stringify(stored))
+      } catch { /* ignore */ }
+    },
+    [txSessionKey],
+  )
+
+  const removeTxJobFromSession = useCallback(
+    (jobId) => {
+      if (!txSessionKey) return
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(txSessionKey) || '[]')
+        sessionStorage.setItem(txSessionKey, JSON.stringify(stored.filter((j) => j.jobId !== jobId)))
+      } catch { /* ignore */ }
+    },
+    [txSessionKey],
+  )
+
+  // [importingJobs] tracks each in-flight Excel import job so the UI can show progress
+  const [importingJobs, setImportingJobs] = useState([])  // [{jobId, fileName, progress, status}]
+
+  const upsertImportingJob = useCallback((jobId, patch) => {
+    setImportingJobs((prev) => {
+      const idx = prev.findIndex((j) => j.jobId === jobId)
+      if (idx === -1) return [...prev, { jobId, progress: 0, status: 'queued', fileName: '', ...patch }]
+      const next = [...prev]
+      next[idx] = { ...next[idx], ...patch }
+      return next
+    })
+  }, [])
+
+  const stopTxPolling = useCallback((jobId) => {
+    if (pollingTimers.current[jobId]) {
+      clearTimeout(pollingTimers.current[jobId])
+      delete pollingTimers.current[jobId]
+    }
+  }, [])
+
+  const startTxPolling = useCallback(
+    (jobId, fileName) => {
+      const poll = async () => {
+        try {
+          const job = await getUploadJobStatus(jobId, token)
+
+          if (job.status === 'completed') {
+            stopTxPolling(jobId)
+            removeTxJobFromSession(jobId)
+            const result = (() => { try { return JSON.parse(job.resultJson || 'null') } catch { return null } })()
+            const count = result?.count ?? 0
+            upsertImportingJob(jobId, { status: 'completed', progress: 100 })
+            setSnack({ open: true, message: `Successfully imported ${count} transaction(s) from ${fileName}.`, severity: 'success' })
+            await transactionsQuery.refetch()
+            setImportingJobs((prev) => prev.filter((j) => j.jobId !== jobId))
+            return
+          }
+
+          if (job.status === 'failed' || job.status === 'canceled') {
+            stopTxPolling(jobId)
+            removeTxJobFromSession(jobId)
+            upsertImportingJob(jobId, { status: 'failed', progress: 0 })
+            setSnack({ open: true, message: job.errorMessage || `Import failed for ${fileName}.`, severity: 'error' })
+            setImportingJobs((prev) => prev.filter((j) => j.jobId !== jobId))
+            return
+          }
+
+          upsertImportingJob(jobId, { progress: Math.min(90, job.progressPercent || 30), status: job.status })
+          pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
+        } catch {
+          pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS * 2)
+        }
+      }
+      pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
+    },
+    [token, stopTxPolling, removeTxJobFromSession, upsertImportingJob, transactionsQuery],
+  )
+
+  // Restore in-flight jobs from sessionStorage on mount / company change
+  useEffect(() => {
+    if (!txSessionKey || !token) return
+    let stored = []
+    try { stored = JSON.parse(sessionStorage.getItem(txSessionKey) || '[]') } catch { return }
+    if (stored.length === 0) return
+    stored.forEach(({ jobId, fileName }) => {
+      upsertImportingJob(jobId, { status: 'processing', progress: 50, fileName })
+      startTxPolling(jobId, fileName)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txSessionKey, token])
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pollingTimers.current).forEach(clearTimeout)
+      pollingTimers.current = {}
+    }
+  }, [])
 
   useEffect(() => {
     if (transactionsQuery.error) {
@@ -551,6 +661,17 @@ function TransactionsPage() {
             token,
           )
 
+          // Async 202 path — response contains jobId; poll until complete
+          const jobId = response?.jobId ?? response?.JobId
+          if (jobId) {
+            saveTxJobToSession(jobId, file.name)
+            upsertImportingJob(jobId, { jobId, fileName: file.name, status: 'queued', progress: 10 })
+            startTxPolling(jobId, file.name)
+            // Don't add to totalImported here — will be shown via snackbar when job finishes
+            continue
+          }
+
+          // Legacy sync fallback
           totalImported += response?.count ?? 0
         }
       }
@@ -575,13 +696,23 @@ function TransactionsPage() {
         totalImported += csvRows.length
       }
 
-      setSnack({
-        open: true,
-        message: `Successfully imported ${totalImported} transaction(s).`,
-        severity: 'success',
-      })
+      // Only show immediate success + refetch when there were CSV rows that imported synchronously.
+      // Excel import jobs are handled asynchronously and will trigger their own snackbar when done.
+      if (totalImported > 0) {
+        setSnack({
+          open: true,
+          message: `Successfully imported ${totalImported} transaction(s).`,
+          severity: 'success',
+        })
+        await transactionsQuery.refetch()
+      } else if (excelFiles.length > 0) {
+        setSnack({
+          open: true,
+          message: `${excelFiles.length} Excel file(s) queued for import — you can leave this page, we'll keep processing.`,
+          severity: 'info',
+        })
+      }
       clearUpload()
-      await transactionsQuery.refetch()
     } catch (err) {
       setSnack({
         open: true,
@@ -591,7 +722,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, transactionsQuery])
+  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, transactionsQuery, saveTxJobToSession, upsertImportingJob, startTxPolling])
 
   const openTransactionDetails = useCallback(
     async (tx) => {
@@ -1268,6 +1399,31 @@ function TransactionsPage() {
             <Alert severity="error" variant="outlined" onClose={() => setListError('')}>
               {listError}
             </Alert>
+          )}
+
+          {/* ---- Background import progress banners ---- */}
+          {importingJobs.length > 0 && (
+            <Stack spacing={1}>
+              {importingJobs.map((job) => (
+                <Alert
+                  key={job.jobId}
+                  severity="info"
+                  variant="outlined"
+                  icon={<CircularProgress size={16} />}
+                >
+                  <Stack spacing={0.5}>
+                    <Typography variant="body2">
+                      Importing <strong>{job.fileName}</strong> in the background…
+                    </Typography>
+                    <LinearProgress
+                      variant={job.progress > 0 ? 'determinate' : 'indeterminate'}
+                      value={job.progress}
+                      sx={{ borderRadius: 1 }}
+                    />
+                  </Stack>
+                </Alert>
+              ))}
+            </Stack>
           )}
 
           {/* ---- Filter Bar ---- */}

@@ -46,6 +46,32 @@ const persistCompanyId = (companyId) => {
 }
 
 /**
+ * Read the persisted active company name from localStorage.
+ *
+ * @returns {string|null} The persisted company name, or null when unavailable.
+ */
+const readStoredCompanyName = () => {
+  if (globalThis.window === undefined) return null
+  const name = globalThis.localStorage.getItem('activeCompanyName')
+  return typeof name === 'string' && name.trim() !== '' ? name : null
+}
+
+/**
+ * Persist or remove the active company name in localStorage.
+ *
+ * @param {string|null} companyName - The company name to persist, or null to clear.
+ */
+const persistCompanyName = (companyName) => {
+  if (globalThis.window === undefined) return
+  if (!companyName) {
+    globalThis.localStorage.removeItem('activeCompanyName')
+    return
+  }
+  globalThis.localStorage.setItem('activeCompanyName', companyName)
+}
+
+
+/**
  * Provides company selection and company list state for the authenticated user.
  *
  * @param {object} props

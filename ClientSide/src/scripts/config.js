@@ -126,6 +126,11 @@ export const URLS = {
     logs: buildApiPath('/Admin/logs'),
     auditLogs: buildApiPath('/Admin/audit-logs'),
   },
+  uploadJobs: {
+    byId: (id) => buildApiPath(`/UploadJobs/${id}`),
+    mine: buildApiPath('/UploadJobs/mine'),
+    verified: (id) => buildApiPath(`/UploadJobs/${id}/verified`),
+  },
   accountants: {
     base: buildApiPath('/Accountants'),
     sendRequest: (id) => buildApiPath(`/Accountants/${id}/request`),

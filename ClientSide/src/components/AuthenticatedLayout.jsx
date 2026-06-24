@@ -150,6 +150,7 @@ function SidebarContent({ onNavigate, user, onLogout }) {
           'linear-gradient(180deg, rgba(10, 17, 33, 0.98), rgba(8, 15, 28, 0.98))',
       }}
     >
+
       <Stack
         spacing={1.2}
         sx={{

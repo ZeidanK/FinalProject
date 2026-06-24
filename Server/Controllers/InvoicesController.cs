@@ -1,5 +1,7 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
@@ -12,13 +14,25 @@ namespace FinalProjectAuthAPI.Controllers
     public class InvoicesController : ApiControllerBase
     {
         private readonly IInvoiceService _svc;
-        private readonly IInvoiceUploadService _uploadSvc;
+        private readonly IFileStorageService _fileSvc;
+        private readonly IUploadJobService _jobSvc;
+        private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly DBservices _db;
         private readonly IWebHostEnvironment _env;
 
-        public InvoicesController(IInvoiceService svc, IInvoiceUploadService uploadSvc, IWebHostEnvironment env)
+        public InvoicesController(
+            IInvoiceService svc,
+            IFileStorageService fileSvc,
+            IUploadJobService jobSvc,
+            IBackgroundJobClient backgroundJobClient,
+            DBservices db,
+            IWebHostEnvironment env)
         {
             _svc = svc;
-            _uploadSvc = uploadSvc;
+            _fileSvc = fileSvc;
+            _jobSvc = jobSvc;
+            _backgroundJobClient = backgroundJobClient;
+            _db = db;
             _env = env;
         }
 
@@ -188,11 +202,45 @@ namespace FinalProjectAuthAPI.Controllers
         public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] long companyId)
         {
             var userId = GetCurrentUserId();
-            var (success, response, error) = await _uploadSvc.UploadPdfAsync(file, companyId, userId);
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
 
-            return success
-                ? Ok(response)
-                : BadRequest(new { message = error });
+            try
+            {
+                var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
+
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
+                {
+                    JobType = UploadJobTypes.InvoiceUploadPdf,
+                    FilePath = relativePath,
+                    FileOriginalName = file.FileName,
+                    FileType = file.ContentType,
+                    FileSize = file.Length,
+                    CompanyId = companyId,
+                    UserId = userId,
+                    PayloadJson = null
+                });
+
+                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
+                    w => w.ProcessInvoiceJobAsync(jobId));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Invoice PDF accepted and queued for background processing."
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Failed to queue invoice upload: {ex.Message}" });
+            }
         }
 
         // POST api/invoices/upload-and-create
@@ -202,17 +250,45 @@ namespace FinalProjectAuthAPI.Controllers
         public async Task<IActionResult> UploadAndCreate(IFormFile file, [FromForm] long companyId)
         {
             var userId = GetCurrentUserId();
-            var (success, invoiceId, extractedData, error) = await _uploadSvc.UploadAndCreateAsync(file, companyId, userId);
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
 
-            if (!success)
-                return BadRequest(new { message = error });
-
-            return CreatedAtAction(nameof(GetById), new { id = invoiceId }, new
+            try
             {
-                id = invoiceId,
-                message = "Invoice created from PDF.",
-                extractedData = extractedData
-            });
+                var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
+
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
+                {
+                    JobType = UploadJobTypes.InvoiceUploadAndCreate,
+                    FilePath = relativePath,
+                    FileOriginalName = file.FileName,
+                    FileType = file.ContentType,
+                    FileSize = file.Length,
+                    CompanyId = companyId,
+                    UserId = userId,
+                    PayloadJson = null
+                });
+
+                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
+                    w => w.ProcessInvoiceJobAsync(jobId));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Invoice upload accepted and queued for background creation."
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Failed to queue invoice upload: {ex.Message}" });
+            }
         }
 
     }
