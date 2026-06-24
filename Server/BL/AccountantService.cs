@@ -30,5 +30,8 @@ namespace FinalProjectAuthAPI.BL
 
         public bool RespondToRequest(long requestId, long accountantUserId, bool accept) =>
             _db.RespondToAccessRequest(requestId, accountantUserId, accept);
+
+        public bool DisconnectAccountant(long accountantId, long companyId, long requestedByUserId) =>
+            _db.DisconnectAccountantFromCompany(accountantId, companyId, requestedByUserId);
     }
 }

@@ -3,6 +3,7 @@ using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -14,17 +15,20 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly ITransactionService _svc;
         private readonly IExcelExtractionService _excelSvc;
         private readonly IFileStorageService _fileSvc;
+        private readonly IAnomalyService _anomalySvc;
         private readonly DBservices _db;
 
         public TransactionsController(
             ITransactionService svc,
             IExcelExtractionService excelSvc,
             IFileStorageService fileSvc,
+            IAnomalyService anomalySvc,
             DBservices db)
         {
             _svc = svc;
             _excelSvc = excelSvc;
             _fileSvc = fileSvc;
+            _anomalySvc = anomalySvc;
             _db = db;
         }
 
@@ -194,6 +198,28 @@ namespace FinalProjectAuthAPI.Controllers
 
             var fileName = request.FileOriginalName ?? Path.GetFileName(request.SavedFilePath);
 
+            var fileHash = ComputeFileSha256(fullPath);
+            var duplicateResult = _anomalySvc.RegisterTransactionFileUpload(
+                request.CompanyId,
+                fileName,
+                request.SavedFilePath,
+                new FileInfo(fullPath).Length,
+                userId,
+                fileHash);
+
+            if (!duplicateResult.Success)
+                return BadRequest(new { message = duplicateResult.Error });
+
+            if (duplicateResult.IsDuplicate)
+            {
+                return Conflict(new
+                {
+                    message = "Duplicate Excel file detected. Import was skipped and grouped under an anomaly.",
+                    anomalyId = duplicateResult.AnomalyId,
+                    fileHash
+                });
+            }
+
             ExcelExtractionResult extractionResult;
             try
             {
@@ -214,23 +240,23 @@ namespace FinalProjectAuthAPI.Controllers
                 CreatedByUserId = userId,
                 Transactions = extractionResult.Transactions.Select(t => new CreateTransactionRequest
                 {
-                    CompanyId        = request.CompanyId,
-                    TransactionDate  = t.TransactionDate,
-                    PostedDate       = t.PostedDate,
-                    Description      = t.Description,
-                    Amount           = t.Amount,
-                    BalanceAfter     = t.BalanceAfter,
-                    TransactionType  = t.TransactionType,
-                    Category         = t.Category,
-                    ReferenceNumber  = t.ReferenceNumber,
-                    VendorName       = t.VendorName,
-                    CardLast4        = t.CardLast4,
-                    ChargeAmount     = t.ChargeAmount,
-                    ChargeCurrency   = t.ChargeCurrency,
+                    CompanyId = request.CompanyId,
+                    TransactionDate = t.TransactionDate,
+                    PostedDate = t.PostedDate,
+                    Description = t.Description,
+                    Amount = t.Amount,
+                    BalanceAfter = t.BalanceAfter,
+                    TransactionType = t.TransactionType,
+                    Category = t.Category,
+                    ReferenceNumber = t.ReferenceNumber,
+                    VendorName = t.VendorName,
+                    CardLast4 = t.CardLast4,
+                    ChargeAmount = t.ChargeAmount,
+                    ChargeCurrency = t.ChargeCurrency,
                     OriginalCurrency = t.OriginalCurrency,
-                    ExchangeRate     = t.ExchangeRate,
-                    BankAccountId    = request.BankAccountId,
-                    CreatedByUserId  = userId
+                    ExchangeRate = t.ExchangeRate,
+                    BankAccountId = request.BankAccountId,
+                    CreatedByUserId = userId
                 }).ToList()
             };
 
@@ -265,6 +291,31 @@ namespace FinalProjectAuthAPI.Controllers
             {
                 // 1. Save the file
                 var (relativePath, _) = await _fileSvc.SaveExcelAsync(file, companyId);
+
+                var fullPath = _fileSvc.GetExcelFullPath(relativePath);
+                var fileHash = ComputeFileSha256(fullPath);
+
+                var duplicateResult = _anomalySvc.RegisterTransactionFileUpload(
+                    companyId,
+                    file.FileName,
+                    relativePath,
+                    file.Length,
+                    userId,
+                    fileHash);
+
+                if (!duplicateResult.Success)
+                    return BadRequest(new { message = duplicateResult.Error, filePath = relativePath });
+
+                if (duplicateResult.IsDuplicate)
+                {
+                    return Conflict(new
+                    {
+                        message = "Duplicate Excel file detected. Import was skipped and grouped under an anomaly.",
+                        anomalyId = duplicateResult.AnomalyId,
+                        fileHash,
+                        filePath = relativePath,
+                    });
+                }
 
                 // 2. Extract transactions from the Excel file
                 var (extractionResult, extractionError) = TryExtractExcel(file, relativePath);
@@ -367,6 +418,14 @@ namespace FinalProjectAuthAPI.Controllers
                 filePath,
                 sheets = extractionResult.Sheets
             });
+        }
+
+        private static string ComputeFileSha256(string fullPath)
+        {
+            using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var sha = SHA256.Create();
+            var hash = sha.ComputeHash(stream);
+            return Convert.ToHexString(hash).ToLowerInvariant();
         }
     }
 }

@@ -32,8 +32,11 @@ import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
+import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion } from 'framer-motion'
+import { useQueryClient } from '@tanstack/react-query'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
@@ -45,8 +48,13 @@ import {
   useAnomalyStatsQuery,
   useResolveAnomalyMutation,
 } from '../hooks/queries/useAnomaliesQueries'
+import { deleteTransactionFileUpload, keepDuplicateInvoice } from '../services/anomalies'
+import { getInvoiceById } from '../services/invoices'
+import { invoiceKeys } from '../queries/queryKeys'
 import { resolveAnomalySchema } from '../schemas/anomalies'
+import { mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import { itemVariants } from '../utils/motionVariants'
+import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 
 /**
  * Maps anomaly severity levels to Material UI chip color variants.
@@ -70,13 +78,20 @@ const statusColors = {
   false_positive: 'info',
 }
 
+const statusLabels = {
+  open: 'Unresolved',
+  resolved: 'Resolved',
+  dismissed: 'Dismissed',
+  false_positive: 'False Positive',
+}
+
 /**
  * Dropdown options used to filter anomalies by status.
  * @type {{value: string, label: string}[]}
  */
 const statusOptions = [
   { value: '', label: 'All statuses' },
-  { value: 'open', label: 'Open' },
+  { value: 'open', label: 'Unresolved' },
   { value: 'resolved', label: 'Resolved' },
   { value: 'dismissed', label: 'Dismissed' },
   { value: 'false_positive', label: 'False Positive' },
@@ -103,6 +118,7 @@ const typeOptions = [
   { value: 'amount_mismatch', label: 'Amount Mismatch' },
   { value: 'date_gap', label: 'Date Gap' },
   { value: 'duplicate', label: 'Duplicate' },
+  { value: 'duplicate_transaction_file', label: 'Duplicate Transaction File' },
   { value: 'missing_link', label: 'Missing Link' },
   { value: 'manual', label: 'Manual' },
 ]
@@ -132,6 +148,15 @@ const fmtDate = (value) => {
   return date.toLocaleString()
 }
 
+const fmtBytes = (value) => {
+  if (!value) return ''
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes <= 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 /**
  * Converts snake_case or other raw values into human-readable labels.
  * @param {*} value - The raw value to convert.
@@ -145,6 +170,8 @@ const toLabel = (value) => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
+
+const toStatusLabel = (value) => statusLabels[value] || toLabel(value)
 
 /**
  * Renders the main anomalies list section based on current query state.
@@ -190,6 +217,7 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
           <TableRow>
             <TableCell>Type</TableCell>
             <TableCell>Title</TableCell>
+            <TableCell align="right">Related Items</TableCell>
             <TableCell>Severity</TableCell>
             <TableCell>Status</TableCell>
             <TableCell align="right">Amount</TableCell>
@@ -207,10 +235,13 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
                     {item.title || 'Untitled anomaly'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" noWrap>
-                    {item.description || 'No description'}
+                    {item.relatedItemsCount > 1
+                      ? `${item.relatedItemsCount} related records in this grouped issue`
+                      : item.description || 'No description'}
                   </Typography>
                 </Stack>
               </TableCell>
+              <TableCell align="right">{item.relatedItemsCount || 0}</TableCell>
               <TableCell>
                 <Chip
                   size="small"
@@ -221,7 +252,7 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
               <TableCell>
                 <Chip
                   size="small"
-                  label={toLabel(item.status)}
+                  label={toStatusLabel(item.status)}
                   color={statusColors[item.status] || 'default'}
                 />
               </TableCell>
@@ -262,6 +293,10 @@ function getDetailsContent({
   selectedAnomaly,
   resolutionFieldProps,
   resolutionError,
+  onDeleteRelatedItem,
+  onViewInvoiceItem,
+  cleanupBusy,
+  viewingInvoiceId,
 }) {
   if (detailsLoading) {
     return (
@@ -286,6 +321,10 @@ function getDetailsContent({
     selectedAnomaly.detectionConfidence !== null && selectedAnomaly.detectionConfidence !== undefined
       ? ` (${Math.round(Number(selectedAnomaly.detectionConfidence) * 100)}%)`
       : ''
+  const relatedItems = Array.isArray(selectedAnomaly.relatedItems) ? selectedAnomaly.relatedItems : []
+  const canCleanupRelatedItems =
+    relatedItems.length > 1 &&
+    ['duplicate', 'duplicate_transaction_file'].includes(selectedAnomaly.anomalyType)
 
   return (
     <Stack spacing={1.2}>
@@ -298,7 +337,7 @@ function getDetailsContent({
         />
         <Chip
           size="small"
-          label={toLabel(selectedAnomaly.status)}
+          label={toStatusLabel(selectedAnomaly.status)}
           color={statusColors[selectedAnomaly.status] || 'default'}
         />
       </Stack>
@@ -319,14 +358,91 @@ function getDetailsContent({
       </Typography>
 
       <Typography variant="body2">
-        <strong>Related IDs:</strong>
-        {' '}
-        Invoice #{selectedAnomaly.relatedInvoiceId || '—'}
-        {' | '}
-        Transaction #{selectedAnomaly.relatedTransactionId || '—'}
-        {' | '}
-        Match #{selectedAnomaly.relatedMatchId || '—'}
+        <strong>Group Size:</strong> {selectedAnomaly.relatedItemsCount || relatedItems.length || 0}
       </Typography>
+
+      {relatedItems.length > 0 ? (
+        <Card variant="outlined" sx={{ borderRadius: 2 }}>
+          <CardContent sx={{ py: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.8 }}>
+              Related Records
+            </Typography>
+            <Stack spacing={0.6}>
+              {relatedItems.map((item, index) => (
+                <Box
+                  key={`${item.itemType || 'item'}-${item.entityId || index}`}
+                  sx={{
+                    px: 1,
+                    py: 0.7,
+                    borderRadius: 1.25,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600}>
+                    {item.label || `${toLabel(item.itemType)} #${item.entityId || '—'}`}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {item.fileName ? `File: ${item.fileName}` : null}
+                    {item.fileSize ? ` | Size: ${fmtBytes(item.fileSize)}` : null}
+                    {item.fileHash ? ` | Hash: ${item.fileHash}` : null}
+                    {item.amount !== null && item.amount !== undefined ? ` | Amount: ${fmtAmount(item.amount)}` : null}
+                    {item.date ? ` | Date: ${fmtDate(item.date)}` : null}
+                    {item.status ? ` | Status: ${toStatusLabel(item.status)}` : null}
+                    {item.uploadedAt ? ` | Uploaded: ${fmtDate(item.uploadedAt)}` : null}
+                  </Typography>
+                  {canCleanupRelatedItems ? (
+                    <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
+                      {item.itemType === 'invoice' ? (
+                        <Button
+                          size="small"
+                          variant="text"
+                          startIcon={<VisibilityRoundedIcon fontSize="small" />}
+                          disabled={viewingInvoiceId === item.entityId}
+                          onClick={() => onViewInvoiceItem(item)}
+                        >
+                          {viewingInvoiceId === item.entityId ? 'Opening...' : 'View'}
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="small"
+                        color={item.itemType === 'invoice' ? 'primary' : 'error'}
+                        variant="text"
+                        startIcon={
+                          item.itemType === 'invoice'
+                            ? <TaskAltRoundedIcon fontSize="small" />
+                            : <DeleteOutlineRoundedIcon fontSize="small" />
+                        }
+                        disabled={
+                          cleanupBusy ||
+                          (item.itemType === 'invoice' && selectedAnomaly.status !== 'open' && item.status !== 'deleted')
+                        }
+                        onClick={() => onDeleteRelatedItem(item)}
+                      >
+                        {item.itemType === 'invoice' && selectedAnomaly.status !== 'open' && item.status !== 'deleted'
+                          ? 'Kept'
+                          : item.itemType === 'invoice'
+                            ? 'Keep This'
+                            : 'Remove'}
+                      </Button>
+                    </Stack>
+                  ) : null}
+                </Box>
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
+      ) : (
+        <Typography variant="body2">
+          <strong>Related IDs:</strong>
+          {' '}
+          Invoice #{selectedAnomaly.relatedInvoiceId || '—'}
+          {' | '}
+          Transaction #{selectedAnomaly.relatedTransactionId || '—'}
+          {' | '}
+          Match #{selectedAnomaly.relatedMatchId || '—'}
+        </Typography>
+      )}
 
       <Typography variant="body2">
         <strong>Created:</strong> {fmtDate(selectedAnomaly.createdAt)}
@@ -415,6 +531,7 @@ StatsCard.propTypes = {
  * @returns {JSX.Element} The anomalies page content.
  */
 function AnomaliesPage() {
+  const queryClient = useQueryClient()
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
 
@@ -426,6 +543,9 @@ function AnomaliesPage() {
 
   const [selectedAnomalyId, setSelectedAnomalyId] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [cleanupTarget, setCleanupTarget] = useState(null)
+  const [invoiceModal, setInvoiceModal] = useState({ open: false, file: null })
+  const [viewingInvoiceId, setViewingInvoiceId] = useState(null)
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
 
@@ -537,6 +657,7 @@ function AnomaliesPage() {
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)
     setSelectedAnomalyId(null)
+    setCleanupTarget(null)
     resolveMutation.reset()
     reset({ resolutionNotes: '' })
   }, [reset, resolveMutation])
@@ -582,6 +703,124 @@ function AnomaliesPage() {
     }
   }, [clearErrors, closeDetails, detailsQuery.data, getValues, resolveMutation, setError])
 
+  const handleReopen = useCallback(async () => {
+    if (!detailsQuery.data?.id) return
+
+    try {
+      await resolveMutation.mutateAsync({
+        anomalyId: detailsQuery.data.id,
+        payload: {
+          status: 'open',
+          resolutionNotes: null,
+        },
+      })
+
+      setSnack({
+        open: true,
+        severity: 'success',
+        message: 'Anomaly marked unresolved.',
+      })
+
+      closeDetails()
+    } catch (err) {
+      setSnack({
+        open: true,
+        severity: 'error',
+        message: err.message || 'Failed to mark anomaly unresolved.',
+      })
+    }
+  }, [closeDetails, detailsQuery.data, resolveMutation])
+
+  const handleDeleteRelatedItem = useCallback(async (item) => {
+    if (!item?.entityId || !detailsQuery.data) return
+
+    const isInvoice = item.itemType === 'invoice'
+    const isTransactionFile = item.itemType === 'transaction_file'
+    if (!isInvoice && !isTransactionFile) return
+
+    const remainingCount = detailsQuery.data.relatedItems?.length || 0
+    if (remainingCount <= 1) {
+      setSnack({
+        open: true,
+        severity: 'warning',
+        message: 'Keep at least one record in the duplicate group.',
+      })
+      return
+    }
+
+    const itemLabel = item.label || item.fileName || `${toLabel(item.itemType)} #${item.entityId}`
+    const confirmMessage = isInvoice
+      ? `Keep ${itemLabel} and soft-delete the other duplicate invoices?`
+      : `Remove ${itemLabel}?`
+    const confirmed = globalThis.confirm(confirmMessage)
+    if (!confirmed) return
+
+    setCleanupTarget(`${item.itemType}-${item.entityId}`)
+    try {
+      if (isInvoice) {
+        await keepDuplicateInvoice(detailsQuery.data.id, {
+          keepInvoiceId: item.entityId,
+          resolutionNotes: `Kept ${itemLabel}; soft-deleted the other duplicate invoices.`,
+        }, token)
+      } else {
+        await deleteTransactionFileUpload(item.entityId, token)
+      }
+
+      setSnack({
+        open: true,
+        severity: 'success',
+        message: isInvoice
+          ? 'Duplicate invoice decision saved and anomaly resolved.'
+          : 'Duplicate transaction file removed.',
+      })
+
+      await Promise.all([anomaliesQuery.refetch(), statsQuery.refetch()])
+      if (isInvoice) {
+        await queryClient.invalidateQueries({ queryKey: invoiceKeys.all })
+      }
+      await detailsQuery.refetch()
+    } catch (err) {
+      setSnack({
+        open: true,
+        severity: 'error',
+        message: err.message || 'Failed to save duplicate decision.',
+      })
+    } finally {
+      setCleanupTarget(null)
+    }
+  }, [anomaliesQuery, detailsQuery, queryClient, statsQuery, token])
+
+  const handleViewInvoiceItem = useCallback(async (item) => {
+    const invoiceId = item?.entityId
+    if (!invoiceId) return
+
+    setViewingInvoiceId(invoiceId)
+    try {
+      const invoice = await getInvoiceById(invoiceId, token)
+      setInvoiceModal({
+        open: true,
+        file: {
+          id: `anomaly-invoice-${invoice.id}`,
+          name:
+            invoice.fileOriginalName ||
+            invoice.file_original_name ||
+            `Invoice ${invoice.invoiceNumber || invoice.invoice_number || invoice.id}`,
+          extractedData: mapSavedInvoiceToForm(invoice),
+          existingInvoiceId: invoice.id,
+          sourceInvoice: invoice,
+        },
+      })
+    } catch (err) {
+      setSnack({
+        open: true,
+        severity: 'error',
+        message: err.message || 'Failed to open invoice details.',
+      })
+    } finally {
+      setViewingInvoiceId(null)
+    }
+  }, [token])
+
   const listLoading = anomaliesQuery.isLoading || anomaliesQuery.isFetching
   const listError = anomaliesQuery.error?.message || ''
   const statsLoading = statsQuery.isLoading || statsQuery.isFetching
@@ -590,6 +829,11 @@ function AnomaliesPage() {
   const detailsLoading = detailsQuery.isLoading || detailsQuery.isFetching
   const detailsError = detailsQuery.error?.message || ''
   const resolveBusy = resolveMutation.isPending
+  const cleanupBusy = Boolean(cleanupTarget)
+  const duplicateInvoiceNeedsDecision =
+    selectedAnomaly?.status === 'open' &&
+    selectedAnomaly?.anomalyType === 'duplicate' &&
+    Number(selectedAnomaly?.relatedItemsCount || selectedAnomaly?.relatedItems?.length || 0) > 1
   const resolutionFieldProps = register('resolutionNotes')
 
   const listContent = getListContent({
@@ -605,6 +849,10 @@ function AnomaliesPage() {
     selectedAnomaly,
     resolutionFieldProps,
     resolutionError: errors.resolutionNotes?.message,
+    onDeleteRelatedItem: handleDeleteRelatedItem,
+    onViewInvoiceItem: handleViewInvoiceItem,
+    cleanupBusy,
+    viewingInvoiceId,
   })
 
   const statsCards = [
@@ -616,7 +864,7 @@ function AnomaliesPage() {
       icon: <InsightsRoundedIcon />,
     },
     {
-      title: 'Open',
+      title: 'Unresolved',
       value: openCount,
       hint: 'Needs review',
       color: '#ffd78f',
@@ -747,7 +995,7 @@ function AnomaliesPage() {
 
       <Dialog
         open={detailsOpen}
-        onClose={resolveBusy ? undefined : closeDetails}
+        onClose={resolveBusy || cleanupBusy ? undefined : closeDetails}
         maxWidth="sm"
         fullWidth
       >
@@ -756,19 +1004,51 @@ function AnomaliesPage() {
           {detailsContent}
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDetails} disabled={resolveBusy}>Close</Button>
+          <Button onClick={closeDetails} disabled={resolveBusy || cleanupBusy}>Close</Button>
           {selectedAnomaly?.status === 'open' ? (
+            !duplicateInvoiceNeedsDecision ? (
+              <Button
+                variant="contained"
+                onClick={handleResolve}
+                disabled={resolveBusy || cleanupBusy || detailsLoading}
+                startIcon={<TaskAltRoundedIcon />}
+              >
+                {resolveBusy ? 'Resolving...' : 'Resolve'}
+              </Button>
+            ) : null
+          ) : selectedAnomaly ? (
             <Button
-              variant="contained"
-              onClick={handleResolve}
-              disabled={resolveBusy || detailsLoading}
-              startIcon={<TaskAltRoundedIcon />}
+              variant="outlined"
+              onClick={handleReopen}
+              disabled={resolveBusy || cleanupBusy || detailsLoading}
+              startIcon={<ReplayRoundedIcon />}
             >
-              {resolveBusy ? 'Resolving...' : 'Resolve'}
+              {resolveBusy ? 'Updating...' : 'Mark Unresolved'}
             </Button>
           ) : null}
         </DialogActions>
       </Dialog>
+
+      <InvoiceVerificationModal
+        key={invoiceModal.file?.id || 'empty-anomaly-invoice'}
+        open={invoiceModal.open}
+        onClose={() => setInvoiceModal({ open: false, file: null })}
+        onSave={() => {}}
+        initialData={invoiceModal.file?.extractedData}
+        fileName={invoiceModal.file?.name}
+        fileType={
+          invoiceModal.file?.sourceInvoice?.fileType ||
+          invoiceModal.file?.sourceInvoice?.file_type ||
+          null
+        }
+        invoiceId={invoiceModal.file?.existingInvoiceId || null}
+        token={token}
+        extractionMethod={
+          invoiceModal.file?.sourceInvoice?.extractionMethod ||
+          invoiceModal.file?.sourceInvoice?.extraction_method
+        }
+        readOnly
+      />
 
       <SnackbarAlert
         open={snack.open}

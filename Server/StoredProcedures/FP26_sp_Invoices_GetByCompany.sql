@@ -51,6 +51,7 @@ BEGIN
     FROM dbo.FP26_invoices i
     LEFT JOIN dbo.FP26_users u ON u.id = i.uploaded_by_user_id
     WHERE i.company_id = @CompanyId
+      AND i.status <> 'deleted'
       AND (@Status    IS NULL OR i.status     = @Status)
       AND (@StartDate IS NULL OR i.invoice_date >= @StartDate)
       AND (@EndDate   IS NULL OR i.invoice_date <= @EndDate)

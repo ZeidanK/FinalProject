@@ -9,6 +9,11 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Skeleton,
   Stack,
   TextField,
@@ -16,9 +21,14 @@ import {
 } from '@mui/material'
 import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
-import { getPublicAccountants, sendAccountantRequest } from '../services/accountants'
+import {
+  getPublicAccountants,
+  sendAccountantRequest,
+  disconnectAccountant,
+} from '../services/accountants'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
@@ -43,6 +53,8 @@ export default function FindAccountant() {
   const [sendingId, setSendingId] = useState(null)
   const [sendMsg, setSendMsg] = useState(null)
   const [search, setSearch] = useState('')
+  const [disconnectTarget, setDisconnectTarget] = useState(null)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
 
   const load = useCallback(async () => {
     if (!token) return
@@ -78,6 +90,38 @@ export default function FindAccountant() {
       setSendMsg({ type: 'error', text: err.message || 'Failed to send request.' })
     } finally {
       setSendingId(null)
+    }
+  }
+
+  const handleDisconnect = async (accountantId) => {
+    if (!activeCompanyId) return
+    setSendingId(accountantId)
+    setSendMsg(null)
+    try {
+      await disconnectAccountant(accountantId, activeCompanyId, token)
+      setAccountants((prev) =>
+        prev.map((a) =>
+          a.id === accountantId ? { ...a, requestStatus: null } : a,
+        ),
+      )
+      setSendMsg({ type: 'success', text: 'Accountant removed successfully.' })
+    } catch (err) {
+      setSendMsg({ type: 'error', text: err.message || 'Failed to remove accountant.' })
+    } finally {
+      setSendingId(null)
+      setDisconnectTarget(null)
+      setConfirmDialogOpen(false)
+    }
+  }
+
+  const confirmDisconnect = (accountant) => {
+    setDisconnectTarget(accountant)
+    setConfirmDialogOpen(true)
+  }
+
+  const onConfirmDisconnect = () => {
+    if (disconnectTarget) {
+      handleDisconnect(disconnectTarget.id)
     }
   }
 
@@ -141,16 +185,17 @@ export default function FindAccountant() {
           </CardContent>
         </Card>
       ) : (
-        <Stack spacing={2}>
-          {filtered.map((accountant) => (
-            <Card key={accountant.id} elevation={0} sx={cardSx}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  spacing={2}
-                >
+        <>
+          <Stack spacing={2}>
+            {filtered.map((accountant) => (
+              <Card key={accountant.id} elevation={0} sx={cardSx}>
+                <CardContent sx={{ p: 2.5 }}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    spacing={2}
+                  >
                   <Stack direction="row" alignItems="center" spacing={2}>
                     <Avatar
                       src={
@@ -184,13 +229,22 @@ export default function FindAccountant() {
 
                   <Box>
                     {accountant.requestStatus === 'active' ? (
-                      <Chip
-                        label="Working Together"
-                        color="success"
-                        variant="outlined"
-                        size="small"
-                        sx={{ fontWeight: 700 }}
-                      />
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Chip
+                          label="Working Together"
+                          color="success"
+                          variant="outlined"
+                          size="small"
+                          onDelete={() => confirmDisconnect(accountant)}
+                          deleteIcon={<CloseRoundedIcon />}
+                          sx={{
+                            fontWeight: 700,
+                            '& .MuiChip-deleteIcon': {
+                              color: 'rgba(255,255,255,0.8)',
+                            },
+                          }}
+                        />
+                      </Stack>
                     ) : accountant.requestStatus === 'pending' ? (
                       <Chip
                         label="Request Sent"
@@ -222,6 +276,36 @@ export default function FindAccountant() {
             </Card>
           ))}
         </Stack>
+
+          <Dialog
+            open={confirmDialogOpen}
+            onClose={() => setConfirmDialogOpen(false)}
+            maxWidth="xs"
+            fullWidth
+          >
+            <DialogTitle>Confirm removal</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                Are you sure you want to remove{' '}
+                <strong>{disconnectTarget?.name || 'this accountant'}</strong> from the
+                working relationship? This action cannot be undone.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setConfirmDialogOpen(false)} color="inherit">
+                Cancel
+              </Button>
+              <Button
+                onClick={onConfirmDisconnect}
+                color="error"
+                variant="contained"
+                disabled={sendingId === disconnectTarget?.id}
+              >
+                {sendingId === disconnectTarget?.id ? 'Removing...' : 'Remove'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </>
       )}
     </Container>
   )

@@ -9,6 +9,11 @@ import {
   CircularProgress,
   Collapse,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControlLabel,
   Skeleton,
   Stack,
@@ -28,6 +33,7 @@ import {
   getAccountantRequests,
   getAccountantCompanies,
   respondToRequest,
+  disconnectAccountant,
 } from '../services/accountants'
 
 const cardSx = {
@@ -68,6 +74,10 @@ export default function AccountantWorkspace() {
   const [companies, setCompanies] = useState([])
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [companiesError, setCompaniesError] = useState(null)
+  const [workspaceMsg, setWorkspaceMsg] = useState(null)
+  const [disconnectCompany, setDisconnectCompany] = useState(null)
+  const [confirmDisconnectOpen, setConfirmDisconnectOpen] = useState(false)
+  const [disconnectingCompanyId, setDisconnectingCompanyId] = useState(null)
 
   // ── Data loaders ───────────────────────────────────────────
   const loadRequests = useCallback(async () => {
@@ -146,6 +156,38 @@ export default function AccountantWorkspace() {
       setRequestsError(err.message || 'Failed to respond to request.')
     } finally {
       setRespondingId(null)
+    }
+  }
+
+  const confirmDisconnect = (company) => {
+    setDisconnectCompany(company)
+    setConfirmDisconnectOpen(true)
+  }
+
+  const closeDisconnectDialog = () => {
+    setConfirmDisconnectOpen(false)
+    setDisconnectCompany(null)
+  }
+
+  const handleDisconnectCompany = async () => {
+    if (!user?.id || !token || !disconnectCompany) return
+
+    setDisconnectingCompanyId(disconnectCompany.id)
+    setCompaniesError(null)
+    setWorkspaceMsg(null)
+
+    try {
+      await disconnectAccountant(user.id, disconnectCompany.id, token)
+      setCompanies((prev) => prev.filter((c) => Number(c.id) !== Number(disconnectCompany.id)))
+      setWorkspaceMsg({
+        type: 'success',
+        text: `${disconnectCompany.name} was removed from your workspace.`,
+      })
+    } catch (err) {
+      setCompaniesError(err.message || 'Failed to remove the company.')
+    } finally {
+      setDisconnectingCompanyId(null)
+      closeDisconnectDialog()
     }
   }
 
@@ -332,61 +374,111 @@ export default function AccountantWorkspace() {
               You are not working with any companies yet. Accept incoming requests to get started.
             </Typography>
           ) : (
-            <Stack spacing={1.5}>
-              {companies.map((c) => (
-                <Box
-                  key={c.id}
-                  sx={{
-                    p: 2,
-                    borderRadius: 2.5,
-                    border: '1px solid',
-                    borderColor:
-                      Number(activeCompanyId) === Number(c.id) ? 'primary.main' : 'divider',
-                    bgcolor: 'rgba(14, 22, 40, 0.5)',
-                  }}
+            <>
+              {workspaceMsg && (
+                <Alert
+                  severity={workspaceMsg.type}
+                  sx={{ mb: 2 }}
+                  onClose={() => setWorkspaceMsg(null)}
                 >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Stack spacing={0.5}>
-                      <Typography fontWeight={700}>{c.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
-                        {' · '}
-                        {c.currency || 'USD'}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip
-                        label={c.accessLevel || c.access_level || 'Full Access'}
-                        size="small"
-                        sx={{
-                          bgcolor: 'rgba(55, 214, 122, 0.14)',
-                          border: '1px solid',
-                          borderColor: 'rgba(55, 214, 122, 0.38)',
-                          color: '#b3ffd0',
-                          fontWeight: 700,
-                          fontSize: '0.7rem',
-                          textTransform: 'capitalize',
-                        }}
-                      />
-                      {Number(activeCompanyId) === Number(c.id) ? (
-                        <Chip label="Active" size="small" color="primary" variant="filled" />
-                      ) : (
-                        <Button
+                  {workspaceMsg.text}
+                </Alert>
+              )}
+              <Stack spacing={1.5}>
+                {companies.map((c) => (
+                  <Box
+                    key={c.id}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2.5,
+                      border: '1px solid',
+                      borderColor:
+                        Number(activeCompanyId) === Number(c.id) ? 'primary.main' : 'divider',
+                      bgcolor: 'rgba(14, 22, 40, 0.5)',
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack spacing={0.5}>
+                        <Typography fontWeight={700}>{c.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
+                          {' · '}
+                          {c.currency || 'USD'}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        {Number(activeCompanyId) === Number(c.id) ? (
+                        <Chip
+                          label="Active"
                           size="small"
-                          variant="outlined"
-                          onClick={() => setActiveCompanyId(c.id)}
-                        >
-                          Set Active
-                        </Button>
+                          color="primary"
+                          variant="filled"
+                          onDelete={() => confirmDisconnect(c)}
+                          deleteIcon={<CloseRoundedIcon />}
+                          sx={{
+                            fontWeight: 700,
+                            '& .MuiChip-deleteIcon': {
+                              color: 'rgba(255,255,255,0.8)',
+                            },
+                          }}
+                        />
+                      ) : (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setActiveCompanyId(c.id)}
+                          >
+                            Set Active
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => confirmDisconnect(c)}
+                          >
+                            Remove
+                          </Button>
+                        </Stack>
                       )}
+                      </Stack>
                     </Stack>
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            </>
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={confirmDisconnectOpen}
+        onClose={closeDisconnectDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirm removal</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to remove{' '}
+            <strong>{disconnectCompany?.name || 'this company'}</strong> from your workspace?
+            This action will revoke the accountant relationship.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDisconnectDialog} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDisconnectCompany}
+            color="error"
+            variant="contained"
+            disabled={disconnectingCompanyId === disconnectCompany?.id}
+          >
+            {disconnectingCompanyId === disconnectCompany?.id ? 'Removing...' : 'Remove'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   )
 }

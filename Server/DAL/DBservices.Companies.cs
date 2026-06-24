@@ -440,6 +440,33 @@ SELECT @@ROWCOUNT;", con);
             finally { con?.Close(); }
         }
 
+        public bool DisconnectAccountantFromCompany(long accountantUserId, long companyId, long requestedByUserId)
+        {
+            if (accountantUserId <= 0 || companyId <= 0)
+                return false;
+
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(@"
+UPDATE dbo.FP26_user_company_access
+SET status             = 'revoked',
+    revoked_at         = GETDATE(),
+    revoked_by_user_id = @RequestedByUserId
+WHERE user_id    = @AccountantUserId
+  AND company_id = @CompanyId
+  AND status     = 'active';
+SELECT @@ROWCOUNT;", con);
+                cmd.Parameters.Add("@AccountantUserId", SqlDbType.BigInt).Value = accountantUserId;
+                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                cmd.Parameters.Add("@RequestedByUserId", SqlDbType.BigInt).Value = requestedByUserId;
+                var result = cmd.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static CompanyRow MapCompany(SqlDataReader r)

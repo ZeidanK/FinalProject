@@ -41,7 +41,7 @@ import {
 } from '../services/invoices'
 import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
-import { mapExtractedToForm } from '../utils/invoiceExtraction'
+import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import {
   useBulkDeleteInvoicesMutation,
   useCreateInvoiceMutation,
@@ -68,67 +68,6 @@ const statusColors = {
   verified: 'success',
   matched: 'success',
   rejected: 'error',
-}
-
-/**
- * Normalizes a date value into an HTML date input string (YYYY-MM-DD).
- * @param {*} value - Date string or date object to normalize.
- * @returns {string} A date string suitable for date inputs or empty when invalid.
- */
-const toDateInput = (value) => {
-  if (!value) return ''
-  if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toISOString().slice(0, 10)
-}
-
-/**
- * Converts a saved invoice record from the API into invoice form values.
- * Supports both snake_case and camelCase payload formats.
- *
- * @param {Object} invoice - Saved invoice payload.
- * @returns {Object} Normalized form data for invoice verification and editing.
- */
-const mapSavedInvoiceToForm = (invoice) => {
-  const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
-  const lineItems = invoice?.lineItems || invoice?.line_items || []
-
-  return mapExtractedToForm(
-    {
-      vendorName: invoice?.vendor_name ?? invoice?.vendorName ?? '',
-      invoiceNumber: invoice?.invoice_number ?? invoice?.invoiceNumber ?? '',
-      invoiceDate: toDateInput(invoice?.invoice_date ?? invoice?.invoiceDate),
-      dueDate: toDateInput(invoice?.due_date ?? invoice?.dueDate),
-      totalAmount: invoice?.total_amount ?? invoice?.totalAmount ?? 0,
-      subtotal: invoice?.subtotal ?? 0,
-      vatRate: invoice?.vat_rate ?? invoice?.vatRate ?? null,
-      vatAmount: invoice?.vat_amount ?? invoice?.vatAmount ?? null,
-      currency: invoice?.currency ?? 'USD',
-      vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
-      lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
-      paymentPlan: {
-        totalInstallments:
-          invoice?.paymentPlanTotalInstallments ?? invoice?.payment_plan_total_installments ?? null,
-        installmentAmount:
-          invoice?.paymentPlanInstallmentAmount ?? invoice?.payment_plan_installment_amount ?? null,
-        frequency: invoice?.paymentPlanFrequency ?? invoice?.payment_plan_frequency ?? null,
-        currentInstallment:
-          invoice?.paymentPlanCurrentInstallment ?? invoice?.payment_plan_current_installment ?? null,
-        description: invoice?.paymentPlanDescription ?? invoice?.payment_plan_description ?? null,
-      },
-      lineItems: lineItems.map((li, idx) => ({
-        description: li?.description || '',
-        quantity: li?.quantity ?? 1,
-        unitPrice: li?.unit_price ?? li?.unitPrice ?? 0,
-        totalAmount: li?.total_amount ?? li?.totalAmount ?? 0,
-        aiConfidenceScore: li?.ai_confidence_score ?? li?.aiConfidenceScore ?? null,
-        lineNumber: li?.line_number ?? li?.lineNumber ?? idx + 1,
-      })),
-      extractionConfidence: confidence,
-    },
-    confidence,
-  )
 }
 
 /**

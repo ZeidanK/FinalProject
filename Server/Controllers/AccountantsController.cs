@@ -69,5 +69,19 @@ namespace FinalProjectAuthAPI.Controllers
                 ? Ok(new { message = request.Accept ? "Request accepted." : "Request declined." })
                 : BadRequest(new { message = "Request not found or already responded to." });
         }
+
+        // DELETE api/accountants/{accountantId}/connection?companyId={companyId}
+        // Business owner disconnects from an active accountant.
+        [HttpDelete("{accountantId:long}/connection")]
+        [Authorize(Roles = "business_owner,accountant_business_owner,admin")]
+        public IActionResult Disconnect(long accountantId, [FromQuery] long companyId)
+        {
+            if (companyId <= 0)
+                return BadRequest(new { message = "CompanyId is required." });
+
+            var currentUserId = GetCurrentUserId();
+            var ok = _svc.DisconnectAccountant(accountantId, companyId, currentUserId);
+            return ok ? Ok(new { message = "Accountant disconnected successfully." }) : BadRequest(new { message = "Failed to disconnect accountant." });
+        }
     }
 }

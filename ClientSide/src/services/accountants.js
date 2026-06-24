@@ -76,3 +76,12 @@ export async function respondToRequest(requestId, accept, token) {
   })
   return unwrapEnvelope(response)
 }
+
+export async function disconnectAccountant(accountantId, companyId, token) {
+  const url = `${URLS.accountants.base}/${accountantId}/connection?companyId=${companyId}`
+  const response = await apiRequest(url, {
+    method: 'DELETE',
+    token,
+  })
+  return unwrapEnvelope(response)
+}

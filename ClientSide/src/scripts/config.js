@@ -109,6 +109,8 @@ export const URLS = {
     byCompany: (companyId) => buildApiPath(`/Anomalies/company/${companyId}`),
     stats: (companyId) => buildApiPath(`/Anomalies/stats/${companyId}`),
     resolve: (id) => buildApiPath(`/Anomalies/${id}/resolve`),
+    keepDuplicateInvoice: (id) => buildApiPath(`/Anomalies/${id}/duplicate-invoices/keep`),
+    transactionFileUpload: (id) => buildApiPath(`/Anomalies/transaction-file-uploads/${id}`),
   },
   reports: {
     base: buildApiPath('/Reports'),

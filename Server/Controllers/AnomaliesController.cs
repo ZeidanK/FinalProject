@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,14 @@ namespace FinalProjectAuthAPI.Controllers
     public class AnomaliesController : ApiControllerBase
     {
         private readonly IAnomalyService _svc;
+        private readonly DBservices _db;
+        private readonly IFileStorageService _fileSvc;
 
-        public AnomaliesController(IAnomalyService svc)
+        public AnomaliesController(IAnomalyService svc, DBservices db, IFileStorageService fileSvc)
         {
             _svc = svc;
+            _db = db;
+            _fileSvc = fileSvc;
         }
 
         // GET api/anomalies/company/{companyId}?status=&severity=&type=
@@ -82,8 +87,63 @@ namespace FinalProjectAuthAPI.Controllers
                 return BadRequest(new { message = error });
             }
 
-            var payload = new { id, status = request.Status, resolutionNotes = request.ResolutionNotes };
-            return SuccessWithLegacy(payload, new { message = "Anomaly resolved." }, "Anomaly resolved.");
+            var status = string.IsNullOrWhiteSpace(request.Status)
+                ? "resolved"
+                : request.Status.Trim().ToLowerInvariant();
+            var message = status == "open"
+                ? "Anomaly marked unresolved."
+                : "Anomaly resolved.";
+            var payload = new { id, status, resolutionNotes = request.ResolutionNotes };
+            return SuccessWithLegacy(payload, new { message }, message);
+        }
+
+        // PATCH api/anomalies/{id}/duplicate-invoices/keep
+        [HttpPatch("{id:long}/duplicate-invoices/keep")]
+        public IActionResult KeepDuplicateInvoice(long id, [FromBody] KeepDuplicateInvoiceRequest request)
+        {
+            var userId = GetCurrentUserId();
+            var (success, error) = _svc.KeepDuplicateInvoice(id, userId, request);
+            if (!success)
+            {
+                return BadRequest(new { message = error });
+            }
+
+            var payload = new { id, keepInvoiceId = request.KeepInvoiceId };
+            return SuccessWithLegacy(payload, new { message = "Duplicate invoice decision saved." }, "Duplicate invoice decision saved.");
+        }
+
+        // DELETE api/anomalies/transaction-file-uploads/{uploadId}
+        [HttpDelete("transaction-file-uploads/{uploadId:long}")]
+        public IActionResult DeleteTransactionFileUpload(long uploadId)
+        {
+            var upload = _db.GetTransactionFileUploadById(uploadId);
+            if (upload is null)
+            {
+                return NotFound(new { message = "Transaction file upload not found." });
+            }
+
+            var userId = GetCurrentUserId();
+            if (!_db.UserHasActiveCompanyAccess(userId, upload.CompanyId))
+            {
+                return Forbid();
+            }
+
+            var ok = _db.DeleteTransactionFileUpload(uploadId);
+            if (!ok)
+            {
+                return NotFound(new { message = "Transaction file upload not found." });
+            }
+
+            var fileDeleted = false;
+            if (!string.IsNullOrWhiteSpace(upload.FilePath))
+            {
+                fileDeleted = _fileSvc.Delete(upload.FilePath);
+            }
+
+            return SuccessWithLegacy(
+                new { uploadId, fileDeleted },
+                new { message = "Duplicate transaction file removed.", uploadId, fileDeleted },
+                "Duplicate transaction file removed.");
         }
 
     }

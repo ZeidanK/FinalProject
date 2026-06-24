@@ -28,7 +28,6 @@ import { useRegisterMutation } from '../hooks/queries/useAuthQueries'
 const ROLE_OPTIONS = [
   { label: 'Accountant', value: 'accountant' },
   { label: 'Business Owner', value: 'business_owner' },
-  { label: 'Both', value: 'accountant_business_owner' },
 ]
 
 /**
@@ -205,8 +204,8 @@ function RegisterPage() {
           />
         </Stack>
 
-        <Stack spacing={1}>
-          <Typography variant="body2" color="text.secondary">
+        <Stack spacing={1} alignItems="center">
+          <Typography variant="body2" color="text.secondary" textAlign="center">
             Select your role
           </Typography>
 
@@ -216,7 +215,10 @@ function RegisterPage() {
             onChange={handleRoleChange}
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              width: '100%',
+              maxWidth: 560,
+              justifyContent: 'center',
               gap: 1,
               '& .MuiToggleButtonGroup-grouped': {
                 borderRadius: '999px !important',
@@ -226,6 +228,7 @@ function RegisterPage() {
                 textTransform: 'none',
                 px: 1.2,
                 py: 0.9,
+                width: '100%',
               },
               '& .Mui-selected': {
                 bgcolor: 'rgba(88, 166, 255, 0.24) !important',

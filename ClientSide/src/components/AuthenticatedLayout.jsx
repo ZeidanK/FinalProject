@@ -120,7 +120,6 @@ function SidebarContent({ onNavigate, user, onLogout }) {
   const getRoleLabel = () => {
     if (!user?.role) return 'Unknown role'
     if (user.role === 'admin') return 'Administrator'
-    if (user.role === 'accountant_business_owner') return 'Accountant + Business Owner'
     if (user.role === 'business_owner') return 'Business Owner'
     if (user.role === 'accountant') return 'Accountant'
     return user.role
@@ -151,25 +150,6 @@ function SidebarContent({ onNavigate, user, onLogout }) {
           'linear-gradient(180deg, rgba(10, 17, 33, 0.98), rgba(8, 15, 28, 0.98))',
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1.2}
-        sx={{
-          px: 1,
-          py: 1.2,
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'rgba(14, 24, 44, 0.72)',
-        }}
-      >
-        <LogoMark sx={{ width: 30, height: 30 }} />
-        <Typography variant="h6" sx={{ fontSize: '1.05rem' }}>
-          ReconFlow
-        </Typography>
-      </Stack>
-
       <Stack
         spacing={1.2}
         sx={{
@@ -284,7 +264,7 @@ function AuthenticatedLayout() {
           'radial-gradient(circle at 0% 5%, rgba(88, 166, 255, 0.22), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66, 130, 255, 0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
       }}
     >
-      {isMobile && (
+      {
         <AppBar
           position="sticky"
           elevation={0}
@@ -305,30 +285,9 @@ function AuthenticatedLayout() {
             </Stack>
           </Toolbar>
         </AppBar>
-      )}
+      }
 
       <Box sx={{ display: 'flex', minHeight: isMobile ? 'calc(100vh - 64px)' : '100vh', minWidth: 0 }}>
-        {!isMobile && (
-          <Box
-            component={motion.aside}
-            initial={{ x: -22, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.32, ease: 'easeOut' }}
-            sx={{
-              width: sidebarWidth,
-              flexShrink: 0,
-              position: 'sticky',
-              top: 0,
-              height: '100vh',
-              borderRight: '1px solid',
-              borderColor: 'divider',
-              overflow: 'auto',
-            }}
-          >
-            <SidebarContent user={user} onLogout={logout} />
-          </Box>
-        )}
-
         <Drawer
           variant="temporary"
           anchor="left"

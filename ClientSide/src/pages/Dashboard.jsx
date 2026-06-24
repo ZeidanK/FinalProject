@@ -54,16 +54,6 @@ const quickActions = [
 ]
 
 /**
- * Display labels for user roles shown in the dashboard welcome panel.
- * @type {{[key: string]: string}}
- */
-const roleLabels = {
-  accountant: 'Accountant',
-  business_owner: 'Business Owner',
-  accountant_business_owner: 'Accountant + Business Owner',
-}
-
-/**
  * Icon components mapped to each KPI title.
  * Used to visually distinguish dashboard statistic cards.
  * @type {{[key: string]: React.ReactNode}}
@@ -189,23 +179,10 @@ function DashboardPage() {
                     <Typography variant="h5" sx={{ fontSize: { xs: '1.4rem', md: '1.7rem' } }}>
                       Welcome back, {user?.name || 'User'}
                     </Typography>
-                    <Typography color="text.secondary">
-                      Role: {roleLabels[user?.role] || user?.role || 'Unknown'}
-                    </Typography>
                   </Stack>
                 </Stack>
 
                 <Stack direction="row" spacing={1.2} alignItems="center">
-                  <Chip
-                    label="Workspace Active"
-                    sx={{
-                      bgcolor: 'rgba(88, 166, 255, 0.16)',
-                      border: '1px solid',
-                      borderColor: 'rgba(129, 191, 255, 0.38)',
-                      color: '#cde7ff',
-                      fontWeight: 700,
-                    }}
-                  />
                   <Button
                     variant="outlined"
                     startIcon={<RefreshRoundedIcon fontSize="small" />}

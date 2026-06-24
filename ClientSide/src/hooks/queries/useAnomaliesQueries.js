@@ -7,6 +7,22 @@ import {
 } from '../../services/anomalies'
 import { anomalyKeys } from '../../queries/queryKeys'
 
+function normalizeAnomalyItem(item) {
+  if (!item || typeof item !== 'object') return item
+
+  const relatedItems = Array.isArray(item.relatedItems) ? item.relatedItems : []
+  const fallbackCount =
+    (item.relatedInvoiceId ? 1 : 0) +
+    (item.relatedTransactionId ? 1 : 0) +
+    (item.relatedMatchId ? 1 : 0)
+
+  return {
+    ...item,
+    relatedItems,
+    relatedItemsCount: Number(item.relatedItemsCount ?? relatedItems.length ?? fallbackCount),
+  }
+}
+
 /**
  * Fetches a list of anomalies for a company with optional filters.
  *
@@ -19,7 +35,10 @@ import { anomalyKeys } from '../../queries/queryKeys'
 export function useAnomaliesListQuery({ companyId, token, filters }) {
   return useQuery({
     queryKey: anomalyKeys.list(companyId, filters),
-    queryFn: () => getAnomaliesByCompany(companyId, filters, token),
+    queryFn: async () => {
+      const data = await getAnomaliesByCompany(companyId, filters, token)
+      return Array.isArray(data) ? data.map(normalizeAnomalyItem) : []
+    },
     enabled: Boolean(companyId) && Boolean(token),
   })
 }
@@ -52,7 +71,10 @@ export function useAnomalyStatsQuery({ companyId, token }) {
 export function useAnomalyDetailsQuery({ anomalyId, token, enabled = true }) {
   return useQuery({
     queryKey: anomalyKeys.detail(anomalyId),
-    queryFn: () => getAnomalyById(anomalyId, token),
+    queryFn: async () => {
+      const data = await getAnomalyById(anomalyId, token)
+      return normalizeAnomalyItem(data)
+    },
     enabled: Boolean(anomalyId) && Boolean(token) && enabled,
   })
 }

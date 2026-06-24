@@ -77,3 +77,37 @@ export async function resolveAnomaly(anomalyId, payload, token) {
 
   return unwrapEnvelope(response)
 }
+
+/**
+ * Keep one invoice from a duplicate group, soft-delete the others, and resolve the anomaly.
+ *
+ * @param {string|number} anomalyId - Duplicate anomaly identifier.
+ * @param {object} payload - Decision payload with keepInvoiceId and optional notes.
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the decision endpoint.
+ */
+export async function keepDuplicateInvoice(anomalyId, payload, token) {
+  const response = await apiRequest(URLS.anomalies.keepDuplicateInvoice(anomalyId), {
+    method: 'PATCH',
+    body: payload,
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Delete a duplicate transaction-file upload linked to an anomaly.
+ *
+ * @param {string|number} uploadId - Transaction file upload identifier.
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the delete endpoint.
+ */
+export async function deleteTransactionFileUpload(uploadId, token) {
+  const response = await apiRequest(URLS.anomalies.transactionFileUpload(uploadId), {
+    method: 'DELETE',
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}

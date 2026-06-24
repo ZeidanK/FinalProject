@@ -9,5 +9,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         List<AccessRequestRow> GetPendingRequests(long accountantId);
         List<CompanyRow> GetActiveCompanies(long accountantId);
         bool RespondToRequest(long requestId, long accountantUserId, bool accept);
+        bool DisconnectAccountant(long accountantId, long companyId, long requestedByUserId);
     }
 }

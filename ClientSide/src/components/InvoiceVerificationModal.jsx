@@ -87,6 +87,7 @@ FieldLabel.propTypes = {
  * @param {File} [props.localFile] - Local file selected for preview when the invoice is not remote.
  * @param {string} [props.extractionMethod] - Method used to extract invoice data, shown as a badge.
  * @param {boolean} [props.saving] - Whether the save action is currently in progress.
+ * @param {boolean} [props.readOnly] - Whether invoice fields should be view-only.
  * @returns {JSX.Element}
  */
 export default function InvoiceVerificationModal(props) {
@@ -101,6 +102,7 @@ export default function InvoiceVerificationModal(props) {
   const localFile = props.localFile
   const extractionMethod = props.extractionMethod
   const saving = props.saving
+  const readOnly = Boolean(props.readOnly)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [activeTab, setActiveTab] = useState('pdf')
@@ -196,8 +198,9 @@ export default function InvoiceVerificationModal(props) {
    * Persist the current verification form values by invoking the save callback.
    */
   const handleSave = useCallback(function () {
+    if (readOnly) return
     onSave(form)
-  }, [form, onSave])
+  }, [form, onSave, readOnly])
 
   /**
    * Compute an aggregate confidence score for the invoice fields.
@@ -231,6 +234,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Vendor Name" confidence={form.vendorName?.confidence} />
           <TextField
             fullWidth size="small" sx={fieldSx}
+            disabled={readOnly}
             value={(form.vendorName?.value) || ''}
             onChange={function (e) { updateField('vendorName', e.target.value) }}
           />
@@ -240,6 +244,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Invoice Number" confidence={form.invoiceNumber?.confidence} />
           <TextField
             fullWidth size="small" sx={fieldSx}
+            disabled={readOnly}
             value={(form.invoiceNumber?.value) || ''}
             onChange={function (e) { updateField('invoiceNumber', e.target.value) }}
           />
@@ -249,6 +254,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Invoice Date" confidence={form.invoiceDate?.confidence} />
           <TextField
             fullWidth size="small" type="date" sx={fieldSx}
+            disabled={readOnly}
             value={(form.invoiceDate?.value) || ''}
             onChange={function (e) { updateField('invoiceDate', e.target.value) }}
             slotProps={{ inputLabel: { shrink: true } }}
@@ -259,6 +265,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Due Date" confidence={form.dueDate?.confidence} />
           <TextField
             fullWidth size="small" type="date" sx={fieldSx}
+            disabled={readOnly}
             value={(form.dueDate?.value) || ''}
             onChange={function (e) { updateField('dueDate', e.target.value) }}
             slotProps={{ inputLabel: { shrink: true } }}
@@ -269,6 +276,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Currency" confidence={form.currency?.confidence} />
           <TextField
             fullWidth size="small" select sx={fieldSx}
+            disabled={readOnly}
             value={(form.currency?.value) || 'USD'}
             onChange={function (e) { updateField('currency', e.target.value) }}
           >
@@ -282,6 +290,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="VAT Rate (%)" confidence={form.vatRate?.confidence} />
           <TextField
             fullWidth size="small" type="number" sx={fieldSx}
+            disabled={readOnly}
             value={form.vatRate?.value == null ? '' : form.vatRate.value}
             onChange={function (e) { updateField('vatRate', e.target.value) }}
             slotProps={{ htmlInput: { min: 0, max: 100, step: 0.01 } }}
@@ -292,6 +301,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Vendor Tax ID" confidence={form.vendorTaxId?.confidence} />
           <TextField
             fullWidth size="small" sx={fieldSx}
+            disabled={readOnly}
             value={(form.vendorTaxId?.value) || ''}
             onChange={function (e) { updateField('vendorTaxId', e.target.value) }}
           />
@@ -301,6 +311,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Last 4 Digits Card" confidence={form.lastFourDigitsCard?.confidence} />
           <TextField
             fullWidth size="small" sx={fieldSx}
+            disabled={readOnly}
             slotProps={{ htmlInput: { maxLength: 4 } }}
             value={(form.lastFourDigitsCard?.value) || ''}
             onChange={function (e) { updateField('lastFourDigitsCard', e.target.value) }}
@@ -319,6 +330,7 @@ export default function InvoiceVerificationModal(props) {
           />
           <TextField
             fullWidth size="small" type="number" sx={fieldSx}
+            disabled={readOnly}
             value={form.paymentPlan?.totalInstallments?.value ?? ''}
             onChange={function (e) { updateField('paymentPlan.totalInstallments', e.target.value) }}
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
@@ -332,6 +344,7 @@ export default function InvoiceVerificationModal(props) {
           />
           <TextField
             fullWidth size="small" type="number" sx={fieldSx}
+            disabled={readOnly}
             value={form.paymentPlan?.installmentAmount?.value ?? ''}
             onChange={function (e) { updateField('paymentPlan.installmentAmount', e.target.value) }}
             slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
@@ -342,6 +355,7 @@ export default function InvoiceVerificationModal(props) {
           <FieldLabel label="Frequency" confidence={form.paymentPlan?.frequency?.confidence} />
           <TextField
             fullWidth size="small" sx={fieldSx}
+            disabled={readOnly}
             value={(form.paymentPlan?.frequency?.value) || ''}
             onChange={function (e) { updateField('paymentPlan.frequency', e.target.value) }}
           />
@@ -354,6 +368,7 @@ export default function InvoiceVerificationModal(props) {
           />
           <TextField
             fullWidth size="small" type="number" sx={fieldSx}
+            disabled={readOnly}
             value={form.paymentPlan?.currentInstallment?.value ?? ''}
             onChange={function (e) { updateField('paymentPlan.currentInstallment', e.target.value) }}
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
@@ -367,6 +382,7 @@ export default function InvoiceVerificationModal(props) {
           />
           <TextField
             fullWidth size="small" multiline minRows={2} sx={fieldSx}
+            disabled={readOnly}
             value={(form.paymentPlan?.description?.value) || ''}
             onChange={function (e) { updateField('paymentPlan.description', e.target.value) }}
           />
@@ -376,9 +392,11 @@ export default function InvoiceVerificationModal(props) {
       <Box>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
           <Typography variant="subtitle1" fontWeight={700}>Line Items</Typography>
-          <Button size="small" startIcon={<AddRoundedIcon />} onClick={addLineItem}>
-            Add Row
-          </Button>
+          {!readOnly ? (
+            <Button size="small" startIcon={<AddRoundedIcon />} onClick={addLineItem}>
+              Add Row
+            </Button>
+          ) : null}
         </Stack>
         <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
           <Table size="small">
@@ -400,6 +418,7 @@ export default function InvoiceVerificationModal(props) {
                       <TableCell>
                         <TextField
                           fullWidth size="small" variant="standard"
+                          disabled={readOnly}
                           value={item.description}
                           onChange={function (e) { updateLineItem(idx, 'description', e.target.value) }}
                         />
@@ -407,6 +426,7 @@ export default function InvoiceVerificationModal(props) {
                       <TableCell align="right">
                         <TextField
                           size="small" variant="standard" type="number"
+                          disabled={readOnly}
                           value={item.quantity}
                           onChange={function (e) { updateLineItem(idx, 'quantity', e.target.value) }}
                           slotProps={{ htmlInput: { min: 0, step: 1, style: { textAlign: 'right' } } }}
@@ -416,6 +436,7 @@ export default function InvoiceVerificationModal(props) {
                       <TableCell align="right">
                         <TextField
                           size="small" variant="standard" type="number"
+                          disabled={readOnly}
                           value={item.unitPrice}
                           onChange={function (e) { updateLineItem(idx, 'unitPrice', e.target.value) }}
                           slotProps={{ htmlInput: { min: 0, step: 0.01, style: { textAlign: 'right' } } }}
@@ -437,9 +458,11 @@ export default function InvoiceVerificationModal(props) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <IconButton size="small" onClick={function () { removeLineItem(idx) }}>
-                          <DeleteOutlineRoundedIcon fontSize="small" />
-                        </IconButton>
+                        {!readOnly ? (
+                          <IconButton size="small" onClick={function () { removeLineItem(idx) }}>
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   )
@@ -448,7 +471,7 @@ export default function InvoiceVerificationModal(props) {
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                     <Typography variant="body2" color="text.secondary">
-                      No line items extracted. Click &quot;Add Row&quot; to add manually.
+                      {readOnly ? 'No line items available.' : 'No line items extracted. Click "Add Row" to add manually.'}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -466,6 +489,7 @@ export default function InvoiceVerificationModal(props) {
             confidence={form.subtotal?.confidence}
             onChange={(value) => updateField('subtotal', value)}
             fieldSx={fieldSx}
+            disabled={readOnly}
           />
 
           <ConfidenceFieldRow
@@ -474,6 +498,7 @@ export default function InvoiceVerificationModal(props) {
             confidence={form.vatAmount?.confidence}
             onChange={(value) => updateField('vatAmount', value)}
             fieldSx={fieldSx}
+            disabled={readOnly}
           />
 
           <ConfidenceFieldRow
@@ -482,6 +507,7 @@ export default function InvoiceVerificationModal(props) {
             confidence={form.totalAmount?.confidence}
             onChange={(value) => updateField('totalAmount', value)}
             fieldSx={fieldSx}
+            disabled={readOnly}
             labelVariant="subtitle1"
             labelColor="text.primary"
             labelFontWeight={700}
@@ -511,7 +537,7 @@ export default function InvoiceVerificationModal(props) {
       maxWidth="xl"
       title={(
         <Stack spacing={0.5}>
-          <Typography variant="h6">Verify Extracted Data</Typography>
+          <Typography variant="h6">{readOnly ? 'Invoice Details' : 'Verify Extracted Data'}</Typography>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="body2" color="text.secondary">
               {fileName}
@@ -540,16 +566,18 @@ export default function InvoiceVerificationModal(props) {
       actions={(
         <>
           <Button onClick={handleClose} color="inherit">
-            Cancel
+            {readOnly ? 'Close' : 'Cancel'}
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveRoundedIcon />}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : 'Save & Confirm'}
-          </Button>
+          {!readOnly ? (
+            <Button
+              variant="contained"
+              startIcon={<SaveRoundedIcon />}
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save & Confirm'}
+            </Button>
+          ) : null}
         </>
       )}
     >
@@ -602,4 +630,5 @@ InvoiceVerificationModal.propTypes = {
   localFile: PropTypes.instanceOf(File),
   extractionMethod: PropTypes.string,
   saving: PropTypes.bool,
+  readOnly: PropTypes.bool,
 }

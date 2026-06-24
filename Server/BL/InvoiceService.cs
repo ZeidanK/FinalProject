@@ -88,24 +88,14 @@ namespace FinalProjectAuthAPI.BL
                 if (invoiceId <= 0)
                     return (false, 0, "Invoice number already exists and the duplicate could not be saved.", false);
 
-                // Look up the original invoice to link the anomaly
-                var originalId = _db.GetInvoiceIdByNumber(req.CompanyId, req.InvoiceNumber.Trim());
-
-                _anomalyService?.Create(new CreateAnomalyRequest
-                {
-                    CompanyId         = req.CompanyId,
-                    AnomalyType       = "duplicate",
-                    Title             = $"Duplicate invoice: {req.InvoiceNumber.Trim()}",
-                    Description       = $"Invoice number '{req.InvoiceNumber.Trim()}' from vendor '{req.VendorName.Trim()}' " +
-                                        $"was uploaded again (total: {req.TotalAmount} {(string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency)}). " +
-                                        (originalId.HasValue ? $"Original invoice ID: {originalId.Value}." : string.Empty),
-                    Severity          = "high",
-                    SuggestedAction   = "Review both invoices and determine if this is a duplicate payment or a separate transaction.",
-                    RelatedInvoiceId  = invoiceId,
-                    Amount            = req.TotalAmount,
-                    DetectionMethod   = "manual",
-                    DetectionConfidence = 1m
-                });
+                _anomalyService?.EnsureDuplicateInvoiceAnomaly(
+                    req.CompanyId,
+                    invoiceId,
+                    req.InvoiceNumber.Trim(),
+                    req.VendorName.Trim(),
+                    req.TotalAmount,
+                    req.InvoiceDate,
+                    string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency);
 
                 // Insert line items then return early to skip the normal post-insert block below
                 if (req.LineItems != null)
