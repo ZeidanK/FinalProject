@@ -290,6 +290,7 @@ namespace FinalProjectAuthAPI.BL
                 PaymentPlanInstallmentAmount = extracted.PaymentPlan?.InstallmentAmount,
                 PaymentPlanFrequency = extracted.PaymentPlan?.Frequency,
                 PaymentPlanDescription = extracted.PaymentPlan?.Description,
+                PaymentPlanCurrentInstallment = extracted.PaymentPlan?.CurrentInstallment,
                 LineItems = extracted.LineItems.Select((li, idx) => new CreateLineItemRequest
                 {
                     Description = li.Description,

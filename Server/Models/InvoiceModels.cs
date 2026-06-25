@@ -69,6 +69,8 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(500)]
         public string? PaymentPlanDescription { get; set; }
 
+        public int? PaymentPlanCurrentInstallment { get; set; }
+
         public List<CreateLineItemRequest> LineItems { get; set; } = new();
     }
 
@@ -196,6 +198,7 @@ namespace FinalProjectAuthAPI.Models
         public decimal?  PaymentPlanInstallmentAmount { get; set; }
         public string?   PaymentPlanFrequency     { get; set; }
         public string?   PaymentPlanDescription   { get; set; }
+        public int?      PaymentPlanCurrentInstallment { get; set; }
         public long?     UploadedByUserId         { get; set; }
         public string?   UploadedByName           { get; set; }
         public long?     VerifiedByUserId         { get; set; }

@@ -1,5 +1,6 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.MatchingEngine;
 using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL
@@ -8,6 +9,7 @@ namespace FinalProjectAuthAPI.BL
     {
         private readonly DBservices _db;
         private readonly IGeminiExtractionService _gemini;
+        private readonly RulePipelineEngine _pipelineEngine;
 
         // Confidence thresholds for automatic matching
         private const decimal HIGH_CONFIDENCE_THRESHOLD = 70m;
@@ -15,10 +17,11 @@ namespace FinalProjectAuthAPI.BL
         private const decimal LOW_CONFIDENCE_THRESHOLD = 30m;
         private const decimal MIN_SUGGESTION_THRESHOLD = 60m; // Gemini similarity threshold
 
-        public MatchService(DBservices db, IGeminiExtractionService gemini)
+        public MatchService(DBservices db, IGeminiExtractionService gemini, RulePipelineEngine pipelineEngine)
         {
             _db = db;
             _gemini = gemini;
+            _pipelineEngine = pipelineEngine;
         }
 
         public List<MatchRow> GetByCompany(long companyId) =>
@@ -73,7 +76,7 @@ namespace FinalProjectAuthAPI.BL
 
         public List<InstallmentGroupSuggestion> GetInstallmentSuggestions(long companyId)
         {
-            var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
+            var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: null);
             var allCandidates = _db.GetCandidateTransactions(companyId);
 
             var installmentTxns = allCandidates
@@ -101,11 +104,11 @@ namespace FinalProjectAuthAPI.BL
 
             foreach (var invoice in invoices)
             {
-                var remaining = invoice.TotalAmount - invoice.MatchedAmount;
-                if (remaining <= 0) continue;
-
                 var existingMatches = _db.GetMatchesByInvoice(invoice.Id);
                 var existingInstallmentMatches = existingMatches.Where(IsInstallmentMatch).ToList();
+
+                var remaining = invoice.TotalAmount - invoice.MatchedAmount;
+                if (remaining <= 0 && !existingInstallmentMatches.Any()) continue;
 
                 var hasInstallmentMetadata =
                     (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1) ||
@@ -138,10 +141,10 @@ namespace FinalProjectAuthAPI.BL
                             return false;
 
                         if (expectedInstallmentAmount.HasValue)
-                            return Math.Abs(effectiveAmount - expectedInstallmentAmount.Value) < 0.01m;
+                            return Math.Abs(effectiveAmount - expectedInstallmentAmount.Value) < 2.00m;
 
-                        return Math.Abs(effectiveAmount - remaining) < 0.01m ||
-                               Math.Abs(Math.Abs(t.Amount) - remaining) < 0.01m ||
+                        return Math.Abs(effectiveAmount - remaining) < 2.00m ||
+                               Math.Abs(Math.Abs(t.Amount) - remaining) < 2.00m ||
                                effectiveAmount < remaining;
                     })
                     .ToList();
@@ -180,189 +183,230 @@ namespace FinalProjectAuthAPI.BL
             return results;
         }
 
-        // ── AI Suggestions: Date + Amount filter → Gemini name comparison ────
+        // ── New Pipeline Engine: Deterministic Rule-Based Matching ──────────
+        // Replaces the old Gemini-based suggestion flow with the new 5-layer
+        // waterfall pipeline engine.
 
-        public async Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId)
+        /// <summary>
+        /// Runs the new deterministic pipeline engine for a single invoice.
+        /// Returns MatchSuggestionRow results for backward API compatibility.
+        /// </summary>
+        private async Task<List<MatchSuggestionRow>> RunPipelineForInvoiceAsync(long invoiceId)
         {
-            Console.WriteLine($"\n[MATCH] ── GetSuggestionsAsync called for invoiceId={invoiceId} ──");
-
             var invoice = _db.GetInvoiceById(invoiceId);
             if (invoice == null)
-            {
-                Console.WriteLine("[MATCH] Invoice not found. Returning empty.");
                 return new List<MatchSuggestionRow>();
-            }
 
-            Console.WriteLine($"[MATCH] Invoice found: VendorName=\"{invoice.VendorName}\", Date={invoice.InvoiceDate:yyyy-MM-dd}, TotalAmount={invoice.TotalAmount}, MatchedAmount={invoice.MatchedAmount}, Remaining={invoice.TotalAmount - invoice.MatchedAmount}");
-            Console.WriteLine($"[MATCH] PaymentPlan: Installments={invoice.PaymentPlanTotalInstallments}, InstallmentAmount={invoice.PaymentPlanInstallmentAmount}");
+            // Fetch all unmatched transactions for the same company
+            var transactionList = _db.GetTransactionsByCompany(
+                invoice.CompanyId, type: null, isMatched: false, startDate: null, endDate: null);
 
-            var candidates = _db.GetCandidateTransactions(invoice.CompanyId);
-            if (!candidates.Any())
-            {
-                Console.WriteLine("[MATCH] No unmatched transactions found for company. Returning empty.");
+            if (transactionList.Count == 0)
                 return new List<MatchSuggestionRow>();
-            }
 
-            Console.WriteLine($"[MATCH] Found {candidates.Count} unmatched transactions for companyId={invoice.CompanyId}");
+            // Build a single-element invoice list for the pipeline
+            var invoiceList = new List<InvoiceRow> { invoice };
 
-            return await FilterAndCompareAsync(invoice, candidates);
-        }
+            // Execute the full 5-layer pipeline
+            var pipelineResult = _pipelineEngine.Execute(invoiceList, transactionList);
 
-        private Task<List<MatchSuggestionRow>> FilterAndCompareAsync(
-            InvoiceRow invoice,
-            List<TransactionCandidate> candidates)
-        {
-            var remaining = invoice.TotalAmount - invoice.MatchedAmount;
-            var filtered = FilterByDateAndAmount(invoice, candidates, remaining);
-
-            if (!filtered.Any())
-                return Task.FromResult(new List<MatchSuggestionRow>());
-
-            return CompareWithGeminiAsync(invoice, filtered, remaining);
-        }
-
-        private static List<(TransactionCandidate Txn, string AmountReason)> FilterByDateAndAmount(
-            InvoiceRow invoice,
-            List<TransactionCandidate> candidates,
-            decimal remaining)
-        {
-            var installmentAmount = invoice.PaymentPlanInstallmentAmount;
-            Console.WriteLine($"[MATCH] Step 1: Filtering {candidates.Count} candidates by date={invoice.InvoiceDate:yyyy-MM-dd} and amount (remaining={remaining}, installment={installmentAmount})");
-
-            var filtered = new List<(TransactionCandidate Txn, string AmountReason)>();
-            int dateRejects = 0;
-            int amountRejects = 0;
-
-            foreach (var txn in candidates)
+            // Convert auto-matches to MatchSuggestionRow format
+            var suggestions = new List<MatchSuggestionRow>();
+            foreach (var match in pipelineResult.AutoMatches)
             {
-                if (txn.TransactionDate.Date != invoice.InvoiceDate.Date)
+                var txn = transactionList.FirstOrDefault(t => t.Id == match.TransactionId);
+                if (txn == null) continue;
+
+                suggestions.Add(new MatchSuggestionRow
                 {
-                    dateRejects++;
-                    continue;
-                }
-
-                if (txn.Amount == remaining)
-                {
-                    filtered.Add((txn, "Exact amount match"));
-                    Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} date={txn.TransactionDate:yyyy-MM-dd} amount={txn.Amount} desc=\"{txn.Description}\" → Exact amount match");
-                }
-                else if (installmentAmount.HasValue && installmentAmount.Value > 0 && txn.Amount == installmentAmount.Value)
-                {
-                    filtered.Add((txn, $"Matches installment amount ({installmentAmount.Value:F2})"));
-                    Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} amount={txn.Amount} → Installment match");
-                }
-                else if (IsUndeclaredInstallment(invoice, txn, remaining))
-                {
-                    var ratio = Math.Round(invoice.TotalAmount / txn.Amount);
-                    filtered.Add((txn, $"Possible installment: 1/{ratio:F0} of total ({invoice.TotalAmount:F2})"));
-                    Console.WriteLine($"[MATCH]   ✓ TxnId={txn.Id} amount={txn.Amount} → Undeclared installment 1/{ratio:F0}");
-                }
-                else
-                {
-                    amountRejects++;
-                }
-            }
-
-            Console.WriteLine($"[MATCH] Step 1 result: {filtered.Count} passed, {dateRejects} rejected by date, {amountRejects} rejected by amount (same date but wrong amount)");
-            return filtered;
-        }
-
-        private static bool IsUndeclaredInstallment(InvoiceRow invoice, TransactionCandidate txn, decimal remaining)
-        {
-            if (remaining <= 0 || txn.Amount <= 0 || txn.Amount >= remaining)
-                return false;
-
-            var ratio = invoice.TotalAmount / txn.Amount;
-            var rounded = Math.Round(ratio);
-            return rounded >= 2 && rounded <= 12 && Math.Abs(ratio - rounded) < 0.02m;
-        }
-
-        private async Task<List<MatchSuggestionRow>> CompareWithGeminiAsync(
-            InvoiceRow invoice,
-            List<(TransactionCandidate Txn, string AmountReason)> filtered,
-            decimal remaining)
-        {
-            var vendorNames = filtered
-                .Select(f => !string.IsNullOrWhiteSpace(f.Txn.VendorName) ? f.Txn.VendorName : f.Txn.Description)
-                .ToList();
-            Console.WriteLine($"[MATCH] Step 2: Sending {vendorNames.Count} transaction vendor names to Gemini for comparison against invoice vendor \"{invoice.VendorName}\"");
-            foreach (var (vn, i) in vendorNames.Select((v, i) => (v, i)))
-                Console.WriteLine($"[MATCH]   Txn vendor[{i}]: \"{vn}\" (from {(!string.IsNullOrWhiteSpace(filtered[i].Txn.VendorName) ? "vendor_name" : "description")})");
-
-            if (string.IsNullOrWhiteSpace(invoice.VendorName))
-            {
-                Console.WriteLine("[MATCH] Invoice vendor name is empty — skipping Gemini, returning all date+amount matches with score=50");
-                return BuildResultsWithoutGemini(filtered, remaining);
-            }
-
-            var comparisonResults = await _gemini.CompareVendorNamesAsync(invoice.VendorName, vendorNames);
-            Console.WriteLine($"[MATCH] Gemini returned {comparisonResults.Count} comparison results");
-            foreach (var cr in comparisonResults)
-                Console.WriteLine($"[MATCH]   Gemini: \"{cr.TransactionDescription}\" → similarity={cr.SimilarityScore}%");
-
-            return BuildResultsWithGemini(filtered, comparisonResults, remaining);
-        }
-
-        private List<MatchSuggestionRow> BuildResultsWithoutGemini(
-            List<(TransactionCandidate Txn, string AmountReason)> filtered,
-            decimal remaining)
-        {
-            return filtered.Select(f => new MatchSuggestionRow
-            {
-                Id              = f.Txn.Id,
-                TransactionDate = f.Txn.TransactionDate,
-                Description     = f.Txn.Description,
-                Amount          = f.Txn.Amount,
-                TransactionType = f.Txn.TransactionType,
-                ReferenceNumber = f.Txn.ReferenceNumber,
-                AmountDifference = Math.Abs(f.Txn.Amount - remaining),
-                MatchScore      = 50,
-                DaysDifference  = 0,
-                MatchReasons    = new List<string> { "Same date", f.AmountReason, "Vendor name not available" }
-            }).ToList();
-        }
-
-        private List<MatchSuggestionRow> BuildResultsWithGemini(
-            List<(TransactionCandidate Txn, string AmountReason)> filtered,
-            List<VendorComparisonResult> comparisonResults,
-            decimal remaining)
-        {
-            var results = new List<MatchSuggestionRow>();
-
-            for (int i = 0; i < filtered.Count; i++)
-            {
-                var (txn, amountReason) = filtered[i];
-                decimal geminiScore = i < comparisonResults.Count ? comparisonResults[i].SimilarityScore : 0;
-                var similarity = comparisonResults.Count == 0 ? MIN_SUGGESTION_THRESHOLD : geminiScore;
-
-                if (similarity < MIN_SUGGESTION_THRESHOLD)
-                    continue;
-
-                results.Add(new MatchSuggestionRow
-                {
-                    Id              = txn.Id,
+                    Id = match.TransactionId,
                     TransactionDate = txn.TransactionDate,
-                    Description     = txn.Description,
-                    Amount          = txn.Amount,
+                    Description = txn.Description,
+                    Amount = match.MatchedAmount,
                     TransactionType = txn.TransactionType,
                     ReferenceNumber = txn.ReferenceNumber,
-                    AmountDifference = Math.Abs(txn.Amount - remaining),
-                    MatchScore      = similarity,
-                    DaysDifference  = 0,
-                    MatchReasons    = new List<string> { "Same date", amountReason, $"Vendor name similarity: {similarity}%" }
+                    AmountDifference = Math.Abs(match.MatchedAmount - invoice.TotalAmount),
+                    MatchScore = (decimal)(match.Confidence * 100),
+                    DaysDifference = Math.Abs((txn.TransactionDate.Date - invoice.InvoiceDate.Date).Days),
+                    MatchReasons = new List<string>
+                    {
+                        $"[{match.RuleLayer}] {match.RuleName}",
+                        match.MatchReason
+                    }
                 });
             }
 
-            var finalResults = results
-                .OrderByDescending(r => r.MatchScore)
-                .ThenBy(r => r.AmountDifference)
+            // Also add suggested matches (fallback for manual review) with lower scores
+            foreach (var sm in pipelineResult.SuggestedMatches)
+            {
+                if (sm.InvoiceId != invoiceId) continue;
+
+                suggestions.Add(new MatchSuggestionRow
+                {
+                    Id = sm.TransactionId,
+                    TransactionDate = sm.TransactionDate,
+                    Description = sm.TransactionDescription,
+                    Amount = sm.TransactionAmount,
+                    TransactionType = "debit",
+                    ReferenceNumber = null,
+                    AmountDifference = Math.Abs(sm.TransactionAmount - invoice.TotalAmount),
+                    MatchScore = (decimal)(sm.FuzzyScore * 100),
+                    DaysDifference = Math.Abs((sm.TransactionDate.Date - invoice.InvoiceDate.Date).Days),
+                    MatchReasons = new List<string>
+                    {
+                        "Suggested match (fallback)",
+                        $"Fuzzy score: {sm.FuzzyScore:P1}, Variance: {sm.AmountVariancePercent:F1}%"
+                    }
+                });
+            }
+
+            return suggestions
+                .OrderByDescending(s => s.MatchScore)
+                .ThenBy(s => s.AmountDifference)
                 .ToList();
+        }
 
-            Console.WriteLine($"[MATCH] ── Final: returning {finalResults.Count} suggestions (threshold={MIN_SUGGESTION_THRESHOLD}%) ──");
-            foreach (var r in finalResults)
-                Console.WriteLine($"[MATCH]   Result: TxnId={r.Id} desc=\"{r.Description}\" amount={r.Amount} score={r.MatchScore} reasons=[{string.Join(", ", r.MatchReasons)}]");
+        /// <summary>
+        /// Runs the pipeline for all unmatched invoices in a company.
+        /// Persists all auto-matches and returns the batch result.
+        /// </summary>
+        private async Task<AutoMatchBatchResult> RunPipelineBatchAsync(
+            long companyId, long userId, decimal minConfidenceThreshold)
+        {
+            var result = new AutoMatchBatchResult();
 
-            return finalResults;
+            // Fetch all unmatched invoices and transactions for the company
+            var invoices = _db.GetUnmatchedInvoicesByCompany(companyId);
+            var transactions = _db.GetTransactionsByCompany(
+                companyId, type: null, isMatched: false, startDate: null, endDate: null);
+
+            if (invoices.Count == 0 || transactions.Count == 0)
+                return result;
+
+            // Run the full pipeline
+            var pipelineResult = _pipelineEngine.Execute(invoices, transactions);
+
+            // Persist all auto-matches
+            foreach (var match in pipelineResult.AutoMatches)
+            {
+                var matchReq = RulePipelineEngine.ToCreateMatchRequest(match, userId);
+                var createResult = Create(matchReq, userId);
+
+                if (createResult.Success)
+                {
+                    result.SuccessfulMatches++;
+                    result.MatchDetails.Add(new MatchDetail
+                    {
+                        InvoiceId = match.InvoiceId,
+                        InvoiceNumber = string.Empty,
+                        Success = true,
+                        MatchScore = (decimal)(match.Confidence * 100),
+                        Message = $"Auto-matched via {match.RuleName}"
+                    });
+                }
+            }
+
+            // For unmatched invoices that have suggested matches, return them for review
+            var matchedInvoiceIds = new HashSet<long>(pipelineResult.AutoMatches.Select(m => m.InvoiceId));
+            foreach (var invoice in invoices)
+            {
+                if (matchedInvoiceIds.Contains(invoice.Id)) continue;
+
+                var invoiceSuggestions = pipelineResult.SuggestedMatches
+                    .Where(s => s.InvoiceId == invoice.Id)
+                    .ToList();
+
+                if (invoiceSuggestions.Any())
+                {
+                    var bestSuggestion = invoiceSuggestions.First();
+                    var score = (decimal)(bestSuggestion.FuzzyScore * 100);
+
+                    if (score >= (decimal)MEDIUM_CONFIDENCE_THRESHOLD)
+                    {
+                        result.SuggestionsForReview.Add(new MatchDetail
+                        {
+                            InvoiceId = invoice.Id,
+                            InvoiceNumber = invoice.InvoiceNumber,
+                            Success = false,
+                            MatchScore = score,
+                            Message = $"Best suggestion: {bestSuggestion.VendorName} (score: {score:F1})"
+                        });
+                    }
+                }
+
+                result.SkippedInvoices++;
+            }
+
+            return result;
+        }
+
+        // ── Updated public methods that now use the pipeline engine ────────
+
+        public async Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId)
+        {
+            Console.WriteLine($"\n[MATCH] ── GetSuggestionsAsync (Pipeline) for invoiceId={invoiceId} ──");
+            return await RunPipelineForInvoiceAsync(invoiceId);
+        }
+
+        public async Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAsync(
+            long invoiceId,
+            long userId,
+            decimal minConfidenceThreshold = HIGH_CONFIDENCE_THRESHOLD)
+        {
+            var invoice = _db.GetInvoiceById(invoiceId);
+            if (invoice == null)
+                return (false, null, "Invoice not found.", null);
+
+            var suggestions = await GetSuggestionsAsync(invoiceId);
+
+            if (!suggestions.Any())
+                return (false, null, "No potential matches found.", null);
+
+            var best = suggestions[0];
+
+            if (best.MatchScore < minConfidenceThreshold)
+                return (false, null,
+                    $"Best match score ({best.MatchScore:F1}) below threshold ({minConfidenceThreshold:F1}).",
+                    best.MatchScore);
+
+            var existingMatches = _db.GetMatchesByInvoice(invoiceId);
+            var installmentNumber = existingMatches.Count + 1;
+            var hasPaymentPlan = invoice.PaymentPlanTotalInstallments.HasValue;
+
+            var matchRequest = new CreateMatchRequest
+            {
+                InvoiceId = invoiceId,
+                TransactionId = best.Id,
+                MatchedAmount = best.Amount,
+                MatchMethod = "automatic",
+                MatchType = DetermineMatchType(invoice, best.Amount),
+                MatchConfidence = best.MatchScore / 100m,
+                MatchReason = string.Join(", ", best.MatchReasons),
+                MatchedByUserId = userId,
+                InstallmentNumber = hasPaymentPlan ? installmentNumber : null,
+                InstallmentNote = hasPaymentPlan
+                    ? $"Payment {installmentNumber} of {invoice.PaymentPlanTotalInstallments}"
+                    : null
+            };
+
+            var result = Create(matchRequest, userId);
+
+            var message = hasPaymentPlan
+                ? $"Auto-matched installment {installmentNumber}/{invoice.PaymentPlanTotalInstallments}. Score: {best.MatchScore:F1}%"
+                : $"Auto-matched with {best.MatchScore:F1}% confidence.";
+
+            return result.Success
+                ? (true, result.Id, message, best.MatchScore)
+                : (false, null, result.Error, best.MatchScore);
+        }
+
+        public async Task<AutoMatchBatchResult> AutoMatchBatchAsync(
+            long companyId,
+            long userId,
+            decimal minConfidenceThreshold = HIGH_CONFIDENCE_THRESHOLD)
+        {
+            Console.WriteLine($"\n[MATCH] ── AutoMatchBatchAsync (Pipeline) for companyId={companyId} ──");
+            return await RunPipelineBatchAsync(companyId, userId, minConfidenceThreshold);
         }
 
         // ── Match creation & vendor alias learning ────────────────────────
@@ -435,104 +479,6 @@ namespace FinalProjectAuthAPI.BL
             catch { /* rejection signal is best-effort */ }
 
             return _db.DeleteMatch(id);
-        }
-
-        // ── Auto-matching ─────────────────────────────────────────────────
-
-        public async Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAsync(
-            long invoiceId,
-            long userId,
-            decimal minConfidenceThreshold = HIGH_CONFIDENCE_THRESHOLD)
-        {
-            var invoice = _db.GetInvoiceById(invoiceId);
-            if (invoice == null)
-                return (false, null, "Invoice not found.", null);
-
-            var suggestions = await GetSuggestionsAsync(invoiceId);
-
-            if (!suggestions.Any())
-                return (false, null, "No potential matches found.", null);
-
-            var best = suggestions[0];
-
-            if (best.MatchScore < minConfidenceThreshold)
-                return (false, null,
-                    $"Best match score ({best.MatchScore:F1}) below threshold ({minConfidenceThreshold:F1}).",
-                    best.MatchScore);
-
-            var existingMatches = _db.GetMatchesByInvoice(invoiceId);
-            var installmentNumber = existingMatches.Count + 1;
-            var hasPaymentPlan = invoice.PaymentPlanTotalInstallments.HasValue;
-
-            var matchRequest = new CreateMatchRequest
-            {
-                InvoiceId = invoiceId,
-                TransactionId = best.Id,
-                MatchedAmount = best.Amount,
-                MatchMethod = "automatic",
-                MatchType = DetermineMatchType(invoice, best.Amount),
-                MatchConfidence = best.MatchScore / 100m,
-                MatchReason = string.Join(", ", best.MatchReasons),
-                MatchedByUserId = userId,
-                InstallmentNumber = hasPaymentPlan ? installmentNumber : null,
-                InstallmentNote = hasPaymentPlan
-                    ? $"Payment {installmentNumber} of {invoice.PaymentPlanTotalInstallments}"
-                    : null
-            };
-
-            var result = Create(matchRequest, userId);
-
-            var message = hasPaymentPlan
-                ? $"Auto-matched installment {installmentNumber}/{invoice.PaymentPlanTotalInstallments}. Score: {best.MatchScore:F1}%"
-                : $"Auto-matched with {best.MatchScore:F1}% confidence.";
-
-            return result.Success
-                ? (true, result.Id, message, best.MatchScore)
-                : (false, null, result.Error, best.MatchScore);
-        }
-
-        public async Task<AutoMatchBatchResult> AutoMatchBatchAsync(
-            long companyId,
-            long userId,
-            decimal minConfidenceThreshold = HIGH_CONFIDENCE_THRESHOLD)
-        {
-            var result = new AutoMatchBatchResult();
-            var unmatchedInvoices = _db.GetUnmatchedInvoicesByCompany(companyId);
-
-            foreach (var invoice in unmatchedInvoices)
-            {
-                var matchResult = await AutoMatchAsync(invoice.Id, userId, minConfidenceThreshold);
-
-                if (matchResult.Success)
-                {
-                    result.SuccessfulMatches++;
-                    result.MatchDetails.Add(new MatchDetail
-                    {
-                        InvoiceId = invoice.Id,
-                        InvoiceNumber = invoice.InvoiceNumber,
-                        Success = true,
-                        MatchScore = matchResult.MatchScore,
-                        Message = matchResult.Message
-                    });
-                }
-                else
-                {
-                    result.SkippedInvoices++;
-                    if (matchResult.MatchScore.HasValue && matchResult.MatchScore >= MEDIUM_CONFIDENCE_THRESHOLD)
-                    {
-                        result.SuggestionsForReview.Add(new MatchDetail
-                        {
-                            InvoiceId = invoice.Id,
-                            InvoiceNumber = invoice.InvoiceNumber,
-                            Success = false,
-                            MatchScore = matchResult.MatchScore,
-                            Message = matchResult.Message
-                        });
-                    }
-                }
-            }
-
-            return result;
         }
 
         public static string GetConfidenceCategory(decimal matchScore)

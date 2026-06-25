@@ -64,7 +64,8 @@ namespace FinalProjectAuthAPI.BL
                     req.PaymentPlanTotalInstallments,
                     req.PaymentPlanInstallmentAmount,
                     req.PaymentPlanFrequency,
-                    req.PaymentPlanDescription);
+                    req.PaymentPlanDescription,
+                    req.PaymentPlanCurrentInstallment);
             }
             catch (SqlException ex) when (ex.Number is 2627 or 2601)
             {
@@ -83,6 +84,7 @@ namespace FinalProjectAuthAPI.BL
                     req.PaymentPlanInstallmentAmount,
                     req.PaymentPlanFrequency,
                     req.PaymentPlanDescription,
+                    req.PaymentPlanCurrentInstallment,
                     isDuplicate: true);
 
                 if (invoiceId <= 0)
@@ -159,6 +161,7 @@ namespace FinalProjectAuthAPI.BL
                 req.PaymentPlanInstallmentAmount,
                 req.PaymentPlanFrequency,
                 req.PaymentPlanDescription,
+                req.PaymentPlanCurrentInstallment,
                 verifiedByUserId,
                 req.LineItems ?? new List<CreateLineItemRequest>());
 

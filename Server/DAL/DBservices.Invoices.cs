@@ -63,19 +63,20 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public long CreateInvoice(
-            long companyId, string invoiceNumber, string vendorName,
-            DateTime invoiceDate, decimal totalAmount, long? uploadedByUserId,
-            string? vendorTaxId, DateTime? dueDate, DateTime? paymentDate,
-            decimal subtotal, decimal? vatRate, decimal? vatAmount,
-            string currency, string? fileOriginalName, string? filePath,
-            string? fileType, long? fileSize, decimal? aiConfidence,
-            string? lastFourDigitsCard, int? itemCount = null,
-            int? paymentPlanTotalInstallments = null,
-            decimal? paymentPlanInstallmentAmount = null,
-            string? paymentPlanFrequency = null,
-            string? paymentPlanDescription = null,
-            bool isDuplicate = false)
+    public long CreateInvoice(
+        long companyId, string invoiceNumber, string vendorName,
+        DateTime invoiceDate, decimal totalAmount, long? uploadedByUserId,
+        string? vendorTaxId, DateTime? dueDate, DateTime? paymentDate,
+        decimal subtotal, decimal? vatRate, decimal? vatAmount,
+        string currency, string? fileOriginalName, string? filePath,
+        string? fileType, long? fileSize, decimal? aiConfidence,
+        string? lastFourDigitsCard, int? itemCount = null,
+        int? paymentPlanTotalInstallments = null,
+        decimal? paymentPlanInstallmentAmount = null,
+        string? paymentPlanFrequency = null,
+        string? paymentPlanDescription = null,
+        int? paymentPlanCurrentInstallment = null,
+        bool isDuplicate = false)
         {
             SqlConnection? con = null;
             try
@@ -109,6 +110,7 @@ namespace FinalProjectAuthAPI.DAL
                         { "@PaymentPlanInstallmentAmount", paymentPlanInstallmentAmount },
                         { "@PaymentPlanFrequency",          paymentPlanFrequency         },
                         { "@PaymentPlanDescription",        paymentPlanDescription       },
+                        { "@PaymentPlanCurrentInstallment", paymentPlanCurrentInstallment },
                         { "@IsDuplicate",                   isDuplicate                  }
                     });
 
@@ -234,6 +236,7 @@ namespace FinalProjectAuthAPI.DAL
             decimal? paymentPlanInstallmentAmount,
             string? paymentPlanFrequency,
             string? paymentPlanDescription,
+            int? paymentPlanCurrentInstallment,
             long? verifiedByUserId,
             List<CreateLineItemRequest> lineItems)
         {
@@ -271,6 +274,7 @@ namespace FinalProjectAuthAPI.DAL
                         payment_plan_installment_amount = @PaymentPlanInstallmentAmount,
                         payment_plan_frequency = @PaymentPlanFrequency,
                         payment_plan_description = @PaymentPlanDescription,
+                        payment_plan_current_installment = @PaymentPlanCurrentInstallment,
                         verified_by_user_id = COALESCE(@VerifiedByUserId, verified_by_user_id),
                         is_verified = 1,
                         status = CASE WHEN status = 'matched' THEN status ELSE 'verified' END,
@@ -301,6 +305,7 @@ namespace FinalProjectAuthAPI.DAL
                 updateCmd.Parameters.AddWithValue("@PaymentPlanInstallmentAmount", (object?)paymentPlanInstallmentAmount ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@PaymentPlanFrequency", (object?)paymentPlanFrequency ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@PaymentPlanDescription", (object?)paymentPlanDescription ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@PaymentPlanCurrentInstallment", (object?)paymentPlanCurrentInstallment ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@VerifiedByUserId", (object?)verifiedByUserId ?? DBNull.Value);
 
                 var rows = updateCmd.ExecuteNonQuery();
@@ -485,6 +490,8 @@ namespace FinalProjectAuthAPI.DAL
                                         ? Convert.ToDecimal(r["payment_plan_installment_amount"]) : null,
             PaymentPlanFrequency     = r.HasColumn("payment_plan_frequency") ? r["payment_plan_frequency"] as string : null,
             PaymentPlanDescription   = r.HasColumn("payment_plan_description") ? r["payment_plan_description"] as string : null,
+            PaymentPlanCurrentInstallment = r.HasColumn("payment_plan_current_installment") && r["payment_plan_current_installment"] != DBNull.Value
+                                        ? Convert.ToInt32(r["payment_plan_current_installment"]) : null,
             UploadedByUserId       = r["uploaded_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["uploaded_by_user_id"]) : null,
             UploadedByName         = r.HasColumn("uploaded_by_name") ? r["uploaded_by_name"] as string : null,
             VerifiedByUserId       = r.HasColumn("verified_by_user_id") && r["verified_by_user_id"] != DBNull.Value ? Convert.ToInt64(r["verified_by_user_id"]) : null,

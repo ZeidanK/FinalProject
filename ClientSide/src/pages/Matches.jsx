@@ -871,7 +871,7 @@ function MatchesPage() {
   const selectedTransaction = transactions.find((t) => t.id === selectedTransactionId)
 
   const regularMatches = matches.filter(
-    (m) => (m.match_method || m.matchMethod) !== 'installment_simple',
+    (m) => (m.match_method || m.matchMethod) !== 'installment_simple' && (m.installment_number ?? m.installmentNumber) == null,
   )
 
   let matchedItemsContent

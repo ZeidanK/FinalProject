@@ -33,7 +33,7 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes.
 <!-- 19.	Profile page for business owner: adding a new company — review required data and improve UI -->
 <!-- 20.	Delete account should be added to the profile page -->
 20. reactaviate soft deleted accounts when the user logs in.
-21.	When uploading an invoice and the user deletes it, the file should be removed from the server
+<!-- 21.	When uploading an invoice and the user deletes it, the file should be removed from the server -->
 <!-- 22.	Anomalies: detect duplicate Excel files -->
 <!-- 23.	Anomalies: group duplicate receipts together -->
 <!-- 24.	Matching page: quick match currency mismatch -->
@@ -41,7 +41,7 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes.
 <!-- 4. Hard tasks -->
 <!-- These are larger features or require system-level changes. -->
 <!-- 26.	Persistent storage: when uploading files and changing page, the work should keep running / stay saved -->
-27.	Live notifications need improving and testing ofr server wide functions
+27.	Live notifications need improving and testing of server/client wide functions and interactions between users/ files/ database/ ai etc
 28.	Reports page full implementation — currently nothing works
 29.	Admin page full implementation — currently nothing works
 30.	Testing the Ruppin server to see if the models will run on it

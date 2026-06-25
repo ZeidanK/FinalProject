@@ -25,6 +25,8 @@ builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.RulePipelineEngine>();
+builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.IFxRateProvider, FinalProjectAuthAPI.MatchingEngine.MockFxRateProvider>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IUserService, UserService>();
