@@ -129,6 +129,23 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpDelete("{id:long}")]
         public IActionResult Delete(long id)
         {
+            var invoice = _svc.GetById(id);
+
+            if (invoice is null)
+                return NotFound(new { message = "Invoice not found." });
+
+            if (!string.IsNullOrWhiteSpace(invoice.FilePath))
+            {
+                try
+                {
+                    _fileSvc.Delete(invoice.FilePath);
+                }
+                catch
+                {
+                    // Swallow file deletion errors so the DB operation can still complete.
+                }
+            }
+
             var ok = _svc.Delete(id);
             return ok
                 ? Ok(new { message = "Invoice deleted." })
@@ -137,10 +154,30 @@ namespace FinalProjectAuthAPI.Controllers
 
         // DELETE api/invoices/bulk
         [HttpDelete("bulk")]
-        public IActionResult BulkDelete([FromBody] BulkDeleteInvoicesRequest request)
+        public async Task<IActionResult> BulkDelete([FromBody] BulkDeleteInvoicesRequest request)
         {
             if (request?.Ids == null || request.Ids.Count == 0)
                 return BadRequest(new { message = "At least one invoice ID is required." });
+
+            var filesToDelete = new List<string>();
+            foreach (var id in request.Ids)
+            {
+                var invoice = _svc.GetById(id);
+                if (invoice != null && !string.IsNullOrWhiteSpace(invoice.FilePath))
+                    filesToDelete.Add(invoice.FilePath);
+            }
+
+            foreach (var path in filesToDelete)
+            {
+                try
+                {
+                    await Task.Run(() => _fileSvc.Delete(path));
+                }
+                catch
+                {
+                    // Swallow file deletion errors so the DB operation can still complete.
+                }
+            }
 
             var (deletedIds, notFoundIds) = _svc.BulkDelete(request.Ids);
             var deletedCount = deletedIds.Count;
