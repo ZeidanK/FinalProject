@@ -40,7 +40,7 @@ import {
   downloadInvoicePdf,
   getInvoiceById,
 } from '../services/invoices'
-import { getMyUploadJobs, getUploadJobStatus, markUploadJobVerified } from '../services/uploadJobs'
+import { deleteUploadJob, deleteUploadJobsByCompany, getMyUploadJobs, getUploadJobStatus, markUploadJobVerified } from '../services/uploadJobs'
 import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
@@ -413,6 +413,31 @@ function InvoicesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompanyId, token])
 
+  const handleClearQueue = useCallback(async () => {
+    if (!activeCompanyId) return
+    const confirmed = globalThis.confirm(
+      'Clear the entire upload queue for this company? This will remove all pending upload jobs and their files.',
+    )
+    if (!confirmed) return
+
+    try {
+      await deleteUploadJobsByCompany(activeCompanyId, token)
+      // Stop any active polling for the current company and clear state
+      Object.keys(pollingTimers.current).forEach((key) => {
+        const jobId = Number(key)
+        stopPolling(jobId)
+      })
+      pollingTimers.current = {}
+      if (sessionKey) {
+        try { sessionStorage.removeItem(sessionKey) } catch { /* ignore */ }
+      }
+      setFiles([])
+      setSnack({ open: true, message: 'Upload queue cleared.', severity: 'success' })
+    } catch (err) {
+      setSnack({ open: true, message: err.message || 'Failed to clear queue.', severity: 'error' })
+    }
+  }, [activeCompanyId, token, stopPolling, removeJobFromSession])
+
   // ===================== Data Fetching =====================
 
   const invoicesQuery = useInvoicesByCompanyQuery({
@@ -565,9 +590,19 @@ function InvoicesPage() {
       .forEach((entry) => processFile(entry))
   }, [activeCompanyId, processFile])
 
-  const removeFile = useCallback((id) => {
+  const removeFile = useCallback(async (id) => {
+    const entry = files.find((f) => f.id === id)
+    if (entry?.jobId) {
+      stopPolling(entry.jobId)
+      removeJobFromSession(entry.jobId)
+      try {
+        await deleteUploadJob(entry.jobId, token)
+      } catch {
+        // UI removal continues even if backend delete fails.
+      }
+    }
     setFiles((prev) => prev.filter((f) => f.id !== id))
-  }, [])
+  }, [files, token, stopPolling, removeJobFromSession])
 
   // --- Drag handlers ---
   const handleDrag = useCallback((e) => {
@@ -1365,6 +1400,20 @@ function InvoicesPage() {
                 </Stack>
               </CardContent>
             </Card>
+          )}
+
+          {/* ---- Queue Actions ---- */}
+          {pendingFiles.length > 0 && (
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                onClick={handleClearQueue}
+              >
+                Clear Upload Queue
+              </Button>
+            </Stack>
           )}
 
           {/* ---- Error Alert ---- */}

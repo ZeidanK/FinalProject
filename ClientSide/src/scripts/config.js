@@ -131,6 +131,7 @@ export const URLS = {
     mine: buildApiPath('/UploadJobs/mine'),
     verified: (id) => buildApiPath(`/UploadJobs/${id}/verified`),
     download: (id) => buildApiPath(`/UploadJobs/${id}/download`),
+    byCompany: (companyId) => buildApiPath(`/UploadJobs/company/${companyId}`),
   },
   realtime: {
     notificationsHub: buildApiPath('/realtime/notifications'),

@@ -13,12 +13,14 @@ namespace FinalProjectAuthAPI.Controllers
     public class UploadJobsController : ApiControllerBase
     {
         private readonly IUploadJobService _jobSvc;
+        private readonly IFileStorageService _fileSvc;
         private readonly DBservices _db;
         private readonly IWebHostEnvironment _env;
 
-        public UploadJobsController(IUploadJobService jobSvc, DBservices db, IWebHostEnvironment env)
+        public UploadJobsController(IUploadJobService jobSvc, IFileStorageService fileSvc, DBservices db, IWebHostEnvironment env)
         {
             _jobSvc = jobSvc;
+            _fileSvc = fileSvc;
             _db = db;
             _env = env;
         }
@@ -67,6 +69,46 @@ namespace FinalProjectAuthAPI.Controllers
 
             _jobSvc.MarkVerified(jobId);
             return Ok(new { message = "Job marked as verified." });
+        }
+
+        [HttpDelete("{jobId:long}")]
+        public IActionResult Delete(long jobId)
+        {
+            var userId = GetCurrentUserId();
+            var row = _jobSvc.GetById(jobId);
+            if (row == null)
+                return NotFound(new { message = "Job not found." });
+
+            if (row.UserId != userId && !_db.UserHasActiveCompanyAccess(userId, row.CompanyId))
+                return Forbid();
+
+            if (!string.IsNullOrWhiteSpace(row.FilePath))
+            {
+                try
+                {
+                    _fileSvc.Delete(row.FilePath);
+                }
+                catch
+                {
+                    // Swallow file deletion errors so DB cleanup can still proceed.
+                }
+            }
+
+            var deleted = _jobSvc.Delete(jobId);
+            return deleted
+                ? Ok(new { message = "Upload job deleted." })
+                : NotFound(new { message = "Job not found." });
+        }
+
+        [HttpDelete("company/{companyId:long}")]
+        public IActionResult DeleteByCompany(long companyId)
+        {
+            var userId = GetCurrentUserId();
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
+
+            var deleted = _jobSvc.DeleteByCompany(companyId);
+            return Ok(new { deletedCount = deleted, message = "Upload jobs deleted." });
         }
 
         [HttpGet("{jobId:long}/download")]

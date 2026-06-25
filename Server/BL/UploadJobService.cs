@@ -48,5 +48,39 @@ namespace FinalProjectAuthAPI.BL
 
         public List<UploadJobRow> GetByUser(long userId, long? companyId = null, string? status = null, int take = 50) =>
             _db.GetUploadJobsByUser(userId, companyId, status, take);
+
+        public bool Delete(long jobId)
+        {
+            var row = _db.GetUploadJobById(jobId);
+            if (row == null || string.IsNullOrWhiteSpace(row.FilePath))
+                return _db.DeleteUploadJob(jobId);
+
+            try
+            {
+                var fullPath = System.IO.Path.Combine(
+                    System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "wwwroot")),
+                    row.FilePath.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(fullPath))
+                    System.IO.File.Delete(fullPath);
+            }
+            catch
+            {
+                // Best-effort file cleanup only.
+            }
+
+            return _db.DeleteUploadJob(jobId);
+        }
+
+        public int DeleteByCompany(long companyId)
+        {
+            var jobs = _db.GetUploadJobsByUser(0, companyId, null, 200);
+            var deleted = 0;
+            foreach (var job in jobs)
+            {
+                if (Delete(job.Id))
+                    deleted++;
+            }
+            return deleted;
+        }
     }
 }

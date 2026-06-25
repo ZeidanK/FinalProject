@@ -46,6 +46,36 @@ export async function getMyUploadJobs(token, { companyId, status, take } = {}) {
 }
 
 /**
+ * Delete a background upload job and its stored file.
+ *
+ * @param {string|number} jobId - Upload job identifier.
+ * @param {string} token - JWT bearer token.
+ * @returns {Promise<any>}
+ */
+export async function deleteUploadJob(jobId, token)
+{
+  return apiRequest(URLS.uploadJobs.byId(jobId), {
+    method: 'DELETE',
+    token,
+  })
+}
+
+/**
+ * Delete all upload jobs for a company.
+ *
+ * @param {string|number} companyId - Company identifier.
+ * @param {string} token - JWT bearer token.
+ * @returns {Promise<any>}
+ */
+export async function deleteUploadJobsByCompany(companyId, token)
+{
+  return apiRequest(URLS.uploadJobs.byCompany(companyId), {
+    method: 'DELETE',
+    token,
+  })
+}
+
+/**
  * Mark a background upload job as verified (user confirmed the extracted data).
  *
  * @param {string|number} jobId - Upload job identifier.

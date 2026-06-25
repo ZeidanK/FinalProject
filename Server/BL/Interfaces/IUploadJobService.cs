@@ -13,5 +13,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         bool UpdateProgress(long jobId, int progressPercent, string? resultJson = null);
         UploadJobRow? GetById(long jobId);
         List<UploadJobRow> GetByUser(long userId, long? companyId = null, string? status = null, int take = 50);
+        bool Delete(long jobId);
+        int DeleteByCompany(long companyId);
     }
 }

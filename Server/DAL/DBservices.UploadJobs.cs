@@ -237,14 +237,14 @@ SELECT TOP (@Take)
     updated_at,
     completed_at
 FROM dbo.FP26_upload_jobs
-WHERE user_id = @UserId
+WHERE (@UserId IS NULL OR user_id = @UserId)
   AND (@CompanyId IS NULL OR company_id = @CompanyId)
   AND (@Status IS NULL OR status = @Status)
 ORDER BY created_at DESC";
 
                 using var cmd = new SqlCommand(sql, con);
                 cmd.Parameters.AddWithValue("@Take", Math.Clamp(take, 1, 200));
-                cmd.Parameters.AddWithValue("@UserId", userId);
+                cmd.Parameters.AddWithValue("@UserId", userId <= 0 ? (object?)DBNull.Value : userId);
                 cmd.Parameters.AddWithValue("@CompanyId", (object?)companyId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@Status", string.IsNullOrWhiteSpace(status) ? DBNull.Value : status);
 
@@ -284,6 +284,24 @@ ORDER BY created_at DESC";
             UpdatedAt = Convert.ToDateTime(r["updated_at"]),
             CompletedAt = r["completed_at"] == DBNull.Value ? null : Convert.ToDateTime(r["completed_at"])
         };
+
+        public bool DeleteUploadJob(long jobId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(
+                    "DELETE FROM dbo.FP26_upload_jobs WHERE id = @Id",
+                    con);
+                cmd.Parameters.AddWithValue("@Id", jobId);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            finally
+            {
+                con?.Close();
+            }
+        }
 
         private bool UpdateUploadJobSimple(string sql, Dictionary<string, object?> parameters)
         {
