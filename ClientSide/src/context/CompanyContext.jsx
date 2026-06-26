@@ -1,41 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import PropTypes from 'prop-types'
 import { getCompaniesByUser } from '../services/companies'
 import { useAuth } from './useAuth'
-import { CompanyContext } from './CompanyContextProvider'
 
-/**
- * Storage key for the currently selected company ID.
- * @type {string}
- */
 const ACTIVE_COMPANY_STORAGE_KEY = 'activeCompanyId'
 
-/**
- * Parse an incoming value into a valid positive company ID.
- *
- * @param {string|number|null|undefined} value - Potential company ID input.
- * @returns {number|null} A normalized company ID or null if invalid.
- */
 const parseCompanyId = (value) => {
   const num = Number(value)
   return Number.isFinite(num) && num > 0 ? num : null
 }
 
-/**
- * Read the persisted active company ID from localStorage.
- *
- * @returns {number|null} The persisted company ID, or null when unavailable.
- */
 const readStoredCompanyId = () => {
   if (globalThis.window === undefined) return null
   return parseCompanyId(globalThis.localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY))
 }
 
-/**
- * Persist or remove the active company ID in localStorage.
- *
- * @param {number|null} companyId - The company ID to persist, or null to clear.
- */
 const persistCompanyId = (companyId) => {
   if (globalThis.window === undefined) return
   if (!companyId) {
@@ -45,22 +24,12 @@ const persistCompanyId = (companyId) => {
   globalThis.localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, String(companyId))
 }
 
-/**
- * Read the persisted active company name from localStorage.
- *
- * @returns {string|null} The persisted company name, or null when unavailable.
- */
 const readStoredCompanyName = () => {
   if (globalThis.window === undefined) return null
   const name = globalThis.localStorage.getItem('activeCompanyName')
   return typeof name === 'string' && name.trim() !== '' ? name : null
 }
 
-/**
- * Persist or remove the active company name in localStorage.
- *
- * @param {string|null} companyName - The company name to persist, or null to clear.
- */
 const persistCompanyName = (companyName) => {
   if (globalThis.window === undefined) return
   if (!companyName) {
@@ -70,14 +39,16 @@ const persistCompanyName = (companyName) => {
   globalThis.localStorage.setItem('activeCompanyName', companyName)
 }
 
+export const CompanyContext = createContext(undefined)
 
-/**
- * Provides company selection and company list state for the authenticated user.
- *
- * @param {object} props
- * @param {React.ReactNode} props.children - Child components that consume company context.
- * @returns {JSX.Element} The company context provider.
- */
+export function useCompany() {
+  const context = useContext(CompanyContext)
+  if (!context) {
+    throw new Error('useCompany must be used inside CompanyProvider.')
+  }
+  return context
+}
+
 export function CompanyProvider({ children }) {
   const { isAuthenticated, user, token, updateUser } = useAuth()
   const [companies, setCompanies] = useState([])
@@ -87,13 +58,6 @@ export function CompanyProvider({ children }) {
   const inFlightRequestKeyRef = useRef(null)
   const inFlightPromiseRef = useRef(null)
 
-  /**
-   * Determine the initial active company by prioritizing stored, user, and available IDs.
-   *
-   * @param {Array<object>} availableCompanies - Companies returned for the current user.
-   * @param {string|number|null|undefined} currentUserCompanyId - The user's current company ID.
-   * @returns {number|null} Resolved active company ID.
-   */
   const resolveInitialCompanyId = useCallback((availableCompanies, currentUserCompanyId) => {
     const ids = availableCompanies
       .map((company) => parseCompanyId(company.id ?? company.companyId))
@@ -109,11 +73,6 @@ export function CompanyProvider({ children }) {
     return null
   }, [])
 
-  /**
-   * Update the active company selection and persist it to localStorage.
-   *
-   * @param {string|number|null|undefined} companyId - Candidate company ID to activate.
-   */
   const changeActiveCompanyId = useCallback((companyId) => {
     const parsedId = parseCompanyId(companyId)
     if (!parsedId) return
@@ -132,10 +91,6 @@ export function CompanyProvider({ children }) {
     persistCompanyId(parsedId)
   }, [companies, user?.role])
 
-  /**
-   * Load the current user's accessible companies and resolve the active selection.
-   * This request is deduplicated to avoid repeated in-flight fetches for the same user/token.
-   */
   const refreshCompanies = useCallback(async () => {
     if (!isAuthenticated || !user?.id || !token) {
       inFlightRequestKeyRef.current = null

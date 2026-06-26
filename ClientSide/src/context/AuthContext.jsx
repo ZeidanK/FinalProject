@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
 import {
   clearAuthSession,
@@ -7,51 +7,53 @@ import {
   saveAuthSession,
 } from '../services/auth'
 import { getCompaniesByUser } from '../services/companies'
-import { AuthContext } from './AuthContextProvider'
+
+/**
+ * Authentication context (created here, exported for direct use if needed).
+ */
+export const AuthContext = createContext(undefined)
+
+/**
+ * Hook to consume the authentication context.
+ *
+ * @returns {object} The current auth context value.
+ * @throws {Error} When used outside of AuthProvider.
+ */
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used inside AuthProvider.')
+  }
+  return context
+}
 
 /**
  * Provides authentication state and helpers to the app.
  *
  * @param {object} props
- * @param {React.ReactNode} props.children - The rendered descendant components.
- * @returns {JSX.Element} The authentication context provider.
+ * @param {React.ReactNode} props.children
+ * @returns {JSX.Element}
  */
 export function AuthProvider({ children }) {
   const [authSession, setAuthSession] = useState(() => getStoredAuthSession())
 
-  /**
-   * Clear stored session state and reset the auth session.
-   */
   const logout = useCallback(() => {
     clearAuthSession()
     setAuthSession(null)
   }, [])
 
-  /**
-   * Persist and apply a new authentication session.
-   *
-   * @param {string|null} token - Authentication token returned by the login flow.
-   * @param {object|null} user - Authenticated user payload.
-   */
   const applySession = useCallback(
     (token, user) => {
       if (!token || !user) {
         logout()
         return
       }
-
       saveAuthSession(token, user)
       setAuthSession({ token, user })
     },
     [logout],
   )
 
-  /**
-   * Authenticate the given credentials and hydrate user session data.
-   *
-   * @param {object} credentials - Login credentials to send to the auth service.
-   * @returns {Promise<object>} The auth response payload.
-   */
   const login = useCallback(
     async (credentials) => {
       const data = await loginUser(credentials)
@@ -76,24 +78,15 @@ export function AuthProvider({ children }) {
     [applySession],
   )
 
-  /**
-   * Update the cached user profile and persist the modified session.
-   *
-   * @param {object} updatedFields - Partial user object fields to merge.
-   */
   const updateUser = useCallback(
     (updatedFields) => {
       setAuthSession((prevSession) => {
         if (!prevSession?.token || !prevSession?.user) return prevSession
-
         const newUser = { ...prevSession.user, ...updatedFields }
-
         const changed = Object.keys(updatedFields || {}).some(
           (key) => prevSession.user?.[key] !== newUser?.[key],
         )
-
         if (!changed) return prevSession
-
         saveAuthSession(prevSession.token, newUser)
         return { token: prevSession.token, user: newUser }
       })

@@ -9,8 +9,6 @@ using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using Tesseract;
-using Newtonsoft.Json;
-
 namespace FinalProjectAuthAPI.BL
 {
     public class PdfExtractionService : IPdfExtractionService

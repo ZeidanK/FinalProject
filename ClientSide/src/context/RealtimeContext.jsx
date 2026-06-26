@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef, useContext, useState } from 'react'
 import PropTypes from 'prop-types'
-import { RealtimeContext } from './RealtimeContextProvider'
 import { useAuth } from './useAuth'
 import { useCompany } from './useCompany'
 import { useNotification } from './useNotification'
 import { createRealtimeClient } from '../services/realtime'
 
-/**
- * Provides realtime SignalR connection and event subscription helpers.
- *
- * @param {object} props
- * @param {React.ReactNode} props.children - Child components.
- * @returns {JSX.Element} Realtime context provider.
- */
+export const RealtimeContext = createContext(undefined)
+
+export function useRealtime() {
+  const context = useContext(RealtimeContext)
+  if (!context) {
+    throw new Error('useRealtime must be used inside RealtimeProvider.')
+  }
+  return context
+}
+
 export function RealtimeProvider({ children }) {
   const { token, isAuthenticated } = useAuth()
   const { activeCompanyId } = useCompany()

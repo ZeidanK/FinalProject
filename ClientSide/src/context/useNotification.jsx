@@ -1,18 +1,5 @@
-import { useContext } from 'react'
-import { NotificationContext } from './NotificationContextProvider'
-
 /**
- * Hook to consume global notification context.
- *
- * @returns {object} Notification context value.
- * @throws {Error} When used outside NotificationProvider.
+ * Re-export hook from consolidated NotificationContext.
+ * Kept for backward compatibility with existing imports.
  */
-export function useNotification() {
-  const context = useContext(NotificationContext)
-
-  if (!context) {
-    throw new Error('useNotification must be used inside NotificationProvider.')
-  }
-
-  return context
-}
+export { useNotification } from './NotificationContext'

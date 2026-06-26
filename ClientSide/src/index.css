@@ -1,31 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
-
-:root {
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
+/* Reset and base styles */
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  background:
-    radial-gradient(circle at 12% -10%, rgba(88, 166, 255, 0.3), transparent 42%),
-    radial-gradient(circle at 100% 10%, rgba(95, 112, 255, 0.22), transparent 35%),
-    #070b14;
-  color: #edf4ff;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-::selection {
-  background: rgba(88, 166, 255, 0.35);
-  color: #f8fbff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

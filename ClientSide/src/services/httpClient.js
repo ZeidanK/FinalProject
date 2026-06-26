@@ -65,6 +65,26 @@ const parseResponseBody = async (response) => {
 }
 
 /**
+ * Unwrap { data, success/code } envelope shape into the inner data payload.
+ */
+const unwrapEnvelope = (response) => {
+  if (!response || typeof response !== 'object') {
+    return response
+  }
+
+  const hasEnvelopeShape =
+    Object.prototype.hasOwnProperty.call(response, 'data') &&
+    (Object.prototype.hasOwnProperty.call(response, 'success') ||
+      Object.prototype.hasOwnProperty.call(response, 'code'))
+
+  if (!hasEnvelopeShape) {
+    return response
+  }
+
+  return response.data
+}
+
+/**
  * Create a standardized API error object.
  *
  * @param {object} params - Error creation parameters.
@@ -157,5 +177,5 @@ export async function apiRequest(url, options = {}) {
     throw createApiError({ response, data, url: requestUrl })
   }
 
-  return data
+  return unwrapEnvelope(data)
 }

@@ -247,7 +247,7 @@ Return ONLY the JSON array, no markdown, no explanation.";
                     NumberHandling = JsonNumberHandling.AllowReadingFromString
                 };
 
-                var data = JsonSerializer.Deserialize<OllamaInvoiceResponse>(cleanJson, options);
+                var data = JsonSerializer.Deserialize<AiInvoiceResponse>(cleanJson, options);
                 if (data == null) return null;
 
                 return new PdfExtractionResult
@@ -302,44 +302,6 @@ Return ONLY the JSON array, no markdown, no explanation.";
         }
 
         // ── Private response DTOs ─────────────────────────────────────────
-
-        private sealed class OllamaInvoiceResponse
-        {
-            [JsonPropertyName("vendorName")]          public string?   VendorName          { get; set; }
-            [JsonPropertyName("invoiceNumber")]       public string?   InvoiceNumber       { get; set; }
-            [JsonPropertyName("invoiceDate")]         public DateTime? InvoiceDate         { get; set; }
-            [JsonPropertyName("dueDate")]             public DateTime? DueDate             { get; set; }
-            [JsonPropertyName("totalAmount")]         public decimal?  TotalAmount         { get; set; }
-            [JsonPropertyName("subtotal")]            public decimal?  Subtotal            { get; set; }
-            [JsonPropertyName("vatRate")]             public decimal?  VatRate             { get; set; }
-            [JsonPropertyName("vatAmount")]           public decimal?  VatAmount           { get; set; }
-            [JsonPropertyName("currency")]            public string?   Currency            { get; set; }
-            [JsonPropertyName("vendorTaxId")]         public string?   VendorTaxId         { get; set; }
-            [JsonPropertyName("lastFourDigitsCard")]  public string?   LastFourDigitsCard  { get; set; }
-            [JsonPropertyName("itemCount")]           public int?      ItemCount           { get; set; }
-            [JsonPropertyName("paymentPlan")]         public OllamaPaymentPlan?   PaymentPlan { get; set; }
-            [JsonPropertyName("lineItems")]           public List<OllamaLineItem>? LineItems  { get; set; }
-            [JsonPropertyName("overallConfidence")]   public decimal?  OverallConfidence   { get; set; }
-        }
-
-        private sealed class OllamaLineItem
-        {
-            [JsonPropertyName("description")]       public string?  Description       { get; set; }
-            [JsonPropertyName("quantity")]          public decimal? Quantity          { get; set; }
-            [JsonPropertyName("unitPrice")]         public decimal? UnitPrice         { get; set; }
-            [JsonPropertyName("totalAmount")]       public decimal? TotalAmount       { get; set; }
-            [JsonPropertyName("vatRate")]           public decimal? VatRate           { get; set; }
-            [JsonPropertyName("category")]          public string?  Category          { get; set; }
-            [JsonPropertyName("aiConfidenceScore")] public decimal? AiConfidenceScore { get; set; }
-        }
-
-        private sealed class OllamaPaymentPlan
-        {
-            [JsonPropertyName("totalInstallments")]  public int?     TotalInstallments  { get; set; }
-            [JsonPropertyName("installmentAmount")]  public decimal? InstallmentAmount  { get; set; }
-            [JsonPropertyName("frequency")]          public string?  Frequency          { get; set; }
-            [JsonPropertyName("currentInstallment")] public int?     CurrentInstallment { get; set; }
-            [JsonPropertyName("description")]        public string?  Description        { get; set; }
-        }
+        // Uses shared AiInvoiceResponse/AiLineItem/AiPaymentPlan from InvoiceModels.cs
     }
 }

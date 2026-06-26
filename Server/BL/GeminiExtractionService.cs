@@ -129,7 +129,7 @@ Look for phrases like:
 - ""תשלום 3 מתוך 10"" (Hebrew) → totalInstallments: 10, currentInstallment: 3
 - ""תשלומים 6"" (Hebrew) → totalInstallments: 6
 
-**JSON SCHEMA:**
+**JSON SCHEMA:
 {{
   ""vendorName"": ""string or null"",
   ""invoiceNumber"": ""string or null"",
@@ -196,38 +196,38 @@ Look for phrases like:
                     NumberHandling = JsonNumberHandling.AllowReadingFromString
                 };
 
-                var geminiData = JsonSerializer.Deserialize<GeminiInvoiceResponse>(cleanJson, options);
+                var data = JsonSerializer.Deserialize<AiInvoiceResponse>(cleanJson, options);
 
-                if (geminiData == null)
+                if (data == null)
                 {
                     _logger.LogWarning("Failed to deserialize Gemini response.");
                     return null;
                 }
 
-                // Map Gemini response to PdfExtractionResult
+                // Map AI response to PdfExtractionResult
                 var result = new PdfExtractionResult
                 {
-                    VendorName = geminiData.VendorName,
-                    InvoiceNumber = geminiData.InvoiceNumber,
-                    InvoiceDate = geminiData.InvoiceDate,
-                    DueDate = geminiData.DueDate,
-                    TotalAmount = geminiData.TotalAmount,
-                    Subtotal = geminiData.Subtotal,
-                    VatRate = geminiData.VatRate,
-                    VatAmount = geminiData.VatAmount,
-                    Currency = geminiData.Currency ?? "USD",
-                    VendorTaxId = geminiData.VendorTaxId,
-                    LastFourDigitsCard = geminiData.LastFourDigitsCard,
-                    ItemCount = geminiData.ItemCount,
-                    PaymentPlan = geminiData.PaymentPlan != null ? new PaymentPlanInfo
+                    VendorName = data.VendorName,
+                    InvoiceNumber = data.InvoiceNumber,
+                    InvoiceDate = data.InvoiceDate,
+                    DueDate = data.DueDate,
+                    TotalAmount = data.TotalAmount,
+                    Subtotal = data.Subtotal,
+                    VatRate = data.VatRate,
+                    VatAmount = data.VatAmount,
+                    Currency = data.Currency ?? "USD",
+                    VendorTaxId = data.VendorTaxId,
+                    LastFourDigitsCard = data.LastFourDigitsCard,
+                    ItemCount = data.ItemCount,
+                    PaymentPlan = data.PaymentPlan != null ? new PaymentPlanInfo
                     {
-                        TotalInstallments = geminiData.PaymentPlan.TotalInstallments,
-                        InstallmentAmount = geminiData.PaymentPlan.InstallmentAmount,
-                        Frequency = geminiData.PaymentPlan.Frequency,
-                        CurrentInstallment = geminiData.PaymentPlan.CurrentInstallment,
-                        Description = geminiData.PaymentPlan.Description
+                        TotalInstallments = data.PaymentPlan.TotalInstallments,
+                        InstallmentAmount = data.PaymentPlan.InstallmentAmount,
+                        Frequency = data.PaymentPlan.Frequency,
+                        CurrentInstallment = data.PaymentPlan.CurrentInstallment,
+                        Description = data.PaymentPlan.Description
                     } : null,
-                    LineItems = geminiData.LineItems?.Select(li => new ExtractedLineItem
+                    LineItems = data.LineItems?.Select(li => new ExtractedLineItem
                     {
                         Description = li.Description ?? "",
                         Quantity = li.Quantity ?? 1,
@@ -237,7 +237,7 @@ Look for phrases like:
                         Category = li.Category,
                         AiConfidenceScore = li.AiConfidenceScore
                     }).ToList() ?? new List<ExtractedLineItem>(),
-                    ExtractionConfidence = geminiData.OverallConfidence ?? 0.5m,
+                    ExtractionConfidence = data.OverallConfidence ?? 0.5m,
                     ExtractionSource = "gemini"
                 };
 
@@ -250,98 +250,8 @@ Look for phrases like:
             }
         }
 
-        // Internal class for deserializing Gemini response
-        private sealed class GeminiInvoiceResponse
-        {
-            [JsonPropertyName("vendorName")]
-            public string? VendorName { get; set; }
-
-            [JsonPropertyName("invoiceNumber")]
-            public string? InvoiceNumber { get; set; }
-
-            [JsonPropertyName("invoiceDate")]
-            public DateTime? InvoiceDate { get; set; }
-
-            [JsonPropertyName("dueDate")]
-            public DateTime? DueDate { get; set; }
-
-            [JsonPropertyName("totalAmount")]
-            public decimal? TotalAmount { get; set; }
-
-            [JsonPropertyName("subtotal")]
-            public decimal? Subtotal { get; set; }
-
-            [JsonPropertyName("vatRate")]
-            public decimal? VatRate { get; set; }
-
-            [JsonPropertyName("vatAmount")]
-            public decimal? VatAmount { get; set; }
-
-            [JsonPropertyName("currency")]
-            public string? Currency { get; set; }
-
-            [JsonPropertyName("vendorTaxId")]
-            public string? VendorTaxId { get; set; }
-
-            [JsonPropertyName("lastFourDigitsCard")]
-            public string? LastFourDigitsCard { get; set; }
-
-            [JsonPropertyName("itemCount")]
-            public int? ItemCount { get; set; }
-
-            [JsonPropertyName("paymentPlan")]
-            public GeminiPaymentPlan? PaymentPlan { get; set; }
-
-            [JsonPropertyName("lineItems")]
-            public List<GeminiLineItem>? LineItems { get; set; }
-
-            [JsonPropertyName("overallConfidence")]
-            public decimal? OverallConfidence { get; set; }
-        }
-
-        private sealed class GeminiLineItem
-        {
-            [JsonPropertyName("description")]
-            public string? Description { get; set; }
-
-            [JsonPropertyName("quantity")]
-            public decimal? Quantity { get; set; }
-
-            [JsonPropertyName("unitPrice")]
-            public decimal? UnitPrice { get; set; }
-
-            [JsonPropertyName("totalAmount")]
-            public decimal? TotalAmount { get; set; }
-
-            [JsonPropertyName("vatRate")]
-            public decimal? VatRate { get; set; }
-
-            [JsonPropertyName("category")]
-            public string? Category { get; set; }
-
-            [JsonPropertyName("aiConfidenceScore")]
-            public decimal? AiConfidenceScore { get; set; }
-        }
-
-        private sealed class GeminiPaymentPlan
-        {
-            [JsonPropertyName("totalInstallments")]
-            public int? TotalInstallments { get; set; }
-
-            [JsonPropertyName("installmentAmount")]
-            public decimal? InstallmentAmount { get; set; }
-
-            [JsonPropertyName("frequency")]
-            public string? Frequency { get; set; }
-
-            [JsonPropertyName("currentInstallment")]
-            public int? CurrentInstallment { get; set; }
-
-            [JsonPropertyName("description")]
-            public string? Description { get; set; }
-        }
-
         // ── Vendor name translation for matching ──────────────────────────
+        // Uses shared AiInvoiceResponse/AiLineItem/AiPaymentPlan DTOs from InvoiceModels.cs
 
         private static readonly Dictionary<string, List<string>> _vendorNameCache = new(StringComparer.OrdinalIgnoreCase);
         private static readonly SemaphoreSlim _cacheLock = new(1, 1);

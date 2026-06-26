@@ -1,14 +1,16 @@
-import { useCallback, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
-import { NotificationContext } from './NotificationContextProvider'
 
-/**
- * Provides global in-app notifications with queueing support.
- *
- * @param {object} props
- * @param {React.ReactNode} props.children - Child components.
- * @returns {JSX.Element} Notification context provider.
- */
+export const NotificationContext = createContext(undefined)
+
+export function useNotification() {
+  const context = useContext(NotificationContext)
+  if (!context) {
+    throw new Error('useNotification must be used inside NotificationProvider.')
+  }
+  return context
+}
+
 export function NotificationProvider({ children }) {
   const [queue, setQueue] = useState([])
 
