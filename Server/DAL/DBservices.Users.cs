@@ -194,6 +194,27 @@ ORDER BY u.name;", con);
             finally { con?.Close(); }
         }
 
+        public bool ReactivateUserAccount(long userId)
+        {
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_SetActive", con,
+                    new Dictionary<string, object?> { { "@Id", userId } });
+
+                reader = cmd.ExecuteReader();
+                if (reader.Read())
+                    return true;
+
+                return false;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static User MapUser(SqlDataReader r) => new()

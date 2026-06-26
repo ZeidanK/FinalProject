@@ -2,8 +2,8 @@ Here is the task list ordered from easy → hard, with the very easy tasks that 
 
 <!-- 1. Very easy tasks — no AI agent needed -->
 
-
-These are mostly UI cleanup, text/display changes, or small frontend fixes.
+<!-- 
+These are mostly UI cleanup, text/display changes, or small frontend fixes. -->
 <!-- 1.	Remove the app name from the navbar and keep only the logo -->
 <!-- 2.	Remove the name of the user from the navbar -->
 <!-- 3.	Dashboard page: remove the role -->
@@ -17,7 +17,7 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes.
 <!-- 2. Easy tasks -->
 <!-- These are still simple, but they need checking data/state or touching both UI and logic. -->
 <!-- 11.	Accountant active user should show in the header saying "Working With: 'user name'" -->
-12.	Profile page: password view shows hashed password — fix so hashed password is never shown
+<!-- 12.	Profile page: password view shows hashed password — fix so hashed password is never shown -->
 <!-- 14.	Find an accountant: user should be able to remove the accountant -->
 <!-- 15.	Working with on my workspace: add option to remove users -->
 <!-- 16.	When accountant changes profile to private, it should still show the user they are working with them as long as they do not cancel -->
@@ -32,7 +32,7 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes.
 18.	Consider adding Google login
 <!-- 19.	Profile page for business owner: adding a new company — review required data and improve UI -->
 <!-- 20.	Delete account should be added to the profile page -->
-20. reactaviate soft deleted accounts when the user logs in.
+<!-- 20. reactaviate soft deleted accounts when the user logs in. -->
 <!-- 21.	When uploading an invoice and the user deletes it, the file should be removed from the server -->
 <!-- 22.	Anomalies: detect duplicate Excel files -->
 <!-- 23.	Anomalies: group duplicate receipts together -->
