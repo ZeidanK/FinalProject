@@ -85,20 +85,43 @@ namespace FinalProjectAuthAPI.MatchingEngine
             var matchedTransactionIds = new HashSet<long>();
 
             // ── LAYER 1: Absolute Direct Matches ──────────────────────
-            RunLayer(remainingInvoices, remainingTransactions, _layer1Rules, 
-                     matchedInvoiceIds, matchedTransactionIds, result);
+            RunLayer(
+                remainingInvoices,
+                remainingTransactions,
+                _layer1Rules,
+                matchedInvoiceIds,
+                matchedTransactionIds,
+                result);
+
 
             // ── LAYER 2: Temporal & Heuristic Single Matches ──────────
-            RunLayer(remainingInvoices, remainingTransactions, _layer2Rules,
-                     matchedInvoiceIds, matchedTransactionIds, result);
+            RunLayer(
+                remainingInvoices,
+                remainingTransactions,
+                _layer2Rules,
+                matchedInvoiceIds,
+                matchedTransactionIds,
+                result);
 
             // ── LAYER 3: Financial Variances ──────────────────────────
-            RunLayer(remainingInvoices, remainingTransactions, _layer3Rules,
-                     matchedInvoiceIds, matchedTransactionIds, result);
+            RunLayer(
+                remainingInvoices,
+                remainingTransactions,
+                _layer3Rules,
+                matchedInvoiceIds,
+                matchedTransactionIds,
+                result);
 
             // ── LAYER 4: International Multi-Currency ─────────────────
-            RunLayer(remainingInvoices, remainingTransactions, _layer4Rules,
-                     matchedInvoiceIds, matchedTransactionIds, result);
+            RunLayer(
+                remainingInvoices,
+                remainingTransactions,
+                _layer4Rules,
+                matchedInvoiceIds,
+                matchedTransactionIds,
+                result);
+
+
 
             // ── LAYER 5: One-to-Many & Many-to-One Splits ────────────
             RunLayer5(remainingInvoices, remainingTransactions,
@@ -214,10 +237,18 @@ namespace FinalProjectAuthAPI.MatchingEngine
                             matchedTransactionIds.Contains(txn.Id))
                             continue;
 
+                        // Enforce smart separation between normal vs installment txns.
+                        // Payment-plan invoices should only consume installment transactions ("תשלומים").
+                        if (TxPoolClassifier.IsPaymentPlanInvoice(invoice) && !TxPoolClassifier.IsInstallmentTxn(txn))
+                            continue;
+                        if (!TxPoolClassifier.IsPaymentPlanInvoice(invoice) && TxPoolClassifier.IsInstallmentTxn(txn))
+                            continue;
+
                         // Compute fuzzy score once for all rules in this layer
                         var fuzzyScore = ComputeFuzzyScore(invoice, txn);
 
                         foreach (var rule in rules)
+
                         {
                             var evalResult = rule.Evaluate(invoice, txn, fuzzyScore);
                             if (evalResult.Matched)
