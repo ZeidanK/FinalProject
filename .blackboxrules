@@ -1,0 +1,14 @@
+## Coding Standards
+* **Function Syntax**: Always use explicit arrow functions (`const fn = () => {}`) for JavaScript/JSX. Avoid standard `function` declarations.
+* **Component Structures**: Keep JSX components modular. If a component exceeds 150 lines of code, break it down into smaller sub-components.
+* **C# Access Modifiers**: Always explicitly define access modifiers (`public`, `private`, `protected`, `internal`) for C# classes and methods. 
+* **Strong Typing**: Use precise typing in C#. Do not resort to `dynamic` or implicit types unless absolutely required for runtime reflection.
+
+## DRY Refactoring Constraints
+* **Extract Logic**: When scanning files, automatically flag identical logic patterns repeated more than twice.
+* **Preserve State**: Never change React/JSX component state management hooks (`useState`, `useReducer`) into global contexts without explicit instruction.
+* **Pure Utilities**: Move extracted JavaScript helper logic into a dedicated `/utils` folder as pure functions.
+
+## Safety & Prohibitions
+* **Destructive Edits**: Do not delete existing code blocks or comments when optimizing logic. Comment out old logic or present a clean git-diff suggestion first.
+* **Breaking Changes**: Ensure any rewritten C# methods maintain backwards compatibility with existing method signatures to avoid breaking references across the repository.
