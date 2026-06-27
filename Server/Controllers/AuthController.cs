@@ -93,8 +93,21 @@ namespace FinalProjectAuthAPI.Controllers
                 // Unique constraint violation
                 return BadRequest(new { message = "A user with this email already exists." });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _activityLog.LogSystem(new CreateSystemLogRequest
+                {
+                    Level = "ERROR",
+                    Category = "security",
+                    Message = "Registration failed because of a server error",
+                    Details = JsonSerializer.Serialize(new
+                    {
+                        request.Email,
+                        request.Role,
+                        error = ex.Message
+                    }),
+                    IpAddress = GetIpAddress()
+                });
                 return StatusCode(500, new { message = "Registration failed due to a server error." });
             }
         }

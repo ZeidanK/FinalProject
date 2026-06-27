@@ -12,17 +12,20 @@ namespace FinalProjectAuthAPI.BL
         private readonly DBservices _db;
         private readonly RealtimeConnectionRegistry _registry;
         private readonly ILogger<RealtimeNotificationService> _logger;
+        private readonly IActivityLogService _activityLog;
 
         public RealtimeNotificationService(
             IHubContext<NotificationHub> hubContext,
             DBservices db,
             RealtimeConnectionRegistry registry,
-            ILogger<RealtimeNotificationService> logger)
+            ILogger<RealtimeNotificationService> logger,
+            IActivityLogService activityLog)
         {
             _hubContext = hubContext;
             _db = db;
             _registry = registry;
             _logger = logger;
+            _activityLog = activityLog;
         }
 
         public Task NotifyCompanyEventAsync(long companyId, string eventType, object payload)
@@ -110,6 +113,12 @@ namespace FinalProjectAuthAPI.BL
                 _logger.LogError(ex,
                     "Failed to create personal notification {EventType} for user {UserId}",
                     message.EventType, userId);
+                LogRealtimeFailure(
+                    "Failed to create personal notification",
+                    ex.Message,
+                    message.EventType,
+                    userId: userId,
+                    companyId: companyId);
             }
         }
 
@@ -146,6 +155,11 @@ namespace FinalProjectAuthAPI.BL
                 _logger.LogError(ex,
                     "Failed to create company notification {EventType} for company {CompanyId}",
                     message.EventType, companyId);
+                LogRealtimeFailure(
+                    "Failed to create company notification",
+                    ex.Message,
+                    message.EventType,
+                    companyId: companyId);
             }
         }
 
@@ -166,11 +180,6 @@ namespace FinalProjectAuthAPI.BL
                 job.UserId,
                 job.ProgressPercent,
                 job.FileOriginalName,
-                job.FilePath,
-                job.FileType,
-                job.FileSize,
-                job.ResultJson,
-                job.ErrorMessage,
                 job.UpdatedAt,
                 job.CompletedAt
             };
@@ -197,6 +206,12 @@ namespace FinalProjectAuthAPI.BL
                     _logger.LogWarning(ex,
                         "Failed to revoke realtime company {CompanyId} from user {UserId}",
                         companyId, userId);
+                    LogRealtimeFailure(
+                        "Failed to revoke realtime company access",
+                        ex.Message,
+                        "realtime.company_access.revoked",
+                        userId,
+                        companyId);
                 }
                 finally
                 {
@@ -220,6 +235,11 @@ namespace FinalProjectAuthAPI.BL
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to revoke realtime access from user {UserId}", userId);
+                    LogRealtimeFailure(
+                        "Failed to revoke realtime user access",
+                        ex.Message,
+                        "realtime.user_access.revoked",
+                        userId);
                 }
             }
         }
@@ -267,7 +287,34 @@ namespace FinalProjectAuthAPI.BL
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Realtime event {EventType} could not be delivered", eventType);
+                LogRealtimeFailure(
+                    "Realtime event could not be delivered",
+                    ex.Message,
+                    eventType);
             }
+        }
+
+        private void LogRealtimeFailure(
+            string message,
+            string error,
+            string eventType,
+            long? userId = null,
+            long? companyId = null)
+        {
+            _activityLog.LogSystem(new CreateSystemLogRequest
+            {
+                Level = "WARN",
+                Category = "realtime",
+                Message = message,
+                Details = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    eventType,
+                    userId,
+                    companyId,
+                    error
+                }),
+                UserId = userId
+            });
         }
     }
 }

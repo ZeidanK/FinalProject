@@ -35,6 +35,7 @@ import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded'
 import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
+import DeleteSweepRoundedIcon from '@mui/icons-material/DeleteSweepRounded'
 import { useCallback, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import EmptyState from '../components/EmptyState'
@@ -43,6 +44,8 @@ import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import {
+  useClearAdminAuditLogsMutation,
+  useClearAdminLogsMutation,
   useAdminAuditQuery,
   useAdminLogsQuery,
   useAdminStatsQuery,
@@ -175,6 +178,42 @@ const getSystemLogLevelColor = (level) => {
   return 'default'
 }
 
+const formatSystemContext = (details, fallbackDetails) => {
+  if (!details) return fallbackDetails || '-'
+
+  const statusCode = Number(details.statusCode)
+  const path = String(details.path || '').toLowerCase()
+
+  if (path.includes('/auth/login')) {
+    return statusCode === 401
+      ? 'Login request to the authentication service failed because the credentials were rejected.'
+      : 'Login request to the authentication service failed.'
+  }
+
+  if (path.includes('/auth')) return 'Authentication request failed.'
+  if (path.includes('/admin')) return 'Admin-only request failed.'
+  if (path.includes('/users')) return 'User account request failed.'
+  if (path.includes('/invoices/upload-pdf')) return 'Invoice PDF upload or extraction request failed.'
+  if (path.includes('/invoices')) return 'Invoice request failed.'
+  if (path.includes('/transactions/import-excel')) return 'Transaction Excel import failed.'
+  if (path.includes('/transactions/preview-excel')) return 'Transaction Excel preview failed.'
+  if (path.includes('/transactions')) return 'Transaction request failed.'
+  if (path.includes('/matches') || path.includes('auto-match')) return 'Matching request failed.'
+  if (path.includes('/uploadjobs')) return 'Background upload job request failed.'
+  if (path.includes('/realtime')) return 'Realtime delivery request failed.'
+  if (path.includes('/companies')) return 'Company request failed.'
+  if (path.includes('/bankaccounts')) return 'Bank account request failed.'
+  if (path.includes('/anomalies')) return 'Anomaly request failed.'
+  if (path.includes('/reports')) return 'Report request failed.'
+
+  if (statusCode === 401) return 'A request was blocked because the user was not authenticated.'
+  if (statusCode === 403) return 'A request was blocked because the user does not have permission.'
+  if (statusCode === 404) return 'A request failed because the requested record or route was not found.'
+  if (statusCode >= 500) return 'A backend error happened while processing the request.'
+
+  return 'A backend request failed.'
+}
+
 const formatSystemLog = (log) => {
   const details = parseLogDetails(log.details)
   const message = String(log.message || '').trim()
@@ -182,8 +221,7 @@ const formatSystemLog = (log) => {
   if (message && !message.startsWith('HTTP ')) {
     return {
       summary: message,
-      detail: details?.path ? `${details.method || 'REQUEST'} ${details.path}` : log.details || '-',
-      traceId: details?.traceId || '-',
+      detail: formatSystemContext(details, log.details),
     }
   }
 
@@ -191,58 +229,50 @@ const formatSystemLog = (log) => {
     return {
       summary: message || 'System event recorded',
       detail: log.details || '-',
-      traceId: '-',
     }
   }
 
   const statusCode = Number(details.statusCode)
   const path = String(details.path || '')
-  const method = String(details.method || 'REQUEST')
 
   if (statusCode === 401 && path.toLowerCase().includes('/auth/login')) {
     return {
       summary: 'Login attempt failed',
-      detail: 'The submitted credentials were rejected.',
-      traceId: details.traceId || '-',
+      detail: formatSystemContext(details),
     }
   }
 
   if (statusCode === 401) {
     return {
       summary: 'Unauthorized request was blocked',
-      detail: `${method} ${path}`,
-      traceId: details.traceId || '-',
+      detail: formatSystemContext(details),
     }
   }
 
   if (statusCode === 403) {
     return {
       summary: 'Access was denied',
-      detail: `${method} ${path}`,
-      traceId: details.traceId || '-',
+      detail: formatSystemContext(details),
     }
   }
 
   if (statusCode === 404) {
     return {
       summary: 'Requested resource was not found',
-      detail: `${method} ${path}`,
-      traceId: details.traceId || '-',
+      detail: formatSystemContext(details),
     }
   }
 
   if (statusCode >= 500) {
     return {
       summary: 'Server error occurred',
-      detail: `${method} ${path}`,
-      traceId: details.traceId || '-',
+      detail: formatSystemContext(details),
     }
   }
 
   return {
     summary: 'API request failed',
-    detail: `${method} ${path}`,
-    traceId: details.traceId || '-',
+    detail: formatSystemContext(details),
   }
 }
 
@@ -567,6 +597,7 @@ function AdminPortalPage() {
   const [usersSearchInput, setUsersSearchInput] = useState('')
   const [toggleLoadingUserId, setToggleLoadingUserId] = useState(null)
   const [pendingToggleUser, setPendingToggleUser] = useState(null)
+  const [pendingClearLogsType, setPendingClearLogsType] = useState(null)
 
   const [logsQuery, setLogsQuery] = useState({ page: 1, limit: 50, level: null, category: null })
   const [logsLevelInput, setLogsLevelInput] = useState('')
@@ -601,6 +632,8 @@ function AdminPortalPage() {
   })
 
   const toggleUserMutation = useToggleAdminUserActiveMutation({ token })
+  const clearLogsMutation = useClearAdminLogsMutation({ token })
+  const clearAuditLogsMutation = useClearAdminAuditLogsMutation({ token })
 
   const stats = statsQuery.data && typeof statsQuery.data === 'object' ? statsQuery.data : null
   const statsLoading = statsQuery.isLoading || statsQuery.isFetching
@@ -738,12 +771,21 @@ function AdminPortalPage() {
     await handleToggleUserActive(userId)
   }
 
-  const handleLogsApplyFilters = () => {
+  const handleLogsLevelChange = (value) => {
+    setLogsLevelInput(value)
     setLogsQuery((prev) => ({
       ...prev,
       page: 1,
-      level: logsLevelInput || null,
-      category: logsCategoryInput.trim() || null,
+      level: value || null,
+    }))
+  }
+
+  const handleLogsCategoryChange = (value) => {
+    setLogsCategoryInput(value)
+    setLogsQuery((prev) => ({
+      ...prev,
+      page: 1,
+      category: value || null,
     }))
   }
 
@@ -751,6 +793,42 @@ function AdminPortalPage() {
     setLogsLevelInput('')
     setLogsCategoryInput('')
     setLogsQuery((prev) => ({ ...prev, page: 1, level: null, category: null }))
+  }
+
+  const handleClearLogsRequest = (type) => {
+    setPendingClearLogsType(type)
+  }
+
+  const handleConfirmClearLogs = async () => {
+    const type = pendingClearLogsType
+    if (!type) return
+
+    setPendingClearLogsType(null)
+
+    try {
+      const result =
+        type === TAB_KEYS.logs
+          ? await clearLogsMutation.mutateAsync()
+          : await clearAuditLogsMutation.mutateAsync()
+
+      if (type === TAB_KEYS.logs) {
+        setLogsQuery((prev) => ({ ...prev, page: 1 }))
+      } else {
+        setAuditQuery((prev) => ({ ...prev, page: 1 }))
+      }
+
+      setSnack({
+        open: true,
+        message: result?.message || 'Logs cleared.',
+        severity: 'success',
+      })
+    } catch (error) {
+      setSnack({
+        open: true,
+        message: error.message || 'Failed to clear logs.',
+        severity: 'error',
+      })
+    }
   }
 
   const handleAuditCompanyInputChange = (value) => {
@@ -1016,7 +1094,7 @@ function AdminPortalPage() {
                 select
                 label="Level"
                 value={logsLevelInput}
-                onChange={(event) => setLogsLevelInput(event.target.value)}
+                onChange={(event) => handleLogsLevelChange(event.target.value)}
                 size="small"
                 sx={{ minWidth: { md: 200 } }}
               >
@@ -1030,7 +1108,7 @@ function AdminPortalPage() {
                 select
                 label="Category"
                 value={logsCategoryInput}
-                onChange={(event) => setLogsCategoryInput(event.target.value)}
+                onChange={(event) => handleLogsCategoryChange(event.target.value)}
                 size="small"
                 sx={{ minWidth: { md: 220 } }}
               >
@@ -1041,19 +1119,21 @@ function AdminPortalPage() {
                 ))}
               </TextField>
               <Button
-                variant="contained"
-                startIcon={<SearchRoundedIcon />}
-                onClick={handleLogsApplyFilters}
-              >
-                Apply
-              </Button>
-              <Button
                 variant="outlined"
                 color="secondary"
                 startIcon={<ClearRoundedIcon />}
                 onClick={handleLogsResetFilters}
               >
                 Reset
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteSweepRoundedIcon />}
+                disabled={clearLogsMutation.isPending || logsLoading}
+                onClick={() => handleClearLogsRequest(TAB_KEYS.logs)}
+              >
+                Clear system logs
               </Button>
             </Stack>
 
@@ -1068,7 +1148,6 @@ function AdminPortalPage() {
                     <TableCell>Technical context</TableCell>
                     <TableCell>User ID</TableCell>
                     <TableCell>IP</TableCell>
-                    <TableCell>Trace ID</TableCell>
                     <TableCell>Created</TableCell>
                   </TableRow>
                 </TableHead>
@@ -1076,7 +1155,7 @@ function AdminPortalPage() {
                   {logsLoading &&
                     Array.from({ length: 6 }, (_, index) => index).map((index) => (
                       <TableRow key={`logs-loading-${index}`}>
-                        <TableCell colSpan={9}>
+                        <TableCell colSpan={8}>
                           <Skeleton variant="rounded" height={24} />
                         </TableCell>
                       </TableRow>
@@ -1084,10 +1163,10 @@ function AdminPortalPage() {
 
                   {!logsLoading && logsData.items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9}>
+                      <TableCell colSpan={8}>
                         <EmptyState
-                          title="No system logs found"
-                          description="No logs matched your current filter criteria."
+                          title="No system health events found"
+                          description="This is normal when there are no warnings or errors for the selected filters."
                         />
                       </TableCell>
                     </TableRow>
@@ -1114,7 +1193,6 @@ function AdminPortalPage() {
                           <TableCell title={log.details || ''}>{truncateText(display.detail, 90)}</TableCell>
                           <TableCell>{log.userId ?? '-'}</TableCell>
                           <TableCell>{log.ipAddress || '-'}</TableCell>
-                          <TableCell title={display.traceId}>{truncateText(display.traceId, 24)}</TableCell>
                           <TableCell>{formatDateTime(log.createdAt)}</TableCell>
                         </TableRow>
                       )
@@ -1164,6 +1242,15 @@ function AdminPortalPage() {
                 onClick={handleAuditResetFilters}
               >
                 Reset
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteSweepRoundedIcon />}
+                disabled={clearAuditLogsMutation.isPending || auditLoading}
+                onClick={() => handleClearLogsRequest(TAB_KEYS.audit)}
+              >
+                Clear audit logs
               </Button>
             </Stack>
 
@@ -1271,6 +1358,37 @@ function AdminPortalPage() {
         severity={snack.severity}
         onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
       />
+
+      <Dialog
+        open={Boolean(pendingClearLogsType)}
+        onClose={() => setPendingClearLogsType(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          Clear {pendingClearLogsType === TAB_KEYS.audit ? 'audit logs' : 'system logs'}?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will permanently delete all{' '}
+            {pendingClearLogsType === TAB_KEYS.audit ? 'audit log' : 'system log'} entries from the
+            database. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingClearLogsType(null)} color="secondary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmClearLogs}
+            color="error"
+            variant="contained"
+            disabled={clearLogsMutation.isPending || clearAuditLogsMutation.isPending}
+          >
+            Clear logs
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={Boolean(pendingToggleUser)}

@@ -12,38 +12,37 @@ namespace FinalProjectAuthAPI.BL
         private readonly IFileStorageService _fileSvc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IInvoiceService _invoiceSvc;
-        private readonly IInvoiceVerificationService _invoiceVerificationSvc;
         private readonly IExcelExtractionService _excelSvc;
         private readonly ITransactionService _transactionSvc;
         private readonly IAnomalyService _anomalySvc;
         private readonly IRealtimeNotificationService _realtime;
+        private readonly IActivityLogService _activityLog;
 
         public UploadJobWorker(
             IUploadJobService jobSvc,
             IFileStorageService fileSvc,
             IPdfExtractionService pdfSvc,
             IInvoiceService invoiceSvc,
-            IInvoiceVerificationService invoiceVerificationSvc,
             IExcelExtractionService excelSvc,
             ITransactionService transactionSvc,
             IAnomalyService anomalySvc,
-            IRealtimeNotificationService realtime)
+            IRealtimeNotificationService realtime,
+            IActivityLogService activityLog)
         {
             _jobSvc = jobSvc;
             _fileSvc = fileSvc;
             _pdfSvc = pdfSvc;
             _invoiceSvc = invoiceSvc;
-            _invoiceVerificationSvc = invoiceVerificationSvc;
             _excelSvc = excelSvc;
             _transactionSvc = transactionSvc;
             _anomalySvc = anomalySvc;
             _realtime = realtime;
+            _activityLog = activityLog;
         }
 
         private static readonly JsonSerializerOptions _camelCase = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
@@ -88,6 +87,7 @@ namespace FinalProjectAuthAPI.BL
                     if (!success)
                     {
                         _jobSvc.MarkFailed(jobId, error);
+                        LogUploadJobFailure(job, "Invoice upload job failed", error);
                         await NotifyUploadJobUpdatedAsync(jobId);
                         return;
                     }
@@ -117,24 +117,12 @@ namespace FinalProjectAuthAPI.BL
                 }, _camelCase);
 
                 _jobSvc.MarkCompleted(jobId, extractOnlyResult);
-
-                if (ShouldAutoVerify(job.PayloadJson)
-                    && extracted.ExtractionConfidence >= InvoiceVerificationService.AutoVerifyConfidenceThreshold)
-                {
-                    var verification = await _invoiceVerificationSvc.VerifyJobAsync(
-                        jobId,
-                        job.UserId,
-                        reviewedInvoice: null,
-                        automatic: true);
-                    if (verification.IsSuccessful)
-                        return;
-                }
-
                 await NotifyUploadJobUpdatedAsync(jobId);
             }
             catch (Exception ex)
             {
                 _jobSvc.MarkFailed(jobId, ex.Message);
+                LogUploadJobFailure(job, "Invoice upload job crashed", ex.Message, "ERROR");
                 await NotifyUploadJobUpdatedAsync(jobId);
             }
         }
@@ -165,6 +153,7 @@ namespace FinalProjectAuthAPI.BL
                 if (extraction.TotalExtracted == 0)
                 {
                     _jobSvc.MarkFailed(jobId, "No transactions could be extracted from the file.");
+                    LogUploadJobFailure(job, "Transaction upload job failed", "No transactions could be extracted from the file.");
                     await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
@@ -186,6 +175,7 @@ namespace FinalProjectAuthAPI.BL
                 if (!duplicateResult.Success)
                 {
                     _jobSvc.MarkFailed(jobId, duplicateResult.Error);
+                    LogUploadJobFailure(job, "Transaction duplicate check failed", duplicateResult.Error);
                     await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
@@ -251,6 +241,7 @@ namespace FinalProjectAuthAPI.BL
                 if (!success)
                 {
                     _jobSvc.MarkFailed(jobId, error);
+                    LogUploadJobFailure(job, "Transaction import job failed", error);
                     await NotifyUploadJobUpdatedAsync(jobId);
                     return;
                 }
@@ -277,8 +268,29 @@ namespace FinalProjectAuthAPI.BL
             catch (Exception ex)
             {
                 _jobSvc.MarkFailed(jobId, ex.Message);
+                LogUploadJobFailure(job, "Transaction upload job crashed", ex.Message, "ERROR");
                 await NotifyUploadJobUpdatedAsync(jobId);
             }
+        }
+
+        private void LogUploadJobFailure(UploadJobRow job, string message, string? error, string level = "WARN")
+        {
+            _activityLog.LogSystem(new CreateSystemLogRequest
+            {
+                Level = level,
+                Category = "jobs",
+                Message = message,
+                Details = JsonSerializer.Serialize(new
+                {
+                    job.Id,
+                    job.JobType,
+                    job.CompanyId,
+                    job.UserId,
+                    job.FileOriginalName,
+                    error
+                }, _camelCase),
+                UserId = job.UserId
+            });
         }
 
         private async Task NotifyUploadJobUpdatedAsync(long jobId)
@@ -355,21 +367,6 @@ namespace FinalProjectAuthAPI.BL
             return null;
         }
 
-        private static bool ShouldAutoVerify(string? payloadJson)
-        {
-            if (string.IsNullOrWhiteSpace(payloadJson))
-                return false;
-
-            try
-            {
-                return JsonSerializer.Deserialize<UploadJobPayload>(payloadJson, _camelCase)?.AutoVerify == true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private static CreateInvoiceRequest BuildInvoiceRequest(long companyId, PdfExtractionResult extracted)
         {
             return new CreateInvoiceRequest
@@ -414,3 +411,4 @@ namespace FinalProjectAuthAPI.BL
         }
     }
 }
+                
