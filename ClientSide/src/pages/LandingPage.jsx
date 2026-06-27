@@ -51,7 +51,7 @@ const steps = [
   },
   {
     title: 'Report',
-    text: 'Generate VAT summaries, reconciliation reports, and compliance exports ready for filing.',
+    text: 'Generate reconciliation and payables-aging reports that make unresolved financial activity easy to review.',
     icon: <AssessmentRoundedIcon sx={{ color: 'primary.main' }} />,
   },
 ]
@@ -190,7 +190,7 @@ function LandingPage() {
               >
                 ReconFlow uses AI to extract invoice data, match it to your bank
                 and credit card movements, detect anomalies, and generate
-                tax-ready reports — so accountants and business owners can close
+                integrity-focused reports — so accountants and business owners can close
                 the books faster with full confidence.
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -483,7 +483,7 @@ function LandingPage() {
               </Stack>
               <Stack direction="row" spacing={1} alignItems="center">
                 <AssessmentRoundedIcon sx={{ color: 'primary.main', fontSize: 18 }} />
-                <Typography color="text.secondary">One-click VAT & compliance reports</Typography>
+                <Typography color="text.secondary">Reconciliation & payables-aging reports</Typography>
               </Stack>
             </Stack>
           </CardContent>

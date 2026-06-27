@@ -115,8 +115,8 @@ export const URLS = {
   reports: {
     base: buildApiPath('/Reports'),
     dashboard: (companyId) => buildApiPath(`/Reports/dashboard/${companyId}`),
-    vat: (companyId) => buildApiPath(`/Reports/vat/${companyId}`),
     reconciliation: (companyId) => buildApiPath(`/Reports/reconciliation/${companyId}`),
+    aging: (companyId) => buildApiPath(`/Reports/aging/${companyId}`),
   },
   admin: {
     base: buildApiPath('/Admin'),

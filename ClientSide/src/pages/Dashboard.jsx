@@ -59,7 +59,6 @@ const quickActions = [
  * @type {{[key: string]: React.ReactNode}}
  */
 const kpiIcons = {
-  'Open Runs': <TimelineRoundedIcon sx={{ color: '#a9d5ff' }} />,
   'Pending Matches': <HubRoundedIcon sx={{ color: '#a9d5ff' }} />,
   Exceptions: <ErrorOutlineRoundedIcon sx={{ color: '#ffd0aa' }} />,
   'Total Matches': <TaskAltRoundedIcon sx={{ color: '#b7ffd2' }} />,
@@ -217,7 +216,7 @@ function DashboardPage() {
             />
           )}
 
-          <Grid container spacing={2} component={motion.div} variants={itemVariants}>
+          <Grid container spacing={2} justifyContent="center" component={motion.div} variants={itemVariants}>
             {loading
               ? [1, 2, 3, 4].map((index) => (
                   <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
@@ -243,34 +242,36 @@ function DashboardPage() {
                     </Card>
                   </Grid>
                 ))
-              : kpis.map((kpi) => (
-                  <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card
-                      elevation={0}
-                      sx={{
-                        height: '100%',
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        background:
-                          'linear-gradient(155deg, rgba(12, 22, 40, 0.98), rgba(8, 15, 29, 0.98))',
-                      }}
-                    >
-                      <CardContent>
-                        <Stack spacing={1}>
-                          {kpiIcons[kpi.title]}
-                          <Typography variant="body2" color="text.secondary">
-                            {kpi.title}
-                          </Typography>
-                          <Typography variant="h4">{kpi.value}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {kpi.subtitle}
-                          </Typography>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
+              : kpis
+                  .filter((kpi) => kpi.title !== 'Open Runs')
+                  .map((kpi) => (
+                    <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Card
+                        elevation={0}
+                        sx={{
+                          height: '100%',
+                          borderRadius: 3,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          background:
+                            'linear-gradient(155deg, rgba(12, 22, 40, 0.98), rgba(8, 15, 29, 0.98))',
+                        }}
+                      >
+                        <CardContent>
+                          <Stack spacing={1}>
+                            {kpiIcons[kpi.title]}
+                            <Typography variant="body2" color="text.secondary">
+                              {kpi.title}
+                            </Typography>
+                            <Typography variant="h4">{kpi.value}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {kpi.subtitle}
+                            </Typography>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
           </Grid>
 
           <Grid container spacing={2}>

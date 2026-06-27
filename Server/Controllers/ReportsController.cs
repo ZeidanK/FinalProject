@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,31 +11,54 @@ namespace FinalProjectAuthAPI.Controllers
     public class ReportsController : ApiControllerBase
     {
         private readonly IReportService _svc;
+        private readonly DBservices _db;
 
-        public ReportsController(IReportService svc)
+        public ReportsController(IReportService svc, DBservices db)
         {
             _svc = svc;
+            _db = db;
         }
 
         // GET api/reports/dashboard/{companyId}
         [HttpGet("dashboard/{companyId:long}")]
-        public IActionResult GetDashboard(long companyId) =>
-            Ok(_svc.GetDashboardStats(companyId));
+        public IActionResult GetDashboard(long companyId)
+        {
+            if (!CanAccessCompany(companyId))
+                return Forbid();
 
-        // GET api/reports/vat/{companyId}?startDate=&endDate=
-        [HttpGet("vat/{companyId:long}")]
-        public IActionResult GetVatReport(
-            long companyId,
-            [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate) =>
-            Ok(_svc.GetVatReport(companyId, startDate, endDate));
+            return Ok(_svc.GetDashboardStats(companyId));
+        }
 
         // GET api/reports/reconciliation/{companyId}?startDate=&endDate=
         [HttpGet("reconciliation/{companyId:long}")]
         public IActionResult GetReconciliation(
             long companyId,
             [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate) =>
-            Ok(_svc.GetReconciliationReport(companyId, startDate, endDate));
+            [FromQuery] DateTime? endDate)
+        {
+            if (!CanAccessCompany(companyId))
+                return Forbid();
+
+            if (startDate.HasValue && endDate.HasValue && startDate.Value.Date > endDate.Value.Date)
+                return BadRequest(new { message = "startDate must be on or before endDate." });
+
+            return Ok(_svc.GetReconciliationReport(companyId, startDate?.Date, endDate?.Date));
+        }
+
+        // GET api/reports/aging/{companyId}?asOfDate=
+        [HttpGet("aging/{companyId:long}")]
+        public IActionResult GetPayablesAging(
+            long companyId,
+            [FromQuery] DateTime? asOfDate)
+        {
+            if (!CanAccessCompany(companyId))
+                return Forbid();
+
+            var effectiveAsOfDate = (asOfDate ?? DateTime.UtcNow).Date;
+            return Ok(_svc.GetPayablesAgingReport(companyId, effectiveAsOfDate));
+        }
+
+        private bool CanAccessCompany(long companyId) =>
+            _db.UserHasActiveCompanyAccess(GetCurrentUserId(), companyId);
     }
 }

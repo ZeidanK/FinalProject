@@ -19,16 +19,15 @@ namespace FinalProjectAuthAPI.BL
         public DashboardStatsRow GetDashboardStats(long companyId) =>
             _db.GetDashboardStats(companyId);
 
-        public VatReportSummary GetVatReport(
-            long companyId,
-            DateTime? startDate = null,
-            DateTime? endDate = null) =>
-            _db.GetVatReport(companyId, startDate, endDate);
-
-        public List<ReconciliationRow> GetReconciliationReport(
+        public ReconciliationReport GetReconciliationReport(
             long companyId,
             DateTime? startDate = null,
             DateTime? endDate = null) =>
             _db.GetReconciliationReport(companyId, startDate, endDate);
+
+        public PayablesAgingReport GetPayablesAgingReport(
+            long companyId,
+            DateTime asOfDate) =>
+            _db.GetPayablesAgingReport(companyId, asOfDate);
     }
 }

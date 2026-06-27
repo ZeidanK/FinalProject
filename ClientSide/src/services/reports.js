@@ -15,23 +15,6 @@ export async function getDashboardReport(companyId, token) {
 }
 
 /**
- * Fetch VAT report data for the given company.
- *
- * @param {string|number} companyId - Identifier for the company.
- * @param {object} [filters={}] - Optional query filters.
- * @param {string} token - JWT token used for authorization.
- * @returns {Promise<any>} Unwrapped response payload from the VAT report endpoint.
- */
-export async function getVatReport(companyId, filters = {}, token) {
-  const response = await apiRequest(URLS.reports.vat(companyId), {
-    query: filters,
-    token,
-  })
-
-  return unwrapEnvelope(response)
-}
-
-/**
  * Fetch reconciliation report data for the given company.
  *
  * @param {string|number} companyId - Identifier for the company.
@@ -41,6 +24,23 @@ export async function getVatReport(companyId, filters = {}, token) {
  */
 export async function getReconciliationReport(companyId, filters = {}, token) {
   const response = await apiRequest(URLS.reports.reconciliation(companyId), {
+    query: filters,
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Fetch accounts-payable aging data for the given company.
+ *
+ * @param {string|number} companyId - Identifier for the company.
+ * @param {object} [filters={}] - Optional as-of date filter.
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the aging endpoint.
+ */
+export async function getPayablesAgingReport(companyId, filters = {}, token) {
+  const response = await apiRequest(URLS.reports.aging(companyId), {
     query: filters,
     token,
   })
