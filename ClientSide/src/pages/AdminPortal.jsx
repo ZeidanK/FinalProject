@@ -5,6 +5,11 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Grid,
   MenuItem,
   Skeleton,
@@ -19,6 +24,7 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import PropTypes from 'prop-types'
@@ -75,6 +81,19 @@ const logLevelOptions = [
   { value: 'DEBUG', label: 'DEBUG' },
 ]
 
+const logCategoryOptions = [
+  { value: '', label: 'All categories' },
+  { value: 'api', label: 'API' },
+  { value: 'security', label: 'Security' },
+  { value: 'upload', label: 'Uploads' },
+  { value: 'matching', label: 'Matching' },
+  { value: 'realtime', label: 'Realtime' },
+  { value: 'jobs', label: 'Background jobs' },
+  { value: 'exception', label: 'Exceptions' },
+  { value: 'ai', label: 'AI extraction' },
+  { value: 'database', label: 'Database' },
+]
+
 /**
  * Creates an empty paged result shape for table data.
  *
@@ -128,6 +147,345 @@ const truncateText = (text, maxLength = 80) => {
   const normalized = String(text)
   if (normalized.length <= maxLength) return normalized
   return `${normalized.slice(0, maxLength)}...`
+}
+
+const isNoisyAuditAction = (action) => {
+  const normalized = String(action || '').toLowerCase()
+  return normalized.includes('/api/realtime/') || normalized.includes('/api/notifications')
+}
+
+const parseLogDetails = (details) => {
+  if (!details || typeof details !== 'string') return null
+
+  try {
+    return JSON.parse(details)
+  } catch {
+    return null
+  }
+}
+
+const formatSystemCategory = (category) => {
+  const match = logCategoryOptions.find((option) => option.value === category)
+  return match?.label || category || '-'
+}
+
+const getSystemLogLevelColor = (level) => {
+  if (level === 'ERROR') return 'error'
+  if (level === 'WARN') return 'warning'
+  return 'default'
+}
+
+const formatSystemLog = (log) => {
+  const details = parseLogDetails(log.details)
+  const message = String(log.message || '').trim()
+
+  if (message && !message.startsWith('HTTP ')) {
+    return {
+      summary: message,
+      detail: details?.path ? `${details.method || 'REQUEST'} ${details.path}` : log.details || '-',
+      traceId: details?.traceId || '-',
+    }
+  }
+
+  if (!details) {
+    return {
+      summary: message || 'System event recorded',
+      detail: log.details || '-',
+      traceId: '-',
+    }
+  }
+
+  const statusCode = Number(details.statusCode)
+  const path = String(details.path || '')
+  const method = String(details.method || 'REQUEST')
+
+  if (statusCode === 401 && path.toLowerCase().includes('/auth/login')) {
+    return {
+      summary: 'Login attempt failed',
+      detail: 'The submitted credentials were rejected.',
+      traceId: details.traceId || '-',
+    }
+  }
+
+  if (statusCode === 401) {
+    return {
+      summary: 'Unauthorized request was blocked',
+      detail: `${method} ${path}`,
+      traceId: details.traceId || '-',
+    }
+  }
+
+  if (statusCode === 403) {
+    return {
+      summary: 'Access was denied',
+      detail: `${method} ${path}`,
+      traceId: details.traceId || '-',
+    }
+  }
+
+  if (statusCode === 404) {
+    return {
+      summary: 'Requested resource was not found',
+      detail: `${method} ${path}`,
+      traceId: details.traceId || '-',
+    }
+  }
+
+  if (statusCode >= 500) {
+    return {
+      summary: 'Server error occurred',
+      detail: `${method} ${path}`,
+      traceId: details.traceId || '-',
+    }
+  }
+
+  return {
+    summary: 'API request failed',
+    detail: `${method} ${path}`,
+    traceId: details.traceId || '-',
+  }
+}
+
+const splitAuditAction = (action) => {
+  const normalized = String(action || '').trim()
+  const [method = '', ...pathParts] = normalized.split(/\s+/)
+  return {
+    method: method.toUpperCase(),
+    path: pathParts.join(' '),
+  }
+}
+
+const formatEntityName = (value) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'record'
+
+  return normalized
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+}
+
+const formatAuditAction = (log) => {
+  const action = String(log?.action || '').trim()
+  const normalizedAction = action.toLowerCase()
+  const { method, path } = splitAuditAction(action)
+  const normalizedPath = path.toLowerCase()
+  const entityName = formatEntityName(log?.entityType)
+
+  if (normalizedAction === 'auth.login') {
+    return {
+      label: 'User signed in',
+      description: 'A user successfully logged in to the system.',
+    }
+  }
+
+  if (normalizedAction === 'auth.register') {
+    return {
+      label: 'User registered',
+      description: 'A new user account was created.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/invoices/upload-pdf')) {
+    return {
+      label: 'Uploaded invoice PDF',
+      description: 'An invoice file was uploaded for processing.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/invoices') && method === 'POST') {
+    return {
+      label: 'Created invoice',
+      description: 'A new invoice record was added.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/invoices') && (method === 'PUT' || method === 'PATCH')) {
+    return {
+      label: 'Updated invoice',
+      description: 'Invoice details or status were changed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/invoices') && method === 'DELETE') {
+    return {
+      label: 'Deleted invoice',
+      description: 'An invoice record was removed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/transactions/import-excel')) {
+    return {
+      label: 'Imported transactions',
+      description: 'Transactions were imported from an Excel file.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/transactions/preview-excel')) {
+    return {
+      label: 'Previewed transaction import',
+      description: 'A transaction Excel file was checked before import.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/transactions') && method === 'POST') {
+    return {
+      label: 'Created transaction',
+      description: 'A new transaction record was added.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/transactions') && method === 'DELETE') {
+    return {
+      label: 'Deleted transaction',
+      description: 'A transaction record was removed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/uploadjobs/company') && method === 'DELETE') {
+    return {
+      label: 'Deleted company upload jobs',
+      description: 'Upload history was cleared for a company.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/matches/auto-match')) {
+    return {
+      label: 'Ran automatic matching',
+      description: 'The system matched invoices and transactions automatically.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/matches') && method === 'POST') {
+    return {
+      label: 'Created match',
+      description: 'An invoice and transaction were matched.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/matches') && method === 'DELETE') {
+    return {
+      label: 'Deleted match',
+      description: 'A match between records was removed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/anomalies') && method === 'POST') {
+    return {
+      label: 'Created anomaly',
+      description: 'A new anomaly was recorded.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/anomalies') && method === 'PATCH') {
+    return {
+      label: 'Updated anomaly',
+      description: 'An anomaly was resolved or changed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/companies') && method === 'POST') {
+    return {
+      label: 'Created company',
+      description: 'A new company was added.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/companies') && method === 'PUT') {
+    return {
+      label: 'Updated company',
+      description: 'Company details were changed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/companies') && method === 'DELETE') {
+    return {
+      label: 'Deleted company',
+      description: 'A company was removed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/bankaccounts') && method === 'POST') {
+    return {
+      label: 'Created bank account',
+      description: 'A bank account was added.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/bankaccounts') && method === 'PUT') {
+    return {
+      label: 'Updated bank account',
+      description: 'Bank account details were changed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/bankaccounts') && method === 'DELETE') {
+    return {
+      label: 'Deleted bank account',
+      description: 'A bank account was removed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/accountants') && method === 'POST') {
+    return {
+      label: 'Sent accountant request',
+      description: 'A company access request was sent to an accountant.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/accountants') && method === 'PATCH') {
+    return {
+      label: 'Updated accountant request',
+      description: 'An accountant access request was accepted or rejected.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/accountants') && method === 'DELETE') {
+    return {
+      label: 'Disconnected accountant',
+      description: 'An accountant was removed from a company.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/users') && method === 'PATCH') {
+    return {
+      label: 'Updated user account',
+      description: 'A user setting, password, or visibility was changed.',
+    }
+  }
+
+  if (normalizedPath.includes('/api/users') && method === 'DELETE') {
+    return {
+      label: 'Deleted user account',
+      description: 'A user account was removed.',
+    }
+  }
+
+  if (method === 'POST') {
+    return {
+      label: `Created ${entityName}`,
+      description: `A ${entityName} record was added.`,
+    }
+  }
+
+  if (method === 'PUT' || method === 'PATCH') {
+    return {
+      label: `Updated ${entityName}`,
+      description: `A ${entityName} record was changed.`,
+    }
+  }
+
+  if (method === 'DELETE') {
+    return {
+      label: `Deleted ${entityName}`,
+      description: `A ${entityName} record was removed.`,
+    }
+  }
+
+  return {
+    label: action || 'Audit event',
+    description: 'A user action was recorded.',
+  }
 }
 
 /**
@@ -200,7 +558,7 @@ SectionCard.propTypes = {
  * @returns {JSX.Element} The rendered admin portal page.
  */
 function AdminPortalPage() {
-  const { token } = useAuth()
+  const { token, user: currentUser } = useAuth()
 
   const [activeTab, setActiveTab] = useState(TAB_KEYS.stats)
 
@@ -208,6 +566,7 @@ function AdminPortalPage() {
   const [usersRoleInput, setUsersRoleInput] = useState('')
   const [usersSearchInput, setUsersSearchInput] = useState('')
   const [toggleLoadingUserId, setToggleLoadingUserId] = useState(null)
+  const [pendingToggleUser, setPendingToggleUser] = useState(null)
 
   const [logsQuery, setLogsQuery] = useState({ page: 1, limit: 50, level: null, category: null })
   const [logsLevelInput, setLogsLevelInput] = useState('')
@@ -256,6 +615,10 @@ function AdminPortalPage() {
   const logsError = logsResult.error?.message || ''
 
   const auditData = normalizePagedResult(auditResult.data)
+  const visibleAuditItems = useMemo(
+    () => auditData.items.filter((log) => !isNoisyAuditAction(log.action)),
+    [auditData.items],
+  )
   const auditLoading = auditResult.isLoading || auditResult.isFetching
   const auditError = auditResult.error?.message || ''
 
@@ -322,6 +685,15 @@ function AdminPortalPage() {
   }
 
   const handleToggleUserActive = async (userId) => {
+    if (String(userId) === String(currentUser?.id)) {
+      setSnack({
+        open: true,
+        message: 'You cannot deactivate your own admin account.',
+        severity: 'warning',
+      })
+      return
+    }
+
     setToggleLoadingUserId(userId)
     try {
       const result = await toggleUserMutation.mutateAsync({ userId })
@@ -341,6 +713,31 @@ function AdminPortalPage() {
     }
   }
 
+  const handleToggleUserRequest = (user) => {
+    if (String(user.id) === String(currentUser?.id)) {
+      setSnack({
+        open: true,
+        message: 'You cannot deactivate your own admin account.',
+        severity: 'warning',
+      })
+      return
+    }
+
+    if (user.isActive) {
+      setPendingToggleUser(user)
+      return
+    }
+
+    handleToggleUserActive(user.id)
+  }
+
+  const handleConfirmDeactivate = async () => {
+    if (!pendingToggleUser) return
+    const userId = pendingToggleUser.id
+    setPendingToggleUser(null)
+    await handleToggleUserActive(userId)
+  }
+
   const handleLogsApplyFilters = () => {
     setLogsQuery((prev) => ({
       ...prev,
@@ -356,11 +753,12 @@ function AdminPortalPage() {
     setLogsQuery((prev) => ({ ...prev, page: 1, level: null, category: null }))
   }
 
-  const handleAuditApplyFilters = () => {
-    const parsedCompanyId = Number(auditCompanyInput)
+  const handleAuditCompanyInputChange = (value) => {
+    const parsedCompanyId = Number(value)
     const hasValidCompanyId =
-      auditCompanyInput.trim() !== '' && Number.isFinite(parsedCompanyId) && parsedCompanyId > 0
+      value.trim() !== '' && Number.isFinite(parsedCompanyId) && parsedCompanyId > 0
 
+    setAuditCompanyInput(value)
     setAuditQuery((prev) => ({
       ...prev,
       page: 1,
@@ -542,39 +940,48 @@ function AdminPortalPage() {
                   )}
 
                   {!usersLoading &&
-                    usersData.items.map((user) => (
-                      <TableRow key={user.id} hover>
-                        <TableCell>{user.name || '-'}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={user.role || '-'} />
-                        </TableCell>
-                        <TableCell>{user.phone || '-'}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            color={user.isActive ? 'success' : 'default'}
-                            label={user.isActive ? 'Active' : 'Inactive'}
-                          />
-                        </TableCell>
-                        <TableCell>{user.emailVerified ? 'Yes' : 'No'}</TableCell>
-                        <TableCell>{formatDateTime(user.lastLoginAt)}</TableCell>
-                        <TableCell>{formatDateTime(user.createdAt)}</TableCell>
-                        <TableCell align="right">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            disabled={toggleLoadingUserId === user.id || usersLoading}
-                            onClick={() => handleToggleUserActive(user.id)}
-                            startIcon={
-                              toggleLoadingUserId === user.id ? <AutorenewRoundedIcon /> : undefined
-                            }
-                          >
-                            {getToggleActionLabel(toggleLoadingUserId === user.id, user.isActive)}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    usersData.items.map((user) => {
+                      const isCurrentUser = String(user.id) === String(currentUser?.id)
+                      const isToggleLoading = toggleLoadingUserId === user.id
+
+                      return (
+                        <TableRow key={user.id} hover>
+                          <TableCell>{user.name || '-'}</TableCell>
+                          <TableCell>{user.email || '-'}</TableCell>
+                          <TableCell>
+                            <Chip size="small" label={user.role || '-'} />
+                          </TableCell>
+                          <TableCell>{user.phone || '-'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              color={user.isActive ? 'success' : 'default'}
+                              label={user.isActive ? 'Active' : 'Inactive'}
+                            />
+                          </TableCell>
+                          <TableCell>{user.emailVerified ? 'Yes' : 'No'}</TableCell>
+                          <TableCell>{formatDateTime(user.lastLoginAt)}</TableCell>
+                          <TableCell>{formatDateTime(user.createdAt)}</TableCell>
+                          <TableCell align="right">
+                            <Tooltip
+                              title={isCurrentUser ? 'You cannot deactivate your own admin account.' : ''}
+                            >
+                              <span>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  disabled={isCurrentUser || isToggleLoading || usersLoading}
+                                  onClick={() => handleToggleUserRequest(user)}
+                                  startIcon={isToggleLoading ? <AutorenewRoundedIcon /> : undefined}
+                                >
+                                  {getToggleActionLabel(isToggleLoading, user.isActive)}
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -620,13 +1027,19 @@ function AdminPortalPage() {
                 ))}
               </TextField>
               <TextField
+                select
                 label="Category"
-                placeholder="Category name"
                 value={logsCategoryInput}
                 onChange={(event) => setLogsCategoryInput(event.target.value)}
                 size="small"
-                fullWidth
-              />
+                sx={{ minWidth: { md: 220 } }}
+              >
+                {logCategoryOptions.map((option) => (
+                  <MenuItem key={option.value || 'all-categories'} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
               <Button
                 variant="contained"
                 startIcon={<SearchRoundedIcon />}
@@ -651,10 +1064,11 @@ function AdminPortalPage() {
                     <TableCell>ID</TableCell>
                     <TableCell>Level</TableCell>
                     <TableCell>Category</TableCell>
-                    <TableCell>Message</TableCell>
-                    <TableCell>Details</TableCell>
+                    <TableCell>Summary</TableCell>
+                    <TableCell>Technical context</TableCell>
                     <TableCell>User ID</TableCell>
                     <TableCell>IP</TableCell>
+                    <TableCell>Trace ID</TableCell>
                     <TableCell>Created</TableCell>
                   </TableRow>
                 </TableHead>
@@ -662,7 +1076,7 @@ function AdminPortalPage() {
                   {logsLoading &&
                     Array.from({ length: 6 }, (_, index) => index).map((index) => (
                       <TableRow key={`logs-loading-${index}`}>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={9}>
                           <Skeleton variant="rounded" height={24} />
                         </TableCell>
                       </TableRow>
@@ -670,7 +1084,7 @@ function AdminPortalPage() {
 
                   {!logsLoading && logsData.items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         <EmptyState
                           title="No system logs found"
                           description="No logs matched your current filter criteria."
@@ -680,20 +1094,31 @@ function AdminPortalPage() {
                   )}
 
                   {!logsLoading &&
-                    logsData.items.map((log) => (
-                      <TableRow key={log.id} hover>
-                        <TableCell>{log.id}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={log.level || '-'} />
-                        </TableCell>
-                        <TableCell>{log.category || '-'}</TableCell>
-                        <TableCell>{truncateText(log.message, 90)}</TableCell>
-                        <TableCell title={log.details || ''}>{truncateText(log.details, 90)}</TableCell>
-                        <TableCell>{log.userId ?? '-'}</TableCell>
-                        <TableCell>{log.ipAddress || '-'}</TableCell>
-                        <TableCell>{formatDateTime(log.createdAt)}</TableCell>
-                      </TableRow>
-                    ))}
+                    logsData.items.map((log) => {
+                      const display = formatSystemLog(log)
+
+                      return (
+                        <TableRow key={log.id} hover>
+                          <TableCell>{log.id}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              color={getSystemLogLevelColor(log.level)}
+                              label={log.level || '-'}
+                            />
+                          </TableCell>
+                          <TableCell>{formatSystemCategory(log.category)}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{display.summary}</Typography>
+                          </TableCell>
+                          <TableCell title={log.details || ''}>{truncateText(display.detail, 90)}</TableCell>
+                          <TableCell>{log.userId ?? '-'}</TableCell>
+                          <TableCell>{log.ipAddress || '-'}</TableCell>
+                          <TableCell title={display.traceId}>{truncateText(display.traceId, 24)}</TableCell>
+                          <TableCell>{formatDateTime(log.createdAt)}</TableCell>
+                        </TableRow>
+                      )
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -728,17 +1153,10 @@ function AdminPortalPage() {
                 label="Company ID"
                 placeholder="Optional company id"
                 value={auditCompanyInput}
-                onChange={(event) => setAuditCompanyInput(event.target.value)}
+                onChange={(event) => handleAuditCompanyInputChange(event.target.value)}
                 size="small"
                 sx={{ minWidth: { md: 260 } }}
               />
-              <Button
-                variant="contained"
-                startIcon={<SearchRoundedIcon />}
-                onClick={handleAuditApplyFilters}
-              >
-                Apply
-              </Button>
               <Button
                 variant="outlined"
                 color="secondary"
@@ -758,8 +1176,6 @@ function AdminPortalPage() {
                     <TableCell>Entity</TableCell>
                     <TableCell>User</TableCell>
                     <TableCell>Company</TableCell>
-                    <TableCell>Old value</TableCell>
-                    <TableCell>New value</TableCell>
                     <TableCell>IP</TableCell>
                     <TableCell>Created</TableCell>
                   </TableRow>
@@ -768,15 +1184,15 @@ function AdminPortalPage() {
                   {auditLoading &&
                     Array.from({ length: 6 }, (_, index) => index).map((index) => (
                       <TableRow key={`audit-loading-${index}`}>
-                        <TableCell colSpan={9}>
+                        <TableCell colSpan={7}>
                           <Skeleton variant="rounded" height={24} />
                         </TableCell>
                       </TableRow>
                     ))}
 
-                  {!auditLoading && auditData.items.length === 0 && (
+                  {!auditLoading && visibleAuditItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9}>
+                      <TableCell colSpan={7}>
                         <EmptyState
                           title="No audit logs found"
                           description="No audit events matched your current filters."
@@ -786,35 +1202,41 @@ function AdminPortalPage() {
                   )}
 
                   {!auditLoading &&
-                    auditData.items.map((log) => (
-                      <TableRow key={log.id} hover>
-                        <TableCell>{log.id}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={log.action || '-'} />
-                        </TableCell>
-                        <TableCell>
-                          <Stack spacing={0.2}>
-                            <Typography variant="body2">{log.entityType || '-'}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Entity ID: {log.entityId ?? '-'}
-                            </Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell>
-                          <Stack spacing={0.2}>
-                            <Typography variant="body2">{log.userName || '-'}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              User ID: {log.userId ?? '-'}
-                            </Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell>{log.companyId ?? '-'}</TableCell>
-                        <TableCell title={log.oldValue || ''}>{truncateText(log.oldValue, 80)}</TableCell>
-                        <TableCell title={log.newValue || ''}>{truncateText(log.newValue, 80)}</TableCell>
-                        <TableCell>{log.ipAddress || '-'}</TableCell>
-                        <TableCell>{formatDateTime(log.createdAt)}</TableCell>
-                      </TableRow>
-                    ))}
+                    visibleAuditItems.map((log) => {
+                      const actionDisplay = formatAuditAction(log)
+
+                      return (
+                        <TableRow key={log.id} hover>
+                          <TableCell>{log.id}</TableCell>
+                          <TableCell>
+                            <Stack spacing={0.35}>
+                              <Chip
+                                size="small"
+                                label={actionDisplay.label}
+                                sx={{ alignSelf: 'flex-start', maxWidth: 280 }}
+                              />
+                              <Typography variant="caption" color="text.secondary">
+                                {actionDisplay.description}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            {log.entityType || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Stack spacing={0.2}>
+                              <Typography variant="body2">{log.userName || '-'}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                User ID: {log.userId ?? '-'}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>{log.companyId ?? '-'}</TableCell>
+                          <TableCell>{log.ipAddress || '-'}</TableCell>
+                          <TableCell>{formatDateTime(log.createdAt)}</TableCell>
+                        </TableRow>
+                      )
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -849,6 +1271,29 @@ function AdminPortalPage() {
         severity={snack.severity}
         onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
       />
+
+      <Dialog
+        open={Boolean(pendingToggleUser)}
+        onClose={() => setPendingToggleUser(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Deactivate user?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will block {pendingToggleUser?.name || pendingToggleUser?.email || 'this user'} from
+            accessing the system until an admin activates the account again.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingToggleUser(null)} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDeactivate} color="error" variant="contained">
+            Deactivate
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PageSectionLayout>
   )
 }

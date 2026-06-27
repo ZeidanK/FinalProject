@@ -130,6 +130,8 @@ export const URLS = {
     byId: (id) => buildApiPath(`/UploadJobs/${id}`),
     mine: buildApiPath('/UploadJobs/mine'),
     verified: (id) => buildApiPath(`/UploadJobs/${id}/verified`),
+    verifyInvoice: (id) => buildApiPath(`/UploadJobs/${id}/verify-invoice`),
+    verifyInvoices: buildApiPath('/UploadJobs/verify-invoices'),
     download: (id) => buildApiPath(`/UploadJobs/${id}/download`),
     byCompany: (companyId) => buildApiPath(`/UploadJobs/company/${companyId}`),
   },

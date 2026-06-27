@@ -42,7 +42,7 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes. -->
 <!-- These are larger features or require system-level changes. -->
 <!-- 26.	Persistent storage: when uploading files and changing page, the work should keep running / stay saved -->
 27.	Live notifications need improving and testing of server/client wide functions and interactions between users/ files/ database/ ai etc
-28.	Reports page full implementation — currently nothing works
+<!-- 28.	Reports page full implementation — currently nothing works -->
 29.	Admin page full implementation — currently nothing works
 30.	Testing the Ruppin server to see if the models will run on it
 

@@ -19,11 +19,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<DBservices>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddScoped<IAnomalyService, AnomalyService>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
+builder.Services.AddScoped<IInvoiceVerificationService, InvoiceVerificationService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.RulePipelineEngine>();
 builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.IFxRateProvider, FinalProjectAuthAPI.MatchingEngine.MockFxRateProvider>();
@@ -157,6 +159,7 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseCors("AllowFrontend");
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseMiddleware<ActivityLoggingMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -168,4 +171,5 @@ RecurringJob.AddOrUpdate<INotificationService>(
     service => service.CleanupExpired(90, 365),
     Cron.Daily);
 
+app.Run();
 app.Run();

@@ -65,13 +65,15 @@ export async function deleteUploadJob(jobId, token)
  *
  * @param {string|number} companyId - Company identifier.
  * @param {string} token - JWT bearer token.
+ * @param {string} [jobType] - Optional job type used to limit queue cleanup.
  * @returns {Promise<any>}
  */
-export async function deleteUploadJobsByCompany(companyId, token)
+export async function deleteUploadJobsByCompany(companyId, token, jobType)
 {
   return apiRequest(URLS.uploadJobs.byCompany(companyId), {
     method: 'DELETE',
     token,
+    query: { jobType },
   })
 }
 
@@ -85,6 +87,37 @@ export async function deleteUploadJobsByCompany(companyId, token)
 export async function markUploadJobVerified(jobId, token) {
   return apiRequest(URLS.uploadJobs.verified(jobId), {
     method: 'PATCH',
+    token,
+  })
+}
+
+/**
+ * Verify one extracted invoice upload using user-reviewed form values.
+ *
+ * @param {string|number} jobId - Upload job identifier.
+ * @param {object} invoice - Reviewed invoice payload.
+ * @param {string} token - JWT bearer token.
+ * @returns {Promise<any>} Verification result.
+ */
+export async function verifyInvoiceUploadJob(jobId, invoice, token) {
+  return apiRequest(URLS.uploadJobs.verifyInvoice(jobId), {
+    method: 'POST',
+    body: invoice,
+    token,
+  })
+}
+
+/**
+ * Verify multiple completed invoice uploads from their stored extraction data.
+ *
+ * @param {Array<string|number>} jobIds - Upload job identifiers.
+ * @param {string} token - JWT bearer token.
+ * @returns {Promise<any>} Aggregate and per-job verification results.
+ */
+export async function verifyInvoiceUploadJobs(jobIds, token) {
+  return apiRequest(URLS.uploadJobs.verifyInvoices, {
+    method: 'POST',
+    body: { jobIds },
     token,
   })
 }

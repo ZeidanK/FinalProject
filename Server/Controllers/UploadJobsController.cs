@@ -14,13 +14,20 @@ namespace FinalProjectAuthAPI.Controllers
     {
         private readonly IUploadJobService _jobSvc;
         private readonly IFileStorageService _fileSvc;
+        private readonly IInvoiceVerificationService _invoiceVerificationSvc;
         private readonly DBservices _db;
         private readonly IWebHostEnvironment _env;
 
-        public UploadJobsController(IUploadJobService jobSvc, IFileStorageService fileSvc, DBservices db, IWebHostEnvironment env)
+        public UploadJobsController(
+            IUploadJobService jobSvc,
+            IFileStorageService fileSvc,
+            IInvoiceVerificationService invoiceVerificationSvc,
+            DBservices db,
+            IWebHostEnvironment env)
         {
             _jobSvc = jobSvc;
             _fileSvc = fileSvc;
+            _invoiceVerificationSvc = invoiceVerificationSvc;
             _db = db;
             _env = env;
         }
@@ -57,18 +64,41 @@ namespace FinalProjectAuthAPI.Controllers
         }
 
         [HttpPatch("{jobId:long}/verified")]
-        public IActionResult MarkVerified(long jobId)
+        public async Task<IActionResult> MarkVerified(long jobId)
         {
-            var userId = GetCurrentUserId();
-            var row = _jobSvc.GetById(jobId);
-            if (row == null)
-                return NotFound(new { message = "Job not found." });
+            var result = await _invoiceVerificationSvc.VerifyJobAsync(jobId, GetCurrentUserId());
+            return result.IsSuccessful ? Ok(result) : BadRequest(result);
+        }
 
-            if (row.UserId != userId && !_db.UserHasActiveCompanyAccess(userId, row.CompanyId))
-                return Forbid();
+        [HttpPost("{jobId:long}/verify-invoice")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(InvoiceJobVerificationResult))]
+        public async Task<IActionResult> VerifyInvoice(
+            long jobId,
+            [FromBody] CreateInvoiceRequest request)
+        {
+            var result = await _invoiceVerificationSvc.VerifyJobAsync(
+                jobId,
+                GetCurrentUserId(),
+                request);
 
-            _jobSvc.MarkVerified(jobId);
-            return Ok(new { message = "Job marked as verified." });
+            return result.Outcome switch
+            {
+                InvoiceJobVerificationOutcomes.Unavailable => NotFound(result),
+                InvoiceJobVerificationOutcomes.RequiresReview => BadRequest(result),
+                InvoiceJobVerificationOutcomes.Failed => BadRequest(result),
+                _ => Ok(result)
+            };
+        }
+
+        [HttpPost("verify-invoices")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(BulkInvoiceJobVerificationResponse))]
+        public async Task<IActionResult> VerifyInvoices(
+            [FromBody] VerifyInvoiceUploadJobsRequest request)
+        {
+            var result = await _invoiceVerificationSvc.VerifyJobsAsync(
+                request.JobIds,
+                GetCurrentUserId());
+            return Ok(result);
         }
 
         [HttpDelete("{jobId:long}")]
@@ -81,6 +111,9 @@ namespace FinalProjectAuthAPI.Controllers
 
             if (row.UserId != userId && !_db.UserHasActiveCompanyAccess(userId, row.CompanyId))
                 return Forbid();
+
+            if (string.Equals(row.Status, UploadJobStatuses.Verified, StringComparison.OrdinalIgnoreCase))
+                return Conflict(new { message = "Verified upload jobs cannot be deleted because their files belong to invoice records." });
 
             if (!string.IsNullOrWhiteSpace(row.FilePath))
             {
@@ -101,13 +134,13 @@ namespace FinalProjectAuthAPI.Controllers
         }
 
         [HttpDelete("company/{companyId:long}")]
-        public IActionResult DeleteByCompany(long companyId)
+        public IActionResult DeleteByCompany(long companyId, [FromQuery] string? jobType = null)
         {
             var userId = GetCurrentUserId();
             if (!_db.UserHasActiveCompanyAccess(userId, companyId))
                 return Forbid();
 
-            var deleted = _jobSvc.DeleteByCompany(companyId);
+            var deleted = _jobSvc.DeleteByCompany(companyId, jobType);
             return Ok(new { deletedCount = deleted, message = "Upload jobs deleted." });
         }
 

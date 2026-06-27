@@ -15,6 +15,7 @@ namespace FinalProjectAuthAPI.Models
         public const string Queued = "queued";
         public const string Processing = "processing";
         public const string Completed = "completed";
+        public const string Verifying = "verifying";
         public const string Failed = "failed";
         public const string Canceled = "canceled";
         public const string Verified = "verified"; // user confirmed the extracted data
@@ -24,6 +25,7 @@ namespace FinalProjectAuthAPI.Models
     {
         public long? BankAccountId { get; set; }
         public string? Source { get; set; }
+        public bool AutoVerify { get; set; }
     }
 
     public class UploadJobRow
@@ -83,5 +85,56 @@ namespace FinalProjectAuthAPI.Models
         public string Status { get; set; } = UploadJobStatuses.Queued;
         public string? HangfireJobId { get; set; }
         public string Message { get; set; } = "Upload job queued.";
+    }
+
+    public static class InvoiceJobVerificationOutcomes
+    {
+        public const string Verified = "verified";
+        public const string Duplicate = "duplicate";
+        public const string AlreadyVerified = "already_verified";
+        public const string RequiresReview = "requires_review";
+        public const string InProgress = "in_progress";
+        public const string Unavailable = "unavailable";
+        public const string Failed = "failed";
+    }
+
+    public class VerifyInvoiceUploadJobsRequest
+    {
+        [Required]
+        [MinLength(1, ErrorMessage = "At least one upload job ID is required.")]
+        public List<long> JobIds { get; set; } = new();
+    }
+
+    public class InvoiceJobAutoMatchResult
+    {
+        public bool Matched { get; set; }
+        public long? MatchId { get; set; }
+        public decimal? MatchScore { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class InvoiceJobVerificationResult
+    {
+        public long JobId { get; set; }
+        public long? InvoiceId { get; set; }
+        public string Outcome { get; set; } = InvoiceJobVerificationOutcomes.Failed;
+        public string Message { get; set; } = string.Empty;
+        public decimal? Confidence { get; set; }
+        public bool IsDuplicate { get; set; }
+        public InvoiceJobAutoMatchResult? AutoMatchResult { get; set; }
+
+        public bool IsSuccessful => Outcome == InvoiceJobVerificationOutcomes.Verified
+            || Outcome == InvoiceJobVerificationOutcomes.Duplicate
+            || Outcome == InvoiceJobVerificationOutcomes.AlreadyVerified;
+    }
+
+    public class BulkInvoiceJobVerificationResponse
+    {
+        public int RequestedCount { get; set; }
+        public int VerifiedCount { get; set; }
+        public int DuplicateCount { get; set; }
+        public int SkippedCount { get; set; }
+        public int FailedCount { get; set; }
+        public List<InvoiceJobVerificationResult> Results { get; set; } = new();
     }
 }

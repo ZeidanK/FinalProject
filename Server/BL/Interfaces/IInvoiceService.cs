@@ -11,6 +11,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         (bool Success, long Id, string Error, bool IsDuplicate) Create(CreateInvoiceRequest req, long uploadedByUserId,
             string? fileOriginalName, string? filePath, string? fileType, long? fileSize, decimal? aiConfidence);
         (bool Success, string Error, bool NotFound) Update(long id, CreateInvoiceRequest req, long verifiedByUserId);
+        bool MarkVerified(long id, long verifiedByUserId);
         bool UpdateStatus(long id, string status);
         bool Delete(long id);
         (List<long> DeletedIds, List<long> NotFoundIds) BulkDelete(List<long> ids);

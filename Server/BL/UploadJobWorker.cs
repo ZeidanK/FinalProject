@@ -12,6 +12,7 @@ namespace FinalProjectAuthAPI.BL
         private readonly IFileStorageService _fileSvc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IInvoiceService _invoiceSvc;
+        private readonly IInvoiceVerificationService _invoiceVerificationSvc;
         private readonly IExcelExtractionService _excelSvc;
         private readonly ITransactionService _transactionSvc;
         private readonly IAnomalyService _anomalySvc;
@@ -22,6 +23,7 @@ namespace FinalProjectAuthAPI.BL
             IFileStorageService fileSvc,
             IPdfExtractionService pdfSvc,
             IInvoiceService invoiceSvc,
+            IInvoiceVerificationService invoiceVerificationSvc,
             IExcelExtractionService excelSvc,
             ITransactionService transactionSvc,
             IAnomalyService anomalySvc,
@@ -31,6 +33,7 @@ namespace FinalProjectAuthAPI.BL
             _fileSvc = fileSvc;
             _pdfSvc = pdfSvc;
             _invoiceSvc = invoiceSvc;
+            _invoiceVerificationSvc = invoiceVerificationSvc;
             _excelSvc = excelSvc;
             _transactionSvc = transactionSvc;
             _anomalySvc = anomalySvc;
@@ -40,6 +43,7 @@ namespace FinalProjectAuthAPI.BL
         private static readonly JsonSerializerOptions _camelCase = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
@@ -113,6 +117,19 @@ namespace FinalProjectAuthAPI.BL
                 }, _camelCase);
 
                 _jobSvc.MarkCompleted(jobId, extractOnlyResult);
+
+                if (ShouldAutoVerify(job.PayloadJson)
+                    && extracted.ExtractionConfidence >= InvoiceVerificationService.AutoVerifyConfidenceThreshold)
+                {
+                    var verification = await _invoiceVerificationSvc.VerifyJobAsync(
+                        jobId,
+                        job.UserId,
+                        reviewedInvoice: null,
+                        automatic: true);
+                    if (verification.IsSuccessful)
+                        return;
+                }
+
                 await NotifyUploadJobUpdatedAsync(jobId);
             }
             catch (Exception ex)
@@ -336,6 +353,21 @@ namespace FinalProjectAuthAPI.BL
                 // Malformed legacy job results fall back to the upload-job destination.
             }
             return null;
+        }
+
+        private static bool ShouldAutoVerify(string? payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson))
+                return false;
+
+            try
+            {
+                return JsonSerializer.Deserialize<UploadJobPayload>(payloadJson, _camelCase)?.AutoVerify == true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static CreateInvoiceRequest BuildInvoiceRequest(long companyId, PdfExtractionResult extracted)

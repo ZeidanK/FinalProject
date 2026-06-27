@@ -182,6 +182,14 @@ namespace FinalProjectAuthAPI.BL
             return _db.UpdateInvoiceStatus(id, status);
         }
 
+        public bool MarkVerified(long id, long verifiedByUserId)
+        {
+            if (id <= 0 || verifiedByUserId <= 0)
+                return false;
+
+            return _db.MarkInvoiceVerified(id, verifiedByUserId);
+        }
+
         public bool Delete(long id)
         {
             if (id <= 0)

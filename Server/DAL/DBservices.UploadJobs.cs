@@ -117,18 +117,58 @@ SELECT SCOPE_IDENTITY();";
                 });
         }
 
-        public bool MarkUploadJobVerified(long jobId)
+        public bool TryBeginUploadJobVerification(long jobId)
+        {
+            return UpdateUploadJobSimple(
+                @"UPDATE dbo.FP26_upload_jobs
+                  SET status = @VerifyingStatus,
+                      error_message = NULL,
+                      updated_at = GETDATE()
+                  WHERE id = @Id AND status = @CompletedStatus",
+                new Dictionary<string, object?>
+                {
+                    { "@Id", jobId },
+                    { "@VerifyingStatus", UploadJobStatuses.Verifying },
+                    { "@CompletedStatus", UploadJobStatuses.Completed }
+                });
+        }
+
+        public bool MarkUploadJobVerified(long jobId, string? resultJson = null)
         {
             return UpdateUploadJobSimple(
                 @"UPDATE dbo.FP26_upload_jobs
                   SET status = @Status,
+                      result_json = COALESCE(@ResultJson, result_json),
+                      error_message = NULL,
                       completed_at = COALESCE(completed_at, GETDATE()),
                       updated_at = GETDATE()
                   WHERE id = @Id",
                 new Dictionary<string, object?>
                 {
                     { "@Id", jobId },
-                    { "@Status", UploadJobStatuses.Verified }
+                    { "@Status", UploadJobStatuses.Verified },
+                    { "@ResultJson", (object?)resultJson ?? DBNull.Value }
+                });
+        }
+
+        public bool RestoreUploadJobCompleted(long jobId, string? resultJson, string? errorMessage = null)
+        {
+            return UpdateUploadJobSimple(
+                @"UPDATE dbo.FP26_upload_jobs
+                  SET status = @Status,
+                      progress_percent = 100,
+                      result_json = COALESCE(@ResultJson, result_json),
+                      error_message = @ErrorMessage,
+                      completed_at = COALESCE(completed_at, GETDATE()),
+                      updated_at = GETDATE()
+                  WHERE id = @Id AND status = @VerifyingStatus",
+                new Dictionary<string, object?>
+                {
+                    { "@Id", jobId },
+                    { "@Status", UploadJobStatuses.Completed },
+                    { "@VerifyingStatus", UploadJobStatuses.Verifying },
+                    { "@ResultJson", (object?)resultJson ?? DBNull.Value },
+                    { "@ErrorMessage", (object?)errorMessage ?? DBNull.Value }
                 });
         }
 

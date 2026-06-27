@@ -66,6 +66,7 @@ namespace FinalProjectAuthAPI.Models
         public string?   Details    { get; set; }
         public long?     UserId     { get; set; }
         public string?   IpAddress  { get; set; }
+        public string?   UserAgent  { get; set; }
         public DateTime  CreatedAt  { get; set; }
     }
 

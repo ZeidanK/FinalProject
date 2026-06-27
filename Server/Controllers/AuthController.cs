@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,12 @@ namespace FinalProjectAuthAPI.Controllers
     public class AuthController : ApiControllerBase
     {
         private readonly IAuthService _authSvc;
+        private readonly IActivityLogService _activityLog;
 
-        public AuthController(IAuthService authSvc)
+        public AuthController(IAuthService authSvc, IActivityLogService activityLog)
         {
             _authSvc = authSvc;
+            _activityLog = activityLog;
         }
 
         // POST api/auth/login
@@ -30,6 +33,16 @@ namespace FinalProjectAuthAPI.Controllers
                 token,
                 user = new { id, name, email, role }
             };
+
+            _activityLog.LogAudit(new CreateAuditLogRequest
+            {
+                UserId = id,
+                Action = "auth.login",
+                EntityType = "User",
+                EntityId = id,
+                NewValue = JsonSerializer.Serialize(new { email, role }),
+                IpAddress = GetIpAddress()
+            });
 
             return SuccessWithLegacy(payload, payload, "Login successful.");
         }
@@ -55,6 +68,16 @@ namespace FinalProjectAuthAPI.Controllers
                 if (!success)
                     return BadRequest(new { message = error });
 
+                _activityLog.LogAudit(new CreateAuditLogRequest
+                {
+                    UserId = userId,
+                    Action = "auth.register",
+                    EntityType = "User",
+                    EntityId = userId,
+                    NewValue = JsonSerializer.Serialize(new { request.Email, request.Role }),
+                    IpAddress = GetIpAddress()
+                });
+
                 var payload = new { userId };
                 return StatusCode(201, new
                 {
@@ -74,6 +97,15 @@ namespace FinalProjectAuthAPI.Controllers
             {
                 return StatusCode(500, new { message = "Registration failed due to a server error." });
             }
+        }
+
+        private string? GetIpAddress()
+        {
+            var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(forwardedFor))
+                return forwardedFor.Split(',')[0].Trim();
+
+            return HttpContext.Connection.RemoteIpAddress?.ToString();
         }
 
         // POST api/auth/validate

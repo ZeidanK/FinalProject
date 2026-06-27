@@ -8,6 +8,7 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  FormControlLabel,
   IconButton,
   LinearProgress,
   Skeleton,
@@ -19,6 +20,7 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
+  Switch,
   Typography,
 } from '@mui/material'
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
@@ -29,6 +31,8 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
@@ -41,7 +45,14 @@ import {
   downloadInvoicePdf,
   getInvoiceById,
 } from '../services/invoices'
-import { deleteUploadJob, deleteUploadJobsByCompany, getMyUploadJobs, getUploadJobStatus, markUploadJobVerified } from '../services/uploadJobs'
+import {
+  deleteUploadJob,
+  deleteUploadJobsByCompany,
+  getMyUploadJobs,
+  getUploadJobStatus,
+  verifyInvoiceUploadJob,
+  verifyInvoiceUploadJobs,
+} from '../services/uploadJobs'
 import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
@@ -59,6 +70,13 @@ import {
  * @type {number}
  */
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const AUTO_VERIFY_CONFIDENCE_THRESHOLD = 0.9
+
+const getUploadEntryConfidence = (entry) => {
+  const value = entry?.serverResponse?.extractedData?.extractionConfidence
+  const confidence = Number(value)
+  return value == null || Number.isNaN(confidence) ? null : confidence
+}
 
 /**
  * Maps invoice processing status values to MUI chip colors.
@@ -80,7 +98,7 @@ const statusColors = {
  * @returns {JSX.Element} Rendered invoice page interface.
  */
 function InvoicesPage() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const { activeCompanyId } = useCompany()
   const { isConnected: isRealtimeConnected, subscribe: subscribeRealtime } = useRealtime()
   const [searchParams] = useSearchParams()
@@ -95,6 +113,12 @@ function InvoicesPage() {
   // --- Upload state ---
   const [files, setFiles] = useState([])
   const [dragActive, setDragActive] = useState(false)
+  const [autoVerifyEnabled, setAutoVerifyEnabled] = useState(false)
+  const [selectedUploadJobIds, setSelectedUploadJobIds] = useState([])
+  const [bulkVerifying, setBulkVerifying] = useState(false)
+  const [uploadQueueCollapsed, setUploadQueueCollapsed] = useState(false)
+  const [invoiceListRefreshVersion, setInvoiceListRefreshVersion] = useState(0)
+  const bulkVerifyingRef = useRef(false)
   const fileInputRef = useRef(null)
 
   // --- Verification modal ---
@@ -117,6 +141,34 @@ function InvoicesPage() {
   const POLL_INTERVAL_MS = 4000
 
   const sessionKey = activeCompanyId ? `invoice_upload_jobs_${activeCompanyId}` : null
+  const autoVerifyPreferenceKey = user?.id && activeCompanyId
+    ? `invoice_auto_verify_${user.id}_${activeCompanyId}`
+    : null
+
+  useEffect(() => {
+    if (!autoVerifyPreferenceKey) {
+      setAutoVerifyEnabled(false)
+      return
+    }
+
+    try {
+      setAutoVerifyEnabled(localStorage.getItem(autoVerifyPreferenceKey) === 'true')
+    } catch {
+      setAutoVerifyEnabled(false)
+    }
+  }, [autoVerifyPreferenceKey])
+
+  const handleAutoVerifyChange = useCallback((event) => {
+    const enabled = event.target.checked
+    setAutoVerifyEnabled(enabled)
+    if (!autoVerifyPreferenceKey) return
+
+    try {
+      localStorage.setItem(autoVerifyPreferenceKey, String(enabled))
+    } catch {
+      // The preference remains active for this page if browser storage is unavailable.
+    }
+  }, [autoVerifyPreferenceKey])
 
   const saveJobToSession = useCallback(
     (entry, jobId) => {
@@ -172,6 +224,16 @@ function InvoicesPage() {
         return fileEntry.jobId === normalizedJobId
       }
 
+      if (status === 'verified') {
+        setFiles((prev) => prev.filter((fileEntry) => !isTargetFile(fileEntry)))
+        setSelectedUploadJobIds((prev) => prev.filter((id) => id !== normalizedJobId))
+        if (!bulkVerifyingRef.current) {
+          setInvoiceListRefreshVersion((version) => version + 1)
+          setSnack({ open: true, message: 'Invoice verified successfully.', severity: 'success' })
+        }
+        return true
+      }
+
       if (status === 'completed') {
         let extractedData = null
         let serverResponse = null
@@ -205,6 +267,7 @@ function InvoicesPage() {
                   serverResponse,
                   extractedData,
                   error: extractedData ? null : 'Extraction finished but returned no data.',
+                  verificationError: extractedData ? errorMessage || null : null,
                   jobId: normalizedJobId,
                 }
               : f,
@@ -229,7 +292,12 @@ function InvoicesPage() {
       setFiles((prev) =>
         prev.map((f) =>
           isTargetFile(f)
-            ? { ...f, progress: Math.min(90, progressPercent || 20), jobId: normalizedJobId }
+            ? {
+                ...f,
+                status: status === 'verifying' ? 'verifying' : f.status,
+                progress: status === 'verifying' ? 100 : Math.min(90, progressPercent || 20),
+                jobId: normalizedJobId,
+              }
             : f,
         ),
       )
@@ -342,7 +410,7 @@ function InvoicesPage() {
         const pending = jobs.filter(
           (j) =>
             j.jobType === 'invoice_upload_pdf' &&
-            (j.status === 'completed' || j.status === 'queued' || j.status === 'processing'),
+            (j.status === 'completed' || j.status === 'queued' || j.status === 'processing' || j.status === 'verifying'),
         )
         if (pending.length === 0) return
 
@@ -386,6 +454,7 @@ function InvoicesPage() {
                 extractedData,
                 serverResponse,
                 jobId: job.id,
+                verificationError: job.errorMessage || null,
               })
             } else {
               // queued / processing — add as extracting and resume polling
@@ -394,9 +463,9 @@ function InvoicesPage() {
                 file: null,
                 name: job.fileOriginalName || job.filePath?.split('/').pop() || `Job ${job.id}`,
                 size: job.fileSize || 0,
-                status: 'extracting',
+                status: job.status === 'verifying' ? 'verifying' : 'extracting',
                 error: null,
-                progress: Math.max(job.progressPercent || 0, 10),
+                progress: job.status === 'verifying' ? 100 : Math.max(job.progressPercent || 0, 10),
                 extractedData: null,
                 serverResponse: null,
                 jobId: job.id,
@@ -426,7 +495,7 @@ function InvoicesPage() {
     if (!confirmed) return
 
     try {
-      await deleteUploadJobsByCompany(activeCompanyId, token)
+      await deleteUploadJobsByCompany(activeCompanyId, token, 'invoice_upload_pdf')
       // Stop any active polling for the current company and clear state
       Object.keys(pollingTimers.current).forEach((key) => {
         const jobId = Number(key)
@@ -437,11 +506,12 @@ function InvoicesPage() {
         try { sessionStorage.removeItem(sessionKey) } catch { /* ignore */ }
       }
       setFiles([])
+      setSelectedUploadJobIds([])
       setSnack({ open: true, message: 'Upload queue cleared.', severity: 'success' })
     } catch (err) {
       setSnack({ open: true, message: err.message || 'Failed to clear queue.', severity: 'error' })
     }
-  }, [activeCompanyId, token, stopPolling, removeJobFromSession])
+  }, [activeCompanyId, token, stopPolling, sessionKey])
 
   // ===================== Data Fetching =====================
 
@@ -473,6 +543,13 @@ function InvoicesPage() {
   })
 
   const listLoading = invoicesQuery.isLoading || invoicesQuery.isFetching
+
+  useEffect(() => {
+    if (invoiceListRefreshVersion === 0) return
+    invoicesQuery.refetch()
+  // Refetch is intentionally triggered only by completed realtime verification events.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceListRefreshVersion])
 
   useEffect(() => {
     if (invoicesQuery.error) {
@@ -512,6 +589,7 @@ function InvoicesPage() {
         const response = await uploadInvoiceMutation.mutateAsync({
           file: entry.file,
           companyId: activeCompanyId,
+          autoVerify: entry.autoVerify,
         })
 
         // Async path: server returned a background job id — poll until Gemini finishes
@@ -585,6 +663,7 @@ function InvoicesPage() {
         extractedData: null,
         serverResponse: null,
         jobId: null,
+        autoVerify: autoVerifyEnabled,
       }
     })
     setFiles((prev) => [...prev, ...entries])
@@ -593,7 +672,7 @@ function InvoicesPage() {
     entries
       .filter((e) => e.status === 'pending')
       .forEach((entry) => processFile(entry))
-  }, [activeCompanyId, processFile])
+  }, [activeCompanyId, autoVerifyEnabled, processFile])
 
   const removeFile = useCallback(async (id) => {
     const entry = files.find((f) => f.id === id)
@@ -607,6 +686,9 @@ function InvoicesPage() {
       }
     }
     setFiles((prev) => prev.filter((f) => f.id !== id))
+    if (entry?.jobId) {
+      setSelectedUploadJobIds((prev) => prev.filter((jobId) => jobId !== entry.jobId))
+    }
   }, [files, token, stopPolling, removeJobFromSession])
 
   // --- Drag handlers ---
@@ -828,23 +910,19 @@ function InvoicesPage() {
         if (editingInvoiceId) {
           await updateInvoiceMutation.mutateAsync({ invoiceId: editingInvoiceId, payload })
         } else {
-          const result = await createInvoiceMutation.mutateAsync({ payload, autoMatch: true })
+          const result = modal.file?.jobId
+            ? await verifyInvoiceUploadJob(modal.file.jobId, payload, token)
+            : await createInvoiceMutation.mutateAsync({ payload, autoMatch: true })
 
-          // Mark file as verified and clean up session storage
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === modal.file?.id ? { ...f, status: 'verified' } : f,
-            ),
-          )
+          // Remove the verified extraction from the queue and clean up local tracking.
+          setFiles((prev) => prev.filter((f) => f.id !== modal.file?.id))
           if (modal.file?.jobId) {
             removeJobFromSession(modal.file.jobId)
-            // Fire-and-forget: mark the job verified in the DB so it won't
-            // reappear in the restoration queue after logout/login
-            markUploadJobVerified(modal.file.jobId, token).catch(() => {})
+            setSelectedUploadJobIds((prev) => prev.filter((id) => id !== modal.file.jobId))
           }
 
           // Handle duplicate invoice — saved but flagged as anomaly
-          if (result?.isDuplicate) {
+          if (result?.isDuplicate || result?.outcome === 'duplicate') {
             setSnack({
               open: true,
               message:
@@ -1075,6 +1153,101 @@ function InvoicesPage() {
       setBulkDeletingInvoices(false)
     }
   }, [selectedInvoiceIds, bulkDeleteInvoicesMutation])
+
+  const readyUploadEntries = useMemo(
+    () => files.filter((entry) => entry.status === 'completed' && entry.jobId && entry.extractedData),
+    [files],
+  )
+  const readyUploadJobIds = useMemo(
+    () => readyUploadEntries.map((entry) => entry.jobId),
+    [readyUploadEntries],
+  )
+  const allReadyUploadsSelected =
+    readyUploadJobIds.length > 0
+    && readyUploadJobIds.every((jobId) => selectedUploadJobIds.includes(jobId))
+  const selectedReadyUploadCount = readyUploadJobIds
+    .filter((jobId) => selectedUploadJobIds.includes(jobId))
+    .length
+
+  const toggleUploadSelection = useCallback((jobId) => {
+    setSelectedUploadJobIds((prev) =>
+      prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId],
+    )
+  }, [])
+
+  const toggleSelectAllReadyUploads = useCallback(() => {
+    setSelectedUploadJobIds((prev) => {
+      const allSelected = readyUploadJobIds.every((jobId) => prev.includes(jobId))
+      return allSelected
+        ? prev.filter((jobId) => !readyUploadJobIds.includes(jobId))
+        : [...new Set([...prev, ...readyUploadJobIds])]
+    })
+  }, [readyUploadJobIds])
+
+  const handleVerifySelectedUploads = useCallback(async () => {
+    const selectedEntries = readyUploadEntries.filter((entry) =>
+      selectedUploadJobIds.includes(entry.jobId),
+    )
+    if (selectedEntries.length === 0) return
+
+    const belowThresholdCount = selectedEntries.filter((entry) => {
+      const confidence = getUploadEntryConfidence(entry)
+      return confidence == null || confidence < AUTO_VERIFY_CONFIDENCE_THRESHOLD
+    }).length
+
+    const warning = belowThresholdCount > 0
+      ? ` ${belowThresholdCount} selected invoice(s) are below or missing 90% confidence.`
+      : ''
+    const confirmed = globalThis.confirm(
+      `Verify ${selectedEntries.length} selected invoice(s) without opening them?${warning}`,
+    )
+    if (!confirmed) return
+
+    const jobIds = selectedEntries.map((entry) => entry.jobId)
+    bulkVerifyingRef.current = true
+    setBulkVerifying(true)
+    try {
+      const response = await verifyInvoiceUploadJobs(jobIds, token)
+      const results = Array.isArray(response?.results) ? response.results : []
+      const successfulJobIds = results
+        .filter((result) => ['verified', 'duplicate', 'already_verified'].includes(result.outcome))
+        .map((result) => result.jobId)
+      const failedResults = results.filter((result) => !successfulJobIds.includes(result.jobId))
+
+      successfulJobIds.forEach((jobId) => {
+        stopPolling(jobId)
+        removeJobFromSession(jobId)
+      })
+      setFiles((prev) => prev
+        .filter((entry) => !successfulJobIds.includes(entry.jobId))
+        .map((entry) => {
+          const failed = failedResults.find((result) => result.jobId === entry.jobId)
+          return failed ? { ...entry, verificationError: failed.message } : entry
+        }))
+      setSelectedUploadJobIds([])
+      await invoicesQuery.refetch()
+
+      const verifiedCount = response?.verifiedCount ?? successfulJobIds.length
+      const failedCount = response?.failedCount ?? failedResults.length
+      const duplicateCount = response?.duplicateCount ?? 0
+      const details = [
+        `${verifiedCount} verified`,
+        duplicateCount > 0 ? `${duplicateCount} duplicate` : null,
+        failedCount > 0 ? `${failedCount} need review` : null,
+      ].filter(Boolean).join(', ')
+
+      setSnack({
+        open: true,
+        message: `Verification complete: ${details}.`,
+        severity: failedCount > 0 || duplicateCount > 0 ? 'warning' : 'success',
+      })
+    } catch (err) {
+      setSnack({ open: true, message: err.message || 'Bulk verification failed.', severity: 'error' })
+    } finally {
+      bulkVerifyingRef.current = false
+      setBulkVerifying(false)
+    }
+  }, [readyUploadEntries, selectedUploadJobIds, token, stopPolling, removeJobFromSession, invoicesQuery])
 
   // ===================== Render =====================
 
@@ -1333,6 +1506,27 @@ function InvoicesPage() {
             </CardContent>
           </Card>
 
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={{ xs: 0, sm: 1.5 }}
+          >
+            <FormControlLabel
+              control={(
+                <Switch
+                  checked={autoVerifyEnabled}
+                  onChange={handleAutoVerifyChange}
+                  disabled={!activeCompanyId}
+                  color="success"
+                />
+              )}
+              label="Auto-verify invoices with 90% confidence or higher"
+            />
+            <Typography variant="caption" color="text.secondary">
+              Applies only to files added after the switch is enabled.
+            </Typography>
+          </Stack>
+
           {/* ---- Uploaded Files List ---- */}
           {pendingFiles.length > 0 && (
             <Card
@@ -1348,11 +1542,68 @@ function InvoicesPage() {
               }}
             >
               <CardContent>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                  Upload Queue ({pendingFiles.length})
-                </Typography>
-                <Stack spacing={1.5}>
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setUploadQueueCollapsed((collapsed) => !collapsed)}
+                    aria-label={uploadQueueCollapsed ? 'Expand upload queue' : 'Collapse upload queue'}
+                    title={uploadQueueCollapsed ? 'Expand upload queue' : 'Collapse upload queue'}
+                  >
+                    {uploadQueueCollapsed
+                      ? <ExpandMoreRoundedIcon fontSize="small" />
+                      : <ExpandLessRoundedIcon fontSize="small" />}
+                  </IconButton>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    Upload Queue ({pendingFiles.length})
+                  </Typography>
+                </Stack>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  flexWrap="wrap"
+                  gap={1}
+                  sx={{ mb: 2 }}
+                >
+                  <FormControlLabel
+                    sx={{ m: 0 }}
+                    control={(
+                      <Checkbox
+                        size="small"
+                        checked={allReadyUploadsSelected}
+                        indeterminate={selectedReadyUploadCount > 0 && !allReadyUploadsSelected}
+                        onChange={toggleSelectAllReadyUploads}
+                        disabled={readyUploadJobIds.length === 0 || bulkVerifying}
+                      />
+                    )}
+                    label={`Select all ready (${readyUploadJobIds.length})`}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="small"
+                      color="success"
+                      variant="contained"
+                      startIcon={bulkVerifying ? <CircularProgress size={14} color="inherit" /> : <CheckCircleRoundedIcon />}
+                      onClick={handleVerifySelectedUploads}
+                      disabled={selectedReadyUploadCount === 0 || bulkVerifying}
+                    >
+                      {bulkVerifying ? 'Verifying…' : `Verify Selected (${selectedReadyUploadCount})`}
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      onClick={handleClearQueue}
+                      disabled={bulkVerifying}
+                    >
+                      Clear Upload Queue
+                    </Button>
+                  </Stack>
+                </Stack>
+                {!uploadQueueCollapsed && <Stack spacing={1.5}>
                   {pendingFiles.map((entry) => {
+                    const confidence = getUploadEntryConfidence(entry)
+                    const isReady = entry.status === 'completed' && entry.jobId && entry.extractedData
                     let entryColor = 'primary.main'
                     if (entry.status === 'error') entryColor = 'error.main'
                     else if (entry.status === 'completed') entryColor = 'success.main'
@@ -1362,7 +1613,7 @@ function InvoicesPage() {
                       entryIcon = <CheckCircleRoundedIcon />
                     } else if (entry.status === 'error') {
                       entryIcon = <ErrorRoundedIcon />
-                    } else if (entry.status === 'uploading' || entry.status === 'extracting') {
+                    } else if (entry.status === 'uploading' || entry.status === 'extracting' || entry.status === 'verifying') {
                       entryIcon = <CircularProgress size={22} color="inherit" />
                     }
 
@@ -1380,6 +1631,14 @@ function InvoicesPage() {
                           borderColor: 'divider',
                         }}
                       >
+                        <Checkbox
+                          size="small"
+                          checked={Boolean(entry.jobId && selectedUploadJobIds.includes(entry.jobId))}
+                          onChange={() => toggleUploadSelection(entry.jobId)}
+                          disabled={!isReady || bulkVerifying}
+                          inputProps={{ 'aria-label': `Select ${entry.name} for verification` }}
+                        />
+
                         {/* Icon */}
                         <Box sx={{ color: entryColor }}>
                           {entryIcon}
@@ -1391,9 +1650,19 @@ function InvoicesPage() {
                             <Typography variant="body2" fontWeight={600} noWrap>
                               {entry.name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {(entry.size / 1024).toFixed(0)} KB
-                            </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {entry.status === 'completed' && (
+                                <Chip
+                                  size="small"
+                                  variant="outlined"
+                                  color={confidence != null && confidence >= AUTO_VERIFY_CONFIDENCE_THRESHOLD ? 'success' : 'warning'}
+                                  label={confidence == null ? 'Confidence —' : `${Math.round(confidence * 100)}%`}
+                                />
+                              )}
+                              <Typography variant="caption" color="text.secondary">
+                                {(entry.size / 1024).toFixed(0)} KB
+                              </Typography>
+                            </Stack>
                           </Stack>
                           {entry.status === 'uploading' && (
                             <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
@@ -1410,15 +1679,30 @@ function InvoicesPage() {
                               </Typography>
                             </>
                           )}
+                          {entry.status === 'verifying' && (
+                            <>
+                              <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
+                              <Typography variant="caption" color="text.secondary">
+                                Finalizing verification…
+                              </Typography>
+                            </>
+                          )}
                           {entry.status === 'error' && (
                             <Typography variant="caption" color="error.main">
                               {entry.error}
                             </Typography>
                           )}
                           {entry.status === 'completed' && (
-                            <Typography variant="caption" color="success.main">
-                              Ready for verification
-                            </Typography>
+                            <Stack>
+                              <Typography variant="caption" color="success.main">
+                                Ready for verification
+                              </Typography>
+                              {entry.verificationError && (
+                                <Typography variant="caption" color="warning.main">
+                                  {entry.verificationError}
+                                </Typography>
+                              )}
+                            </Stack>
                           )}
                         </Box>
 
@@ -1429,6 +1713,7 @@ function InvoicesPage() {
                               size="small"
                               variant="contained"
                               startIcon={<VisibilityRoundedIcon />}
+                              disabled={bulkVerifying}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 openVerification(entry)
@@ -1439,6 +1724,7 @@ function InvoicesPage() {
                           )}
                           <IconButton
                             size="small"
+                            disabled={bulkVerifying || entry.status === 'verifying'}
                             onClick={(e) => {
                               e.stopPropagation()
                               removeFile(entry.id)
@@ -1450,23 +1736,9 @@ function InvoicesPage() {
                       </Stack>
                     )
                   })}
-                </Stack>
+                </Stack>}
               </CardContent>
             </Card>
-          )}
-
-          {/* ---- Queue Actions ---- */}
-          {pendingFiles.length > 0 && (
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                onClick={handleClearQueue}
-              >
-                Clear Upload Queue
-              </Button>
-            </Stack>
           )}
 
           {/* ---- Error Alert ---- */}

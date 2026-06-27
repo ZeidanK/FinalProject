@@ -38,8 +38,14 @@ namespace FinalProjectAuthAPI.BL
         public bool MarkFailed(long jobId, string errorMessage) =>
             _db.MarkUploadJobFailed(jobId, errorMessage);
 
-        public bool MarkVerified(long jobId) =>
-            _db.MarkUploadJobVerified(jobId);
+        public bool TryBeginVerification(long jobId) =>
+            _db.TryBeginUploadJobVerification(jobId);
+
+        public bool MarkVerified(long jobId, string? resultJson = null) =>
+            _db.MarkUploadJobVerified(jobId, resultJson);
+
+        public bool RestoreCompleted(long jobId, string? resultJson, string? errorMessage = null) =>
+            _db.RestoreUploadJobCompleted(jobId, resultJson, errorMessage);
 
         public bool UpdateProgress(long jobId, int progressPercent, string? resultJson = null) =>
             _db.UpdateUploadJobProgress(jobId, progressPercent, resultJson);
@@ -52,6 +58,9 @@ namespace FinalProjectAuthAPI.BL
         public bool Delete(long jobId)
         {
             var row = _db.GetUploadJobById(jobId);
+            if (row != null && string.Equals(row.Status, UploadJobStatuses.Verified, StringComparison.OrdinalIgnoreCase))
+                return false;
+
             if (row == null || string.IsNullOrWhiteSpace(row.FilePath))
                 return _db.DeleteUploadJob(jobId);
 
@@ -71,9 +80,13 @@ namespace FinalProjectAuthAPI.BL
             return _db.DeleteUploadJob(jobId);
         }
 
-        public int DeleteByCompany(long companyId)
+        public int DeleteByCompany(long companyId, string? jobType = null)
         {
-            var jobs = _db.GetUploadJobsByUser(0, companyId, null, 200);
+            var jobs = _db.GetUploadJobsByUser(0, companyId, null, 200)
+                .Where(job => !string.Equals(job.Status, UploadJobStatuses.Verified, StringComparison.OrdinalIgnoreCase)
+                    && (string.IsNullOrWhiteSpace(jobType)
+                        || string.Equals(job.JobType, jobType, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
             var deleted = 0;
             foreach (var job in jobs)
             {

@@ -5,6 +5,7 @@ using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
+using System.Text.Json;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -77,6 +78,9 @@ namespace FinalProjectAuthAPI.Controllers
 
             if (!success)
                 return BadRequest(new { message = error });
+
+            if (!_svc.MarkVerified(id, userId))
+                return BadRequest(new { message = "Invoice was created but could not be marked as verified." });
 
             // Duplicate invoice — saved and flagged; skip auto-match for duplicates
             if (isDuplicate)
@@ -262,7 +266,10 @@ namespace FinalProjectAuthAPI.Controllers
         // Uploads a PDF, saves the file, extracts data, and returns extracted fields for review.
         [HttpPost("upload-pdf")]
         [RequestSizeLimit(10 * 1024 * 1024)]
-        public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] long companyId)
+        public async Task<IActionResult> UploadPdf(
+            IFormFile file,
+            [FromForm] long companyId,
+            [FromForm] bool autoVerify = false)
         {
             var userId = GetCurrentUserId();
             if (!_db.UserHasActiveCompanyAccess(userId, companyId))
@@ -281,7 +288,10 @@ namespace FinalProjectAuthAPI.Controllers
                     FileSize = file.Length,
                     CompanyId = companyId,
                     UserId = userId,
-                    PayloadJson = null
+                    PayloadJson = JsonSerializer.Serialize(new UploadJobPayload
+                    {
+                        AutoVerify = autoVerify
+                    }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
                 });
 
                 var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(

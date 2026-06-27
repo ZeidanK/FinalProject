@@ -29,6 +29,7 @@ const parseFileName = (contentDisposition) => {
  *
  * @param {string|number} companyId - Company identifier.
  * @param {object} filters - Optional query filters.
+ * @param {boolean} autoVerify - Whether this upload may be automatically verified.
  * @param {string} token - JWT token for authorization.
  * @returns {Promise<any>} Unwrapped response payload from the invoice list endpoint.
  */
@@ -151,10 +152,11 @@ export async function updateInvoiceStatus(invoiceId, status, token) {
  * @param {string} token - JWT token for authorization.
  * @returns {Promise<any>} Unwrapped response payload from the upload endpoint.
  */
-export async function uploadInvoicePdf(file, companyId, token) {
+export async function uploadInvoicePdf(file, companyId, autoVerify, token) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('companyId', String(companyId))
+  formData.append('autoVerify', String(Boolean(autoVerify)))
 
   const response = await apiRequest(URLS.invoices.uploadPdf, {
     method: 'POST',

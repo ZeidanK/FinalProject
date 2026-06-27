@@ -42,6 +42,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("users/{id:long}/toggle")]
         public async Task<IActionResult> ToggleUserActive(long id)
         {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId > 0 && id == currentUserId)
+            {
+                return BadRequest(new { message = "Admins cannot deactivate their own account." });
+            }
+
             var (userId, isActive) = _svc.ToggleUserActive(id);
             var payload = new
             {

@@ -187,6 +187,28 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
+        public bool MarkInvoiceVerified(long id, long verifiedByUserId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Invoices_MarkVerified", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id", id },
+                        { "@VerifiedByUserId", verifiedByUserId }
+                    });
+
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally
+            {
+                con?.Close();
+            }
+        }
+
         public bool UpdateInvoiceFileInfo(long id, string? fileOriginalName, string? filePath,
             string? fileType, long? fileSize, decimal? aiConfidence)
         {
