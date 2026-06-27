@@ -37,52 +37,6 @@ export function RealtimeProvider({ children }) {
     })
   }, [])
 
-  const notifyFromRealtimeEvent = useCallback((eventEnvelope) => {
-    const eventType = eventEnvelope?.eventType || eventEnvelope?.EventType
-    if (!eventType) return
-
-    const payload = eventEnvelope?.payload || eventEnvelope?.Payload || {}
-
-    const rules = {
-      'accountant.request.sent': {
-        severity: 'info',
-        message: 'New accountant work request was sent.',
-      },
-      'accountant.request.accepted': {
-        severity: 'success',
-        message: 'An accountant accepted a work request.',
-      },
-      'accountant.request.declined': {
-        severity: 'warning',
-        message: 'An accountant declined a work request.',
-      },
-      'accountant.connection.disconnected': {
-        severity: 'warning',
-        message: 'An accountant-company connection was removed.',
-      },
-      'anomaly.created': {
-        severity: 'warning',
-        message: payload?.title ? `New anomaly: ${payload.title}` : 'A new anomaly was detected.',
-      },
-      'anomaly.resolved': {
-        severity: 'success',
-        message: 'An anomaly was resolved.',
-      },
-      'anomaly.duplicate_invoice.decided': {
-        severity: 'info',
-        message: 'A duplicate invoice decision was saved.',
-      },
-      'admin.user.active_toggled': {
-        severity: payload?.isActive ? 'success' : 'warning',
-        message: payload?.isActive ? 'Your account was activated.' : 'Your account was deactivated.',
-      },
-    }
-
-    const rule = rules[eventType]
-    if (!rule) return
-    notify(rule)
-  }, [notify])
-
   const subscribe = useCallback((eventName, handler) => {
     if (!eventName || typeof handler !== 'function') return () => {}
 
@@ -102,48 +56,60 @@ export function RealtimeProvider({ children }) {
 
   useEffect(() => {
     if (!isAuthenticated || !token) {
-      setIsConnected(false)
-      setConnectionState('disconnected')
       activeCompanyRef.current = null
       return
     }
 
     let disposed = false
+    let retryTimer = null
+    let retryAttempt = 0
     const client = createRealtimeClient(token)
     clientRef.current = client
 
     client.onStateChange((state) => {
       if (disposed) return
+      if (state === 'reconnecting' || state === 'disconnected') {
+        activeCompanyRef.current = null
+      }
       setConnectionState(state)
       setIsConnected(state === 'connected')
     })
 
     const onUploadJobUpdated = (payload) => {
       emit('uploadJobUpdated', payload)
-
-      const status = (payload?.status || payload?.Status || '').toLowerCase()
-      if (status === 'completed') {
-        notify({ message: 'Upload processing completed.', severity: 'success' })
-      } else if (status === 'failed' || status === 'canceled') {
-        notify({ message: payload?.errorMessage || payload?.ErrorMessage || 'Upload processing failed.', severity: 'error' })
-      }
     }
 
     const onNotificationEvent = (payload) => {
       emit('notificationEvent', payload)
-      notifyFromRealtimeEvent(payload)
+    }
+    const onNotificationCreated = (payload) => {
+      emit('notificationCreated', payload)
+      notify({
+        eventId: payload?.eventId || payload?.EventId,
+        message: payload?.title || payload?.Title || 'You have a new notification.',
+        severity: payload?.severity || payload?.Severity || 'info',
+      })
+    }
+    const onNotificationReadStateChanged = (payload) => {
+      emit('notificationReadStateChanged', payload)
     }
     client.on('uploadJobUpdated', onUploadJobUpdated)
     client.on('notificationEvent', onNotificationEvent)
+    client.on('notificationCreated', onNotificationCreated)
+    client.on('notificationReadStateChanged', onNotificationReadStateChanged)
 
     const connect = async () => {
       try {
         await client.start()
         if (disposed) return
+        retryAttempt = 0
       } catch {
         if (!disposed) {
           setConnectionState('disconnected')
           setIsConnected(false)
+          const delay = Math.min(30_000, 1_000 * (2 ** retryAttempt))
+          retryAttempt += 1
+          retryTimer = globalThis.setTimeout(connect, delay)
         }
       }
     }
@@ -152,16 +118,19 @@ export function RealtimeProvider({ children }) {
 
     return () => {
       disposed = true
+      if (retryTimer) globalThis.clearTimeout(retryTimer)
       activeCompanyRef.current = null
       client.off('uploadJobUpdated', onUploadJobUpdated)
       client.off('notificationEvent', onNotificationEvent)
+      client.off('notificationCreated', onNotificationCreated)
+      client.off('notificationReadStateChanged', onNotificationReadStateChanged)
       client.stop().catch(() => {})
 
       if (clientRef.current === client) {
         clientRef.current = null
       }
     }
-  }, [emit, isAuthenticated, notify, notifyFromRealtimeEvent, token])
+  }, [emit, isAuthenticated, notify, token])
 
   useEffect(() => {
     const client = clientRef.current
@@ -186,10 +155,10 @@ export function RealtimeProvider({ children }) {
   }, [activeCompanyId, isConnected])
 
   const value = useMemo(() => ({
-    connectionState,
-    isConnected,
+    connectionState: isAuthenticated ? connectionState : 'disconnected',
+    isConnected: isAuthenticated && isConnected,
     subscribe,
-  }), [connectionState, isConnected, subscribe])
+  }), [connectionState, isAuthenticated, isConnected, subscribe])
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>
 }

@@ -138,6 +138,7 @@ export const URLS = {
   },
   notifications: {
     mine: buildApiPath('/Notifications'),
+    inbox: buildApiPath('/Notifications/inbox'),
     markRead: (id) => buildApiPath(`/Notifications/${id}/read`),
     markAllRead: buildApiPath('/Notifications/read-all'),
   },

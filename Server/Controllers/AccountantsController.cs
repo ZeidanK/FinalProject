@@ -30,7 +30,7 @@ namespace FinalProjectAuthAPI.Controllers
         // Business owner sends a work request to a public accountant.
         [HttpPost("{accountantId:long}/request")]
         [Authorize(Roles = "business_owner,accountant_business_owner,admin")]
-        public IActionResult SendRequest(long accountantId, [FromBody] SendWorkRequestRequest request)
+        public async Task<IActionResult> SendRequest(long accountantId, [FromBody] SendWorkRequestRequest request)
         {
             var requestedByUserId = GetCurrentUserId();
             var (success, error) = _svc.SendRequest(accountantId, request.CompanyId, requestedByUserId);
@@ -45,13 +45,23 @@ namespace FinalProjectAuthAPI.Controllers
                     message = "New accountant work request submitted."
                 };
 
-                _ = _realtime.NotifyUserEventAsync(accountantId, "accountant.request.sent", payload,
-                    title: "New work request",
-                    body: "A business has sent you a new work request.",
-                    severity: "info",
-                    companyId: request.CompanyId,
-                    link: "/accountant-workspace");
-                _ = _realtime.NotifyGroupEventAsync(RealtimeGroups.CompanyOwners(request.CompanyId), "accountant.request.sent", payload);
+                var requestRow = _svc.GetPendingRequests(accountantId)
+                    .FirstOrDefault(r => r.CompanyId == request.CompanyId);
+                var notificationOccurrence = DateTime.UtcNow.Ticks;
+                await _realtime.CreateUserNotificationAsync(accountantId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AccountantRequestSent,
+                    Title = "New work request",
+                    Body = "A business has sent you a new work request.",
+                    Severity = "info",
+                    TargetType = NotificationTargetTypes.AccountantRequest,
+                    TargetId = requestRow?.Id.ToString(),
+                    DedupeKey = requestRow == null ? null : $"accountant-request:{requestRow.Id}:sent:{notificationOccurrence}",
+                }, payload, request.CompanyId);
+                await _realtime.NotifyGroupEventAsync(
+                    RealtimeGroups.CompanyOwners(request.CompanyId),
+                    NotificationEventTypes.AccountantRequestSent,
+                    payload);
             }
 
             return success
@@ -84,7 +94,7 @@ namespace FinalProjectAuthAPI.Controllers
         // PATCH api/accountants/requests/{requestId}/respond
         // Accountant accepts or declines a pending work request.
         [HttpPatch("requests/{requestId:long}/respond")]
-        public IActionResult Respond(long requestId, [FromBody] RespondToRequestRequest request)
+        public async Task<IActionResult> Respond(long requestId, [FromBody] RespondToRequestRequest request)
         {
             var accountantId = GetCurrentUserId();
             var requestRow = _svc.GetPendingRequests(accountantId).FirstOrDefault(r => r.Id == requestId);
@@ -92,7 +102,9 @@ namespace FinalProjectAuthAPI.Controllers
 
             if (ok && requestRow != null)
             {
-                var eventType = request.Accept ? "accountant.request.accepted" : "accountant.request.declined";
+                var eventType = request.Accept
+                    ? NotificationEventTypes.AccountantRequestAccepted
+                    : NotificationEventTypes.AccountantRequestDeclined;
                 var payload = new
                 {
                     requestId,
@@ -108,12 +120,22 @@ namespace FinalProjectAuthAPI.Controllers
                     ? $"An accountant accepted your work request for company {requestRow.CompanyName}."
                     : $"An accountant declined your work request for company {requestRow.CompanyName}.";
                 var notifSev   = request.Accept ? "success" : "warning";
+                var notificationOccurrence = DateTime.UtcNow.Ticks;
 
-                _ = _realtime.NotifyUserEventAsync(requestRow.RequestedByUserId, eventType, payload,
-                    title: notifTitle, body: notifBody, severity: notifSev,
-                    companyId: requestRow.CompanyId, link: "/find-accountant");
-                _ = _realtime.NotifyCompanyEventAsync(requestRow.CompanyId, eventType, payload,
-                    title: notifTitle, body: notifBody, severity: notifSev, link: "/find-accountant");
+                var notification = new NotificationMessage
+                {
+                    EventType = eventType,
+                    Title = notifTitle,
+                    Body = notifBody,
+                    Severity = notifSev,
+                    TargetType = NotificationTargetTypes.Accountant,
+                    TargetId = accountantId.ToString(),
+                    DedupeKey = $"accountant-request:{requestId}:{(request.Accept ? "accepted" : "declined")}:{notificationOccurrence}",
+                };
+                await _realtime.CreateUserNotificationAsync(
+                    requestRow.RequestedByUserId, notification, payload, requestRow.CompanyId);
+                await _realtime.CreateCompanyNotificationAsync(
+                    requestRow.CompanyId, notification, payload, requestRow.RequestedByUserId, accountantId);
             }
 
             return ok
@@ -125,7 +147,7 @@ namespace FinalProjectAuthAPI.Controllers
         // Business owner/admin disconnects from an accountant, or accountant removes themselves.
         [HttpDelete("{accountantId:long}/connection")]
         [Authorize(Roles = "business_owner,accountant_business_owner,admin,accountant")]
-        public IActionResult Disconnect(long accountantId, [FromQuery] long companyId)
+        public async Task<IActionResult> Disconnect(long accountantId, [FromQuery] long companyId)
         {
             if (companyId <= 0)
                 return BadRequest(new { message = "CompanyId is required." });
@@ -149,16 +171,29 @@ namespace FinalProjectAuthAPI.Controllers
                     disconnectedByRole = currentRole,
                     message = "Accountant-company connection revoked."
                 };
+                var notificationOccurrence = DateTime.UtcNow.Ticks;
 
-                _ = _realtime.NotifyUserEventAsync(accountantId, "accountant.connection.disconnected", payload,
-                    title: "Removed from company",
-                    body: "You have been disconnected from a company.",
-                    severity: "warning",
-                    companyId: companyId);
-                _ = _realtime.NotifyCompanyEventAsync(companyId, "accountant.connection.disconnected", payload,
-                    title: "Accountant disconnected",
-                    body: "An accountant has been removed from your company.",
-                    severity: "warning");
+                await _realtime.RevokeCompanyAccessAsync(accountantId, companyId);
+                await _realtime.CreateUserNotificationAsync(accountantId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AccountantDisconnected,
+                    Title = "Removed from company",
+                    Body = "You have been disconnected from a company.",
+                    Severity = "warning",
+                    TargetType = NotificationTargetTypes.Company,
+                    TargetId = companyId.ToString(),
+                    DedupeKey = $"accountant-company:{accountantId}:{companyId}:disconnected:{notificationOccurrence}",
+                }, payload, companyId);
+                await _realtime.CreateCompanyNotificationAsync(companyId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AccountantDisconnected,
+                    Title = "Accountant disconnected",
+                    Body = "An accountant has been removed from your company.",
+                    Severity = "warning",
+                    TargetType = NotificationTargetTypes.Accountant,
+                    TargetId = accountantId.ToString(),
+                    DedupeKey = $"company-accountant:{accountantId}:{companyId}:disconnected:{notificationOccurrence}",
+                }, payload, accountantId);
             }
 
             return ok ? Ok(new { message = "Accountant disconnected successfully." }) : BadRequest(new { message = "Failed to disconnect accountant." });

@@ -15,6 +15,19 @@ export async function getMyNotifications(token, take = 50) {
   })
 }
 
+/** Fetch a cursor-paged, scoped notification inbox. */
+export async function getNotificationInbox(token, {
+  view = 'combined',
+  companyId,
+  cursor,
+  take = 25,
+} = {}) {
+  return apiRequest(URLS.notifications.inbox, {
+    token,
+    query: { view, companyId, cursor, take },
+  })
+}
+
 /**
  * Mark a single notification as read.
  *
@@ -22,10 +35,11 @@ export async function getMyNotifications(token, take = 50) {
  * @param {string} token - JWT bearer token.
  * @returns {Promise<any>}
  */
-export async function markNotificationRead(id, token) {
+export async function markNotificationRead(id, token, { view = 'combined', companyId } = {}) {
   return apiRequest(URLS.notifications.markRead(id), {
     method: 'PATCH',
     token,
+    query: { view, companyId },
   })
 }
 
@@ -35,9 +49,10 @@ export async function markNotificationRead(id, token) {
  * @param {string} token - JWT bearer token.
  * @returns {Promise<any>}
  */
-export async function markAllNotificationsRead(token) {
+export async function markAllNotificationsRead(token, { view = 'combined', companyId } = {}) {
   return apiRequest(URLS.notifications.markAllRead, {
     method: 'PATCH',
     token,
+    query: { view, companyId },
   })
 }

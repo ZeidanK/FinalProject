@@ -40,6 +40,7 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 import Papa from 'papaparse'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -144,6 +145,8 @@ function parseCSVData(text, baseId = 0) {
  */
 function TransactionsPage() {
   const { token } = useAuth()
+  const [searchParams] = useSearchParams()
+  const deepLinkedJobId = Number(searchParams.get('jobId')) || null
   const { activeCompanyId } = useCompany()
 
   // --- Transaction list ---
@@ -172,6 +175,20 @@ function TransactionsPage() {
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const [deepLinkedJob, setDeepLinkedJob] = useState(null)
+
+  useEffect(() => {
+    if (!deepLinkedJobId || !token) return
+    let cancelled = false
+    getUploadJobStatus(deepLinkedJobId, token)
+      .then((job) => {
+        if (!cancelled) setDeepLinkedJob({ job })
+      })
+      .catch((error) => {
+        if (!cancelled) setDeepLinkedJob({ error: error.message || 'This import is no longer available.' })
+      })
+    return () => { cancelled = true }
+  }, [deepLinkedJobId, token])
   const [detailsModal, setDetailsModal] = useState({
     open: false,
     loading: false,
@@ -1119,6 +1136,17 @@ function TransactionsPage() {
           spacing={3}
           sx={{ minWidth: 0 }}
         >
+          {deepLinkedJob && (
+            <Alert
+              severity={deepLinkedJob.error || deepLinkedJob.job?.status === 'failed' ? 'warning' : 'info'}
+              onClose={() => setDeepLinkedJob(null)}
+            >
+              {deepLinkedJob.error
+                || (deepLinkedJob.job?.status === 'failed'
+                  ? 'This transaction import failed. You can retry by uploading the file again.'
+                  : `Import “${deepLinkedJob.job?.fileOriginalName || `#${deepLinkedJobId}`}” is ${deepLinkedJob.job?.status || 'unavailable'}.`)}
+            </Alert>
+          )}
           {/* ---- Page Header ---- */}
           <Card
             component={motion.div}

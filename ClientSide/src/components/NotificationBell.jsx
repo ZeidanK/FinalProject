@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
   Badge,
   Box,
   Button,
@@ -7,104 +8,160 @@ import {
   Divider,
   IconButton,
   List,
-  ListItem,
+  ListItemButton,
   ListItemText,
   Popover,
   Stack,
+  Tab,
+  Tabs,
   Tooltip,
   Typography,
 } from '@mui/material'
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded'
 import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useCompany } from '../context/useCompany'
+import { useNotification } from '../context/useNotification'
 import { useRealtime } from '../context/useRealtime'
 import {
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
-  useNotificationsQuery,
+  useNotificationsInboxQuery,
 } from '../hooks/queries/useNotificationsQueries'
 import { notificationKeys } from '../queries/queryKeys'
 
 const SEVERITY_COLORS = {
   success: '#4ade80',
-  error:   '#f87171',
+  error: '#f87171',
   warning: '#fbbf24',
-  info:    '#60a5fa',
+  info: '#60a5fa',
 }
+
+const COMPANY_TARGETS = new Set([
+  'accountant',
+  'anomaly',
+  'invoice',
+  'invoice_upload_job',
+  'transaction_upload_job',
+])
 
 const formatRelativeTime = (dateStr) => {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const m = Math.floor(diff / 60_000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  return `${d}d ago`
+  const timestamp = new Date(dateStr).getTime()
+  if (!Number.isFinite(timestamp)) return ''
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000))
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 }
 
-/**
- * Bell icon for the app header showing unread notification count.
- * Opens a popover listing all notifications with read/mark-all actions.
- *
- * @returns {JSX.Element}
- */
 export default function NotificationBell() {
-  const { token } = useAuth()
-  const { subscribe: subscribeRealtime } = useRealtime()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { token, user } = useAuth()
+  const { companies, activeCompanyId, setActiveCompanyId } = useCompany()
+  const { notify } = useNotification()
+  const { subscribe: subscribeRealtime } = useRealtime()
 
+  const isAccountant = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
+  const [selectedView, setSelectedView] = useState(isAccountant ? 'personal' : 'combined')
   const [anchorEl, setAnchorEl] = useState(null)
+  const [pendingNavigation, setPendingNavigation] = useState(null)
   const open = Boolean(anchorEl)
+  const view = isAccountant ? selectedView : 'combined'
+  const queryCompanyId = activeCompanyId || undefined
 
-  const { data: notifications = [], isLoading } = useNotificationsQuery({ token })
-  const markReadMutation = useMarkNotificationReadMutation({ token })
-  const markAllReadMutation = useMarkAllNotificationsReadMutation({ token })
+  const inboxQuery = useNotificationsInboxQuery({
+    token,
+    userId: user?.id,
+    view,
+    companyId: queryCompanyId,
+  })
+  const markReadMutation = useMarkNotificationReadMutation({
+    token,
+    userId: user?.id,
+    view,
+    companyId: queryCompanyId,
+  })
+  const markAllReadMutation = useMarkAllNotificationsReadMutation({
+    token,
+    userId: user?.id,
+    view,
+    companyId: queryCompanyId,
+  })
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length
+  const notifications = useMemo(
+    () => inboxQuery.data?.pages?.flatMap((page) => page.items || []) || [],
+    [inboxQuery.data],
+  )
+  const counts = inboxQuery.data?.pages?.[0]?.counts || {}
+  const unreadCount = isAccountant
+    ? Number(counts.personalUnread || 0) + Number(counts.companyUnread || 0)
+    : Number(counts.visibleUnread || 0)
+  const activeCompany = companies.find((company) => Number(company.id) === Number(activeCompanyId))
 
-  // Invalidate the notifications cache whenever a realtime event arrives.
   useEffect(() => {
-    const unsub1 = subscribeRealtime('notificationEvent', () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all })
-    })
-    const unsub2 = subscribeRealtime('uploadJobUpdated', (job) => {
-      const status = (job?.status || job?.Status || '').toLowerCase()
-      if (status === 'completed' || status === 'failed') {
-        queryClient.invalidateQueries({ queryKey: notificationKeys.all })
-      }
-    })
-    return () => { unsub1(); unsub2() }
-  }, [subscribeRealtime, queryClient])
+    const refresh = () => queryClient.invalidateQueries({ queryKey: notificationKeys.user(user?.id) })
+    const unsubCreated = subscribeRealtime('notificationCreated', refresh)
+    const unsubRead = subscribeRealtime('notificationReadStateChanged', refresh)
+    return () => { unsubCreated(); unsubRead() }
+  }, [queryClient, subscribeRealtime, user?.id])
 
-  const handleOpen = useCallback((e) => setAnchorEl(e.currentTarget), [])
+  useEffect(() => {
+    if (!pendingNavigation) return
+    if (pendingNavigation.companyId && Number(activeCompanyId) !== Number(pendingNavigation.companyId)) return
+    const timer = globalThis.setTimeout(() => {
+      navigate(pendingNavigation.link)
+      setAnchorEl(null)
+      setPendingNavigation(null)
+    }, 0)
+    return () => globalThis.clearTimeout(timer)
+  }, [activeCompanyId, navigate, pendingNavigation])
+
+  const handleOpen = useCallback((event) => {
+    setAnchorEl(event.currentTarget)
+    inboxQuery.refetch()
+  }, [inboxQuery])
+
   const handleClose = useCallback(() => setAnchorEl(null), [])
 
-  const handleMarkRead = useCallback(
-    (id) => markReadMutation.mutate(id),
-    [markReadMutation],
-  )
+  const handleNotificationClick = useCallback((item) => {
+    if (!item.isRead) markReadMutation.mutate(item.id)
+    if (!item.link) return
 
-  const handleMarkAll = useCallback(() => markAllReadMutation.mutate(), [markAllReadMutation])
+    const targetCompanyId = item.companyId || item.targetCompanyId
+    const requiresCompany = COMPANY_TARGETS.has(item.targetType)
+    if (requiresCompany && targetCompanyId && Number(targetCompanyId) !== Number(activeCompanyId)) {
+      const hasAccess = companies.some((company) => Number(company.id) === Number(targetCompanyId))
+      if (!hasAccess) {
+        notify({ message: 'This notification is no longer available because company access changed.', severity: 'warning' })
+        return
+      }
+      setPendingNavigation({ link: item.link, companyId: targetCompanyId })
+      setActiveCompanyId(targetCompanyId)
+      return
+    }
+
+    navigate(item.link)
+    setAnchorEl(null)
+  }, [activeCompanyId, companies, markReadMutation, navigate, notify, setActiveCompanyId])
+
+  const currentUnread = view === 'personal'
+    ? Number(counts.personalUnread || 0)
+    : view === 'company'
+      ? Number(counts.companyUnread || 0)
+      : Number(counts.visibleUnread || 0)
 
   return (
     <>
       <Tooltip title="Notifications">
-        <IconButton
-          color="inherit"
-          onClick={handleOpen}
-          aria-label="open notifications"
-          size="medium"
-        >
-          <Badge
-            badgeContent={unreadCount || null}
-            color="error"
-            max={99}
-          >
-            {unreadCount > 0
-              ? <NotificationsRoundedIcon />
-              : <NotificationsNoneRoundedIcon />}
+        <IconButton color="inherit" onClick={handleOpen} aria-label="open notifications">
+          <Badge badgeContent={unreadCount || null} color="error" max={99}>
+            {unreadCount > 0 ? <NotificationsRoundedIcon /> : <NotificationsNoneRoundedIcon />}
           </Badge>
         </IconButton>
       </Tooltip>
@@ -115,150 +172,116 @@ export default function NotificationBell() {
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        PaperProps={{
-          sx: {
-            width: 360,
-            maxHeight: 520,
-            display: 'flex',
-            flexDirection: 'column',
-            bgcolor: 'rgba(12, 20, 38, 0.97)',
-            border: '1px solid',
-            borderColor: 'divider',
-            backdropFilter: 'blur(12px)',
+        slotProps={{
+          paper: {
+            sx: {
+              width: { xs: 340, sm: 400 },
+              maxHeight: 560,
+              display: 'flex',
+              flexDirection: 'column',
+              bgcolor: 'rgba(12, 20, 38, 0.98)',
+              border: '1px solid',
+              borderColor: 'divider',
+              backdropFilter: 'blur(12px)',
+            },
           },
         }}
       >
-        {/* Header */}
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ px: 2, py: 1.5, flexShrink: 0 }}
-        >
-          <Typography fontWeight={700} sx={{ fontSize: '0.95rem' }}>
-            Notifications
-            {unreadCount > 0 && (
-              <Typography
-                component="span"
-                sx={{
-                  ml: 1,
-                  px: 0.8,
-                  py: 0.1,
-                  borderRadius: 1,
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  bgcolor: 'error.main',
-                  color: '#fff',
-                }}
-              >
-                {unreadCount} new
-              </Typography>
-            )}
-          </Typography>
-
-          {unreadCount > 0 && (
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.4 }}>
+          <Typography fontWeight={700}>Notifications</Typography>
+          {currentUnread > 0 && (
             <Button
               size="small"
-              onClick={handleMarkAll}
+              onClick={() => markAllReadMutation.mutate()}
               disabled={markAllReadMutation.isPending}
-              sx={{ textTransform: 'none', fontSize: '0.78rem', color: 'primary.light' }}
+              sx={{ textTransform: 'none' }}
             >
-              Mark all read
+              Mark this tab read
             </Button>
           )}
         </Stack>
 
+        {isAccountant && (
+          <Tabs
+            value={selectedView}
+            onChange={(_event, next) => setSelectedView(next)}
+            variant="fullWidth"
+            aria-label="notification views"
+          >
+            <Tab value="personal" label={`Global (${counts.personalUnread || 0})`} />
+            <Tab
+              value="company"
+              disabled={!activeCompanyId}
+              label={`${activeCompany?.name || 'Company'} (${counts.companyUnread || 0})`}
+            />
+          </Tabs>
+        )}
+
         <Divider />
-
-        {/* Body */}
         <Box sx={{ overflowY: 'auto', flex: 1 }}>
-          {isLoading && (
-            <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
-              <CircularProgress size={24} />
-            </Stack>
+          {inboxQuery.isLoading && (
+            <Stack alignItems="center" sx={{ py: 4 }}><CircularProgress size={24} /></Stack>
           )}
-
-          {!isLoading && notifications.length === 0 && (
-            <Stack alignItems="center" justifyContent="center" sx={{ py: 5 }}>
+          {inboxQuery.isError && (
+            <Alert severity="error" sx={{ m: 2 }} action={<Button onClick={() => inboxQuery.refetch()}>Retry</Button>}>
+              Notifications could not be loaded.
+            </Alert>
+          )}
+          {!inboxQuery.isLoading && !inboxQuery.isError && notifications.length === 0 && (
+            <Stack alignItems="center" sx={{ py: 5 }}>
               <NotificationsNoneRoundedIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
-              <Typography variant="body2" color="text.secondary">
-                No notifications yet
-              </Typography>
+              <Typography variant="body2" color="text.secondary">No notifications here</Typography>
             </Stack>
           )}
-
-          {!isLoading && notifications.length > 0 && (
+          {notifications.length > 0 && (
             <List disablePadding>
-              {notifications.map((n, idx) => (
-                <Box key={n.id}>
-                  <ListItem
+              {notifications.map((item, index) => (
+                <Box key={item.id}>
+                  <ListItemButton
                     alignItems="flex-start"
-                    onClick={() => !n.isRead && handleMarkRead(n.id)}
+                    onClick={() => handleNotificationClick(item)}
                     sx={{
-                      cursor: n.isRead ? 'default' : 'pointer',
-                      bgcolor: n.isRead ? 'transparent' : 'rgba(88,166,255,0.06)',
-                      transition: 'background 0.15s',
-                      '&:hover': {
-                        bgcolor: 'rgba(255,255,255,0.04)',
-                      },
+                      bgcolor: item.isRead ? 'transparent' : 'rgba(88,166,255,0.08)',
                       px: 2,
-                      py: 1.2,
-                      gap: 1.5,
+                      py: 1.25,
+                      gap: 1.4,
                     }}
                   >
-                    {/* Severity dot */}
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: SEVERITY_COLORS[n.severity] ?? SEVERITY_COLORS.info,
-                        flexShrink: 0,
-                        mt: 0.75,
-                      }}
-                    />
-
+                    <Box sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: SEVERITY_COLORS[item.severity] || SEVERITY_COLORS.info,
+                      mt: 0.8,
+                      flexShrink: 0,
+                    }} />
                     <ListItemText
-                      primary={
-                        <Typography
-                          variant="body2"
-                          fontWeight={n.isRead ? 400 : 700}
-                          sx={{ lineHeight: 1.4, color: n.isRead ? 'text.secondary' : 'text.primary' }}
-                        >
-                          {n.title}
-                        </Typography>
-                      }
-                      secondary={
-                        <Stack spacing={0.3} sx={{ mt: 0.3 }}>
-                          {n.body && (
-                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
-                              {n.body}
-                            </Typography>
-                          )}
+                      primary={<Typography variant="body2" fontWeight={item.isRead ? 400 : 700}>{item.title}</Typography>}
+                      secondary={(
+                        <Stack spacing={0.35} sx={{ mt: 0.35 }}>
+                          {item.body && <Typography variant="caption" color="text.secondary">{item.body}</Typography>}
                           <Typography variant="caption" color="text.disabled">
-                            {formatRelativeTime(n.createdAt)}
+                            {[item.companyName, formatRelativeTime(item.createdAt)].filter(Boolean).join(' · ')}
                           </Typography>
                         </Stack>
-                      }
+                      )}
                     />
-
-                    {!n.isRead && (
-                      <Box
-                        sx={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          bgcolor: 'primary.main',
-                          flexShrink: 0,
-                          mt: 0.9,
-                        }}
-                      />
-                    )}
-                  </ListItem>
-                  {idx < notifications.length - 1 && <Divider sx={{ opacity: 0.3 }} />}
+                    {item.link && <OpenInNewRoundedIcon sx={{ fontSize: 16, color: 'text.disabled', mt: 0.5 }} />}
+                  </ListItemButton>
+                  {index < notifications.length - 1 && <Divider sx={{ opacity: 0.3 }} />}
                 </Box>
               ))}
             </List>
+          )}
+          {inboxQuery.hasNextPage && (
+            <Button
+              fullWidth
+              onClick={() => inboxQuery.fetchNextPage()}
+              disabled={inboxQuery.isFetchingNextPage}
+              sx={{ my: 1, textTransform: 'none' }}
+            >
+              {inboxQuery.isFetchingNextPage ? 'Loading…' : 'Load older notifications'}
+            </Button>
           )}
         </Box>
       </Popover>

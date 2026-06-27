@@ -30,6 +30,7 @@ import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
@@ -82,6 +83,10 @@ function InvoicesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
   const { isConnected: isRealtimeConnected, subscribe: subscribeRealtime } = useRealtime()
+  const [searchParams] = useSearchParams()
+  const deepLinkedInvoiceId = Number(searchParams.get('invoiceId')) || null
+  const deepLinkedJobId = Number(searchParams.get('jobId')) || null
+  const deepLinkHandledRef = useRef(null)
 
   // --- Invoice list state ---
   const [invoices, setInvoices] = useState([])
@@ -666,6 +671,54 @@ function InvoicesPage() {
     },
     [token],
   )
+
+  useEffect(() => {
+    const deepLinkKey = deepLinkedInvoiceId
+      ? `invoice-${deepLinkedInvoiceId}`
+      : deepLinkedJobId
+        ? `job-${deepLinkedJobId}`
+        : null
+    if (!deepLinkKey || deepLinkHandledRef.current === deepLinkKey) return
+    deepLinkHandledRef.current = deepLinkKey
+
+    const openTarget = async () => {
+      if (deepLinkedInvoiceId) {
+        await openSavedInvoiceVerification(deepLinkedInvoiceId)
+        return
+      }
+
+      try {
+        const job = await getUploadJobStatus(deepLinkedJobId, token)
+        let invoiceId = null
+        if (job?.resultJson) {
+          try {
+            invoiceId = JSON.parse(job.resultJson)?.invoiceId || null
+          } catch {
+            invoiceId = null
+          }
+        }
+        if (invoiceId) {
+          await openSavedInvoiceVerification(invoiceId)
+          return
+        }
+        setSnack({
+          open: true,
+          severity: job?.status === 'failed' ? 'error' : 'info',
+          message: job?.status === 'failed'
+            ? 'This upload failed. You can upload the file again from this page.'
+            : `Upload status: ${job?.status || 'unknown'}.`,
+        })
+      } catch (err) {
+        setSnack({
+          open: true,
+          severity: 'warning',
+          message: err.message || 'This upload is no longer available.',
+        })
+      }
+    }
+
+    openTarget()
+  }, [deepLinkedInvoiceId, deepLinkedJobId, openSavedInvoiceVerification, token])
 
   const handleSaveVerification = useCallback(
     async (formData) => {

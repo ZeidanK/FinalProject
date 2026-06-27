@@ -40,7 +40,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // PATCH api/admin/users/{id}/toggle
         [HttpPatch("users/{id:long}/toggle")]
-        public IActionResult ToggleUserActive(long id)
+        public async Task<IActionResult> ToggleUserActive(long id)
         {
             var (userId, isActive) = _svc.ToggleUserActive(id);
             var payload = new
@@ -50,18 +50,26 @@ namespace FinalProjectAuthAPI.Controllers
                 message = isActive ? "User activated." : "User deactivated."
             };
 
-            _ = _realtime.NotifyUserEventAsync(userId, "admin.user.active_toggled", payload,
-                title: isActive ? "Account activated" : "Account deactivated",
-                body: isActive
+            await _realtime.CreateUserNotificationAsync(userId, new FinalProjectAuthAPI.Models.NotificationMessage
+            {
+                EventType = FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserActiveToggled,
+                Title = isActive ? "Account activated" : "Account deactivated",
+                Body = isActive
                     ? "Your account has been activated by an administrator."
                     : "Your account has been deactivated. Contact support if this is an error.",
-                severity: isActive ? "success" : "error");
-            _ = _realtime.NotifyAdminsEventAsync("admin.user.active_toggled", new
+                Severity = isActive ? "success" : "error",
+                TargetType = FinalProjectAuthAPI.Models.NotificationTargetTypes.Profile,
+                TargetId = userId.ToString(),
+                DedupeKey = $"admin-user:{userId}:active:{isActive}:{DateTime.UtcNow.Ticks}",
+            }, payload);
+            await _realtime.NotifyAdminsEventAsync(FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserActiveToggled, new
             {
                 targetUserId = userId,
                 isActive,
                 changedByUserId = GetCurrentUserId()
             });
+            if (!isActive)
+                await _realtime.RevokeUserAccessAsync(userId);
 
             return SuccessWithLegacy(payload, payload, payload.message);
         }

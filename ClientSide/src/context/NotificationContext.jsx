@@ -12,17 +12,20 @@ import { NotificationContext } from './NotificationContextProvider'
 export function NotificationProvider({ children }) {
   const [queue, setQueue] = useState([])
 
-  const notify = useCallback(({ message, severity = 'info', autoHideMs = 5000 }) => {
+  const notify = useCallback(({ message, severity = 'info', autoHideMs = 5000, eventId }) => {
     if (!message) return
 
     const item = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: eventId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       message,
       severity,
       autoHideMs,
     }
 
-    setQueue((prev) => [...prev, item])
+    setQueue((prev) => {
+      if (prev.some((entry) => entry.id === item.id)) return prev
+      return [...prev, item].slice(-3)
+    })
   }, [])
 
   const dismiss = useCallback((id) => {

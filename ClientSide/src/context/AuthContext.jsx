@@ -8,6 +8,8 @@ import {
 } from '../services/auth'
 import { getCompaniesByUser } from '../services/companies'
 import { AuthContext } from './AuthContextProvider'
+import { queryClient } from '../queries/queryClient'
+import { notificationKeys } from '../queries/queryKeys'
 
 /**
  * Provides authentication state and helpers to the app.
@@ -24,6 +26,7 @@ export function AuthProvider({ children }) {
    */
   const logout = useCallback(() => {
     clearAuthSession()
+    queryClient.removeQueries({ queryKey: notificationKeys.all })
     setAuthSession(null)
   }, [])
 

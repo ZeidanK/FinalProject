@@ -10,107 +10,143 @@ namespace FinalProjectAuthAPI.BL
     {
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly DBservices _db;
+        private readonly RealtimeConnectionRegistry _registry;
+        private readonly ILogger<RealtimeNotificationService> _logger;
 
-        public RealtimeNotificationService(IHubContext<NotificationHub> hubContext, DBservices db)
+        public RealtimeNotificationService(
+            IHubContext<NotificationHub> hubContext,
+            DBservices db,
+            RealtimeConnectionRegistry registry,
+            ILogger<RealtimeNotificationService> logger)
         {
             _hubContext = hubContext;
             _db = db;
+            _registry = registry;
+            _logger = logger;
         }
 
-        public async Task NotifyCompanyEventAsync(long companyId, string eventType, object payload,
-            string? title = null, string? body = null, string? severity = null, string? link = null)
+        public Task NotifyCompanyEventAsync(long companyId, string eventType, object payload)
         {
             if (companyId <= 0 || string.IsNullOrWhiteSpace(eventType))
-                return;
+                return Task.CompletedTask;
 
-            var envelope = new RealtimeEventEnvelope
-            {
-                EventType = eventType,
-                CompanyId = companyId,
-                Payload = payload,
-                EmittedAtUtc = DateTime.UtcNow
-            };
-
-            await _hubContext.Clients
-                .Group(RealtimeGroups.Company(companyId))
-                .SendAsync("notificationEvent", envelope);
-
-            if (!string.IsNullOrWhiteSpace(title))
-            {
-                var userIds = _db.GetActiveUserIdsByCompany(companyId);
-                foreach (var uid in userIds)
-                {
-                    _db.CreateNotification(new CreateNotificationRequest
-                    {
-                        UserId    = uid,
-                        EventType = eventType,
-                        Title     = title,
-                        Body      = body ?? string.Empty,
-                        Severity  = severity ?? "info",
-                        CompanyId = companyId,
-                        Link      = link,
-                    });
-                }
-            }
+            return SafeSendAsync(
+                () => _hubContext.Clients.Group(RealtimeGroups.Company(companyId))
+                    .SendAsync("notificationEvent", CreateEnvelope(eventType, payload, companyId: companyId)),
+                eventType);
         }
 
-        public async Task NotifyUserEventAsync(long userId, string eventType, object payload,
-            string? title = null, string? body = null, string? severity = null,
-            long? companyId = null, string? link = null)
+        public Task NotifyUserEventAsync(long userId, string eventType, object payload)
         {
             if (userId <= 0 || string.IsNullOrWhiteSpace(eventType))
+                return Task.CompletedTask;
+
+            return SafeSendAsync(
+                () => _hubContext.Clients.Group(RealtimeGroups.User(userId))
+                    .SendAsync("notificationEvent", CreateEnvelope(eventType, payload, userId: userId)),
+                eventType);
+        }
+
+        public Task NotifyGroupEventAsync(string groupName, string eventType, object payload)
+        {
+            if (string.IsNullOrWhiteSpace(groupName) || string.IsNullOrWhiteSpace(eventType))
+                return Task.CompletedTask;
+
+            return SafeSendAsync(
+                () => _hubContext.Clients.Group(groupName)
+                    .SendAsync("notificationEvent", CreateEnvelope(eventType, payload)),
+                eventType);
+        }
+
+        public Task NotifyAdminsEventAsync(string eventType, object payload) =>
+            NotifyGroupEventAsync(RealtimeGroups.Admins, eventType, payload);
+
+        public async Task CreateUserNotificationAsync(
+            long userId,
+            NotificationMessage message,
+            object payload,
+            long? companyId = null)
+        {
+            if (userId <= 0)
                 return;
 
-            var envelope = new RealtimeEventEnvelope
+            try
             {
-                EventType = eventType,
-                UserId = userId,
-                Payload = payload,
-                EmittedAtUtc = DateTime.UtcNow
-            };
-
-            await _hubContext.Clients
-                .Group(RealtimeGroups.User(userId))
-                .SendAsync("notificationEvent", envelope);
-
-            if (!string.IsNullOrWhiteSpace(title))
-            {
-                _db.CreateNotification(new CreateNotificationRequest
+                NotificationCatalog.Validate(message, NotificationScopes.Personal);
+                var eventId = Guid.NewGuid();
+                var request = new CreateNotificationRequest
                 {
-                    UserId    = userId,
-                    EventType = eventType,
-                    Title     = title,
-                    Body      = body ?? string.Empty,
-                    Severity  = severity ?? "info",
+                    UserId = userId,
+                    EventId = eventId,
+                    EventType = message.EventType,
+                    Scope = NotificationScopes.Personal,
+                    Title = message.Title,
+                    Body = message.Body,
+                    Severity = message.Severity,
                     CompanyId = companyId,
-                    Link      = link,
-                });
+                    Link = NotificationCatalog.BuildLink(message.TargetType, message.TargetId),
+                    TargetType = message.TargetType,
+                    TargetId = message.TargetId,
+                    DedupeKey = message.DedupeKey,
+                };
+
+                var id = await ExecuteWithRetryAsync(() => _db.CreateNotification(request));
+                if (id <= 0)
+                    return;
+
+                var row = _db.GetNotificationById(id, userId);
+                if (row != null)
+                    await _hubContext.Clients.Group(RealtimeGroups.User(userId)).SendAsync("notificationCreated", row);
+
+                await NotifyUserEventAsync(userId, message.EventType, payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to create personal notification {EventType} for user {UserId}",
+                    message.EventType, userId);
             }
         }
 
-        public async Task NotifyGroupEventAsync(string groupName, string eventType, object payload)
+        public async Task CreateCompanyNotificationAsync(
+            long companyId,
+            NotificationMessage message,
+            object payload,
+            long? excludeUserId = null,
+            long? excludeUserId2 = null)
         {
-            if (string.IsNullOrWhiteSpace(groupName) || string.IsNullOrWhiteSpace(eventType))
+            if (companyId <= 0)
                 return;
 
-            var envelope = new RealtimeEventEnvelope
+            try
             {
-                EventType = eventType,
-                Payload = payload,
-                EmittedAtUtc = DateTime.UtcNow
-            };
+                NotificationCatalog.Validate(message, NotificationScopes.Company);
+                var eventId = Guid.NewGuid();
+                var rows = await ExecuteWithRetryAsync(() =>
+                    _db.CreateCompanyNotifications(companyId, eventId, message, excludeUserId, excludeUserId2));
 
-            await _hubContext.Clients
-                .Group(groupName)
-                .SendAsync("notificationEvent", envelope);
+                await Task.WhenAll(rows.Select(row =>
+                    _hubContext.Clients
+                        .Group(RealtimeGroups.User(row.UserId))
+                        .SendAsync("notificationCreated", row)));
+
+                await NotifyCompanyEventAsync(companyId, message.EventType, payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to create company notification {EventType} for company {CompanyId}",
+                    message.EventType, companyId);
+            }
         }
 
-        public Task NotifyAdminsEventAsync(string eventType, object payload)
-        {
-            return NotifyGroupEventAsync(RealtimeGroups.Admins, eventType, payload);
-        }
+        public Task NotifyReadStateChangedAsync(long userId, object payload) =>
+            SafeSendAsync(
+                () => _hubContext.Clients.Group(RealtimeGroups.User(userId))
+                    .SendAsync("notificationReadStateChanged", payload),
+                "notification.read_state_changed");
 
-        public async Task NotifyUploadJobUpdatedAsync(UploadJobRow job)
+        public Task NotifyUploadJobUpdatedAsync(UploadJobRow job)
         {
             var payload = new
             {
@@ -120,21 +156,103 @@ namespace FinalProjectAuthAPI.BL
                 job.CompanyId,
                 job.UserId,
                 job.ProgressPercent,
-                job.ResultJson,
-                job.ErrorMessage,
-                job.FilePath,
                 job.FileOriginalName,
-                job.FileType,
-                job.FileSize,
                 job.UpdatedAt,
                 job.CompletedAt
             };
 
-            await _hubContext.Clients
-                .Group(RealtimeGroups.Company(job.CompanyId))
-                .SendAsync("uploadJobUpdated", payload);
+            return SafeSendAsync(
+                () => _hubContext.Clients.Group(RealtimeGroups.User(job.UserId))
+                    .SendAsync("uploadJobUpdated", payload),
+                "uploadjob.updated");
+        }
 
-            await NotifyCompanyEventAsync(job.CompanyId, "uploadjob.updated", payload);
+        public async Task RevokeCompanyAccessAsync(long userId, long companyId)
+        {
+            foreach (var connectionId in _registry.GetUserConnections(userId))
+            {
+                try
+                {
+                    await Task.WhenAll(
+                        _hubContext.Groups.RemoveFromGroupAsync(connectionId, RealtimeGroups.Company(companyId)),
+                        _hubContext.Groups.RemoveFromGroupAsync(connectionId, RealtimeGroups.CompanyOwners(companyId)),
+                        _hubContext.Groups.RemoveFromGroupAsync(connectionId, RealtimeGroups.CompanyAccountants(companyId)));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to revoke realtime company {CompanyId} from user {UserId}",
+                        companyId, userId);
+                }
+                finally
+                {
+                    _registry.LeaveCompany(connectionId, companyId);
+                }
+            }
+        }
+
+        public async Task RevokeUserAccessAsync(long userId)
+        {
+            foreach (var connectionId in _registry.GetUserConnections(userId))
+            {
+                foreach (var companyId in _registry.GetConnectionCompanies(connectionId))
+                    await RevokeCompanyAccessAsync(userId, companyId);
+
+                try
+                {
+                    await _hubContext.Groups.RemoveFromGroupAsync(connectionId, RealtimeGroups.User(userId));
+                    await _hubContext.Groups.RemoveFromGroupAsync(connectionId, RealtimeGroups.Admins);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to revoke realtime access from user {UserId}", userId);
+                }
+            }
+        }
+
+        private static RealtimeEventEnvelope CreateEnvelope(
+            string eventType,
+            object payload,
+            long? companyId = null,
+            long? userId = null) => new()
+            {
+                EventType = eventType,
+                CompanyId = companyId,
+                UserId = userId,
+                Payload = payload,
+                EmittedAtUtc = DateTime.UtcNow,
+            };
+
+        private static async Task<T> ExecuteWithRetryAsync<T>(Func<T> action)
+        {
+            Exception? last = null;
+            foreach (var delay in new[] { 0, 100, 300 })
+            {
+                try
+                {
+                    if (delay > 0)
+                        await Task.Delay(delay);
+                    return action();
+                }
+                catch (Exception ex)
+                {
+                    last = ex;
+                }
+            }
+
+            throw last ?? new InvalidOperationException("Notification persistence failed.");
+        }
+
+        private async Task SafeSendAsync(Func<Task> send, string eventType)
+        {
+            try
+            {
+                await send();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Realtime event {EventType} could not be delivered", eventType);
+            }
         }
     }
 }

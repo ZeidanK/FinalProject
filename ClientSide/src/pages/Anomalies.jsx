@@ -35,6 +35,7 @@ import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
@@ -487,6 +488,8 @@ function AnomaliesPage() {
   const queryClient = useQueryClient()
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
+  const [searchParams] = useSearchParams()
+  const deepLinkedAnomalyId = Number(searchParams.get('anomalyId')) || null
 
   const [status, setStatus] = useState('open')
   const [type, setType] = useState('')
@@ -603,6 +606,11 @@ function AnomaliesPage() {
     },
     [reset],
   )
+
+  useEffect(() => {
+    if (!deepLinkedAnomalyId) return
+    handleOpenDetails(deepLinkedAnomalyId)
+  }, [deepLinkedAnomalyId, handleOpenDetails])
 
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)

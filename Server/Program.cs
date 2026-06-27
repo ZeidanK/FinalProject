@@ -38,6 +38,7 @@ builder.Services.AddScoped<IUploadJobService, UploadJobService>();
 builder.Services.AddScoped<IUploadJobWorker, UploadJobWorker>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimeNotificationService, RealtimeNotificationService>();
+builder.Services.AddSingleton<RealtimeConnectionRegistry>();
 builder.Services.AddSignalR();
 
 var hangfireConnectionString = builder.Configuration.GetConnectionString("myProjDB");
@@ -159,5 +160,10 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHangfireDashboard("/hangfire");
 app.MapHub<NotificationHub>("/api/realtime/notifications");
+
+RecurringJob.AddOrUpdate<INotificationService>(
+    "notification-retention",
+    service => service.CleanupExpired(90, 365),
+    Cron.Daily);
 
 app.Run();

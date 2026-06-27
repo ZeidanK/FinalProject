@@ -7,7 +7,7 @@ BEGIN
 
     UPDATE dbo.FP26_notifications
     SET is_read = 1,
-        read_at = GETDATE()
+        read_at = SYSUTCDATETIME()
     WHERE id      = @Id
       AND user_id = @UserId
       AND is_read = 0;

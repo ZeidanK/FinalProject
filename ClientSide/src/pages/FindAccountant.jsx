@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Alert,
   Avatar,
@@ -24,6 +24,7 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { useSearchParams } from 'react-router-dom'
 import {
   getPublicAccountants,
   sendAccountantRequest,
@@ -46,6 +47,11 @@ const cardSx = {
 export default function FindAccountant() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
+  const [searchParams] = useSearchParams()
+  const targetAccountantId = Number(searchParams.get('accountantId')) || null
+  const accountantRefs = useRef(new Map())
+  const [highlightedAccountantId, setHighlightedAccountantId] = useState(null)
+  const [targetUnavailable, setTargetUnavailable] = useState(false)
 
   const [accountants, setAccountants] = useState([])
   const [loading, setLoading] = useState(true)
@@ -73,6 +79,23 @@ export default function FindAccountant() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!targetAccountantId || loading) return undefined
+    const exists = accountants.some((accountant) => Number(accountant.id) === targetAccountantId)
+    const element = accountantRefs.current.get(targetAccountantId)
+    if (!exists || !element) {
+      setTargetUnavailable(true)
+      return undefined
+    }
+
+    setTargetUnavailable(false)
+    setHighlightedAccountantId(targetAccountantId)
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    element.focus({ preventScroll: true })
+    const timer = globalThis.setTimeout(() => setHighlightedAccountantId(null), 4000)
+    return () => globalThis.clearTimeout(timer)
+  }, [accountants, loading, targetAccountantId])
 
   const handleSendRequest = async (accountantId) => {
     if (!activeCompanyId) return
@@ -155,6 +178,12 @@ export default function FindAccountant() {
         </Alert>
       )}
 
+      {targetUnavailable && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          This accountant is no longer available for the active company.
+        </Alert>
+      )}
+
       <TextField
         placeholder="Search by name or email…"
         value={search}
@@ -188,7 +217,21 @@ export default function FindAccountant() {
         <>
           <Stack spacing={2}>
             {filtered.map((accountant) => (
-              <Card key={accountant.id} elevation={0} sx={cardSx}>
+              <Card
+                key={accountant.id}
+                ref={(node) => {
+                  if (node) accountantRefs.current.set(Number(accountant.id), node)
+                  else accountantRefs.current.delete(Number(accountant.id))
+                }}
+                tabIndex={-1}
+                elevation={0}
+                sx={{
+                  ...cardSx,
+                  borderColor: highlightedAccountantId === Number(accountant.id) ? 'primary.main' : 'divider',
+                  boxShadow: highlightedAccountantId === Number(accountant.id) ? '0 0 0 3px rgba(88,166,255,0.22)' : 'none',
+                  transition: 'border-color 0.2s, box-shadow 0.2s',
+                }}
+              >
                 <CardContent sx={{ p: 2.5 }}>
                   <Stack
                     direction="row"

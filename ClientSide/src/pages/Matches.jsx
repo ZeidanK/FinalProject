@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -31,6 +32,8 @@ import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
 import { motion, AnimatePresence } from 'framer-motion'
 import PageSectionLayout from '../components/PageSectionLayout'
 import PageHeaderCard from '../components/PageHeaderCard'
@@ -502,6 +505,7 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
                         </Button>
                       </Stack>
                     </Stack>
+
                   </Box>
                 )
               })}
@@ -566,6 +570,11 @@ function MatchesPage() {
 
   // ----- Installment suggestions denied txn pairs (session-only) -----
   const [deniedInstallmentPairs, setDeniedInstallmentPairs] = useState(new Set())
+
+  // ----- Panel toggles -----
+  const [matchedItemsOpen, setMatchedItemsOpen] = useState(true)
+  const [quickSuggestionsOpen, setQuickSuggestionsOpen] = useState(true)
+  const [installmentSuggestionsOpen, setInstallmentSuggestionsOpen] = useState(true)
 
   // ----- Prevent double auto-match in StrictMode -----
   const autoMatchRanRef = useRef(false)
@@ -1253,90 +1262,207 @@ function MatchesPage() {
             sx={cardBaseSx}
           >
             <CardContent>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                Matched Items ({regularMatches.length})
-              </Typography>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={2}
+                sx={{ mb: 2 }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1.25}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setMatchedItemsOpen((v) => !v)}
+                    aria-label={matchedItemsOpen ? 'Collapse matched items' : 'Expand matched items'}
+                    sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.02)' }}
+                  >
+                    {matchedItemsOpen ? (
+                      <KeyboardArrowUpRoundedIcon fontSize="small" />
+                    ) : (
+                      <KeyboardArrowDownRoundedIcon fontSize="small" />
+                    )}
+                  </IconButton>
 
-              {matchedItemsContent}
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                    sx={{ userSelect: 'none' }}
+                  >
+                    Matched Items ({regularMatches.length})
+                  </Typography>
+                </Stack>
+              </Stack>
+
+              <Collapse in={matchedItemsOpen} timeout="auto" unmountOnExit>
+                {matchedItemsContent}
+              </Collapse>
             </CardContent>
           </Card>
 
           {/* ---- Quick Match Suggestions ---- */}
-          <QuickMatchSuggestions
-            query={simpleSuggestionsQuery}
-            deniedPairs={deniedPairs}
-            invoices={invoices}
-            transactions={transactions}
-            onDeny={(invoiceId, transactionId) =>
-              setDeniedPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
-            }
-            onConfirm={async (suggestion) => {
-              setMatchBusy(true)
-              try {
-                await createMatchMutation.mutateAsync({
-                  invoiceId: suggestion.invoiceId,
-                  transactionId: suggestion.transactionId,
-                  matchedAmount: suggestion.invoiceAmount,
-                  matchMethod: 'simple',
-                  matchType: 'full',
-                  matchConfidence: 1,
-                })
-                setSnack({ open: true, message: 'Match confirmed!', severity: 'success' })
-              } catch (err) {
-                setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
-              } finally {
-                setMatchBusy(false)
-              }
+          <Box
+            sx={{
+              ...cardBaseSx,
+              overflow: 'hidden',
             }}
-            matchBusy={matchBusy}
-          />
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+              sx={{ p: 2 }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1.25}>
+                <IconButton
+                  size="small"
+                  onClick={() => setQuickSuggestionsOpen((v) => !v)}
+                  aria-label={quickSuggestionsOpen ? 'Collapse quick match suggestions' : 'Expand quick match suggestions'}
+                  sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.02)' }}
+                >
+                  {quickSuggestionsOpen ? (
+                    <KeyboardArrowUpRoundedIcon fontSize="small" />
+                  ) : (
+                    <KeyboardArrowDownRoundedIcon fontSize="small" />
+                  )}
+                </IconButton>
+
+                <Typography variant="subtitle1" fontWeight={700} sx={{ userSelect: 'none' }}>
+                  Quick Match Suggestions
+                </Typography>
+
+                <Chip
+                  label={Array.isArray(simpleSuggestionsQuery.data) ? simpleSuggestionsQuery.data.length : 0}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(55,214,122,0.15)', color: '#37d67a' }}
+                />
+              </Stack>
+            </Stack>
+
+            <Collapse in={quickSuggestionsOpen} timeout="auto" unmountOnExit>
+              <Box sx={{ p: 2, pt: 0 }}>
+                <QuickMatchSuggestions
+                  query={simpleSuggestionsQuery}
+                  deniedPairs={deniedPairs}
+                  invoices={invoices}
+                  transactions={transactions}
+                  onDeny={(invoiceId, transactionId) =>
+                    setDeniedPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
+                  }
+                  onConfirm={async (suggestion) => {
+                    setMatchBusy(true)
+                    try {
+                      await createMatchMutation.mutateAsync({
+                        invoiceId: suggestion.invoiceId,
+                        transactionId: suggestion.transactionId,
+                        matchedAmount: suggestion.invoiceAmount,
+                        matchMethod: 'simple',
+                        matchType: 'full',
+                        matchConfidence: 1,
+                      })
+                      setSnack({ open: true, message: 'Match confirmed!', severity: 'success' })
+                    } catch (err) {
+                      setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
+                    } finally {
+                      setMatchBusy(false)
+                    }
+                  }}
+                  matchBusy={matchBusy}
+                />
+              </Box>
+            </Collapse>
+          </Box>
 
           {/* ---- Installment Plan Suggestions ---- */}
-          <InstallmentMatchGroups
-            query={installmentSuggestionsQuery}
-            deniedTxnIds={deniedInstallmentPairs}
-            onDeny={(invoiceId, transactionId) =>
-              setDeniedInstallmentPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
-            }
-            onConfirm={async (group, txn) => {
-              setMatchBusy(true)
-              try {
-                const installmentNumber = (group.alreadyMatchedCount || 0) + 1
-                const expected = group.expectedInstallments
-                const suffix = expected ? ` of ${expected}` : ''
-                const totalAmount = Number(group.totalAmount) || 0
-                const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
-                const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
-                const suggestedAmount = Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
-                const effectiveAmount = Math.min(
-                  suggestedAmount > 0 ? suggestedAmount : remainingAmount,
-                  remainingAmount,
-                )
-
-                if (effectiveAmount <= 0) {
-                  throw new Error('No remaining balance to match for this invoice.')
-                }
-
-                await createMatchMutation.mutateAsync({
-                  invoiceId: group.invoiceId,
-                  transactionId: txn.transactionId,
-                  matchedAmount: effectiveAmount,
-                  matchMethod: 'installment_simple',
-                  matchType: effectiveAmount >= remainingAmount ? 'full' : 'partial',
-                  matchConfidence: 1,
-                  installmentNumber,
-                  installmentNote: `Installment ${installmentNumber}${suffix}`,
-                })
-                setSnack({ open: true, message: `Installment ${installmentNumber} confirmed!`, severity: 'success' })
-              } catch (err) {
-                setSnack({ open: true, message: err.message || 'Failed to confirm installment.', severity: 'error' })
-              } finally {
-                setMatchBusy(false)
-              }
+          <Box
+            sx={{
+              ...cardBaseSx,
+              overflow: 'hidden',
             }}
-            onRemoveMatch={confirmUnmatch}
-            matchBusy={matchBusy}
-          />
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+              sx={{ p: 2 }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1.25}>
+                <IconButton
+                  size="small"
+                  onClick={() => setInstallmentSuggestionsOpen((v) => !v)}
+                  aria-label={installmentSuggestionsOpen ? 'Collapse installment plan suggestions' : 'Expand installment plan suggestions'}
+                  sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.02)' }}
+                >
+                  {installmentSuggestionsOpen ? (
+                    <KeyboardArrowUpRoundedIcon fontSize="small" />
+                  ) : (
+                    <KeyboardArrowDownRoundedIcon fontSize="small" />
+                  )}
+                </IconButton>
+
+                <Typography variant="subtitle1" fontWeight={700} sx={{ userSelect: 'none' }}>
+                  Installment Plan Suggestions
+                </Typography>
+
+                <Chip
+                  label={Array.isArray(installmentSuggestionsQuery.data) ? installmentSuggestionsQuery.data.length : 0}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(88,166,255,0.15)', color: '#58a6ff' }}
+                />
+              </Stack>
+            </Stack>
+
+            <Collapse in={installmentSuggestionsOpen} timeout="auto" unmountOnExit>
+              <Box sx={{ p: 2, pt: 0 }}>
+                <InstallmentMatchGroups
+                  query={installmentSuggestionsQuery}
+                  deniedTxnIds={deniedInstallmentPairs}
+                  onDeny={(invoiceId, transactionId) =>
+                    setDeniedInstallmentPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
+                  }
+                  onConfirm={async (group, txn) => {
+                    setMatchBusy(true)
+                    try {
+                      const installmentNumber = (group.alreadyMatchedCount || 0) + 1
+                      const expected = group.expectedInstallments
+                      const suffix = expected ? ` of ${expected}` : ''
+                      const totalAmount = Number(group.totalAmount) || 0
+                      const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
+                      const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
+                      const suggestedAmount = Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
+                      const effectiveAmount = Math.min(
+                        suggestedAmount > 0 ? suggestedAmount : remainingAmount,
+                        remainingAmount,
+                      )
+
+                      if (effectiveAmount <= 0) {
+                        throw new Error('No remaining balance to match for this invoice.')
+                      }
+
+                      await createMatchMutation.mutateAsync({
+                        invoiceId: group.invoiceId,
+                        transactionId: txn.transactionId,
+                        matchedAmount: effectiveAmount,
+                        matchMethod: 'installment_simple',
+                        matchType: effectiveAmount >= remainingAmount ? 'full' : 'partial',
+                        matchConfidence: 1,
+                        installmentNumber,
+                        installmentNote: `Installment ${installmentNumber}${suffix}`,
+                      })
+                      setSnack({ open: true, message: `Installment ${installmentNumber} confirmed!`, severity: 'success' })
+                    } catch (err) {
+                      setSnack({ open: true, message: err.message || 'Failed to confirm installment.', severity: 'error' })
+                    } finally {
+                      setMatchBusy(false)
+                    }
+                  }}
+                  onRemoveMatch={confirmUnmatch}
+                  matchBusy={matchBusy}
+                />
+              </Box>
+            </Collapse>
+          </Box>
       </PageSectionLayout>
 
       {/* ---- Unmatch Confirmation Dialog ---- */}

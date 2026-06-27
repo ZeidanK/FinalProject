@@ -19,6 +19,8 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly DBservices _db;
         private readonly IWebHostEnvironment _env;
+        private readonly IAnomalyService _anomalySvc;
+        private readonly IRealtimeNotificationService _realtime;
 
         public InvoicesController(
             IInvoiceService svc,
@@ -26,7 +28,9 @@ namespace FinalProjectAuthAPI.Controllers
             IUploadJobService jobSvc,
             IBackgroundJobClient backgroundJobClient,
             DBservices db,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IAnomalyService anomalySvc,
+            IRealtimeNotificationService realtime)
         {
             _svc = svc;
             _fileSvc = fileSvc;
@@ -34,6 +38,8 @@ namespace FinalProjectAuthAPI.Controllers
             _backgroundJobClient = backgroundJobClient;
             _db = db;
             _env = env;
+            _anomalySvc = anomalySvc;
+            _realtime = realtime;
         }
 
         // GET api/invoices/company/{companyId}?status=&startDate=&endDate=&isMatched=
@@ -74,12 +80,32 @@ namespace FinalProjectAuthAPI.Controllers
 
             // Duplicate invoice — saved and flagged; skip auto-match for duplicates
             if (isDuplicate)
+            {
+                var anomaly = _anomalySvc
+                    .GetByCompany(request.CompanyId, status: "open", severity: null, type: "duplicate")
+                    .FirstOrDefault(row => row.RelatedInvoiceId == id
+                        || row.RelatedItems.Any(item => item.EntityId == id));
+                if (anomaly != null)
+                {
+                    await _realtime.CreateCompanyNotificationAsync(request.CompanyId, new NotificationMessage
+                    {
+                        EventType = NotificationEventTypes.AnomalyCreated,
+                        Title = "Duplicate invoice detected",
+                        Body = anomaly.Description ?? "A duplicate invoice requires review.",
+                        Severity = "warning",
+                        TargetType = NotificationTargetTypes.Anomaly,
+                        TargetId = anomaly.Id.ToString(),
+                        DedupeKey = $"anomaly:{anomaly.Id}:created",
+                    }, new { anomalyId = anomaly.Id, companyId = request.CompanyId, invoiceId = id });
+                }
+
                 return CreatedAtAction(nameof(GetById), new { id }, new
                 {
                     id,
                     message = "Invoice already exists and has been saved as a duplicate. It has been flagged in Anomalies.",
                     isDuplicate = true
                 });
+            }
 
             // Optionally attempt automatic matching
             if (autoMatch)

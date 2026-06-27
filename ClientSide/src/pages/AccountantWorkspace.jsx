@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Alert,
   Box,
@@ -28,6 +28,7 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { useSearchParams } from 'react-router-dom'
 import { getUserById, updateUserVisibility } from '../services/users'
 import {
   getAccountantRequests,
@@ -57,6 +58,13 @@ const sectionHeader = (icon, title) => (
 export default function AccountantWorkspace() {
   const { user, token } = useAuth()
   const { setActiveCompanyId, activeCompanyId } = useCompany()
+  const [searchParams] = useSearchParams()
+  const requestTargetId = Number(searchParams.get('requestId')) || null
+  const companyTargetId = Number(searchParams.get('companyId')) || null
+  const requestRefs = useRef(new Map())
+  const companyRefs = useRef(new Map())
+  const [highlightTarget, setHighlightTarget] = useState(null)
+  const [deepLinkMessage, setDeepLinkMessage] = useState(null)
 
   // ── Visibility state ───────────────────────────────────────
   const [isPublic, setIsPublic] = useState(false)
@@ -124,6 +132,29 @@ export default function AccountantWorkspace() {
   useEffect(() => {
     loadCompanies()
   }, [loadCompanies])
+
+  useEffect(() => {
+    const targetId = requestTargetId || companyTargetId
+    if (!targetId) return undefined
+    const isRequest = Boolean(requestTargetId)
+    if ((isRequest && loadingRequests) || (!isRequest && loadingCompanies)) return undefined
+
+    const collection = isRequest ? requests : companies
+    const element = (isRequest ? requestRefs : companyRefs).current.get(targetId)
+    if (!collection.some((item) => Number(item.id) === targetId) || !element) {
+      setDeepLinkMessage(isRequest
+        ? 'This work request is no longer pending or is no longer available.'
+        : 'This company is no longer available in your workspace.')
+      return undefined
+    }
+
+    setDeepLinkMessage(null)
+    setHighlightTarget(`${isRequest ? 'request' : 'company'}-${targetId}`)
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    element.focus({ preventScroll: true })
+    const timer = globalThis.setTimeout(() => setHighlightTarget(null), 4000)
+    return () => globalThis.clearTimeout(timer)
+  }, [companies, companyTargetId, loadingCompanies, loadingRequests, requestTargetId, requests])
 
   // ── Handlers ───────────────────────────────────────────────
   const handleToggleVisibility = async (e) => {
@@ -200,6 +231,8 @@ export default function AccountantWorkspace() {
       <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
         My Workspace
       </Typography>
+
+      {deepLinkMessage && <Alert severity="info" sx={{ mb: 2 }}>{deepLinkMessage}</Alert>}
 
       {/* ══════════════════════════════════════════════════
           SECTION A — Availability toggle
@@ -290,12 +323,19 @@ export default function AccountantWorkspace() {
               {requests.map((req) => (
                 <Box
                   key={req.id}
+                  ref={(node) => {
+                    if (node) requestRefs.current.set(Number(req.id), node)
+                    else requestRefs.current.delete(Number(req.id))
+                  }}
+                  tabIndex={-1}
                   sx={{
                     p: 2,
                     borderRadius: 2.5,
                     border: '1px solid',
-                    borderColor: 'divider',
+                    borderColor: highlightTarget === `request-${req.id}` ? 'primary.main' : 'divider',
                     bgcolor: 'rgba(14, 22, 40, 0.5)',
+                    boxShadow: highlightTarget === `request-${req.id}` ? '0 0 0 3px rgba(88,166,255,0.22)' : 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
                   }}
                 >
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -388,13 +428,19 @@ export default function AccountantWorkspace() {
                 {companies.map((c) => (
                   <Box
                     key={c.id}
+                    ref={(node) => {
+                      if (node) companyRefs.current.set(Number(c.id), node)
+                      else companyRefs.current.delete(Number(c.id))
+                    }}
+                    tabIndex={-1}
                     sx={{
                       p: 2,
                       borderRadius: 2.5,
                       border: '1px solid',
-                      borderColor:
-                        Number(activeCompanyId) === Number(c.id) ? 'primary.main' : 'divider',
+                      borderColor: highlightTarget === `company-${c.id}`
+                        || Number(activeCompanyId) === Number(c.id) ? 'primary.main' : 'divider',
                       bgcolor: 'rgba(14, 22, 40, 0.5)',
+                      boxShadow: highlightTarget === `company-${c.id}` ? '0 0 0 3px rgba(88,166,255,0.22)' : 'none',
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" alignItems="center">

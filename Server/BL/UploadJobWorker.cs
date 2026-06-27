@@ -100,6 +100,9 @@ namespace FinalProjectAuthAPI.BL
 
                     _jobSvc.MarkCompleted(jobId, result);
                     await NotifyUploadJobUpdatedAsync(jobId);
+
+                    if (isDuplicate)
+                        await NotifyDuplicateInvoiceAnomalyAsync(job.CompanyId, invoiceId);
                     return;
                 }
 
@@ -182,6 +185,19 @@ namespace FinalProjectAuthAPI.BL
 
                     _jobSvc.MarkCompleted(jobId, duplicatePayload);
                     await NotifyUploadJobUpdatedAsync(jobId);
+                    if (duplicateResult.AnomalyId.HasValue)
+                    {
+                        await _realtime.CreateCompanyNotificationAsync(job.CompanyId, new NotificationMessage
+                        {
+                            EventType = NotificationEventTypes.AnomalyCreated,
+                            Title = "Duplicate transaction file detected",
+                            Body = "A duplicate transaction upload was detected and skipped.",
+                            Severity = "warning",
+                            TargetType = NotificationTargetTypes.Anomaly,
+                            TargetId = duplicateResult.AnomalyId.Value.ToString(),
+                            DedupeKey = $"anomaly:{duplicateResult.AnomalyId.Value}:created",
+                        }, new { anomalyId = duplicateResult.AnomalyId.Value, job.CompanyId });
+                    }
                     return;
                 }
 
@@ -261,18 +277,65 @@ namespace FinalProjectAuthAPI.BL
             {
                 var isCompleted = status == UploadJobStatuses.Completed;
                 var fileName = updated.FileOriginalName ?? "file";
-                await _realtime.NotifyUserEventAsync(
-                    updated.UserId,
-                    isCompleted ? "uploadjob.completed" : "uploadjob.failed",
-                    new { updated.Id, updated.Status },
-                    title: isCompleted ? "Upload complete" : "Upload failed",
-                    body: isCompleted
+                var isInvoiceJob = updated.JobType == UploadJobTypes.InvoiceUploadPdf
+                    || updated.JobType == UploadJobTypes.InvoiceUploadAndCreate;
+                var invoiceId = isInvoiceJob ? TryGetInvoiceId(updated.ResultJson) : null;
+                await _realtime.CreateUserNotificationAsync(updated.UserId, new NotificationMessage
+                {
+                    EventType = isCompleted ? NotificationEventTypes.UploadCompleted : NotificationEventTypes.UploadFailed,
+                    Title = isCompleted ? "Upload complete" : "Upload failed",
+                    Body = isCompleted
                         ? $"'{fileName}' was processed successfully."
-                        : $"'{fileName}' could not be processed: {updated.ErrorMessage}",
-                    severity: isCompleted ? "success" : "error",
-                    companyId: updated.CompanyId,
-                    link: "/invoices");
+                        : $"'{fileName}' could not be processed. Please review the upload and try again.",
+                    Severity = isCompleted ? "success" : "error",
+                    TargetType = invoiceId.HasValue
+                        ? NotificationTargetTypes.Invoice
+                        : isInvoiceJob
+                            ? NotificationTargetTypes.InvoiceUploadJob
+                            : NotificationTargetTypes.TransactionUploadJob,
+                    TargetId = invoiceId?.ToString() ?? updated.Id.ToString(),
+                    DedupeKey = $"upload-job:{updated.Id}:{status}",
+                }, new { updated.Id, updated.Status }, updated.CompanyId);
             }
+        }
+
+        private async Task NotifyDuplicateInvoiceAnomalyAsync(long companyId, long invoiceId)
+        {
+            var anomaly = _anomalySvc
+                .GetByCompany(companyId, status: "open", severity: null, type: "duplicate")
+                .FirstOrDefault(row => row.RelatedInvoiceId == invoiceId
+                    || row.RelatedItems.Any(item => item.EntityId == invoiceId));
+            if (anomaly == null)
+                return;
+
+            await _realtime.CreateCompanyNotificationAsync(companyId, new NotificationMessage
+            {
+                EventType = NotificationEventTypes.AnomalyCreated,
+                Title = "Duplicate invoice detected",
+                Body = anomaly.Description ?? "A duplicate invoice requires review.",
+                Severity = "warning",
+                TargetType = NotificationTargetTypes.Anomaly,
+                TargetId = anomaly.Id.ToString(),
+                DedupeKey = $"anomaly:{anomaly.Id}:created",
+            }, new { anomalyId = anomaly.Id, companyId, invoiceId });
+        }
+
+        private static long? TryGetInvoiceId(string? resultJson)
+        {
+            if (string.IsNullOrWhiteSpace(resultJson))
+                return null;
+            try
+            {
+                using var document = JsonDocument.Parse(resultJson);
+                if (document.RootElement.TryGetProperty("invoiceId", out var value)
+                    && value.TryGetInt64(out var invoiceId))
+                    return invoiceId;
+            }
+            catch
+            {
+                // Malformed legacy job results fall back to the upload-job destination.
+            }
+            return null;
         }
 
         private static CreateInvoiceRequest BuildInvoiceRequest(long companyId, PdfExtractionResult extracted)

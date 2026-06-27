@@ -3,7 +3,14 @@
  */
 export const notificationKeys = {
   all: ['notifications'],
-  mine: (take) => [...notificationKeys.all, 'mine', take],
+  user: (userId) => [...notificationKeys.all, 'user', userId],
+  mine: (userId, take) => [...notificationKeys.user(userId), 'mine', take],
+  inbox: (userId, view, companyId) => [
+    ...notificationKeys.user(userId),
+    'inbox',
+    view,
+    companyId || null,
+  ],
 }
 
 /**

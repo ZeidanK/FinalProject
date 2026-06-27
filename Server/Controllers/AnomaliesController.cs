@@ -63,24 +63,30 @@ namespace FinalProjectAuthAPI.Controllers
         // POST api/anomalies
         [HttpPost]
         [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
-        public IActionResult Create([FromBody] CreateAnomalyRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateAnomalyRequest request)
         {
             var (success, id, error) = _svc.Create(request);
 
             if (success)
             {
-                _ = _realtime.NotifyCompanyEventAsync(request.CompanyId, "anomaly.created", new
+                var payload = new
                 {
                     anomalyId = id,
                     request.CompanyId,
                     request.AnomalyType,
                     request.Severity,
                     request.Title
-                },
-                title: $"Anomaly detected: {request.Title}",
-                body: request.Description ?? string.Empty,
-                severity: request.Severity == "critical" || request.Severity == "high" ? "error" : "warning",
-                link: "/anomalies");
+                };
+                await _realtime.CreateCompanyNotificationAsync(request.CompanyId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AnomalyCreated,
+                    Title = $"Anomaly detected: {request.Title}",
+                    Body = request.Description ?? string.Empty,
+                    Severity = request.Severity == "critical" || request.Severity == "high" ? "error" : "warning",
+                    TargetType = NotificationTargetTypes.Anomaly,
+                    TargetId = id.ToString(),
+                    DedupeKey = $"anomaly:{id}:created",
+                }, payload);
             }
 
             return success
@@ -97,7 +103,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // PATCH api/anomalies/{id}/resolve
         [HttpPatch("{id:long}/resolve")]
-        public IActionResult Resolve(long id, [FromBody] ResolveAnomalyRequest request)
+        public async Task<IActionResult> Resolve(long id, [FromBody] ResolveAnomalyRequest request)
         {
             var userId = GetCurrentUserId();
             var (success, error) = _svc.Resolve(id, userId, request);
@@ -117,18 +123,24 @@ namespace FinalProjectAuthAPI.Controllers
             var anomaly = _svc.GetById(id);
             if (anomaly != null)
             {
-                _ = _realtime.NotifyCompanyEventAsync(anomaly.CompanyId, "anomaly.resolved", new
+                var notificationPayload = new
                 {
                     anomalyId = id,
                     anomaly.CompanyId,
                     status,
                     resolvedByUserId = userId,
                     request.ResolutionNotes
-                },
-                title: "Anomaly resolved",
-                body: $"Anomaly '{anomaly.Title}' has been marked as {status}.",
-                severity: "success",
-                link: "/anomalies");
+                };
+                await _realtime.CreateCompanyNotificationAsync(anomaly.CompanyId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AnomalyResolved,
+                    Title = status == "open" ? "Anomaly reopened" : "Anomaly resolved",
+                    Body = $"Anomaly '{anomaly.Title}' has been marked as {status}.",
+                    Severity = status == "open" ? "warning" : "success",
+                    TargetType = NotificationTargetTypes.Anomaly,
+                    TargetId = id.ToString(),
+                    DedupeKey = $"anomaly:{id}:status:{status}:{DateTime.UtcNow.Ticks}",
+                }, notificationPayload);
             }
 
             return SuccessWithLegacy(payload, new { message }, message);
@@ -136,7 +148,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // PATCH api/anomalies/{id}/duplicate-invoices/keep
         [HttpPatch("{id:long}/duplicate-invoices/keep")]
-        public IActionResult KeepDuplicateInvoice(long id, [FromBody] KeepDuplicateInvoiceRequest request)
+        public async Task<IActionResult> KeepDuplicateInvoice(long id, [FromBody] KeepDuplicateInvoiceRequest request)
         {
             var userId = GetCurrentUserId();
             var (success, error) = _svc.KeepDuplicateInvoice(id, userId, request);
@@ -150,13 +162,23 @@ namespace FinalProjectAuthAPI.Controllers
             var anomaly = _svc.GetById(id);
             if (anomaly != null)
             {
-                _ = _realtime.NotifyCompanyEventAsync(anomaly.CompanyId, "anomaly.duplicate_invoice.decided", new
+                var notificationPayload = new
                 {
                     anomalyId = id,
                     anomaly.CompanyId,
                     keepInvoiceId = request.KeepInvoiceId,
                     resolvedByUserId = userId
-                });
+                };
+                await _realtime.CreateCompanyNotificationAsync(anomaly.CompanyId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AnomalyDuplicateDecided,
+                    Title = "Duplicate invoice decision saved",
+                    Body = $"A duplicate invoice decision was saved for '{anomaly.Title}'.",
+                    Severity = "info",
+                    TargetType = NotificationTargetTypes.Anomaly,
+                    TargetId = id.ToString(),
+                    DedupeKey = $"anomaly:{id}:duplicate-decision:{request.KeepInvoiceId}",
+                }, notificationPayload);
             }
 
             return SuccessWithLegacy(payload, new { message = "Duplicate invoice decision saved." }, "Duplicate invoice decision saved.");
