@@ -430,7 +430,9 @@ namespace FinalProjectAuthAPI.DAL
             long companyId,
             string invoiceNumber,
             decimal totalAmount,
-            DateTime invoiceDate)
+            DateTime invoiceDate,
+            bool includeDeleted = true,
+            DateTime? createdBefore = null)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -480,6 +482,8 @@ namespace FinalProjectAuthAPI.DAL
                         AND i.invoice_number = @InvoiceNumber
                         AND i.total_amount = @TotalAmount
                         AND CONVERT(date, i.invoice_date) = CONVERT(date, @InvoiceDate)
+                        AND (@IncludeDeleted = 1 OR i.status <> 'deleted')
+                        AND (@CreatedBefore IS NULL OR i.created_at <= @CreatedBefore)
                       ORDER BY
                           CASE WHEN i.status = 'deleted' THEN 1 ELSE 0 END,
                           i.created_at ASC",
@@ -489,6 +493,8 @@ namespace FinalProjectAuthAPI.DAL
                 cmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
                 cmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
                 cmd.Parameters.AddWithValue("@InvoiceDate", invoiceDate.Date);
+                cmd.Parameters.AddWithValue("@IncludeDeleted", includeDeleted);
+                cmd.Parameters.AddWithValue("@CreatedBefore", (object?)createdBefore ?? DBNull.Value);
 
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
@@ -681,6 +687,101 @@ namespace FinalProjectAuthAPI.DAL
             }
         }
 
+        public List<TransactionFileUploadRow> GetTransactionFileUploadsByHash(
+            long companyId,
+            string fileHashSha256,
+            DateTime? createdBefore = null)
+        {
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            var rows = new List<TransactionFileUploadRow>();
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    @"SELECT id, company_id, file_hash_sha256, file_original_name, file_path, file_size, uploaded_by_user_id, created_at, anomaly_id
+                      FROM dbo.FP26_transaction_file_uploads
+                      WHERE company_id = @CompanyId
+                        AND file_hash_sha256 = @FileHash
+                        AND (@CreatedBefore IS NULL OR created_at <= @CreatedBefore)
+                      ORDER BY created_at ASC",
+                    con);
+
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
+                cmd.Parameters.AddWithValue("@CreatedBefore", (object?)createdBefore ?? DBNull.Value);
+
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    rows.Add(new TransactionFileUploadRow
+                    {
+                        Id = Convert.ToInt64(reader["id"]),
+                        CompanyId = Convert.ToInt64(reader["company_id"]),
+                        FileHashSha256 = reader["file_hash_sha256"]?.ToString() ?? string.Empty,
+                        FileOriginalName = reader["file_original_name"] as string,
+                        FilePath = reader["file_path"] as string,
+                        FileSize = reader["file_size"] != DBNull.Value ? Convert.ToInt64(reader["file_size"]) : null,
+                        UploadedByUserId = reader["uploaded_by_user_id"] != DBNull.Value ? Convert.ToInt64(reader["uploaded_by_user_id"]) : null,
+                        CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                        AnomalyId = reader["anomaly_id"] != DBNull.Value ? Convert.ToInt64(reader["anomaly_id"]) : null,
+                    });
+                }
+
+                return rows;
+            }
+            finally
+            {
+                reader?.Close();
+                con?.Close();
+            }
+        }
+
+        public string? GetClosestTransactionFileHash(long companyId, DateTime anomalyCreatedAt)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    @"SELECT TOP 1 file_hash_sha256
+                      FROM dbo.FP26_transaction_file_uploads
+                      WHERE company_id = @CompanyId
+                      ORDER BY ABS(DATEDIFF_BIG(MILLISECOND, created_at, @AnomalyCreatedAt)), created_at ASC",
+                    con);
+
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                cmd.Parameters.AddWithValue("@AnomalyCreatedAt", anomalyCreatedAt);
+                var result = cmd.ExecuteScalar();
+                return result == null || result == DBNull.Value ? null : result.ToString();
+            }
+            finally { con?.Close(); }
+        }
+
+        public bool AssignTransactionFileUploadsByHashAnomaly(
+            long companyId,
+            string fileHashSha256,
+            long anomalyId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = new SqlCommand(
+                    @"UPDATE dbo.FP26_transaction_file_uploads
+                      SET anomaly_id = @AnomalyId
+                      WHERE company_id = @CompanyId
+                        AND file_hash_sha256 = @FileHash",
+                    con);
+
+                cmd.Parameters.AddWithValue("@AnomalyId", anomalyId);
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         public TransactionFileUploadRow? GetTransactionFileUploadById(long uploadId)
         {
             SqlConnection? con = null;
@@ -723,18 +824,76 @@ namespace FinalProjectAuthAPI.DAL
         public bool DeleteTransactionFileUpload(long uploadId)
         {
             SqlConnection? con = null;
+            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"DELETE FROM dbo.FP26_transaction_file_uploads
-                      WHERE id = @UploadId",
-                    con);
+                tx = con.BeginTransaction();
+                var cmd = new SqlCommand(@"
+                    DECLARE @CompanyId BIGINT;
+                    DECLARE @FileHash VARCHAR(64);
+                    DECLARE @AnomalyId BIGINT;
+                    DECLARE @DeletedRows INT = 0;
+
+                    SELECT
+                        @CompanyId = company_id,
+                        @FileHash = file_hash_sha256,
+                        @AnomalyId = anomaly_id
+                    FROM dbo.FP26_transaction_file_uploads
+                    WHERE id = @UploadId;
+
+                    IF @CompanyId IS NULL
+                    BEGIN
+                        SELECT @DeletedRows;
+                        RETURN;
+                    END
+
+                    DELETE FROM dbo.FP26_transaction_file_uploads
+                    WHERE id = @UploadId;
+                    SET @DeletedRows = @@ROWCOUNT;
+
+                    IF (
+                        SELECT COUNT(1)
+                        FROM dbo.FP26_transaction_file_uploads
+                        WHERE company_id = @CompanyId
+                          AND file_hash_sha256 = @FileHash
+                    ) < 2
+                    BEGIN
+                        DELETE a
+                        FROM dbo.FP26_anomalies a
+                        WHERE a.company_id = @CompanyId
+                          AND a.anomaly_type = 'duplicate_transaction_file'
+                          AND a.status = 'open'
+                          AND (
+                              a.id = @AnomalyId
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM dbo.FP26_transaction_file_uploads tfu
+                                  WHERE tfu.anomaly_id = a.id
+                                    AND tfu.file_hash_sha256 = @FileHash
+                              )
+                          );
+                    END
+
+                    SELECT @DeletedRows;",
+                    con,
+                    tx);
 
                 cmd.Parameters.AddWithValue("@UploadId", uploadId);
-                return cmd.ExecuteNonQuery() > 0;
+                var rows = Convert.ToInt32(cmd.ExecuteScalar());
+                tx.Commit();
+                return rows > 0;
             }
-            finally { con?.Close(); }
+            catch
+            {
+                tx?.Rollback();
+                throw;
+            }
+            finally
+            {
+                tx?.Dispose();
+                con?.Close();
+            }
         }
 
         public List<AnomalyRow> GetDuplicateFileAnomaliesByHash(long companyId, string fileHashSha256, string? status)

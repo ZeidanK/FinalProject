@@ -17,7 +17,7 @@ const headerCardSx = {
  * @param {object} props
  * @param {string} props.title - Header title text.
  * @param {string} props.description - Header description text.
- * @param {function(): void} props.onRefresh - Callback invoked when the refresh button is clicked.
+ * @param {function(): void} [props.onRefresh] - Callback invoked when the optional refresh button is clicked.
  * @param {boolean} [props.refreshDisabled] - Whether the refresh button should be disabled.
  * @param {object} [props.variants] - Framer Motion variants for animated rendering.
  * @returns {JSX.Element}
@@ -38,14 +38,16 @@ export default function PageHeaderCard({ title, description, onRefresh, refreshD
             </Typography>
             <Typography color="text.secondary">{description}</Typography>
           </Stack>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshRoundedIcon />}
-            onClick={onRefresh}
-            disabled={refreshDisabled}
-          >
-            Refresh
-          </Button>
+          {onRefresh ? (
+            <Button
+              variant="outlined"
+              startIcon={<RefreshRoundedIcon />}
+              onClick={onRefresh}
+              disabled={refreshDisabled}
+            >
+              Refresh
+            </Button>
+          ) : null}
         </Stack>
       </CardContent>
     </Card>
@@ -55,7 +57,7 @@ export default function PageHeaderCard({ title, description, onRefresh, refreshD
 PageHeaderCard.propTypes = {
   title: PropTypes.string.isRequired,
   description: PropTypes.string.isRequired,
-  onRefresh: PropTypes.func.isRequired,
+  onRefresh: PropTypes.func,
   refreshDisabled: PropTypes.bool,
   variants: PropTypes.object,
 }

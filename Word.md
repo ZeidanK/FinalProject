@@ -45,6 +45,14 @@ These are mostly UI cleanup, text/display changes, or small frontend fixes. -->
 28.	Reports page full implementation — currently nothing works
 29.	Admin page full implementation — currently nothing works
 30.	Testing the Ruppin server to see if the models will run on it
+
+transactions amount display should be the actual transaction and not the big total
+
+we should get what the first payment of the plan was (the 1st is diffrent than the rest in some cases)
+
+invoice upload if high percentage for the ai , then auto accep the verify
+
+matching should work in the background without having to go to the matching page
 <!-- 5. Very hard / AI-heavy task -->
 31.	Invoices extraction is still using API and is very slow — consider building your own AI model
 This is the hardest task because it is not just a normal feature. It needs model choice, training/fine-tuning or OCR pipeline design, testing accuracy, deployment, server resources, and comparison against the current API.

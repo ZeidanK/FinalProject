@@ -26,14 +26,12 @@ import {
   Typography,
 } from '@mui/material'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import ReportProblemRoundedIcon from '@mui/icons-material/ReportProblemRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded'
+import DoNotDisturbOnRoundedIcon from '@mui/icons-material/DoNotDisturbOnRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
-import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded'
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
@@ -48,24 +46,13 @@ import {
   useAnomalyStatsQuery,
   useResolveAnomalyMutation,
 } from '../hooks/queries/useAnomaliesQueries'
-import { deleteTransactionFileUpload, keepDuplicateInvoice } from '../services/anomalies'
+import { keepDuplicateInvoice } from '../services/anomalies'
 import { getInvoiceById } from '../services/invoices'
 import { invoiceKeys } from '../queries/queryKeys'
 import { resolveAnomalySchema } from '../schemas/anomalies'
 import { mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import { itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
-
-/**
- * Maps anomaly severity levels to Material UI chip color variants.
- * @type {{[key: string]: string}}
- */
-const severityColors = {
-  low: 'info',
-  medium: 'warning',
-  high: 'error',
-  critical: 'error',
-}
 
 /**
  * Maps anomaly statuses to Material UI chip color variants.
@@ -75,14 +62,12 @@ const statusColors = {
   open: 'warning',
   resolved: 'success',
   dismissed: 'default',
-  false_positive: 'info',
 }
 
 const statusLabels = {
   open: 'Unresolved',
   resolved: 'Resolved',
   dismissed: 'Dismissed',
-  false_positive: 'False Positive',
 }
 
 /**
@@ -94,19 +79,6 @@ const statusOptions = [
   { value: 'open', label: 'Unresolved' },
   { value: 'resolved', label: 'Resolved' },
   { value: 'dismissed', label: 'Dismissed' },
-  { value: 'false_positive', label: 'False Positive' },
-]
-
-/**
- * Dropdown options used to filter anomalies by severity.
- * @type {{value: string, label: string}[]}
- */
-const severityOptions = [
-  { value: '', label: 'All severities' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
 ]
 
 /**
@@ -118,9 +90,7 @@ const typeOptions = [
   { value: 'amount_mismatch', label: 'Amount Mismatch' },
   { value: 'date_gap', label: 'Date Gap' },
   { value: 'duplicate', label: 'Duplicate' },
-  { value: 'duplicate_transaction_file', label: 'Duplicate Transaction File' },
   { value: 'missing_link', label: 'Missing Link' },
-  { value: 'manual', label: 'Manual' },
 ]
 
 /**
@@ -173,6 +143,9 @@ const toLabel = (value) => {
 
 const toStatusLabel = (value) => statusLabels[value] || toLabel(value)
 
+const toAnomalyTypeLabel = (value) =>
+  value === 'duplicate_transaction_file' ? 'Duplicate' : toLabel(value)
+
 /**
  * Renders the main anomalies list section based on current query state.
  *
@@ -218,9 +191,7 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
             <TableCell>Type</TableCell>
             <TableCell>Title</TableCell>
             <TableCell align="right">Related Items</TableCell>
-            <TableCell>Severity</TableCell>
             <TableCell>Status</TableCell>
-            <TableCell align="right">Amount</TableCell>
             <TableCell>Created</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
@@ -228,27 +199,13 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
         <TableBody>
           {anomalies.map((item) => (
             <TableRow key={item.id} hover>
-              <TableCell>{toLabel(item.anomalyType)}</TableCell>
+              <TableCell>{toAnomalyTypeLabel(item.anomalyType)}</TableCell>
               <TableCell>
-                <Stack spacing={0.2}>
-                  <Typography variant="body2" fontWeight={600}>
-                    {item.title || 'Untitled anomaly'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {item.relatedItemsCount > 1
-                      ? `${item.relatedItemsCount} related records in this grouped issue`
-                      : item.description || 'No description'}
-                  </Typography>
-                </Stack>
+                <Typography variant="body2" fontWeight={600}>
+                  {item.title || 'Untitled anomaly'}
+                </Typography>
               </TableCell>
               <TableCell align="right">{item.relatedItemsCount || 0}</TableCell>
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={toLabel(item.severity)}
-                  color={severityColors[item.severity] || 'default'}
-                />
-              </TableCell>
               <TableCell>
                 <Chip
                   size="small"
@@ -256,7 +213,6 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
                   color={statusColors[item.status] || 'default'}
                 />
               </TableCell>
-              <TableCell align="right">{fmtAmount(item.amount)}</TableCell>
               <TableCell>{fmtDate(item.createdAt)}</TableCell>
               <TableCell align="right">
                 <Button
@@ -317,24 +273,21 @@ function getDetailsContent({
   }
 
   const isOpen = selectedAnomaly.status === 'open'
+  const isDuplicateTransactionFile = selectedAnomaly.anomalyType === 'duplicate_transaction_file'
   const confidence =
     selectedAnomaly.detectionConfidence !== null && selectedAnomaly.detectionConfidence !== undefined
       ? ` (${Math.round(Number(selectedAnomaly.detectionConfidence) * 100)}%)`
       : ''
   const relatedItems = Array.isArray(selectedAnomaly.relatedItems) ? selectedAnomaly.relatedItems : []
   const canCleanupRelatedItems =
+    isOpen &&
     relatedItems.length > 1 &&
-    ['duplicate', 'duplicate_transaction_file'].includes(selectedAnomaly.anomalyType)
+    selectedAnomaly.anomalyType === 'duplicate'
 
   return (
     <Stack spacing={1.2}>
       <Typography variant="h6">{selectedAnomaly.title || 'Untitled anomaly'}</Typography>
       <Stack direction="row" spacing={1}>
-        <Chip
-          size="small"
-          label={toLabel(selectedAnomaly.severity)}
-          color={severityColors[selectedAnomaly.severity] || 'default'}
-        />
         <Chip
           size="small"
           label={toStatusLabel(selectedAnomaly.status)}
@@ -343,11 +296,13 @@ function getDetailsContent({
       </Stack>
 
       <Typography variant="body2" color="text.secondary">
-        {selectedAnomaly.description || 'No description was provided for this anomaly.'}
+        {isDuplicateTransactionFile
+          ? 'This file matches a previously imported transaction file. The duplicate upload was not imported.'
+          : selectedAnomaly.description || 'No description was provided for this anomaly.'}
       </Typography>
 
       <Typography variant="body2">
-        <strong>Type:</strong> {toLabel(selectedAnomaly.anomalyType)}
+        <strong>Type:</strong> {toAnomalyTypeLabel(selectedAnomaly.anomalyType)}
       </Typography>
       <Typography variant="body2">
         <strong>Suggested Action:</strong> {selectedAnomaly.suggestedAction || '—'}
@@ -372,6 +327,7 @@ function getDetailsContent({
                 <Box
                   key={`${item.itemType || 'item'}-${item.entityId || index}`}
                   sx={{
+                    minWidth: 0,
                     px: 1,
                     py: 0.7,
                     borderRadius: 1.25,
@@ -379,13 +335,16 @@ function getDetailsContent({
                     borderColor: 'divider',
                   }}
                 >
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={600} sx={{ overflowWrap: 'anywhere' }}>
                     {item.label || `${toLabel(item.itemType)} #${item.entityId || '—'}`}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', overflowWrap: 'anywhere' }}
+                  >
                     {item.fileName ? `File: ${item.fileName}` : null}
                     {item.fileSize ? ` | Size: ${fmtBytes(item.fileSize)}` : null}
-                    {item.fileHash ? ` | Hash: ${item.fileHash}` : null}
                     {item.amount !== null && item.amount !== undefined ? ` | Amount: ${fmtAmount(item.amount)}` : null}
                     {item.date ? ` | Date: ${fmtDate(item.date)}` : null}
                     {item.status ? ` | Status: ${toStatusLabel(item.status)}` : null}
@@ -406,13 +365,9 @@ function getDetailsContent({
                       ) : null}
                       <Button
                         size="small"
-                        color={item.itemType === 'invoice' ? 'primary' : 'error'}
+                        color="primary"
                         variant="text"
-                        startIcon={
-                          item.itemType === 'invoice'
-                            ? <TaskAltRoundedIcon fontSize="small" />
-                            : <DeleteOutlineRoundedIcon fontSize="small" />
-                        }
+                        startIcon={<TaskAltRoundedIcon fontSize="small" />}
                         disabled={
                           cleanupBusy ||
                           (item.itemType === 'invoice' && selectedAnomaly.status !== 'open' && item.status !== 'deleted')
@@ -421,9 +376,7 @@ function getDetailsContent({
                       >
                         {item.itemType === 'invoice' && selectedAnomaly.status !== 'open' && item.status !== 'deleted'
                           ? 'Kept'
-                          : item.itemType === 'invoice'
-                            ? 'Keep This'
-                            : 'Remove'}
+                          : 'Keep This'}
                       </Button>
                     </Stack>
                   ) : null}
@@ -535,8 +488,7 @@ function AnomaliesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
 
-  const [status, setStatus] = useState('')
-  const [severity, setSeverity] = useState('')
+  const [status, setStatus] = useState('open')
   const [type, setType] = useState('')
   const [queryInput, setQueryInput] = useState('')
   const [query, setQuery] = useState('')
@@ -566,10 +518,9 @@ function AnomaliesPage() {
   const filters = useMemo(
     () => ({
       status,
-      severity,
-      type,
+      type: type === 'duplicate' ? '' : type,
     }),
-    [severity, status, type],
+    [status, type],
   )
 
   const anomaliesQuery = useAnomaliesListQuery({
@@ -616,21 +567,24 @@ function AnomaliesPage() {
   const stats = useMemo(
     () => ({
       byStatus: statsQuery.data?.byStatus || {},
-      bySeverity: statsQuery.data?.bySeverity || {},
     }),
     [statsQuery.data],
   )
 
   const filteredAnomalies = useMemo(() => {
-    if (!query) return anomalies
-
     const q = query.toLowerCase()
     return anomalies.filter((item) => {
+      const matchesType =
+        !type ||
+        (type === 'duplicate'
+          ? ['duplicate', 'duplicate_transaction_file'].includes(item?.anomalyType)
+          : item?.anomalyType === type)
       const titleText = item?.title?.toLowerCase() || ''
       const descriptionText = item?.description?.toLowerCase() || ''
-      return titleText.includes(q) || descriptionText.includes(q)
+      const matchesSearch = !q || titleText.includes(q) || descriptionText.includes(q)
+      return matchesType && matchesSearch
     })
-  }, [anomalies, query])
+  }, [anomalies, query, type])
 
   const totalAnomalies = useMemo(
     () => Object.values(stats.byStatus || {}).reduce((sum, entry) => sum + Number(entry || 0), 0),
@@ -639,11 +593,7 @@ function AnomaliesPage() {
 
   const openCount = Number(stats.byStatus?.open || 0)
   const resolvedCount = Number(stats.byStatus?.resolved || 0)
-  const criticalCount = Number(stats.bySeverity?.critical || 0)
-
-  const handleRefresh = useCallback(async () => {
-    await Promise.all([anomaliesQuery.refetch(), statsQuery.refetch()])
-  }, [anomaliesQuery, statsQuery])
+  const dismissedCount = Number(stats.byStatus?.dismissed || 0)
 
   const handleOpenDetails = useCallback(
     async (anomalyId) => {
@@ -662,7 +612,7 @@ function AnomaliesPage() {
     reset({ resolutionNotes: '' })
   }, [reset, resolveMutation])
 
-  const handleResolve = useCallback(async () => {
+  const handleStatusChange = useCallback(async (nextStatus) => {
     if (!detailsQuery.data?.id) return
 
     const parsed = resolveAnomalySchema.safeParse({
@@ -682,15 +632,16 @@ function AnomaliesPage() {
       await resolveMutation.mutateAsync({
         anomalyId: detailsQuery.data.id,
         payload: {
-          status: 'resolved',
+          status: nextStatus,
           resolutionNotes: parsed.data.resolutionNotes || null,
         },
       })
 
+      const actionLabel = nextStatus === 'dismissed' ? 'dismissed' : 'resolved'
       setSnack({
         open: true,
         severity: 'success',
-        message: 'Anomaly resolved successfully.',
+        message: `Anomaly ${actionLabel} successfully.`,
       })
 
       closeDetails()
@@ -698,45 +649,15 @@ function AnomaliesPage() {
       setSnack({
         open: true,
         severity: 'error',
-        message: err.message || 'Failed to resolve anomaly.',
+        message: err.message || `Failed to ${nextStatus === 'dismissed' ? 'dismiss' : 'resolve'} anomaly.`,
       })
     }
   }, [clearErrors, closeDetails, detailsQuery.data, getValues, resolveMutation, setError])
 
-  const handleReopen = useCallback(async () => {
-    if (!detailsQuery.data?.id) return
-
-    try {
-      await resolveMutation.mutateAsync({
-        anomalyId: detailsQuery.data.id,
-        payload: {
-          status: 'open',
-          resolutionNotes: null,
-        },
-      })
-
-      setSnack({
-        open: true,
-        severity: 'success',
-        message: 'Anomaly marked unresolved.',
-      })
-
-      closeDetails()
-    } catch (err) {
-      setSnack({
-        open: true,
-        severity: 'error',
-        message: err.message || 'Failed to mark anomaly unresolved.',
-      })
-    }
-  }, [closeDetails, detailsQuery.data, resolveMutation])
-
   const handleDeleteRelatedItem = useCallback(async (item) => {
     if (!item?.entityId || !detailsQuery.data) return
 
-    const isInvoice = item.itemType === 'invoice'
-    const isTransactionFile = item.itemType === 'transaction_file'
-    if (!isInvoice && !isTransactionFile) return
+    if (item.itemType !== 'invoice') return
 
     const remainingCount = detailsQuery.data.relatedItems?.length || 0
     if (remainingCount <= 1) {
@@ -749,35 +670,25 @@ function AnomaliesPage() {
     }
 
     const itemLabel = item.label || item.fileName || `${toLabel(item.itemType)} #${item.entityId}`
-    const confirmMessage = isInvoice
-      ? `Keep ${itemLabel} and soft-delete the other duplicate invoices?`
-      : `Remove ${itemLabel}?`
+    const confirmMessage = `Keep ${itemLabel} and soft-delete the other duplicate invoices?`
     const confirmed = globalThis.confirm(confirmMessage)
     if (!confirmed) return
 
     setCleanupTarget(`${item.itemType}-${item.entityId}`)
     try {
-      if (isInvoice) {
-        await keepDuplicateInvoice(detailsQuery.data.id, {
-          keepInvoiceId: item.entityId,
-          resolutionNotes: `Kept ${itemLabel}; soft-deleted the other duplicate invoices.`,
-        }, token)
-      } else {
-        await deleteTransactionFileUpload(item.entityId, token)
-      }
+      await keepDuplicateInvoice(detailsQuery.data.id, {
+        keepInvoiceId: item.entityId,
+        resolutionNotes: `Kept ${itemLabel}; soft-deleted the other duplicate invoices.`,
+      }, token)
 
       setSnack({
         open: true,
         severity: 'success',
-        message: isInvoice
-          ? 'Duplicate invoice decision saved and anomaly resolved.'
-          : 'Duplicate transaction file removed.',
+        message: 'Duplicate invoice decision saved and anomaly resolved.',
       })
 
       await Promise.all([anomaliesQuery.refetch(), statsQuery.refetch()])
-      if (isInvoice) {
-        await queryClient.invalidateQueries({ queryKey: invoiceKeys.all })
-      }
+      await queryClient.invalidateQueries({ queryKey: invoiceKeys.all })
       await detailsQuery.refetch()
     } catch (err) {
       setSnack({
@@ -878,11 +789,11 @@ function AnomaliesPage() {
       icon: <CheckCircleRoundedIcon />,
     },
     {
-      title: 'Critical',
-      value: criticalCount,
-      hint: 'High-impact issues',
-      color: '#ff9d9d',
-      icon: <ReportProblemRoundedIcon />,
+      title: 'Dismissed',
+      value: dismissedCount,
+      hint: 'Dismissed anomalies',
+      color: '#b9c2d0',
+      icon: <DoNotDisturbOnRoundedIcon />,
     },
   ]
 
@@ -891,8 +802,6 @@ function AnomaliesPage() {
       <PageHeaderCard
         title="Anomalies"
         description="Monitor data quality issues and resolve exception cases quickly."
-        onRefresh={handleRefresh}
-        refreshDisabled={listLoading || statsLoading}
       />
 
       <Grid container spacing={2}>
@@ -949,25 +858,10 @@ function AnomaliesPage() {
               label="Status"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              sx={{ minWidth: 170 }}
+              sx={{ minWidth: 185 }}
             >
               {statusOptions.map((option) => (
                 <MenuItem key={option.value || 'all-statuses'} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              size="small"
-              label="Severity"
-              value={severity}
-              onChange={(event) => setSeverity(event.target.value)}
-              sx={{ minWidth: 170 }}
-            >
-              {severityOptions.map((option) => (
-                <MenuItem key={option.value || 'all-severity'} value={option.value}>
                   {option.label}
                 </MenuItem>
               ))}
@@ -1006,25 +900,25 @@ function AnomaliesPage() {
         <DialogActions>
           <Button onClick={closeDetails} disabled={resolveBusy || cleanupBusy}>Close</Button>
           {selectedAnomaly?.status === 'open' ? (
-            !duplicateInvoiceNeedsDecision ? (
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={() => handleStatusChange('dismissed')}
+              disabled={resolveBusy || cleanupBusy || detailsLoading}
+              startIcon={<DoNotDisturbOnRoundedIcon />}
+            >
+              {resolveBusy ? 'Updating...' : 'Dismiss'}
+            </Button>
+          ) : null}
+          {selectedAnomaly?.status === 'open' && !duplicateInvoiceNeedsDecision ? (
               <Button
                 variant="contained"
-                onClick={handleResolve}
+                onClick={() => handleStatusChange('resolved')}
                 disabled={resolveBusy || cleanupBusy || detailsLoading}
                 startIcon={<TaskAltRoundedIcon />}
               >
                 {resolveBusy ? 'Resolving...' : 'Resolve'}
               </Button>
-            ) : null
-          ) : selectedAnomaly ? (
-            <Button
-              variant="outlined"
-              onClick={handleReopen}
-              disabled={resolveBusy || cleanupBusy || detailsLoading}
-              startIcon={<ReplayRoundedIcon />}
-            >
-              {resolveBusy ? 'Updating...' : 'Mark Unresolved'}
-            </Button>
           ) : null}
         </DialogActions>
       </Dialog>

@@ -1,6 +1,7 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -93,7 +94,7 @@ namespace FinalProjectAuthAPI.BL
             long id, long resolvedByUserId,
             ResolveAnomalyRequest req)
         {
-            var validStatuses = new HashSet<string> { "open", "resolved", "dismissed", "false_positive" };
+            var validStatuses = new HashSet<string> { "open", "resolved", "dismissed" };
             var status = (req.Status ?? "resolved").Trim().ToLowerInvariant();
             if (!validStatuses.Contains(status))
                 return (false, "Invalid anomaly status.");
@@ -116,7 +117,7 @@ namespace FinalProjectAuthAPI.BL
                         signature.InvoiceNumber,
                         signature.TotalAmount,
                         signature.InvoiceDate,
-                        status: null);
+                        status: anomaly.Status);
 
                     idsToResolve = groupRows.Select(x => x.Id).Distinct().ToList();
                     duplicateInvoiceIds = _db.GetDuplicateInvoicesBySignature(
@@ -135,7 +136,7 @@ namespace FinalProjectAuthAPI.BL
                 var hash = uploads.FirstOrDefault()?.FileHashSha256;
                 if (!string.IsNullOrWhiteSpace(hash))
                 {
-                    var groupRows = _db.GetDuplicateFileAnomaliesByHash(anomaly.CompanyId, hash, status: null);
+                    var groupRows = _db.GetDuplicateFileAnomaliesByHash(anomaly.CompanyId, hash, status: anomaly.Status);
                     idsToResolve = groupRows.Select(x => x.Id).Distinct().ToList();
                 }
             }
@@ -179,7 +180,7 @@ namespace FinalProjectAuthAPI.BL
                 signature.InvoiceNumber,
                 signature.TotalAmount,
                 signature.InvoiceDate,
-                status: null);
+                status: anomaly.Status);
 
             var anomalyIds = groupRows
                 .Select(x => x.Id)
@@ -194,7 +195,8 @@ namespace FinalProjectAuthAPI.BL
                 anomaly.CompanyId,
                 signature.InvoiceNumber,
                 signature.TotalAmount,
-                signature.InvoiceDate)
+                signature.InvoiceDate,
+                includeDeleted: false)
                 .Select(x => x.Id)
                 .Distinct()
                 .ToList();
@@ -269,7 +271,9 @@ namespace FinalProjectAuthAPI.BL
             string filePath,
             long fileSize,
             long uploadedByUserId,
-            string fileHashSha256)
+            string fileHashSha256,
+            DateTime? firstTransactionDate,
+            DateTime? lastTransactionDate)
         {
             _db.EnsureTransactionFileUploadsTable();
 
@@ -302,12 +306,12 @@ namespace FinalProjectAuthAPI.BL
                 {
                     CompanyId = companyId,
                     AnomalyType = "duplicate_transaction_file",
-                    Title = "Duplicate transaction file upload",
+                    Title = $"Duplicate transaction file - {FormatTransactionPeriod(firstTransactionDate, lastTransactionDate)}",
                     Description =
-                        $"The uploaded Excel file matches a previously uploaded file (SHA-256: {fileHashSha256}). " +
-                        "Review this file group to prevent importing duplicate bank transactions.",
+                        "This Excel file matches a previously imported transaction file. " +
+                        "The duplicate upload was detected and its transactions were not imported.",
                     Severity = "high",
-                    SuggestedAction = "Keep one file upload and discard duplicate uploads.",
+                    SuggestedAction = "No action is required. The original import was kept and the duplicate was skipped.",
                     DetectionMethod = "manual",
                     DetectionConfidence = 1m,
                 });
@@ -318,8 +322,23 @@ namespace FinalProjectAuthAPI.BL
                 anomalyId = createResult.Id;
             }
 
+            // Link only this upload to the current anomaly. Older uploads remain
+            // linked to their historical anomaly; related items are expanded by hash.
             _db.AssignTransactionFileUploadAnomaly(uploadId, anomalyId);
             return (true, anomalyId, true, string.Empty);
+        }
+
+        private static string FormatTransactionPeriod(DateTime? firstDate, DateTime? lastDate)
+        {
+            if (!firstDate.HasValue)
+                return "Unknown period";
+
+            var start = firstDate.Value;
+            var end = lastDate ?? start;
+            if (start.Year == end.Year && start.Month == end.Month)
+                return start.ToString("MMMM yyyy", CultureInfo.InvariantCulture);
+
+            return $"{start.ToString("MMMM yyyy", CultureInfo.InvariantCulture)} - {end.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}";
         }
 
         private sealed class InvoiceSignature
@@ -369,16 +388,18 @@ namespace FinalProjectAuthAPI.BL
                     }
 
                     var key = BuildInvoiceGroupKey(row.CompanyId, signature.InvoiceNumber, signature.TotalAmount, signature.InvoiceDate);
-                    if (!duplicateGroups.TryGetValue(key, out var groupRows))
+                    var groupStatus = string.IsNullOrWhiteSpace(status) ? row.Status : status;
+                    var lookupKey = $"{key}|status:{groupStatus}";
+                    if (!duplicateGroups.TryGetValue(lookupKey, out var groupRows))
                     {
                         groupRows = _db.GetDuplicateInvoiceAnomaliesBySignature(
                             row.CompanyId,
                             signature.InvoiceNumber,
                             signature.TotalAmount,
                             signature.InvoiceDate,
-                            status);
+                            groupStatus);
 
-                        duplicateGroups[key] = groupRows;
+                        duplicateGroups[lookupKey] = groupRows;
                     }
 
                     if (groupRows.Count == 0)
@@ -450,7 +471,9 @@ namespace FinalProjectAuthAPI.BL
                             row.CompanyId,
                             signature.InvoiceNumber,
                             signature.TotalAmount,
-                            signature.InvoiceDate)
+                            signature.InvoiceDate,
+                            includeDeleted: !string.Equals(row.Status, "open", StringComparison.OrdinalIgnoreCase),
+                            createdBefore: row.ResolvedAt)
                         .Select(invoice => new AnomalyRelatedItem
                         {
                             ItemType = "invoice",
@@ -473,8 +496,28 @@ namespace FinalProjectAuthAPI.BL
 
             if (string.Equals(row.AnomalyType, "duplicate_transaction_file", StringComparison.OrdinalIgnoreCase))
             {
-                var uploads = _db.GetTransactionFileUploadsByAnomalyId(row.Id);
-                row.RelatedItems = uploads.Select(upload => new AnomalyRelatedItem
+                var linkedUploads = _db.GetTransactionFileUploadsByAnomalyId(row.Id);
+                var fileHash = linkedUploads.FirstOrDefault()?.FileHashSha256;
+
+                // Older builds reassigned every upload to the newest anomaly. Recover
+                // the historical hash from the upload created closest to this anomaly.
+                if (string.IsNullOrWhiteSpace(fileHash))
+                {
+                    fileHash = _db.GetClosestTransactionFileHash(
+                        row.CompanyId,
+                        row.CreatedAt);
+                }
+
+                var uploads = string.IsNullOrWhiteSpace(fileHash)
+                    ? linkedUploads
+                    : _db.GetTransactionFileUploadsByHash(
+                        row.CompanyId,
+                        fileHash,
+                        string.Equals(row.Status, "open", StringComparison.OrdinalIgnoreCase)
+                            ? null
+                            : row.ResolvedAt);
+
+                row.RelatedItems = uploads.Select((upload, index) => new AnomalyRelatedItem
                 {
                     ItemType = "transaction_file",
                     EntityId = upload.Id,
@@ -484,6 +527,7 @@ namespace FinalProjectAuthAPI.BL
                     FileHash = upload.FileHashSha256,
                     FileSize = upload.FileSize,
                     UploadedAt = upload.CreatedAt,
+                    Status = index == 0 ? "imported" : "not_imported",
                 }).ToList();
 
                 return;

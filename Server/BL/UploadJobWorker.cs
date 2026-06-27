@@ -136,6 +136,22 @@ namespace FinalProjectAuthAPI.BL
                     ? Path.GetFileName(fullPath)
                     : job.FileOriginalName;
 
+                ExcelExtractionResult extraction;
+                using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    extraction = _excelSvc.Extract(stream, fileName);
+                }
+
+                if (extraction.TotalExtracted == 0)
+                {
+                    _jobSvc.MarkFailed(jobId, "No transactions could be extracted from the file.");
+                    await NotifyUploadJobUpdatedAsync(jobId);
+                    return;
+                }
+
+                var firstTransactionDate = extraction.Transactions.Min(t => t.TransactionDate);
+                var lastTransactionDate = extraction.Transactions.Max(t => t.TransactionDate);
+
                 var fileHash = ComputeFileSha256(fullPath);
                 var duplicateResult = _anomalySvc.RegisterTransactionFileUpload(
                     job.CompanyId,
@@ -143,7 +159,9 @@ namespace FinalProjectAuthAPI.BL
                     job.FilePath,
                     new FileInfo(fullPath).Length,
                     job.UserId,
-                    fileHash);
+                    fileHash,
+                    firstTransactionDate,
+                    lastTransactionDate);
 
                 if (!duplicateResult.Success)
                 {
@@ -169,19 +187,6 @@ namespace FinalProjectAuthAPI.BL
 
                 _jobSvc.UpdateProgress(jobId, 50);
                 await NotifyUploadJobUpdatedAsync(jobId);
-
-                ExcelExtractionResult extraction;
-                using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    extraction = _excelSvc.Extract(stream, fileName);
-                }
-
-                if (extraction.TotalExtracted == 0)
-                {
-                    _jobSvc.MarkFailed(jobId, "No transactions could be extracted from the file.");
-                    await NotifyUploadJobUpdatedAsync(jobId);
-                    return;
-                }
 
                 var request = new BulkCreateTransactionsRequest
                 {

@@ -25,6 +25,8 @@ namespace FinalProjectAuthAPI.BL.Interfaces
             string filePath,
             long fileSize,
             long uploadedByUserId,
-            string fileHashSha256);
+            string fileHashSha256,
+            DateTime? firstTransactionDate,
+            DateTime? lastTransactionDate);
     }
 }

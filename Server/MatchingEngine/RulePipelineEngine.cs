@@ -291,35 +291,43 @@ namespace FinalProjectAuthAPI.MatchingEngine
             var activeTransactions = remainingTransactions
                 .Where(t => !matchedTransactionIds.Contains(t.Id)).ToList();
 
+            // If we have installment/payment-plan invoices, we must NOT allow
+            // 5.1 batch payment (one txn -> many invoices) to consume transactions,
+            // otherwise 5.2 installment matching might never see them.
+            var hasPaymentPlanInvoices = activeInvoices.Any(TxPoolClassifier.IsPaymentPlanInvoice);
+
             // ── Rule 5.1: Batch Invoice Payment (One Transaction → Many Invoices) ──
-            foreach (var txn in activeTransactions)
+            if (!hasPaymentPlanInvoices)
             {
-                if (matchedTransactionIds.Contains(txn.Id))
-                    continue;
-
-                var fuzzyScore = ComputeFuzzyScoreForBatch(txn, activeInvoices);
-                var batchMatch = Rule5_1_BatchInvoicePayment.FindBatchMatch(
-                    txn, 
-                    activeInvoices.Where(i => !matchedInvoiceIds.Contains(i.Id)).ToList(),
-                    fuzzyScore);
-
-                if (batchMatch != null && batchMatch.Count > 0)
+                foreach (var txn in activeTransactions)
                 {
-                    foreach (var inv in batchMatch)
+                    if (matchedTransactionIds.Contains(txn.Id))
+                        continue;
+
+                    var fuzzyScore = ComputeFuzzyScoreForBatch(txn, activeInvoices);
+                    var batchMatch = Rule5_1_BatchInvoicePayment.FindBatchMatch(
+                        txn,
+                        activeInvoices.Where(i => !matchedInvoiceIds.Contains(i.Id)).ToList(),
+                        fuzzyScore);
+
+                    if (batchMatch != null && batchMatch.Count > 0)
                     {
-                        result.AutoMatches.Add(new MatchResult
+                        foreach (var inv in batchMatch)
                         {
-                            InvoiceId = inv.Id,
-                            TransactionId = txn.Id,
-                            MatchedAmount = inv.TotalAmount,
-                            RuleLayer = "Layer 5",
-                            RuleName = "Batch Invoice Payment (5.1)",
-                            Confidence = 0.80,
-                            MatchReason = $"Batch payment: transaction {txn.Id} covers {batchMatch.Count} invoices (incl. #{inv.InvoiceNumber}) summing to {Math.Abs(txn.Amount):F2}"
-                        });
-                        matchedInvoiceIds.Add(inv.Id);
+                            result.AutoMatches.Add(new MatchResult
+                            {
+                                InvoiceId = inv.Id,
+                                TransactionId = txn.Id,
+                                MatchedAmount = inv.TotalAmount,
+                                RuleLayer = "Layer 5",
+                                RuleName = "Batch Invoice Payment (5.1)",
+                                Confidence = 0.80,
+                                MatchReason = $"Batch payment: transaction {txn.Id} covers {batchMatch.Count} invoices (incl. #{inv.InvoiceNumber}) summing to {Math.Abs(txn.Amount):F2}"
+                            });
+                            matchedInvoiceIds.Add(inv.Id);
+                        }
+                        matchedTransactionIds.Add(txn.Id);
                     }
-                    matchedTransactionIds.Add(txn.Id);
                 }
             }
 
@@ -516,13 +524,21 @@ namespace FinalProjectAuthAPI.MatchingEngine
         /// </summary>
         public static CreateMatchRequest ToCreateMatchRequest(MatchResult match, long matchedByUserId)
         {
+            var isInstallmentMatch = match.InstallmentNumber.HasValue;
+
+            // Installment matches must never be persisted as "normal" full/partial.
+            // MatchService will still classify full vs partial for non-installment matches.
             return new CreateMatchRequest
             {
                 InvoiceId = match.InvoiceId,
                 TransactionId = match.TransactionId,
                 MatchedAmount = match.MatchedAmount,
                 MatchMethod = "automatic",
-                MatchType = "full",
+
+                // Use a dedicated installment match type marker.
+                // This guarantees installment matches never get written as plain "full".
+                MatchType = isInstallmentMatch ? "installment" : "full",
+
                 MatchConfidence = (decimal)match.Confidence,
                 MatchReason = $"[{match.RuleLayer}] {match.RuleName}: {match.MatchReason}",
                 InstallmentNumber = match.InstallmentNumber,

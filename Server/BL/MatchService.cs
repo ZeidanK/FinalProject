@@ -289,6 +289,17 @@ namespace FinalProjectAuthAPI.BL
             // Persist all auto-matches
             foreach (var match in pipelineResult.AutoMatches)
             {
+                // Hard rule: installment-plan invoices must NEVER get normal full/partial matches.
+                // If the pipeline match is not tagged as installment (InstallmentNumber missing),
+                // skip persistence for installment invoices.
+                var invoice = invoices.FirstOrDefault(i => i.Id == match.InvoiceId) ?? _db.GetInvoiceById(match.InvoiceId);
+                var isInstallmentInvoice =
+                    (invoice?.PaymentPlanTotalInstallments.HasValue ?? false) &&
+                    invoice.PaymentPlanTotalInstallments.Value > 1;
+
+                if (isInstallmentInvoice && !match.InstallmentNumber.HasValue)
+                    continue;
+
                 var matchReq = RulePipelineEngine.ToCreateMatchRequest(match, userId);
                 var createResult = Create(matchReq, userId);
 
@@ -429,8 +440,17 @@ namespace FinalProjectAuthAPI.BL
             if (remaining <= 0)
                 return (false, 0, "Invoice is already fully matched.");
 
-            if (req.MatchedAmount - remaining > 0.01m)
-                return (false, 0, $"Matched amount exceeds remaining balance ({remaining:F2}).");
+            // Installments can have minor rounding/extraction deviations (e.g. expected 113.80 but txn is 117).
+            // Normal (non-installment) matches keep the strict tolerance.
+            var isInstallmentMatch = req.InstallmentNumber.HasValue;
+
+            var installmentOverageTolerance = 2.00m; // allow small overage for installment payments
+            var normalOverageTolerance = 0.01m;
+
+            var allowedOverage = isInstallmentMatch ? installmentOverageTolerance : normalOverageTolerance;
+
+            if (req.MatchedAmount - remaining > allowedOverage)
+                return (false, 0, $"Matched amount exceeds remaining balance ({remaining:F2}). AllowedOverage={allowedOverage:F2}");
 
             var id = _db.CreateMatch(
                 req.InvoiceId, req.TransactionId, req.MatchedAmount,

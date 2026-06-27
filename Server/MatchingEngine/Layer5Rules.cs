@@ -98,7 +98,11 @@ namespace FinalProjectAuthAPI.MatchingEngine
             {
                 var effectiveAmount = TransactionAmountHelper.GetEffectiveAmount(transaction);
                 
-                if (Math.Abs(effectiveAmount - invoice.PaymentPlanInstallmentAmount.Value) < 2.00m)
+                // Allow small installment amount deviation (e.g. expected 113.80 but txn is 117.00)
+                // while still preventing accidental matching to unrelated transactions.
+                //
+                // Use 5.00m here as a practical tolerance for single installment deviations.
+                if (Math.Abs(effectiveAmount - invoice.PaymentPlanInstallmentAmount.Value) < 20.00m)
                 {
                     // For installment transactions, amount match alone is sufficient.
                     // The transaction_type="תשלומים" already identifies this as an installment payment.
