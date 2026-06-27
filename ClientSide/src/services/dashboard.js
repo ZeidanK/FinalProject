@@ -69,8 +69,9 @@ export async function getRecentActivity({ companyId, token }) {
 
   items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
-  return items.slice(0, 8)
+  return items.slice(0, 5)
 }
+
 
 /**
  * Map raw dashboard stats into KPI cards.

@@ -252,7 +252,7 @@ SidebarContent.propTypes = {
  */
 function AuthenticatedLayout() {
   const { user, logout, token } = useAuth()
-  const { companies, activeCompanyId } = useCompany()
+  const { companies, activeCompanyId, activeCompanyName } = useCompany()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -263,14 +263,15 @@ function AuthenticatedLayout() {
   const isAccountant = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
   const activeCompany =
     activeCompanyId && Array.isArray(companies)
-      ? companies.find((c) => String(c.id) === String(activeCompanyId))
+      ? companies.find((c) => String(c.id ?? c.companyId) === String(activeCompanyId))
       : null
+  const displayedCompanyName = activeCompany?.name || activeCompany?.companyName || activeCompanyName
 
-  const showWorkingWith = isAccountant && activeCompany && token
+  const showWorkingWith = isAccountant && displayedCompanyName && token
 
   const workingWithText = (
     <Typography variant="body2" sx={{ ml: 3, color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
-      Working With: <span style={{ color: '#cde7ff', fontWeight: 700 }}>{activeCompany?.name}</span>
+      Working With: <span style={{ color: '#cde7ff', fontWeight: 700 }}>{displayedCompanyName}</span>
     </Typography>
   )
 

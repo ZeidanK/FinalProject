@@ -46,6 +46,8 @@ import { useAuth } from '../context/useAuth'
 import {
   useClearAdminAuditLogsMutation,
   useClearAdminLogsMutation,
+  useDeleteAdminAuditLogMutation,
+  useDeleteAdminLogMutation,
   useAdminAuditQuery,
   useAdminLogsQuery,
   useAdminStatsQuery,
@@ -598,6 +600,7 @@ function AdminPortalPage() {
   const [toggleLoadingUserId, setToggleLoadingUserId] = useState(null)
   const [pendingToggleUser, setPendingToggleUser] = useState(null)
   const [pendingClearLogsType, setPendingClearLogsType] = useState(null)
+  const [pendingDeleteLog, setPendingDeleteLog] = useState(null)
 
   const [logsQuery, setLogsQuery] = useState({ page: 1, limit: 50, level: null, category: null })
   const [logsLevelInput, setLogsLevelInput] = useState('')
@@ -634,6 +637,8 @@ function AdminPortalPage() {
   const toggleUserMutation = useToggleAdminUserActiveMutation({ token })
   const clearLogsMutation = useClearAdminLogsMutation({ token })
   const clearAuditLogsMutation = useClearAdminAuditLogsMutation({ token })
+  const deleteLogMutation = useDeleteAdminLogMutation({ token })
+  const deleteAuditLogMutation = useDeleteAdminAuditLogMutation({ token })
 
   const stats = statsQuery.data && typeof statsQuery.data === 'object' ? statsQuery.data : null
   const statsLoading = statsQuery.isLoading || statsQuery.isFetching
@@ -826,6 +831,36 @@ function AdminPortalPage() {
       setSnack({
         open: true,
         message: error.message || 'Failed to clear logs.',
+        severity: 'error',
+      })
+    }
+  }
+
+  const handleDeleteLogRequest = (type, log) => {
+    setPendingDeleteLog({ type, id: log.id })
+  }
+
+  const handleConfirmDeleteLog = async () => {
+    if (!pendingDeleteLog) return
+
+    const { type, id } = pendingDeleteLog
+    setPendingDeleteLog(null)
+
+    try {
+      const result =
+        type === TAB_KEYS.logs
+          ? await deleteLogMutation.mutateAsync({ id })
+          : await deleteAuditLogMutation.mutateAsync({ id })
+
+      setSnack({
+        open: true,
+        message: result?.message || 'Log entry deleted.',
+        severity: 'success',
+      })
+    } catch (error) {
+      setSnack({
+        open: true,
+        message: error.message || 'Failed to delete log entry.',
         severity: 'error',
       })
     }
@@ -1149,13 +1184,14 @@ function AdminPortalPage() {
                     <TableCell>User ID</TableCell>
                     <TableCell>IP</TableCell>
                     <TableCell>Created</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {logsLoading &&
                     Array.from({ length: 6 }, (_, index) => index).map((index) => (
                       <TableRow key={`logs-loading-${index}`}>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={9}>
                           <Skeleton variant="rounded" height={24} />
                         </TableCell>
                       </TableRow>
@@ -1163,7 +1199,7 @@ function AdminPortalPage() {
 
                   {!logsLoading && logsData.items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         <EmptyState
                           title="No system health events found"
                           description="This is normal when there are no warnings or errors for the selected filters."
@@ -1194,6 +1230,18 @@ function AdminPortalPage() {
                           <TableCell>{log.userId ?? '-'}</TableCell>
                           <TableCell>{log.ipAddress || '-'}</TableCell>
                           <TableCell>{formatDateTime(log.createdAt)}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={<DeleteSweepRoundedIcon />}
+                              disabled={deleteLogMutation.isPending}
+                              onClick={() => handleDeleteLogRequest(TAB_KEYS.logs, log)}
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       )
                     })}
@@ -1265,13 +1313,14 @@ function AdminPortalPage() {
                     <TableCell>Company</TableCell>
                     <TableCell>IP</TableCell>
                     <TableCell>Created</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {auditLoading &&
                     Array.from({ length: 6 }, (_, index) => index).map((index) => (
                       <TableRow key={`audit-loading-${index}`}>
-                        <TableCell colSpan={7}>
+                        <TableCell colSpan={8}>
                           <Skeleton variant="rounded" height={24} />
                         </TableCell>
                       </TableRow>
@@ -1279,7 +1328,7 @@ function AdminPortalPage() {
 
                   {!auditLoading && visibleAuditItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <EmptyState
                           title="No audit logs found"
                           description="No audit events matched your current filters."
@@ -1321,6 +1370,18 @@ function AdminPortalPage() {
                           <TableCell>{log.companyId ?? '-'}</TableCell>
                           <TableCell>{log.ipAddress || '-'}</TableCell>
                           <TableCell>{formatDateTime(log.createdAt)}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={<DeleteSweepRoundedIcon />}
+                              disabled={deleteAuditLogMutation.isPending}
+                              onClick={() => handleDeleteLogRequest(TAB_KEYS.audit, log)}
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       )
                     })}
@@ -1386,6 +1447,35 @@ function AdminPortalPage() {
             disabled={clearLogsMutation.isPending || clearAuditLogsMutation.isPending}
           >
             Clear logs
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(pendingDeleteLog)}
+        onClose={() => setPendingDeleteLog(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          Delete {pendingDeleteLog?.type === TAB_KEYS.audit ? 'audit log' : 'system log'} entry?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will permanently delete log entry #{pendingDeleteLog?.id}. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingDeleteLog(null)} color="secondary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteLog}
+            color="error"
+            variant="contained"
+            disabled={deleteLogMutation.isPending || deleteAuditLogMutation.isPending}
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

@@ -135,6 +135,44 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('dbo.FP26_sp_Admin_ClearSystemLogs', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.FP26_sp_Admin_ClearSystemLogs;
+GO
+
+CREATE PROCEDURE dbo.FP26_sp_Admin_ClearSystemLogs
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DeletedCount INT;
+
+    DELETE FROM dbo.FP26_system_logs;
+    SET @DeletedCount = @@ROWCOUNT;
+
+    SELECT @DeletedCount AS deleted_count;
+END
+GO
+
+IF OBJECT_ID('dbo.FP26_sp_Admin_DeleteSystemLog', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.FP26_sp_Admin_DeleteSystemLog;
+GO
+
+CREATE PROCEDURE dbo.FP26_sp_Admin_DeleteSystemLog
+    @Id BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DeletedCount INT;
+
+    DELETE FROM dbo.FP26_system_logs
+    WHERE id = @Id;
+
+    SET @DeletedCount = @@ROWCOUNT;
+    SELECT @DeletedCount AS deleted_count;
+END
+GO
+
 IF OBJECT_ID('dbo.FP26_sp_Admin_GetAuditLogs', 'P') IS NOT NULL
     DROP PROCEDURE dbo.FP26_sp_Admin_GetAuditLogs;
 GO
@@ -173,5 +211,43 @@ BEGIN
     ORDER BY al.created_at DESC
     OFFSET (@Page - 1) * @Limit ROWS
     FETCH NEXT @Limit ROWS ONLY;
+END
+GO
+
+IF OBJECT_ID('dbo.FP26_sp_Admin_DeleteAuditLog', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.FP26_sp_Admin_DeleteAuditLog;
+GO
+
+CREATE PROCEDURE dbo.FP26_sp_Admin_DeleteAuditLog
+    @Id BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DeletedCount INT;
+
+    DELETE FROM dbo.FP26_audit_logs
+    WHERE id = @Id;
+
+    SET @DeletedCount = @@ROWCOUNT;
+    SELECT @DeletedCount AS deleted_count;
+END
+GO
+
+IF OBJECT_ID('dbo.FP26_sp_Admin_ClearAuditLogs', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.FP26_sp_Admin_ClearAuditLogs;
+GO
+
+CREATE PROCEDURE dbo.FP26_sp_Admin_ClearAuditLogs
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DeletedCount INT;
+
+    DELETE FROM dbo.FP26_audit_logs;
+    SET @DeletedCount = @@ROWCOUNT;
+
+    SELECT @DeletedCount AS deleted_count;
 END
 GO

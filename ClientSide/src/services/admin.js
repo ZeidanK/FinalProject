@@ -74,6 +74,37 @@ export async function getAdminLogs(params = {}, token) {
 }
 
 /**
+ * Clear all system log entries.
+ *
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the clear logs endpoint.
+ */
+export async function clearAdminLogs(token) {
+  const response = await apiRequest(URLS.admin.clearLogs, {
+    method: 'DELETE',
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Delete one system log entry.
+ *
+ * @param {string|number} id - System log id.
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the delete log endpoint.
+ */
+export async function deleteAdminLog(id, token) {
+  const response = await apiRequest(URLS.admin.deleteLog(id), {
+    method: 'DELETE',
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
  * Fetch admin audit logs with paging and optional company filtering.
  *
  * @param {object} [params={}] - Query parameters for audit logs.
@@ -88,6 +119,37 @@ export async function getAdminAuditLogs(params = {}, token) {
 
   const response = await apiRequest(URLS.admin.auditLogs, {
     query: { page, limit, companyId },
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Clear all audit log entries.
+ *
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the clear audit logs endpoint.
+ */
+export async function clearAdminAuditLogs(token) {
+  const response = await apiRequest(URLS.admin.clearAuditLogs, {
+    method: 'DELETE',
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Delete one audit log entry.
+ *
+ * @param {string|number} id - Audit log id.
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the delete audit log endpoint.
+ */
+export async function deleteAdminAuditLog(id, token) {
+  const response = await apiRequest(URLS.admin.deleteAuditLog(id), {
+    method: 'DELETE',
     token,
   })
 

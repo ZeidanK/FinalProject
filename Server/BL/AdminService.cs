@@ -52,5 +52,13 @@ namespace FinalProjectAuthAPI.BL
 
             return _db.GetAuditLogs(page, limit, companyId);
         }
+
+        public int ClearSystemLogs() => _db.ClearSystemLogs();
+
+        public int ClearAuditLogs() => _db.ClearAuditLogs();
+
+        public bool DeleteSystemLog(long id) => id > 0 && _db.DeleteSystemLog(id);
+
+        public bool DeleteAuditLog(long id) => id > 0 && _db.DeleteAuditLog(id);
     }
 }

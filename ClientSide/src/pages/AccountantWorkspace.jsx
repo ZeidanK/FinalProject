@@ -57,7 +57,7 @@ const sectionHeader = (icon, title) => (
 
 export default function AccountantWorkspace() {
   const { user, token } = useAuth()
-  const { setActiveCompanyId, activeCompanyId } = useCompany()
+  const { setActiveCompanyId, activeCompanyId, refreshCompanies } = useCompany()
   const [searchParams] = useSearchParams()
   const requestTargetId = Number(searchParams.get('requestId')) || null
   const companyTargetId = Number(searchParams.get('companyId')) || null
@@ -182,7 +182,7 @@ export default function AccountantWorkspace() {
     setRequestsError(null)
     try {
       await respondToRequest(requestId, accept, token)
-      await Promise.all([loadRequests(), loadCompanies()])
+      await Promise.all([loadRequests(), loadCompanies(), refreshCompanies()])
     } catch (err) {
       setRequestsError(err.message || 'Failed to respond to request.')
     } finally {
@@ -210,6 +210,7 @@ export default function AccountantWorkspace() {
     try {
       await disconnectAccountant(user.id, disconnectCompany.id, token)
       setCompanies((prev) => prev.filter((c) => Number(c.id) !== Number(disconnectCompany.id)))
+      await refreshCompanies()
       setWorkspaceMsg({
         type: 'success',
         text: `${disconnectCompany.name} was removed from your workspace.`,
@@ -473,7 +474,7 @@ export default function AccountantWorkspace() {
                           <Button
                             size="small"
                             variant="outlined"
-                            onClick={() => setActiveCompanyId(c.id)}
+                            onClick={() => setActiveCompanyId(c.id, c.name)}
                           >
                             Set Active
                           </Button>

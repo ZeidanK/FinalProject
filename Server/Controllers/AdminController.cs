@@ -92,6 +92,34 @@ namespace FinalProjectAuthAPI.Controllers
             return SuccessWithLegacy(data, data, "System logs retrieved.");
         }
 
+        // DELETE api/admin/logs
+        [HttpDelete("logs")]
+        public IActionResult ClearLogs()
+        {
+            var deletedCount = _svc.ClearSystemLogs();
+            var payload = new
+            {
+                deletedCount,
+                message = deletedCount == 1
+                    ? "1 system log entry cleared."
+                    : $"{deletedCount} system log entries cleared."
+            };
+
+            return SuccessWithLegacy(payload, payload, payload.message);
+        }
+
+        // DELETE api/admin/logs/{id}
+        [HttpDelete("logs/{id:long}")]
+        public IActionResult DeleteLog(long id)
+        {
+            var deleted = _svc.DeleteSystemLog(id);
+            if (!deleted)
+                return NotFound(new { message = "System log entry was not found." });
+
+            var payload = new { id, message = "System log entry deleted." };
+            return SuccessWithLegacy(payload, payload, payload.message);
+        }
+
         // GET api/admin/audit-logs?page=&limit=&companyId=
         [HttpGet("audit-logs")]
         public IActionResult GetAuditLogs(
@@ -101,6 +129,34 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var data = _svc.GetAuditLogs(page, limit, companyId);
             return SuccessWithLegacy(data, data, "Audit logs retrieved.");
+        }
+
+        // DELETE api/admin/audit-logs
+        [HttpDelete("audit-logs")]
+        public IActionResult ClearAuditLogs()
+        {
+            var deletedCount = _svc.ClearAuditLogs();
+            var payload = new
+            {
+                deletedCount,
+                message = deletedCount == 1
+                    ? "1 audit log entry cleared."
+                    : $"{deletedCount} audit log entries cleared."
+            };
+
+            return SuccessWithLegacy(payload, payload, payload.message);
+        }
+
+        // DELETE api/admin/audit-logs/{id}
+        [HttpDelete("audit-logs/{id:long}")]
+        public IActionResult DeleteAuditLog(long id)
+        {
+            var deleted = _svc.DeleteAuditLog(id);
+            if (!deleted)
+                return NotFound(new { message = "Audit log entry was not found." });
+
+            var payload = new { id, message = "Audit log entry deleted." };
+            return SuccessWithLegacy(payload, payload, payload.message);
         }
     }
 }

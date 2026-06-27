@@ -141,6 +141,7 @@ namespace FinalProjectAuthAPI.DAL
                             Details   = reader["details"]   as string,
                             UserId    = reader[COL_USER_ID]   != DBNull.Value ? Convert.ToInt64(reader[COL_USER_ID]) : null,
                             IpAddress = reader["ip_address"] as string,
+                            UserAgent = reader["user_agent"] as string,
                             CreatedAt = Convert.ToDateTime(reader["created_at"]),
                         });
 
@@ -193,5 +194,6 @@ namespace FinalProjectAuthAPI.DAL
             }
             finally { reader?.Close(); con?.Close(); }
         }
+
     }
 }
