@@ -20,7 +20,6 @@ import {
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded'
 import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
-import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -31,7 +30,6 @@ import {
   useMarkNotificationReadMutation,
   useNotificationsInboxQuery,
 } from '../hooks/queries/useNotificationsQueries'
-import { notificationKeys } from '../queries/queryKeys'
 
 const SEVERITY_COLORS = {
   success: '#4ade80',
@@ -61,11 +59,10 @@ const formatRelativeTime = (dateStr) => {
 
 export default function NotificationBell() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const { token, user } = useAuth()
   const { companies, activeCompanyId, setActiveCompanyId } = useCompany()
   const { notify } = useNotification()
-  const { subscribe: subscribeRealtime } = useRealtime()
+  const { connectionState, isConnected: isRealtimeConnected } = useRealtime()
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
   const [selectedView, setSelectedView] = useState(isAccountant ? 'personal' : 'combined')
@@ -80,6 +77,7 @@ export default function NotificationBell() {
     userId: user?.id,
     view,
     companyId: queryCompanyId,
+    isRealtimeConnected,
   })
   const markReadMutation = useMarkNotificationReadMutation({
     token,
@@ -103,13 +101,6 @@ export default function NotificationBell() {
     ? Number(counts.personalUnread || 0) + Number(counts.companyUnread || 0)
     : Number(counts.visibleUnread || 0)
   const activeCompany = companies.find((company) => Number(company.id) === Number(activeCompanyId))
-
-  useEffect(() => {
-    const refresh = () => queryClient.invalidateQueries({ queryKey: notificationKeys.user(user?.id) })
-    const unsubCreated = subscribeRealtime('notificationCreated', refresh)
-    const unsubRead = subscribeRealtime('notificationReadStateChanged', refresh)
-    return () => { unsubCreated(); unsubRead() }
-  }, [queryClient, subscribeRealtime, user?.id])
 
   useEffect(() => {
     if (!pendingNavigation) return
@@ -155,14 +146,38 @@ export default function NotificationBell() {
     : view === 'company'
       ? Number(counts.companyUnread || 0)
       : Number(counts.visibleUnread || 0)
+  const connectionTooltip = isRealtimeConnected
+    ? 'Notifications'
+    : connectionState === 'connecting' || connectionState === 'reconnecting'
+      ? 'Notifications are reconnecting'
+      : 'Notifications are offline and syncing periodically'
 
   return (
     <>
-      <Tooltip title="Notifications">
+      <Tooltip title={connectionTooltip}>
         <IconButton color="inherit" onClick={handleOpen} aria-label="open notifications">
-          <Badge badgeContent={unreadCount || null} color="error" max={99}>
-            {unreadCount > 0 ? <NotificationsRoundedIcon /> : <NotificationsNoneRoundedIcon />}
-          </Badge>
+          <Box component="span" sx={{ position: 'relative', display: 'inline-flex' }}>
+            <Badge badgeContent={unreadCount || null} color="error" max={99}>
+              {unreadCount > 0 ? <NotificationsRoundedIcon /> : <NotificationsNoneRoundedIcon />}
+            </Badge>
+            {!isRealtimeConnected && (
+              <Box
+                component="span"
+                sx={{
+                  position: 'absolute',
+                  left: -1,
+                  bottom: -1,
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  bgcolor: connectionState === 'connecting' || connectionState === 'reconnecting'
+                    ? 'warning.main'
+                    : 'error.main',
+                  boxShadow: '0 0 0 2px rgba(8,14,28,0.95)',
+                }}
+              />
+            )}
+          </Box>
         </IconButton>
       </Tooltip>
 

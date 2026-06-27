@@ -983,7 +983,7 @@ function MatchesPage() {
   return (
     <>
       <PageSectionLayout>
-          <PageHeaderCard
+        <PageHeaderCard
             title="Matches"
             description="Match invoices to bank transactions for reconciliation."
             onRefresh={loadData}
@@ -1302,45 +1302,53 @@ function MatchesPage() {
           {/* ---- Quick Match Suggestions ---- */}
           <Box
             sx={{
-              ...cardBaseSx,
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
               overflow: 'hidden',
             }}
           >
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              spacing={2}
-              sx={{ p: 2 }}
-            >
-              <Stack direction="row" alignItems="center" spacing={1.25}>
-                <IconButton
-                  size="small"
-                  onClick={() => setQuickSuggestionsOpen((v) => !v)}
-                  aria-label={quickSuggestionsOpen ? 'Collapse quick match suggestions' : 'Expand quick match suggestions'}
-                  sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.02)' }}
-                >
-                  {quickSuggestionsOpen ? (
-                    <KeyboardArrowUpRoundedIcon fontSize="small" />
-                  ) : (
-                    <KeyboardArrowDownRoundedIcon fontSize="small" />
-                  )}
-                </IconButton>
+            <CardContent sx={{ pb: quickSuggestionsOpen ? 0 : 2 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={2}
+                sx={{ mb: 1.5 }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1.25}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setQuickSuggestionsOpen((v) => !v)}
+                    aria-label={
+                      quickSuggestionsOpen ? 'Collapse quick match suggestions' : 'Expand quick match suggestions'
+                    }
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'rgba(255,255,255,0.02)',
+                    }}
+                  >
+                    {quickSuggestionsOpen ? (
+                      <KeyboardArrowUpRoundedIcon fontSize="small" />
+                    ) : (
+                      <KeyboardArrowDownRoundedIcon fontSize="small" />
+                    )}
+                  </IconButton>
 
-                <Typography variant="subtitle1" fontWeight={700} sx={{ userSelect: 'none' }}>
-                  Quick Match Suggestions
-                </Typography>
-
-                <Chip
-                  label={Array.isArray(simpleSuggestionsQuery.data) ? simpleSuggestionsQuery.data.length : 0}
-                  size="small"
-                  sx={{ bgcolor: 'rgba(55,214,122,0.15)', color: '#37d67a' }}
-                />
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                    sx={{ userSelect: 'none' }}
+                  >
+                    Quick Match Suggestions (
+                    {Array.isArray(simpleSuggestionsQuery.data) ? simpleSuggestionsQuery.data.length : 0})
+                  </Typography>
+                </Stack>
               </Stack>
-            </Stack>
 
-            <Collapse in={quickSuggestionsOpen} timeout="auto" unmountOnExit>
-              <Box sx={{ p: 2, pt: 0 }}>
+              <Collapse in={quickSuggestionsOpen} timeout="auto" unmountOnExit>
                 <QuickMatchSuggestions
                   query={simpleSuggestionsQuery}
                   deniedPairs={deniedPairs}
@@ -1362,59 +1370,73 @@ function MatchesPage() {
                       })
                       setSnack({ open: true, message: 'Match confirmed!', severity: 'success' })
                     } catch (err) {
-                      setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
+                      setSnack({
+                        open: true,
+                        message: err.message || 'Failed to create match.',
+                        severity: 'error',
+                      })
                     } finally {
                       setMatchBusy(false)
                     }
                   }}
                   matchBusy={matchBusy}
                 />
-              </Box>
-            </Collapse>
+              </Collapse>
+            </CardContent>
           </Box>
 
           {/* ---- Installment Plan Suggestions ---- */}
           <Box
             sx={{
-              ...cardBaseSx,
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
               overflow: 'hidden',
             }}
           >
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              spacing={2}
-              sx={{ p: 2 }}
-            >
-              <Stack direction="row" alignItems="center" spacing={1.25}>
-                <IconButton
-                  size="small"
-                  onClick={() => setInstallmentSuggestionsOpen((v) => !v)}
-                  aria-label={installmentSuggestionsOpen ? 'Collapse installment plan suggestions' : 'Expand installment plan suggestions'}
-                  sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.02)' }}
-                >
-                  {installmentSuggestionsOpen ? (
-                    <KeyboardArrowUpRoundedIcon fontSize="small" />
-                  ) : (
-                    <KeyboardArrowDownRoundedIcon fontSize="small" />
-                  )}
-                </IconButton>
+            <CardContent sx={{ pb: installmentSuggestionsOpen ? 0 : 2 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={2}
+                sx={{ mb: 1.5 }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1.25}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setInstallmentSuggestionsOpen((v) => !v)}
+                    aria-label={
+                      installmentSuggestionsOpen
+                        ? 'Collapse installment plan suggestions'
+                        : 'Expand installment plan suggestions'
+                    }
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'rgba(255,255,255,0.02)',
+                    }}
+                  >
+                    {installmentSuggestionsOpen ? (
+                      <KeyboardArrowUpRoundedIcon fontSize="small" />
+                    ) : (
+                      <KeyboardArrowDownRoundedIcon fontSize="small" />
+                    )}
+                  </IconButton>
 
-                <Typography variant="subtitle1" fontWeight={700} sx={{ userSelect: 'none' }}>
-                  Installment Plan Suggestions
-                </Typography>
-
-                <Chip
-                  label={Array.isArray(installmentSuggestionsQuery.data) ? installmentSuggestionsQuery.data.length : 0}
-                  size="small"
-                  sx={{ bgcolor: 'rgba(88,166,255,0.15)', color: '#58a6ff' }}
-                />
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                    sx={{ userSelect: 'none' }}
+                  >
+                    Installment Plan Suggestions (
+                    {Array.isArray(installmentSuggestionsQuery.data) ? installmentSuggestionsQuery.data.length : 0})
+                  </Typography>
+                </Stack>
               </Stack>
-            </Stack>
 
-            <Collapse in={installmentSuggestionsOpen} timeout="auto" unmountOnExit>
-              <Box sx={{ p: 2, pt: 0 }}>
+              <Collapse in={installmentSuggestionsOpen} timeout="auto" unmountOnExit>
                 <InstallmentMatchGroups
                   query={installmentSuggestionsQuery}
                   deniedTxnIds={deniedInstallmentPairs}
@@ -1430,7 +1452,8 @@ function MatchesPage() {
                       const totalAmount = Number(group.totalAmount) || 0
                       const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
                       const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
-                      const suggestedAmount = Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
+                      const suggestedAmount =
+                        Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
                       const effectiveAmount = Math.min(
                         suggestedAmount > 0 ? suggestedAmount : remainingAmount,
                         remainingAmount,
@@ -1450,9 +1473,17 @@ function MatchesPage() {
                         installmentNumber,
                         installmentNote: `Installment ${installmentNumber}${suffix}`,
                       })
-                      setSnack({ open: true, message: `Installment ${installmentNumber} confirmed!`, severity: 'success' })
+                      setSnack({
+                        open: true,
+                        message: `Installment ${installmentNumber} confirmed!`,
+                        severity: 'success',
+                      })
                     } catch (err) {
-                      setSnack({ open: true, message: err.message || 'Failed to confirm installment.', severity: 'error' })
+                      setSnack({
+                        open: true,
+                        message: err.message || 'Failed to confirm installment.',
+                        severity: 'error',
+                      })
                     } finally {
                       setMatchBusy(false)
                     }
@@ -1460,8 +1491,8 @@ function MatchesPage() {
                   onRemoveMatch={confirmUnmatch}
                   matchBusy={matchBusy}
                 />
-              </Box>
-            </Collapse>
+              </Collapse>
+            </CardContent>
           </Box>
       </PageSectionLayout>
 

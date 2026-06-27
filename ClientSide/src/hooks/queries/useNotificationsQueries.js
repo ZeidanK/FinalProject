@@ -17,7 +17,14 @@ const updateNotificationPages = (data, updater) => {
   }
 }
 
-export function useNotificationsInboxQuery({ token, userId, view, companyId, take = 25 }) {
+export function useNotificationsInboxQuery({
+  token,
+  userId,
+  view,
+  companyId,
+  take = 25,
+  isRealtimeConnected = true,
+}) {
   return useInfiniteQuery({
     queryKey: notificationKeys.inbox(userId, view, companyId),
     queryFn: ({ pageParam }) => getNotificationInbox(token, {
@@ -31,6 +38,8 @@ export function useNotificationsInboxQuery({ token, userId, view, companyId, tak
     enabled: Boolean(token && userId && (view !== 'company' || companyId)),
     staleTime: 15_000,
     refetchOnWindowFocus: true,
+    refetchInterval: isRealtimeConnected ? false : 15_000,
+    refetchIntervalInBackground: true,
   })
 }
 

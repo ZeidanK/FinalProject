@@ -96,7 +96,12 @@ namespace FinalProjectAuthAPI.BL
 
                 var row = _db.GetNotificationById(id, userId);
                 if (row != null)
+                {
                     await _hubContext.Clients.Group(RealtimeGroups.User(userId)).SendAsync("notificationCreated", row);
+                    _logger.LogDebug(
+                        "Delivered realtime notification {NotificationId} ({EventType}) to user {UserId}",
+                        row.Id, row.EventType, userId);
+                }
 
                 await NotifyUserEventAsync(userId, message.EventType, payload);
             }
@@ -129,6 +134,10 @@ namespace FinalProjectAuthAPI.BL
                     _hubContext.Clients
                         .Group(RealtimeGroups.User(row.UserId))
                         .SendAsync("notificationCreated", row)));
+
+                _logger.LogDebug(
+                    "Delivered realtime company notification {EventType} to {RecipientCount} recipients for company {CompanyId}",
+                    message.EventType, rows.Count, companyId);
 
                 await NotifyCompanyEventAsync(companyId, message.EventType, payload);
             }
@@ -248,6 +257,7 @@ namespace FinalProjectAuthAPI.BL
             try
             {
                 await send();
+                _logger.LogDebug("Delivered realtime event {EventType}", eventType);
             }
             catch (Exception ex)
             {

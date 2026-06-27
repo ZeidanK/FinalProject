@@ -9,11 +9,16 @@ namespace FinalProjectAuthAPI.Realtime
     {
         private readonly DBservices _db;
         private readonly RealtimeConnectionRegistry _registry;
+        private readonly ILogger<NotificationHub> _logger;
 
-        public NotificationHub(DBservices db, RealtimeConnectionRegistry registry)
+        public NotificationHub(
+            DBservices db,
+            RealtimeConnectionRegistry registry,
+            ILogger<NotificationHub> logger)
         {
             _db = db;
             _registry = registry;
+            _logger = logger;
         }
 
         public override async Task OnConnectedAsync()
@@ -21,6 +26,9 @@ namespace FinalProjectAuthAPI.Realtime
             var userId = GetCurrentUserId();
             if (userId <= 0 || !_db.IsUserActive(userId))
             {
+                _logger.LogWarning(
+                    "Rejected realtime connection {ConnectionId}: invalid or inactive user",
+                    Context.ConnectionId);
                 Context.Abort();
                 return;
             }
@@ -32,12 +40,21 @@ namespace FinalProjectAuthAPI.Realtime
             if (IsAdmin(role))
                 await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.Admins);
 
+            _logger.LogDebug(
+                "Realtime connection {ConnectionId} joined user group for user {UserId}",
+                Context.ConnectionId, userId);
+
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
+            var userId = GetCurrentUserId();
             _registry.Unregister(Context.ConnectionId);
+            _logger.LogDebug(
+                exception,
+                "Realtime connection {ConnectionId} disconnected for user {UserId}",
+                Context.ConnectionId, userId);
             await base.OnDisconnectedAsync(exception);
         }
 
@@ -60,6 +77,10 @@ namespace FinalProjectAuthAPI.Realtime
 
             if (!isCreator && IsAccountantRole(role))
                 await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.CompanyAccountants(companyId));
+
+            _logger.LogDebug(
+                "Realtime connection {ConnectionId} joined company {CompanyId} for user {UserId}",
+                Context.ConnectionId, companyId, userId);
         }
 
         public async Task LeaveCompany(long companyId)

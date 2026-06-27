@@ -127,9 +127,11 @@ builder.Services.AddAuthentication(options =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
+            var fullPath = $"{context.HttpContext.Request.PathBase}{path}";
 
             if (!string.IsNullOrWhiteSpace(accessToken)
-                && path.StartsWithSegments("/api/realtime/notifications"))
+                && (path.StartsWithSegments("/api/realtime/notifications")
+                    || fullPath.Contains("/api/realtime/notifications", StringComparison.OrdinalIgnoreCase)))
             {
                 context.Token = accessToken;
             }
