@@ -9,32 +9,69 @@ namespace FinalProjectAuthAPI.BL
     public class GeminiSettings
     {
         public string ApiKey { get; set; } = string.Empty;
+        public List<string> ApiKeys { get; set; } = new();
         public string Model { get; set; } = "gemini-2.5-flash";
         public List<string> Models { get; set; } = new();
+    }
+
+    public sealed class GeminiApiKeyPool
+    {
+        private readonly IReadOnlyList<GoogleAI> _clients;
+        private int _preferredKeyIndex;
+
+        public GeminiApiKeyPool(GeminiSettings settings)
+        {
+            var keys = new[] { settings.ApiKey }
+                .Concat(settings.ApiKeys ?? new List<string>())
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Select(key => key.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            _clients = keys.Select(key => new GoogleAI(key)).ToList();
+        }
+
+        public int Count => _clients.Count;
+
+        public int PreferredKeyIndex
+        {
+            get
+            {
+                if (Count == 0)
+                    return 0;
+
+                var index = Volatile.Read(ref _preferredKeyIndex);
+                return (index & int.MaxValue) % Count;
+            }
+        }
+
+        public GoogleAI GetClient(int index) => _clients[index];
+
+        public void Prefer(int index) => Volatile.Write(ref _preferredKeyIndex, index);
     }
 
     public class GeminiExtractionService : IGeminiExtractionService
     {
         private readonly GeminiSettings _settings;
+        private readonly GeminiApiKeyPool _keyPool;
         private readonly ILogger<GeminiExtractionService> _logger;
-        private readonly GoogleAI? _googleAI;
         private readonly List<string> _models = new();
 
-        public GeminiExtractionService(GeminiSettings settings, ILogger<GeminiExtractionService> logger)
+        public GeminiExtractionService(
+            GeminiSettings settings,
+            GeminiApiKeyPool keyPool,
+            ILogger<GeminiExtractionService> logger)
         {
             _settings = settings;
+            _keyPool = keyPool;
             _logger = logger;
+            _models = _settings.Models.Count > 0
+                ? _settings.Models
+                : new List<string> { _settings.Model };
 
-            if (string.IsNullOrWhiteSpace(_settings.ApiKey))
+            if (_keyPool.Count == 0)
             {
-                _logger.LogWarning("Gemini API key is not configured. Service will be unavailable.");
-            }
-            else
-            {
-                _googleAI = new GoogleAI(_settings.ApiKey);
-                _models = _settings.Models.Count > 0
-                    ? _settings.Models
-                    : new List<string> { _settings.Model };
+                _logger.LogWarning("No Gemini API keys are configured. Service will be unavailable.");
             }
         }
 
@@ -42,10 +79,10 @@ namespace FinalProjectAuthAPI.BL
         {
             Console.WriteLine("\n========== GEMINI EXTRACTION ATTEMPT ==========");
 
-            if (_googleAI == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
+            if (_keyPool.Count == 0)
             {
-                Console.WriteLine("[ERROR] Gemini service not initialized. API key missing.");
-                _logger.LogWarning("Gemini service not initialized. API key missing.");
+                Console.WriteLine("[ERROR] Gemini service not initialized. API keys missing.");
+                _logger.LogWarning("Gemini service not initialized. API keys missing.");
                 return null;
             }
 
@@ -361,7 +398,7 @@ Look for phrases like:
             finally { _cacheLock.Release(); }
 
             // If Gemini is unavailable, return original only
-            if (_googleAI == null || string.IsNullOrWhiteSpace(_settings.ApiKey))
+            if (_keyPool.Count == 0)
                 return new List<string> { vendorName };
 
             var translatePrompt = @$"Given this company/vendor name: ""{vendorName}""
@@ -413,30 +450,91 @@ If you cannot translate, just return the original name in an array.";
 
         private async Task<T?> TryAllModelsAsync<T>(Func<GenerativeModel, Task<T?>> action, string operationName) where T : class
         {
-            for (int i = 0; i < _models.Count; i++)
-            {
-                var modelName = _models[i];
-                try
-                {
-                    var model = _googleAI!.GenerativeModel(model: modelName);
-                    var result = await action(model);
+            var startingKeyIndex = _keyPool.PreferredKeyIndex;
+            var attemptCount = 0;
 
-                    if (result != null)
-                        return result;
-                }
-                catch (Exception ex)
+            foreach (var modelName in _models)
+            {
+                for (var keyOffset = 0; keyOffset < _keyPool.Count; keyOffset++)
                 {
-                    _logger.LogDebug("{Operation}: model {Model} failed, trying next. Error: {Message}", operationName, modelName, ex.Message);
+                    var keyIndex = (startingKeyIndex + keyOffset) % _keyPool.Count;
+                    attemptCount++;
+
+                    try
+                    {
+                        var model = _keyPool.GetClient(keyIndex).GenerativeModel(model: modelName);
+                        var result = await action(model);
+
+                        if (result != null)
+                        {
+                            if (keyIndex != startingKeyIndex)
+                            {
+                                _logger.LogInformation(
+                                    "{Operation}: Gemini key {KeyNumber} succeeded and is now preferred.",
+                                    operationName,
+                                    keyIndex + 1);
+                            }
+
+                            _keyPool.Prefer(keyIndex);
+                            return result;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (IsQuotaExhaustion(ex))
+                        {
+                            _logger.LogWarning(
+                                "{Operation}: Gemini key {KeyNumber} hit a quota/rate limit for model {Model}; trying the next key.",
+                                operationName,
+                                keyIndex + 1,
+                                modelName);
+                        }
+                        else
+                        {
+                            _logger.LogDebug(
+                                "{Operation}: Gemini key {KeyNumber} failed for model {Model} ({ExceptionType}); trying the next key.",
+                                operationName,
+                                keyIndex + 1,
+                                modelName,
+                                ex.GetType().Name);
+                        }
+                    }
                 }
             }
 
-            _logger.LogError("{Operation}: all {Count} Gemini models exhausted.", operationName, _models.Count);
+            _logger.LogError(
+                "{Operation}: all {AttemptCount} Gemini key/model combinations were exhausted.",
+                operationName,
+                attemptCount);
             return null;
+        }
+
+        private static bool IsQuotaExhaustion(Exception exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                if (current is HttpRequestException httpException
+                    && httpException.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    return true;
+                }
+
+                var message = current.Message;
+                if (message.Contains("429", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("quota", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public async Task<List<VendorComparisonResult>> CompareVendorNamesAsync(string invoiceVendorName, List<string> transactionDescriptions)
         {
-            if (_googleAI == null || string.IsNullOrWhiteSpace(_settings.ApiKey) || transactionDescriptions.Count == 0)
+            if (_keyPool.Count == 0 || transactionDescriptions.Count == 0)
                 return new List<VendorComparisonResult>();
 
             var descriptionsJson = JsonSerializer.Serialize(transactionDescriptions);

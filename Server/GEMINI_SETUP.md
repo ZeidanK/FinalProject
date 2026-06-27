@@ -23,40 +23,46 @@ PDF Upload → iText7/OCR Text Extraction → Gemini AI Parsing → Structured I
 
 ## Setup Instructions
 
-### 1. Get Your Gemini API Key
+### 1. Get Your Gemini API Keys
 
 1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Click **"Get API Key"** or **"Create API Key"**
 3. Create a new key or use an existing one
 4. Copy the API key (looks like: `AIzaSyA...`)
 
-### 2. Configure API Key (Development)
+### 2. Configure API Keys (Development)
 
-Open `Server/appsettings.Development.json` and replace the placeholder:
+Open `Server/appsettings.Development.json` and add the primary key plus any fallback keys:
 
 ```json
 {
   "GeminiSettings": {
-    "ApiKey": "YOUR_ACTUAL_API_KEY_HERE"
+    "ApiKeys": [
+      "YOUR_PRIMARY_API_KEY",
+      "YOUR_BACKUP_API_KEY"
+    ]
   }
 }
 ```
+
+Keys are tried in order. When a fallback key succeeds, it becomes the preferred key; later failures wrap around the list. The legacy single `ApiKey` setting is still supported and is tried before `ApiKeys`.
 
 **⚠️ Security Note:** Never commit the API key to git. Add `appsettings.Development.json` to `.gitignore`.
 
 ### 3. Production Configuration (Optional)
 
-For production, use environment variables instead of hardcoding the key:
+For production, use environment variables instead of hardcoding keys:
 
 **Option A: Environment Variable**
 ```bash
-set GeminiSettings__ApiKey=YOUR_API_KEY_HERE
+set GeminiSettings__ApiKeys__0=YOUR_PRIMARY_API_KEY
+set GeminiSettings__ApiKeys__1=YOUR_BACKUP_API_KEY
 ```
 
 **Option B: Azure App Settings** (if deploying to Azure)
 Add an application setting:
-- Name: `GeminiSettings:ApiKey`
-- Value: `YOUR_API_KEY_HERE`
+- Name: `GeminiSettings:ApiKeys:0`; value: `YOUR_PRIMARY_API_KEY`
+- Name: `GeminiSettings:ApiKeys:1`; value: `YOUR_BACKUP_API_KEY`
 
 ### 4. Restore NuGet Packages
 

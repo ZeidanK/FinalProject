@@ -81,6 +81,7 @@ else
     var geminiSettings = new GeminiSettings();
     builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettings);
     builder.Services.AddSingleton(geminiSettings);
+    builder.Services.AddSingleton<GeminiApiKeyPool>();
     builder.Services.AddScoped<IGeminiExtractionService, GeminiExtractionService>();
 }
 

@@ -83,7 +83,6 @@ const logLevelOptions = [
   { value: 'INFO', label: 'INFO' },
   { value: 'WARN', label: 'WARN' },
   { value: 'ERROR', label: 'ERROR' },
-  { value: 'DEBUG', label: 'DEBUG' },
 ]
 
 const logCategoryOptions = [
@@ -601,6 +600,8 @@ function AdminPortalPage() {
   const [pendingToggleUser, setPendingToggleUser] = useState(null)
   const [pendingClearLogsType, setPendingClearLogsType] = useState(null)
   const [pendingDeleteLog, setPendingDeleteLog] = useState(null)
+  const [hiddenSystemLogIds, setHiddenSystemLogIds] = useState(() => new Set())
+  const [hiddenAuditLogIds, setHiddenAuditLogIds] = useState(() => new Set())
 
   const [logsQuery, setLogsQuery] = useState({ page: 1, limit: 50, level: null, category: null })
   const [logsLevelInput, setLogsLevelInput] = useState('')
@@ -649,13 +650,17 @@ function AdminPortalPage() {
   const usersError = usersResult.error?.message || ''
 
   const logsData = normalizePagedResult(logsResult.data)
+  const visibleSystemLogItems = useMemo(
+    () => logsData.items.filter((log) => !hiddenSystemLogIds.has(String(log.id))),
+    [hiddenSystemLogIds, logsData.items],
+  )
   const logsLoading = logsResult.isLoading || logsResult.isFetching
   const logsError = logsResult.error?.message || ''
 
   const auditData = normalizePagedResult(auditResult.data)
   const visibleAuditItems = useMemo(
-    () => auditData.items.filter((log) => !isNoisyAuditAction(log.action)),
-    [auditData.items],
+    () => auditData.items.filter((log) => !hiddenAuditLogIds.has(String(log.id)) && !isNoisyAuditAction(log.action)),
+    [auditData.items, hiddenAuditLogIds],
   )
   const auditLoading = auditResult.isLoading || auditResult.isFetching
   const auditError = auditResult.error?.message || ''
@@ -797,6 +802,7 @@ function AdminPortalPage() {
   const handleLogsResetFilters = () => {
     setLogsLevelInput('')
     setLogsCategoryInput('')
+    setHiddenSystemLogIds(new Set())
     setLogsQuery((prev) => ({ ...prev, page: 1, level: null, category: null }))
   }
 
@@ -840,6 +846,22 @@ function AdminPortalPage() {
     setPendingDeleteLog({ type, id: log.id })
   }
 
+  const handleHideLog = (type, id) => {
+    if (type === TAB_KEYS.logs) {
+      setHiddenSystemLogIds((prev) => {
+        const next = new Set(prev)
+        next.add(String(id))
+        return next
+      })
+    } else {
+      setHiddenAuditLogIds((prev) => {
+        const next = new Set(prev)
+        next.add(String(id))
+        return next
+      })
+    }
+  }
+
   const handleConfirmDeleteLog = async () => {
     if (!pendingDeleteLog) return
 
@@ -881,6 +903,7 @@ function AdminPortalPage() {
 
   const handleAuditResetFilters = () => {
     setAuditCompanyInput('')
+    setHiddenAuditLogIds(new Set())
     setAuditQuery((prev) => ({ ...prev, page: 1, companyId: null }))
   }
 
@@ -1197,7 +1220,7 @@ function AdminPortalPage() {
                       </TableRow>
                     ))}
 
-                  {!logsLoading && logsData.items.length === 0 && (
+                  {!logsLoading && visibleSystemLogItems.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={9}>
                         <EmptyState
@@ -1209,7 +1232,7 @@ function AdminPortalPage() {
                   )}
 
                   {!logsLoading &&
-                    logsData.items.map((log) => {
+                    visibleSystemLogItems.map((log) => {
                       const display = formatSystemLog(log)
 
                       return (
@@ -1231,16 +1254,26 @@ function AdminPortalPage() {
                           <TableCell>{log.ipAddress || '-'}</TableCell>
                           <TableCell>{formatDateTime(log.createdAt)}</TableCell>
                           <TableCell align="right">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="error"
-                              startIcon={<DeleteSweepRoundedIcon />}
-                              disabled={deleteLogMutation.isPending}
-                              onClick={() => handleDeleteLogRequest(TAB_KEYS.logs, log)}
-                            >
-                              Delete
-                            </Button>
+                            <Stack direction="row" spacing={0.8} justifyContent="flex-end">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="secondary"
+                                onClick={() => handleHideLog(TAB_KEYS.logs, log.id)}
+                              >
+                                Hide
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                startIcon={<DeleteSweepRoundedIcon />}
+                                disabled={deleteLogMutation.isPending}
+                                onClick={() => handleDeleteLogRequest(TAB_KEYS.logs, log)}
+                              >
+                                Delete
+                              </Button>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       )
@@ -1371,16 +1404,26 @@ function AdminPortalPage() {
                           <TableCell>{log.ipAddress || '-'}</TableCell>
                           <TableCell>{formatDateTime(log.createdAt)}</TableCell>
                           <TableCell align="right">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="error"
-                              startIcon={<DeleteSweepRoundedIcon />}
-                              disabled={deleteAuditLogMutation.isPending}
-                              onClick={() => handleDeleteLogRequest(TAB_KEYS.audit, log)}
-                            >
-                              Delete
-                            </Button>
+                            <Stack direction="row" spacing={0.8} justifyContent="flex-end">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="secondary"
+                                onClick={() => handleHideLog(TAB_KEYS.audit, log.id)}
+                              >
+                                Hide
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                startIcon={<DeleteSweepRoundedIcon />}
+                                disabled={deleteAuditLogMutation.isPending}
+                                onClick={() => handleDeleteLogRequest(TAB_KEYS.audit, log)}
+                              >
+                                Delete
+                              </Button>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       )
