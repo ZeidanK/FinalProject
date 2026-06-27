@@ -60,6 +60,7 @@ const quickActions = [
  */
 const kpiIcons = {
   'Pending Matches': <HubRoundedIcon sx={{ color: '#a9d5ff' }} />,
+  'Pending Invoice Matches': <UploadFileRoundedIcon sx={{ color: '#a9d5ff' }} />,
   Exceptions: <ErrorOutlineRoundedIcon sx={{ color: '#ffd0aa' }} />,
   'Total Matches': <TaskAltRoundedIcon sx={{ color: '#b7ffd2' }} />,
 }

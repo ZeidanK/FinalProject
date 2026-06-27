@@ -83,14 +83,14 @@ export function mapDashboardStatsToKpis(stats) {
 
   return [
     {
-      title: 'Open Runs',
-      value: String(toNumber(safeStats.processingInvoices, 0)),
-      subtitle: 'Reconciliation batches in progress',
-    },
-    {
       title: 'Pending Matches',
       value: String(toNumber(safeStats.unmatchedTransactions, 0)),
       subtitle: 'Transactions awaiting review',
+    },
+    {
+      title: 'Pending Invoice Matches',
+      value: String(toNumber(safeStats.unmatchedInvoices, 0)),
+      subtitle: 'Invoices awaiting review',
     },
     {
       title: 'Exceptions',

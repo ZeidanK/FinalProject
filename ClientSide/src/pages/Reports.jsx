@@ -20,6 +20,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material'
@@ -44,6 +45,8 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.28 } },
 }
 
+const EMPTY_REPORT_ROWS = []
+
 const reportCardSx = {
   borderRadius: 3,
   border: '1px solid',
@@ -56,6 +59,74 @@ const statusPresentation = {
   partially_matched: { label: 'Partially matched', color: 'info' },
   ledger_only: { label: 'Ledger only', color: 'warning' },
   bank_only: { label: 'Bank only', color: 'error' },
+}
+
+const reconciliationStatusOrder = {
+  fully_matched: 0,
+  partially_matched: 1,
+  ledger_only: 2,
+  bank_only: 3,
+}
+
+const reconciliationColumns = [
+  { key: 'status', label: 'Status' },
+  { key: 'ledgerEntry', label: 'Ledger entry' },
+  { key: 'ledgerDate', label: 'Ledger date' },
+  { key: 'ledgerAmount', label: 'Ledger amount', align: 'right' },
+  { key: 'bankTransaction', label: 'Bank transaction' },
+  { key: 'bankDate', label: 'Bank date' },
+  { key: 'bankAmount', label: 'Bank amount', align: 'right' },
+  { key: 'matchConfidence', label: 'Match details', sortLabel: 'match confidence' },
+]
+
+const getReconciliationSortValue = (row, key) => {
+  switch (key) {
+    case 'status':
+      return reconciliationStatusOrder[row.reconciliationStatus] ?? Number.MAX_SAFE_INTEGER
+    case 'ledgerEntry':
+      return row.invoiceId ? `${row.invoiceNumber || ''} ${row.vendorName || ''}`.trim() : null
+    case 'ledgerDate': {
+      const value = row.invoiceDate ? Date.parse(row.invoiceDate) : Number.NaN
+      return Number.isFinite(value) ? value : null
+    }
+    case 'ledgerAmount': {
+      const value = Number(row.invoiceAmount)
+      return row.invoiceAmount !== null && row.invoiceAmount !== undefined && Number.isFinite(value) ? value : null
+    }
+    case 'bankTransaction':
+      return row.transactionId
+        ? `${row.transactionDescription || ''} ${row.transactionId}`.trim()
+        : null
+    case 'bankDate': {
+      const value = row.transactionDate ? Date.parse(row.transactionDate) : Number.NaN
+      return Number.isFinite(value) ? value : null
+    }
+    case 'bankAmount': {
+      const value = Number(row.transactionAmount)
+      return row.transactionAmount !== null && row.transactionAmount !== undefined && Number.isFinite(value) ? value : null
+    }
+    case 'matchConfidence': {
+      const value = Number(row.matchConfidence)
+      return row.matchConfidence !== null && row.matchConfidence !== undefined && Number.isFinite(value) ? value : null
+    }
+    default:
+      return null
+  }
+}
+
+const compareReconciliationRows = (left, right, key, direction) => {
+  const leftValue = getReconciliationSortValue(left, key)
+  const rightValue = getReconciliationSortValue(right, key)
+
+  if (leftValue === null && rightValue === null) return 0
+  if (leftValue === null) return 1
+  if (rightValue === null) return -1
+
+  const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
+    ? leftValue - rightValue
+    : String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
+
+  return direction === 'asc' ? comparison : -comparison
 }
 
 const toDateInputValue = (date) => {
@@ -228,8 +299,21 @@ function ReconciliationReportSection({
   onReload,
   onExport,
 }) {
-  const rows = report?.rows || []
+  const rows = report?.rows || EMPTY_REPORT_ROWS
   const summary = report?.summary || {}
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDirection, setSortDirection] = useState('asc')
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows
+    return [...rows].sort((left, right) => compareReconciliationRows(left, right, sortKey, sortDirection))
+  }, [rows, sortDirection, sortKey])
+
+  const handleSort = (key) => {
+    const nextDirection = sortKey === key && sortDirection === 'asc' ? 'desc' : 'asc'
+    setSortKey(key)
+    setSortDirection(nextDirection)
+  }
 
   let content
   if (loading) {
@@ -249,18 +333,30 @@ function ReconciliationReportSection({
         <Table size="small" aria-label="Reconciliation report table" sx={{ minWidth: 1160 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Ledger entry</TableCell>
-              <TableCell>Ledger date</TableCell>
-              <TableCell align="right">Ledger amount</TableCell>
-              <TableCell>Bank transaction</TableCell>
-              <TableCell>Bank date</TableCell>
-              <TableCell align="right">Bank amount</TableCell>
-              <TableCell>Match details</TableCell>
+              {reconciliationColumns.map((column) => (
+                <TableCell
+                  key={column.key}
+                  align={column.align || 'left'}
+                  sortDirection={sortKey === column.key ? sortDirection : false}
+                >
+                  <TableSortLabel
+                    active={sortKey === column.key}
+                    direction={sortKey === column.key ? sortDirection : 'asc'}
+                    onClick={() => handleSort(column.key)}
+                    aria-label={`Sort by ${column.sortLabel || column.label}`}
+                    sx={{
+                      width: '100%',
+                      justifyContent: column.align === 'right' ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    {column.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row, index) => {
+            {sortedRows.map((row, index) => {
               const status = statusPresentation[row.reconciliationStatus] || {
                 label: row.reconciliationStatus || 'Unknown',
                 color: 'default',
