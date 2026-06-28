@@ -420,281 +420,363 @@ export default function ProfilePage() {
         )}
 
         {/* ── Page title ─────────────────────────────────── */}
-        <Box>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
-            Profile &amp; Settings
+        <Box sx={{ mb: 4, textAlign: 'center' }}>
+          <Typography
+            variant="h4"
+            fontWeight={800}
+            sx={{
+              background: 'linear-gradient(135deg, #cde7ff 0%, #58a6ff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            Profile & Settings
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Manage your personal information, security, and business settings
           </Typography>
         </Box>
 
         {/* ══════════════════════════════════════════════════
-            SECTION A — Profile Info
+            SECTION A — Profile Info  |  SECTION B — Change Password (side-by-side)
            ══════════════════════════════════════════════════ */}
-        <Box>
-          <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              {sectionHeader(
-                <EditRoundedIcon sx={{ color: 'primary.main' }} />,
-                'Personal Information',
-              )}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Section A */}
+          <Grid size={{ xs: 12, md: 7 }}>
+            <Card elevation={0} sx={{ ...cardSx, height: 'fit-content' }}>
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                {sectionHeader(
+                  <EditRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
+                  'Personal Information',
+                )}
 
-              {loadingProfile ? (
-                <Stack spacing={2}>
-                  <Skeleton variant="circular" width={80} height={80} />
-                  <Skeleton variant="rounded" height={48} />
-                  <Skeleton variant="rounded" height={48} />
-                </Stack>
-              ) : (
-                <>
-                  <Collapse in={!!profileMsg}>
-                    {profileMsg && (
-                      <Alert
-                        severity={profileMsg.type}
-                        sx={{ mb: 2 }}
-                        onClose={() => setProfileMsg(null)}
-                      >
-                        {profileMsg.text}
-                      </Alert>
-                    )}
-                  </Collapse>
+                {loadingProfile ? (
+                  <Stack spacing={2.5} sx={{ mt: 1 }}>
+                    <Skeleton variant="circular" width={100} height={100} />
+                    <Skeleton variant="rounded" height={52} />
+                    <Skeleton variant="rounded" height={52} />
+                  </Stack>
+                ) : (
+                  <>
+                    <Collapse in={!!profileMsg}>
+                      {profileMsg && (
+                        <Alert
+                          severity={profileMsg.type}
+                          sx={{ mb: 2.5, borderRadius: 2 }}
+                          onClose={() => setProfileMsg(null)}
+                        >
+                          {profileMsg.text}
+                        </Alert>
+                      )}
+                    </Collapse>
 
-                  {/* Avatar + Upload */}
-                  <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mb: 3 }}>
-                    <Box sx={{ position: 'relative' }}>
-                      <Avatar
-                        src={avatarSrc}
-                        sx={{
-                          width: 80,
-                          height: 80,
-                          fontSize: '2rem',
-                          bgcolor: 'primary.main',
-                          color: '#041229',
-                          fontWeight: 800,
-                        }}
-                      >
-                        {(profile?.name || 'U')[0].toUpperCase()}
-                      </Avatar>
-                      {editingProfile && (
-                        <IconButton
-                          component="label"
-                          size="small"
+                    {/* Avatar + Upload - centered */}
+                    <Stack
+                      direction="row"
+                      spacing={3}
+                      alignItems="center"
+                      sx={{ mb: 4, justifyContent: 'center' }}
+                    >
+                      <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                        <Avatar
+                          src={avatarSrc}
                           sx={{
-                            position: 'absolute',
-                            bottom: -4,
-                            right: -4,
+                            width: 100,
+                            height: 100,
+                            fontSize: '2.5rem',
                             bgcolor: 'primary.main',
                             color: '#041229',
-                            '&:hover': { bgcolor: 'primary.light' },
+                            fontWeight: 800,
+                            boxShadow: '0 8px 24px rgba(88, 166, 255, 0.25)',
                           }}
                         >
-                          <PhotoCameraRoundedIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/jpeg,image/png,image/gif,image/webp"
-                            onChange={handleProfilePicChange}
-                          />
-                        </IconButton>
-                      )}
-                    </Box>
-                    <Stack>
-                      <Typography variant="h6" fontWeight={700}>
-                        {profile?.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {profile?.email}
-                      </Typography>
-                      <Chip
-                        label={roleLabel}
-                        size="small"
-                        sx={{
-                          mt: 0.5,
-                          alignSelf: 'flex-start',
-                          bgcolor: 'rgba(88, 166, 255, 0.16)',
-                          border: '1px solid',
-                          borderColor: 'rgba(129, 191, 255, 0.38)',
-                          color: '#cde7ff',
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                        }}
-                      />
+                          {(profile?.name || 'U')[0].toUpperCase()}
+                        </Avatar>
+                        {editingProfile && (
+                          <IconButton
+                            component="label"
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              bottom: -6,
+                              right: -6,
+                              bgcolor: 'primary.main',
+                              color: '#041229',
+                              '&:hover': { bgcolor: 'primary.light' },
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            }}
+                          >
+                            <PhotoCameraRoundedIcon fontSize="small" />
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              onChange={handleProfilePicChange}
+                            />
+                          </IconButton>
+                        )}
+                      </Box>
+                      <Stack spacing={0.75} alignItems="center">
+                        <Typography variant="h5" fontWeight={800} textAlign="center">
+                          {profile?.name}
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary">
+                          {profile?.email}
+                        </Typography>
+                        <Chip
+                          label={roleLabel}
+                          size="small"
+                          sx={{
+                            mt: 0.5,
+                            bgcolor: 'rgba(88, 166, 255, 0.16)',
+                            border: '1px solid',
+                            borderColor: 'rgba(129, 191, 255, 0.38)',
+                            color: '#cde7ff',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                            px: 1,
+                          }}
+                        />
+                      </Stack>
                     </Stack>
-                  </Stack>
 
-                  {/* Editable fields */}
-                  {editingProfile ? (
-                    <Stack spacing={2}>
-                      <TextField
-                        label="Full Name"
-                        fullWidth
-                        value={profileForm.name}
-                        onChange={(e) =>
-                          setProfileForm((p) => ({ ...p, name: e.target.value }))
-                        }
-                      />
-                      <TextField
-                        label="Phone"
-                        fullWidth
-                        value={profileForm.phone}
-                        onChange={(e) =>
-                          setProfileForm((p) => ({ ...p, phone: e.target.value }))
-                        }
-                      />
-                      <TextField
-                        label="Email"
-                        fullWidth
-                        value={profile?.email || ''}
-                        disabled
-                        helperText="Email cannot be changed"
-                      />
-                      <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-                        <Button
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<CloseRoundedIcon />}
-                          onClick={() => {
-                            setEditingProfile(false)
-                            setProfilePicFile(null)
-                            setProfilePicPreview(null)
-                            setProfileForm({
-                              name: profile?.name || '',
-                              phone: profile?.phone || '',
-                            })
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="contained"
-                          startIcon={
-                            savingProfile ? (
-                              <CircularProgress size={18} color="inherit" />
-                            ) : (
-                              <SaveRoundedIcon />
-                            )
+                    <Divider sx={{ my: 3, borderColor: 'divider' }} />
+
+                    {/* Editable fields */}
+                    {editingProfile ? (
+                      <Stack spacing={2.5} sx={{ mt: 1 }}>
+                        <TextField
+                          label="Full Name"
+                          fullWidth
+                          value={profileForm.name}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, name: e.target.value }))
                           }
-                          disabled={savingProfile}
-                          onClick={handleSaveProfile}
-                        >
-                          Save Changes
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  ) : (
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" spacing={2}>
-                        <Typography color="text.secondary" sx={{ minWidth: 100 }}>
-                          Name
-                        </Typography>
-                        <Typography fontWeight={600}>{profile?.name}</Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={2}>
-                        <Typography color="text.secondary" sx={{ minWidth: 100 }}>
-                          Phone
-                        </Typography>
-                        <Typography fontWeight={600}>
-                          {profile?.phone || '—'}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={2}>
-                        <Typography color="text.secondary" sx={{ minWidth: 100 }}>
-                          Email
-                        </Typography>
-                        <Typography fontWeight={600}>{profile?.email}</Typography>
-                      </Stack>
-                      <Button
-                        variant="outlined"
-                        startIcon={<EditRoundedIcon />}
-                        sx={{ alignSelf: 'flex-start', mt: 1 }}
-                        onClick={() => setEditingProfile(true)}
-                      >
-                        Edit Profile
-                      </Button>
-                    </Stack>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* ══════════════════════════════════════════════════
-            SECTION B — Change Password
-           ══════════════════════════════════════════════════ */}
-        <Box>
-          <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              {sectionHeader(
-                <LockResetRoundedIcon sx={{ color: 'primary.main' }} />,
-                'Change Password',
-              )}
-
-              <Collapse in={!!passwordMsg}>
-                {passwordMsg && (
-                  <Alert
-                    severity={passwordMsg.type}
-                    sx={{ mb: 2 }}
-                    onClose={() => setPasswordMsg(null)}
-                  >
-                    {passwordMsg.text}
-                  </Alert>
-                )}
-              </Collapse>
-
-              <Stack spacing={2} sx={{ maxWidth: 420 }}>
-                {['current', 'new', 'confirm'].map((key) => {
-                  const { label, formKey } = passwordFieldMeta[key]
-                  return (
-                    <TextField
-                      key={key}
-                      label={label}
-                      type={showPasswords[key] ? 'text' : 'password'}
-                      fullWidth
-                      value={passwordForm[formKey]}
-                      onChange={(e) =>
-                        setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
-                      }
-                      slotProps={{
-                        input: {
-                          endAdornment: (
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
-                              }
-                              edge="end"
-                            >
-                              {showPasswords[key] ? (
-                                <VisibilityOffRoundedIcon fontSize="small" />
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        <TextField
+                          label="Phone"
+                          fullWidth
+                          value={profileForm.phone}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, phone: e.target.value }))
+                          }
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        <TextField
+                          label="Email"
+                          fullWidth
+                          value={profile?.email || ''}
+                          disabled
+                          helperText="Email cannot be changed"
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 1 }}>
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            startIcon={<CloseRoundedIcon />}
+                            onClick={() => {
+                              setEditingProfile(false)
+                              setProfilePicFile(null)
+                              setProfilePicPreview(null)
+                              setProfileForm({
+                                name: profile?.name || '',
+                                phone: profile?.phone || '',
+                              })
+                            }}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="contained"
+                            startIcon={
+                              savingProfile ? (
+                                <CircularProgress size={18} color="inherit" />
                               ) : (
-                                <VisibilityRoundedIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          ),
+                                <SaveRoundedIcon />
+                              )
+                            }
+                            disabled={savingProfile}
+                            onClick={handleSaveProfile}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Save Changes
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Stack spacing={2} sx={{ mt: 1 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>
+                            Name
+                          </Typography>
+                          <Typography fontWeight={700} fontSize="1.05rem">
+                            {profile?.name}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>
+                            Phone
+                          </Typography>
+                          <Typography fontWeight={700} fontSize="1.05rem">
+                            {profile?.phone || '—'}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>
+                            Email
+                          </Typography>
+                          <Typography fontWeight={700} fontSize="1.05rem">
+                            {profile?.email}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<EditRoundedIcon />}
+                            onClick={() => setEditingProfile(true)}
+                            sx={{ borderRadius: 2, px: 4, py: 1.2, fontWeight: 700 }}
+                          >
+                            Edit Profile
+                          </Button>
+                        </Box>
+                      </Stack>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Section B */}
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Card elevation={0} sx={{ ...cardSx, height: 'fit-content' }}>
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                {sectionHeader(
+                  <LockResetRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
+                  'Change Password',
+                )}
+
+                <Collapse in={!!passwordMsg}>
+                  {passwordMsg && (
+                    <Alert
+                      severity={passwordMsg.type}
+                      sx={{ mb: 2.5, borderRadius: 2 }}
+                      onClose={() => setPasswordMsg(null)}
+                    >
+                      {passwordMsg.text}
+                    </Alert>
+                  )}
+                </Collapse>
+
+                <Stack spacing={2.5} sx={{ mt: 1 }}>
+                  {['current', 'new', 'confirm'].map((key) => {
+                    const { label, formKey } = passwordFieldMeta[key]
+                    return (
+                      <TextField
+                        key={key}
+                        label={label}
+                        type={showPasswords[key] ? 'text' : 'password'}
+                        fullWidth
+                        value={passwordForm[formKey]}
+                        onChange={(e) =>
+                          setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
+                        }
+                        slotProps={{
+                          input: {
+                            endAdornment: (
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
+                                }
+                                edge="end"
+                              >
+                                {showPasswords[key] ? (
+                                  <VisibilityOffRoundedIcon fontSize="small" />
+                                ) : (
+                                  <VisibilityRoundedIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            ),
+                          },
+                        }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                    )
+                  })}
+
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={
+                        savingPassword ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          <LockResetRoundedIcon />
+                        )
+                      }
+                      disabled={savingPassword}
+                      sx={{
+                        borderRadius: 2,
+                        px: 4,
+                        py: 1.3,
+                        fontWeight: 700,
+                        fontSize: '1rem',
+                        boxShadow: '0 4px 14px rgba(88, 166, 255, 0.35)',
+                        '&:hover': {
+                          boxShadow: '0 6px 20px rgba(88, 166, 255, 0.5)',
                         },
                       }}
-                    />
-                  )
-                })}
-
-                <Button
-                  variant="contained"
-                  startIcon={
-                    savingPassword ? (
-                      <CircularProgress size={18} color="inherit" />
-                    ) : (
-                      <LockResetRoundedIcon />
-                    )
-                  }
-                  disabled={savingPassword}
-                  sx={{ alignSelf: 'flex-start' }}
-                  onClick={handleChangePassword}
-                >
-                  Change Password
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Box>
+                      onClick={handleChangePassword}
+                    >
+                      Change Password
+                    </Button>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
         {/* ══════════════════════════════════════════════════
             SECTION C — Business Info (business_owner roles)
@@ -702,9 +784,9 @@ export default function ProfilePage() {
         {isBusinessOwner && (
           <Box>
             <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
                 {sectionHeader(
-                  <BusinessRoundedIcon sx={{ color: 'primary.main' }} />,
+                  <BusinessRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
                   'My Companies',
                 )}
 
@@ -712,7 +794,7 @@ export default function ProfilePage() {
                   {companyMsg && (
                     <Alert
                       severity={companyMsg.type}
-                      sx={{ mb: 2 }}
+                      sx={{ mb: 2.5, borderRadius: 2 }}
                       onClose={() => setCompanyMsg(null)}
                     >
                       {companyMsg.text}
@@ -721,16 +803,41 @@ export default function ProfilePage() {
                 </Collapse>
 
                 {loadingCompanies ? (
-                  <Stack spacing={2}>
-                    <Skeleton variant="rounded" height={80} />
-                    <Skeleton variant="rounded" height={80} />
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Skeleton variant="rounded" height={90} sx={{ borderRadius: 2.5 }} />
+                    <Skeleton variant="rounded" height={90} sx={{ borderRadius: 2.5 }} />
                   </Stack>
                 ) : (
-                  <>
+                  <Stack spacing={2} sx={{ mt: 1 }}>
                     {companies.length === 0 && !addingCompany && (
-                      <Typography color="text.secondary" sx={{ mb: 2 }}>
-                        No companies yet. Add your first company below.
-                      </Typography>
+                      <Box
+                        sx={{
+                          textAlign: 'center',
+                          py: 6,
+                          px: 3,
+                          borderRadius: 2.5,
+                          border: '2px dashed',
+                          borderColor: 'divider',
+                          bgcolor: 'rgba(255,255,255,0.01)',
+                        }}
+                      >
+                        <BusinessRoundedIcon
+                          sx={{ fontSize: 48, color: 'text.disabled', mb: 1.5 }}
+                        />
+                        <Typography color="text.secondary" sx={{ mb: 2.5, fontSize: '1.05rem' }}>
+                          No companies yet
+                        </Typography>
+                        {!addingCompany && !editingCompanyId && (
+                          <Button
+                            variant="contained"
+                            startIcon={<AddBusinessRoundedIcon />}
+                            onClick={startAddCompany}
+                            sx={{ borderRadius: 2, px: 3, py: 1.1, fontWeight: 700 }}
+                          >
+                            Add Your First Company
+                          </Button>
+                        )}
+                      </Box>
                     )}
 
                     {companies.map((c) => (
@@ -765,17 +872,17 @@ export default function ProfilePage() {
                       />
                     )}
 
-                    {!addingCompany && !editingCompanyId && (
+                    {!addingCompany && !editingCompanyId && companies.length > 0 && (
                       <Button
                         variant="outlined"
                         startIcon={<AddBusinessRoundedIcon />}
-                        sx={{ mt: 2 }}
+                        sx={{ mt: 1 }}
                         onClick={startAddCompany}
                       >
                         Add Company
                       </Button>
                     )}
-                  </>
+                  </Stack>
                 )}
               </CardContent>
             </Card>
@@ -805,17 +912,25 @@ function CompanyCard({ company, onEdit, onDelete, deleting }) {
   return (
     <Box
       sx={{
-        p: 2,
-        mb: 1.5,
+        p: 2.5,
         borderRadius: 2.5,
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'rgba(14, 22, 40, 0.5)',
+        transition: 'all 0.2s ease-in-out',
+        '&:hover': {
+          borderColor: 'rgba(88, 166, 255, 0.4)',
+          bgcolor: 'rgba(88, 166, 255, 0.04)',
+          transform: 'translateY(-1px)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        },
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-        <Stack spacing={0.5}>
-          <Typography fontWeight={700}>{c.name}</Typography>
+        <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+          <Typography fontWeight={700} fontSize="1.05rem">
+            {c.name}
+          </Typography>
           <Typography variant="body2" color="text.secondary">
             {c.registrationNumber || c.registration_number
               ? `Reg: ${c.registrationNumber || c.registration_number}`
@@ -823,8 +938,7 @@ function CompanyCard({ company, onEdit, onDelete, deleting }) {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {[c.city, c.state, c.country].filter(Boolean).join(', ') || 'No address'}
-            {' · '}
-            {c.currency || 'USD'}
+            {c.currency ? <>&nbsp;·&nbsp;{c.currency || 'USD'}</> : ''}
           </Typography>
           {(c.email || c.phone) && (
             <Typography variant="body2" color="text.secondary">
@@ -832,11 +946,24 @@ function CompanyCard({ company, onEdit, onDelete, deleting }) {
             </Typography>
           )}
         </Stack>
-        <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={onEdit}>
+        <Stack direction="row" spacing={0.5} sx={{ ml: 2, flexShrink: 0 }}>
+          <IconButton
+            size="small"
+            onClick={onEdit}
+            sx={{
+              color: 'primary.main',
+              '&:hover': { bgcolor: 'rgba(88, 166, 255, 0.12)' },
+            }}
+          >
             <EditRoundedIcon fontSize="small" />
           </IconButton>
-          <IconButton size="small" color="error" onClick={onDelete} disabled={deleting}>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={onDelete}
+            disabled={deleting}
+            sx={{ '&:hover': { bgcolor: 'rgba(255, 82, 82, 0.12)' } }}
+          >
             {deleting ? <CircularProgress size={16} /> : <DeleteOutlineRoundedIcon fontSize="small" />}
           </IconButton>
         </Stack>
