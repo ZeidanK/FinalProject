@@ -28,6 +28,10 @@ namespace FinalProjectAuthAPI.BL
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
+            // Note: appsettings.json currently provides ApiKey + GeminiSettings.Model + Models,
+            // but does not provide GeminiSettings.ApiKeys. If ApiKeys is missing, we only get 1 key.
+
+
             _clients = keys.Select(key => new GoogleAI(key)).ToList();
         }
 
@@ -448,11 +452,43 @@ If you cannot translate, just return the original name in an array.";
             return values;
         }
 
+        private static readonly SemaphoreSlim _globalGeminiThrottle = new(1, 1);
+        private static DateTime _lastGeminiGlobalRequestUtc = DateTime.MinValue;
+
         private async Task<T?> TryAllModelsAsync<T>(Func<GenerativeModel, Task<T?>> action, string operationName) where T : class
         {
-            var startingKeyIndex = _keyPool.PreferredKeyIndex;
             var attemptCount = 0;
 
+            // Global throttle between ANY Gemini requests (including different server requests)
+            // to avoid hammering and exhausting all keys.
+            // We serialize access to ensure a minimum spacing.
+            const int minDelayMillisecondsGlobal = 500;
+
+            await _globalGeminiThrottle.WaitAsync();
+            try
+            {
+                var now = DateTime.UtcNow;
+                var elapsed = now - _lastGeminiGlobalRequestUtc;
+                if (elapsed < TimeSpan.FromMilliseconds(minDelayMillisecondsGlobal))
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(minDelayMillisecondsGlobal) - elapsed);
+                }
+                _lastGeminiGlobalRequestUtc = DateTime.UtcNow;
+            }
+            finally
+            {
+                _globalGeminiThrottle.Release();
+            }
+
+            // Rotate globally per *request*, so consecutive requests never reuse the same key.
+            var startingKeyIndex = _keyPool.PreferredKeyIndex;
+
+            // Small backoff between key attempts within the same request.
+            const int delayMillisecondsBetweenKeyAttempts = 750;
+
+
+            // Spread work across all keys in a loop, regardless of quota success/failure.
+            // We DO NOT mark the successful key as "preferred" here; instead we keep rotating.
             foreach (var modelName in _models)
             {
                 for (var keyOffset = 0; keyOffset < _keyPool.Count; keyOffset++)
@@ -460,24 +496,36 @@ If you cannot translate, just return the original name in an array.";
                     var keyIndex = (startingKeyIndex + keyOffset) % _keyPool.Count;
                     attemptCount++;
 
+                    // Delay between requests/keys.
+                    if (keyOffset > 0)
+                        await Task.Delay(delayMillisecondsBetweenKeyAttempts);
+
                     try
                     {
+                        // Mark this key as globally consumed so the *next* Gemini call (even inside the same request)
+                        // starts from the next key.
+                        // This ensures: local loops + retries also advance keys.
+                        _keyPool.Prefer((keyIndex + 1) % _keyPool.Count);
+
                         var model = _keyPool.GetClient(keyIndex).GenerativeModel(model: modelName);
+                        Console.WriteLine(
+                            $"[GEMINI] Operation={operationName} Model={modelName} KeyIndex={keyIndex} KeyNumber={keyIndex + 1}/{_keyPool.Count}"
+                        );
+                        _logger.LogDebug(
+                            "{Operation}: sending request with Gemini key {KeyNumber}/{KeyCount} (keyIndex={KeyIndex}) for model {Model}",
+                            operationName,
+                            keyIndex + 1,
+                            _keyPool.Count,
+                            keyIndex,
+                            modelName);
+
                         var result = await action(model);
 
                         if (result != null)
                         {
-                            if (keyIndex != startingKeyIndex)
-                            {
-                                _logger.LogInformation(
-                                    "{Operation}: Gemini key {KeyNumber} succeeded and is now preferred.",
-                                    operationName,
-                                    keyIndex + 1);
-                            }
-
-                            _keyPool.Prefer(keyIndex);
                             return result;
                         }
+
                     }
                     catch (Exception ex)
                     {
@@ -502,12 +550,14 @@ If you cannot translate, just return the original name in an array.";
                 }
             }
 
+
             _logger.LogError(
                 "{Operation}: all {AttemptCount} Gemini key/model combinations were exhausted.",
                 operationName,
                 attemptCount);
             return null;
         }
+
 
         private static bool IsQuotaExhaustion(Exception exception)
         {
