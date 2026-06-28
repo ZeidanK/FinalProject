@@ -271,11 +271,19 @@ export default function NotificationBell() {
                       flexShrink: 0,
                     }} />
                     <ListItemText
-                      primary={<Typography variant="body2" fontWeight={item.isRead ? 400 : 700}>{item.title}</Typography>}
+                      primary={
+                        <Typography variant="body2" component="span" fontWeight={item.isRead ? 400 : 700}>
+                          {item.title}
+                        </Typography>
+                      }
                       secondary={(
-                        <Stack spacing={0.35} sx={{ mt: 0.35 }}>
-                          {item.body && <Typography variant="caption" color="text.secondary">{item.body}</Typography>}
-                          <Typography variant="caption" color="text.disabled">
+                        <Stack component="span" spacing={0.35} sx={{ mt: 0.35 }}>
+                          {item.body && (
+                            <Typography variant="caption" component="span" color="text.secondary">
+                              {item.body}
+                            </Typography>
+                          )}
+                          <Typography variant="caption" component="span" color="text.disabled">
                             {[item.companyName, formatRelativeTime(item.createdAt)].filter(Boolean).join(' · ')}
                           </Typography>
                         </Stack>
