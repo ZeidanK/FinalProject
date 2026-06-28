@@ -83,7 +83,7 @@ RoleRoute.propTypes = {
  *
  * Ensures the user has an active company selected before rendering child routes.
  * While company resolution is in progress, it shows a loading placeholder.
- * If no company is available, it redirects the user to profile setup.
+ * If no company is available, it redirects the user to the landing page.
  *
  * @param {object} props
  * @param {React.ReactNode} props.children - Route content that requires an active company.
@@ -100,9 +100,14 @@ function CompanyRoute({ children }) {
 
   if (!activeCompanyId) {
     const isPureAccountant = user?.role === 'accountant'
+    // If companies haven't resolved (server error), redirect to landing page
+    // Otherwise, let user access profile to create company
+    const destination = hasResolvedCompanies 
+      ? (isPureAccountant ? '/accountant-workspace' : '/profile')
+      : '/'
     return (
       <Navigate
-        to={isPureAccountant ? '/accountant-workspace' : '/profile'}
+        to={destination}
         replace
         state={{
           noCompany: true,
@@ -152,24 +157,26 @@ function App() {
               </CompanyRoute>
             }
           />
-          <Route path="/profile" element={<ProfilePage />} />            <Route
-              path="/accountant-workspace"
-              element={
-                <RoleRoute allowedRoles={ROLE_RULES.accountantOnly}>
-                  <AccountantWorkspacePage />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/accountant-workspace"
+            element={
+              <RoleRoute allowedRoles={ROLE_RULES.accountantOnly}>
+                <AccountantWorkspacePage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/find-accountant"
+            element={
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.ownerOnly}>
+                  <FindAccountantPage />
                 </RoleRoute>
-              }
-            />
-            <Route
-              path="/find-accountant"
-              element={
-                <CompanyRoute>
-                  <RoleRoute allowedRoles={ROLE_RULES.ownerOnly}>
-                    <FindAccountantPage />
-                  </RoleRoute>
-                </CompanyRoute>
-              }
-            />          <Route
+              </CompanyRoute>
+            }
+          />
+          <Route
             path="/admin"
             element={
               <RoleRoute allowedRoles={ROLE_RULES.adminOnly}>
