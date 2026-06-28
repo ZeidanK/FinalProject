@@ -11,8 +11,13 @@ import { URLS } from '../scripts/config'
 export function createRealtimeClient(token) {
   let stateListener = () => {}
 
+  const isDev = import.meta.env.DEV
+  const hubUrl = isDev
+    ? 'http://localhost:5050/api/realtime/notifications'
+    : URLS.realtime.notificationsHub
+
   const connection = new signalR.HubConnectionBuilder()
-    .withUrl(URLS.realtime.notificationsHub, {
+    .withUrl(hubUrl, {
       accessTokenFactory: () => token,
     })
     .withAutomaticReconnect([0, 2000, 5000, 10000])

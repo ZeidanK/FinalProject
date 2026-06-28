@@ -85,21 +85,34 @@ else
     builder.Services.AddScoped<IGeminiExtractionService, GeminiExtractionService>();
 }
 
-// CORS – allow the React frontend (and any localhost port during dev)
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "https://localhost:5173",
-                "http://localhost:3000"
-              )
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+  // CORS – allow the React frontend (and any localhost port during dev)
+  builder.Services.AddCors(options =>
+  {
+      options.AddPolicy("AllowFrontend", policy =>
+      {
+          policy.WithOrigins(
+                  "http://localhost:5173",
+                  "https://localhost:5173",
+                  "http://localhost:3000"
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+      });
+  });
+
+  // Allow any origin for SignalR during development to avoid negotiate negotiation failures
+  builder.Services.AddCors(options =>
+  {
+      options.AddPolicy("SignalRDev", policy =>
+      {
+          policy.SetIsOriginAllowed(origin => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+      });
+  });
+
 
 // JWT Authentication – mirrors the NewsSitePro setup
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -128,13 +141,25 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             var fullPath = $"{context.HttpContext.Request.PathBase}{path}";
+            var isSignalRRequest = path.StartsWithSegments("/api/realtime/notifications")
+                || fullPath.Contains("/api/realtime/notifications", StringComparison.OrdinalIgnoreCase);
 
-            if (!string.IsNullOrWhiteSpace(accessToken)
-                && (path.StartsWithSegments("/api/realtime/notifications")
-                    || fullPath.Contains("/api/realtime/notifications", StringComparison.OrdinalIgnoreCase)))
+            if (!isSignalRRequest)
+                return Task.CompletedTask;
+
+            // Prefer Authorization header (SignalR accessTokenFactory sends Bearer token there),
+            // fall back to the legacy access_token query parameter for older clients.
+            var authHeader = context.Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Token = authHeader.Substring("Bearer ".Length).Trim();
+                return Task.CompletedTask;
+            }
+
+            var accessToken = context.Request.Query["access_token"];
+            if (!string.IsNullOrWhiteSpace(accessToken))
             {
                 context.Token = accessToken;
             }
@@ -157,7 +182,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
-app.UseCors("AllowFrontend");
+  app.UseCors("AllowFrontend");
+  app.UseCors("SignalRDev");
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseMiddleware<ActivityLoggingMiddleware>();
@@ -165,12 +191,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHangfireDashboard("/hangfire");
-app.MapHub<NotificationHub>("/api/realtime/notifications");
+  app.MapHub<NotificationHub>("/api/realtime/notifications")
+     .RequireCors("SignalRDev");
 
 RecurringJob.AddOrUpdate<INotificationService>(
     "notification-retention",
     service => service.CleanupExpired(90, 365),
     Cron.Daily);
 
-app.Run();
-app.Run();
+  app.Run();
