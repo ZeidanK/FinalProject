@@ -9,21 +9,24 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.102.3" />
+<<<<<<< HEAD
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.14" />
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.14" />
     <PackageReference Include="Microsoft.ML" Version="5.0.0" />
     <PackageReference Include="Microsoft.ML.DataView" Version="5.0.0" />
+=======
+>>>>>>> parent of 9513a5b (testing ai model)
     <PackageReference Include="Mscc.GenerativeAI" Version="2.1.0" />
     <PackageReference Include="itext7" Version="8.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.36" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.12.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.12.1" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
+<<<<<<< HEAD
   <ItemGroup>
     <Content Include="ML\test_invoice_model.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -31,4 +34,6 @@
     </Content>
   </ItemGroup>
 
+=======
+>>>>>>> parent of 9513a5b (testing ai model)
 </Project>
