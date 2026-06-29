@@ -136,7 +136,7 @@ function App() {
   const Router = import.meta.env.PROD ? HashRouter : BrowserRouter
 
   return (
-    <Router basename={import.meta.env.BASE_URL}>
+    <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/tech-stack" element={<TechStackPage />} />

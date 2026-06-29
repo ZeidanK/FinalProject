@@ -9,13 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.102.3" />
-<<<<<<< HEAD
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.14" />
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.14" />
-    <PackageReference Include="Microsoft.ML" Version="5.0.0" />
-    <PackageReference Include="Microsoft.ML.DataView" Version="5.0.0" />
-=======
->>>>>>> parent of 9513a5b (testing ai model)
     <PackageReference Include="Mscc.GenerativeAI" Version="2.1.0" />
     <PackageReference Include="itext7" Version="8.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.36" />
@@ -26,14 +21,4 @@
     <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
-<<<<<<< HEAD
-  <ItemGroup>
-    <Content Include="ML\test_invoice_model.py">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-
-=======
->>>>>>> parent of 9513a5b (testing ai model)
 </Project>
