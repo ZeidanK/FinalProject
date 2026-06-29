@@ -35,67 +35,96 @@ function Upload-FolderToFtp {
     $total = $files.Count
     $current = 0
 
-    # Format base URI cleanly
+    # Ensure base URI format is clean
     $baseUri = $FtpBasePath
     if (-not $baseUri.EndsWith('/')) { $baseUri += '/' }
-    $baseUriWithCreds = $baseUri -replace 'ftp://', "ftp://$FtpUsername`:$FtpPassword@"
-
-    # Use a persistent WebClient session to avoid constant reconnecting
-    $webClient = New-Object System.Net.WebClient
     
-    # Track directories we've already created during this run to avoid duplicate server requests
+    $credentials = New-Object System.Net.NetworkCredential($FtpUsername, $FtpPassword)
     $createdDirs = @()
 
     foreach ($file in $files) {
         $current++
         
         $relativePath = $file.FullName.Substring($resolvedLocalFolder.Length).TrimStart('\')
-        $escapedPath = $relativePath -replace '\\', '/'
-        $targetFtpUrl = "$baseUriWithCreds$escapedPath"
+        
+        # Split local paths cleanly by backslashes to process individual folder levels
+        $parts = $relativePath -split '\\'
+        
+        # Build the URL-encoded target paths segment-by-segment
+        $encodedSegments = @()
+        for ($i = 0; $i -lt ($parts.Count - 1); $i++) {
+            $encodedSegments += [Uri]::EscapeDataString($parts[$i])
+        }
+        $encodedFileName = [Uri]::EscapeDataString($parts[-1])
+        
+        # Reconstruct the final safe target URL
+        $targetFtpUrl = $baseUri + ($encodedSegments -join '/')
+        if ($encodedSegments.Count -gt 0) { $targetFtpUrl += '/' }
+        $targetFtpUrl += $encodedFileName
 
-        # Check if the file lives inside a subfolder (e.g., "assets/index.css")
-        if ($escapedPath.Contains('/')) {
-            # Extract the folder path portion (e.g., "assets")
-            $remoteSubFolder = Split-Path -Path $escapedPath -Parent
-            
-            # If we haven't processed this folder yet, make sure it exists on the FTP server
-            if ($remoteSubFolder -notin $createdDirs) {
-                try {
-                    $dirUrl = "$baseUriWithCreds$remoteSubFolder"
-                    
-                    # Create the remote directory using FTP Make Directory command (MKD)
-                    $dirRequest = [System.Net.FtpWebRequest]::Create($dirUrl)
-                    $dirRequest.Credentials = New-Object System.Net.NetworkCredential($FtpUsername, $FtpPassword)
-                    $dirRequest.Method = [System.Net.WebRequestMethods+Ftp]::MakeDirectory
-                    
-                    $dirResponse = $dirRequest.GetResponse()
-                    $dirResponse.Close()
-                    
-                    $createdDirs += $remoteSubFolder
-                }
-                catch {
-                    # If the folder already exists, WebException triggers a 550 error, which we can safely ignore
-                    if ($_.Exception.InnerException -and $_.Exception.InnerException.Message -like "*550*") {
-                        $createdDirs += $remoteSubFolder
-                    } else {
-                        Write-Warning "Failed to verify or create directory '$remoteSubFolder': $_"
+        # Walk through the directory tree sequentially to verify/create subfolders
+        if ($encodedSegments.Count -gt 0) {
+            $progressPathSegments = @()
+            $progressRawSegments = @()
+
+            for ($i = 0; $i -lt $encodedSegments.Count; $i++) {
+                $progressPathSegments += $encodedSegments[$i]
+                $progressRawSegments += $parts[$i]
+                
+                $currentProgressRaw = $progressRawSegments -join '/'
+
+                if ($currentProgressRaw -notin $createdDirs) {
+                    try {
+                        $dirUrl = $baseUri + ($progressPathSegments -join '/')
+                        
+                        $dirRequest = [System.Net.FtpWebRequest]::Create($dirUrl)
+                        $dirRequest.Credentials = $credentials
+                        $dirRequest.Method = [System.Net.WebRequestMethods+Ftp]::MakeDirectory
+                        
+                        $dirResponse = $dirRequest.GetResponse()
+                        $dirResponse.Close()
+                        
+                        $createdDirs += $currentProgressRaw
+                    }
+                    catch {
+                        # Code 550 means the directory already exists on the server
+                        if ($_.Exception.InnerException -and $_.Exception.InnerException.Message -like "*550*") {
+                            $createdDirs += $currentProgressRaw
+                        } else {
+                            Write-Warning "Failed to verify or create directory '$currentProgressRaw': $_"
+                        }
                     }
                 }
             }
         }
 
-        # Safe upload through the persistent WebClient pipe
+        # Stream the file using a persistent payload array
         try {
-            $webClient.UploadFile($targetFtpUrl, "STOR", $file.FullName)
+            $uploadRequest = [System.Net.FtpWebRequest]::Create($targetFtpUrl)
+            $uploadRequest.Credentials = $credentials
+            $uploadRequest.Method = [System.Net.WebRequestMethods+Ftp]::UploadFile
+            
+            $fileBytes = [System.IO.File]::ReadAllBytes($file.FullName)
+            $uploadRequest.ContentLength = $fileBytes.Length
+            
+            $requestStream = $uploadRequest.GetRequestStream()
+            $requestStream.Write($fileBytes, 0, $fileBytes.Length)
+            $requestStream.Close()
+            
+            $uploadResponse = $uploadRequest.GetResponse()
+            $uploadResponse.Close()
+            
             Write-Host "Uploaded ($current/$total): $relativePath"
         }
         catch {
             Write-Warning "Upload failed for $relativePath - $_"
         }
     }
-    
-    $webClient.Dispose()
 }
+
+
+
+
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "   FinalProject Automated Deployment" -ForegroundColor Cyan
@@ -127,10 +156,44 @@ Write-Host ""
 # Step 3: Upload Server
 Write-Host "[3/4] Uploading Server to FTP..." -ForegroundColor Yellow
 $serverFtpUri = $ftpServer + $serverFtpPath
+$baseUriWithCreds = $serverFtpUri -replace 'ftp://', "ftp://$ftpUser`:$ftpPass@"
+if (-not $baseUriWithCreds.EndsWith('/')) { $baseUriWithCreds += '/' }
+
+# --- NEW: Take App Offline to unlock files ---
+Write-Host "Taking server offline to unlock application files..." -ForegroundColor Cyan
+$offlineFile = Join-Path $scriptDir "app_offline.htm"
+"<!DOCTYPE html><html><head><title>App Maintenance</title></head><body><h1>Application is updating. Please try again in a few moments.</h1></body></html>" | Out-File -FilePath $offlineFile -Encoding utf8
+
+$webClient = New-Object System.Net.WebClient
+try {
+    $webClient.UploadFile(($baseUriWithCreds + "app_offline.htm"), "STOR", $offlineFile)
+    Write-Host "App is safely offline. Waiting 3 seconds for file locks to release..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 3
+} catch {
+    Write-Warning "Failed to place app_offline.htm: $_"
+}
+
+# --- Standard Upload ---
 Upload-FolderToFtp -LocalFolder $serverOutputPath `
                    -FtpBasePath $serverFtpUri `
                    -FtpUsername $ftpUser `
                    -FtpPassword $ftpPass
+
+# --- NEW: Bring App Back Online by deleting the file ---
+Write-Host "Bringing server back online..." -ForegroundColor Cyan
+try {
+    $dirRequest = [System.Net.FtpWebRequest]::Create($baseUriWithCreds + "app_offline.htm")
+    $dirRequest.Credentials = New-Object System.Net.NetworkCredential($ftpUser, $ftpPass)
+    $dirRequest.Method = [System.Net.WebRequestMethods+Ftp]::DeleteFile
+    $dirResponse = $dirRequest.GetResponse()
+    $dirResponse.Close()
+    Write-Host "Server successfully brought back online!" -ForegroundColor Green
+} catch {
+    Write-Warning "Failed to remove app_offline.htm. You may need to delete it manually via an FTP client."
+}
+
+if (Test-Path $offlineFile) { Remove-Item $offlineFile }
+$webClient.Dispose()
 Write-Host "Server upload complete." -ForegroundColor Green
 Write-Host ""
 
