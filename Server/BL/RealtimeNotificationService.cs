@@ -180,6 +180,11 @@ namespace FinalProjectAuthAPI.BL
                 job.UserId,
                 job.ProgressPercent,
                 job.FileOriginalName,
+                job.FileType,
+                job.FileSize,
+                job.FilePath,
+                job.ResultJson,
+                job.ErrorMessage,
                 job.UpdatedAt,
                 job.CompletedAt
             };

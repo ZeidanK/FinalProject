@@ -1,6 +1,5 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 
@@ -8,20 +7,15 @@ namespace FinalProjectAuthAPI.BL
 {
     public class InvoiceVerificationService : IInvoiceVerificationService
     {
-        public const decimal AutoVerifyConfidenceThreshold = 0.90m;
-
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
-
         private readonly IInvoiceService _invoiceSvc;
         private readonly IUploadJobService _jobSvc;
         private readonly IAnomalyService _anomalySvc;
         private readonly IRealtimeNotificationService _realtime;
         private readonly DBservices _db;
+        private readonly InvoiceJobValidator _validator;
+        private readonly InvoiceJobPayloadSerializer _serializer;
+
+        public const decimal AutoVerifyConfidenceThreshold = 0.90m;
 
         public InvoiceVerificationService(
             IInvoiceService invoiceSvc,
@@ -35,6 +29,8 @@ namespace FinalProjectAuthAPI.BL
             _anomalySvc = anomalySvc;
             _realtime = realtime;
             _db = db;
+            _validator = new InvoiceJobValidator();
+            _serializer = new InvoiceJobPayloadSerializer();
         }
 
         public async Task<BulkInvoiceJobVerificationResponse> VerifyJobsAsync(
@@ -85,19 +81,19 @@ namespace FinalProjectAuthAPI.BL
         {
             var job = _jobSvc.GetById(jobId);
             if (job == null)
-                return Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Upload job was not found.");
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Upload job was not found.");
 
             if (verifiedByUserId <= 0
                 || (job.UserId != verifiedByUserId
                     && !_db.UserHasActiveCompanyAccess(verifiedByUserId, job.CompanyId)))
             {
-                return Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Upload job is unavailable.");
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Upload job is unavailable.");
             }
 
             if (!string.Equals(job.JobType, UploadJobTypes.InvoiceUploadPdf, StringComparison.OrdinalIgnoreCase))
-                return Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Only extracted invoice upload jobs can be verified.");
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Only extracted invoice upload jobs can be verified.");
 
-            var storedPayload = ReadStoredPayload(job.ResultJson);
+            var storedPayload = _serializer.ReadStoredPayload(job.ResultJson);
             var confidence = storedPayload.ExtractedData?.ExtractionConfidence;
 
             if (string.Equals(job.Status, UploadJobStatuses.Verified, StringComparison.OrdinalIgnoreCase))
@@ -115,7 +111,7 @@ namespace FinalProjectAuthAPI.BL
 
             if (automatic && (!confidence.HasValue || confidence.Value < AutoVerifyConfidenceThreshold))
             {
-                return Result(
+                return _serializer.Result(
                     jobId,
                     InvoiceJobVerificationOutcomes.RequiresReview,
                     "Invoice confidence is below the automatic verification threshold.",
@@ -131,18 +127,18 @@ namespace FinalProjectAuthAPI.BL
             else
             {
                 if (storedPayload.ExtractedData == null)
-                    return Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, "Extracted invoice data is unavailable.", confidence);
+                    return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, "Extracted invoice data is unavailable.", confidence);
 
-                var validationError = ValidateExtractedInvoice(storedPayload.ExtractedData);
+                var validationError = _validator.ValidateExtractedInvoice(storedPayload.ExtractedData);
                 if (validationError != null)
-                    return Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, validationError, confidence);
+                    return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, validationError, confidence);
 
-                request = BuildInvoiceRequest(job.CompanyId, storedPayload.ExtractedData);
+                request = _validator.BuildInvoiceRequest(job.CompanyId, storedPayload.ExtractedData);
             }
 
-            var reviewedValidationError = ValidateReviewedInvoice(request);
+            var reviewedValidationError = _validator.ValidateReviewedInvoice(request);
             if (reviewedValidationError != null)
-                return Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, reviewedValidationError, confidence);
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, reviewedValidationError, confidence);
 
             var isResuming = storedPayload.InvoiceId.HasValue
                 && (string.Equals(job.Status, UploadJobStatuses.Completed, StringComparison.OrdinalIgnoreCase)
@@ -155,7 +151,7 @@ namespace FinalProjectAuthAPI.BL
                     var outcome = string.Equals(job.Status, UploadJobStatuses.Verifying, StringComparison.OrdinalIgnoreCase)
                         ? InvoiceJobVerificationOutcomes.InProgress
                         : InvoiceJobVerificationOutcomes.Unavailable;
-                    return Result(jobId, outcome, "Upload job is not ready for verification.", confidence);
+                    return _serializer.Result(jobId, outcome, "Upload job is not ready for verification.", confidence);
                 }
 
                 if (!_jobSvc.TryBeginVerification(jobId))
@@ -163,7 +159,7 @@ namespace FinalProjectAuthAPI.BL
                     var current = _jobSvc.GetById(jobId);
                     if (string.Equals(current?.Status, UploadJobStatuses.Verified, StringComparison.OrdinalIgnoreCase))
                     {
-                        var currentPayload = ReadStoredPayload(current?.ResultJson);
+                        var currentPayload = _serializer.ReadStoredPayload(current?.ResultJson);
                         return new InvoiceJobVerificationResult
                         {
                             JobId = jobId,
@@ -175,13 +171,13 @@ namespace FinalProjectAuthAPI.BL
                         };
                     }
 
-                    return Result(jobId, InvoiceJobVerificationOutcomes.InProgress, "Invoice verification is already in progress.", confidence);
+                    return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.InProgress, "Invoice verification is already in progress.", confidence);
                 }
             }
             else if (string.Equals(job.Status, UploadJobStatuses.Completed, StringComparison.OrdinalIgnoreCase)
                 && !_jobSvc.TryBeginVerification(jobId))
             {
-                return Result(jobId, InvoiceJobVerificationOutcomes.InProgress, "Invoice verification is already in progress.", confidence);
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.InProgress, "Invoice verification is already in progress.", confidence);
             }
 
             long invoiceId = storedPayload.InvoiceId ?? 0;
@@ -204,13 +200,13 @@ namespace FinalProjectAuthAPI.BL
                     if (!createResult.Success)
                     {
                         await RestoreForReviewAsync(job, createResult.Error);
-                        return Result(jobId, InvoiceJobVerificationOutcomes.Failed, createResult.Error, confidence);
+                        return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Failed, createResult.Error, confidence);
                     }
 
                     invoiceId = createResult.Id;
                     isDuplicate = createResult.IsDuplicate;
 
-                    var provisionalJson = BuildResultJson(
+                    var provisionalJson = _serializer.BuildResultJson(
                         storedPayload.ExtractedData,
                         invoiceId,
                         isDuplicate,
@@ -226,7 +222,7 @@ namespace FinalProjectAuthAPI.BL
                 if (!_invoiceSvc.MarkVerified(invoiceId, verifiedByUserId))
                     throw new InvalidOperationException("Invoice could not be marked as verified.");
 
-                var provisionalVerifiedJson = BuildResultJson(
+                var provisionalVerifiedJson = _serializer.BuildResultJson(
                     storedPayload.ExtractedData,
                     invoiceId,
                     isDuplicate,
@@ -250,7 +246,7 @@ namespace FinalProjectAuthAPI.BL
                     };
                 }
 
-                var finalJson = BuildResultJson(
+                var finalJson = _serializer.BuildResultJson(
                     storedPayload.ExtractedData,
                     invoiceId,
                     isDuplicate,
@@ -299,7 +295,7 @@ namespace FinalProjectAuthAPI.BL
                 if (invoiceId <= 0)
                     await RestoreForReviewAsync(job, ex.Message);
 
-                return Result(jobId, InvoiceJobVerificationOutcomes.Failed, ex.Message, confidence, invoiceId > 0 ? invoiceId : null);
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Failed, ex.Message, confidence, invoiceId > 0 ? invoiceId : null);
             }
         }
 
@@ -351,123 +347,6 @@ namespace FinalProjectAuthAPI.BL
                 TargetId = anomaly.Id.ToString(),
                 DedupeKey = $"anomaly:{anomaly.Id}:created"
             }, new { anomalyId = anomaly.Id, companyId, invoiceId });
-        }
-
-        private static string? ValidateExtractedInvoice(PdfExtractionResult extracted)
-        {
-            if (string.IsNullOrWhiteSpace(extracted.InvoiceNumber))
-                return "Invoice number is missing; open the invoice to review it.";
-            if (string.IsNullOrWhiteSpace(extracted.VendorName))
-                return "Vendor name is missing; open the invoice to review it.";
-            if (!extracted.InvoiceDate.HasValue)
-                return "Invoice date is missing; open the invoice to review it.";
-            if (!extracted.TotalAmount.HasValue)
-                return "Invoice total is missing; open the invoice to review it.";
-            return null;
-        }
-
-        private static string? ValidateReviewedInvoice(CreateInvoiceRequest request)
-        {
-            if (string.IsNullOrWhiteSpace(request.InvoiceNumber))
-                return "Invoice number is required.";
-            if (string.IsNullOrWhiteSpace(request.VendorName))
-                return "Vendor name is required.";
-            if (request.InvoiceDate == default)
-                return "Invoice date is required.";
-            return null;
-        }
-
-        private static CreateInvoiceRequest BuildInvoiceRequest(long companyId, PdfExtractionResult extracted)
-        {
-            return new CreateInvoiceRequest
-            {
-                CompanyId = companyId,
-                InvoiceNumber = extracted.InvoiceNumber!.Trim(),
-                VendorName = extracted.VendorName!.Trim(),
-                InvoiceDate = extracted.InvoiceDate!.Value,
-                DueDate = extracted.DueDate,
-                TotalAmount = extracted.TotalAmount!.Value,
-                Subtotal = extracted.Subtotal ?? extracted.TotalAmount.Value,
-                VatRate = extracted.VatRate,
-                VatAmount = extracted.VatAmount,
-                Currency = string.IsNullOrWhiteSpace(extracted.Currency) ? "USD" : extracted.Currency,
-                VendorTaxId = extracted.VendorTaxId,
-                LastFourDigitsCard = extracted.LastFourDigitsCard,
-                ItemCount = extracted.ItemCount,
-                PaymentPlanTotalInstallments = extracted.PaymentPlan?.TotalInstallments,
-                PaymentPlanInstallmentAmount = extracted.PaymentPlan?.InstallmentAmount,
-                PaymentPlanFrequency = extracted.PaymentPlan?.Frequency,
-                PaymentPlanDescription = extracted.PaymentPlan?.Description,
-                PaymentPlanCurrentInstallment = extracted.PaymentPlan?.CurrentInstallment,
-                LineItems = extracted.LineItems.Select((li, index) => new CreateLineItemRequest
-                {
-                    Description = string.IsNullOrWhiteSpace(li.Description) ? "Item" : li.Description,
-                    Quantity = li.Quantity,
-                    UnitPrice = li.UnitPrice,
-                    TotalAmount = li.TotalAmount,
-                    VatRate = li.VatRate,
-                    Category = li.Category,
-                    LineNumber = index + 1,
-                    AiConfidenceScore = li.AiConfidenceScore
-                }).ToList()
-            };
-        }
-
-        private static StoredInvoiceJobResult ReadStoredPayload(string? resultJson)
-        {
-            if (string.IsNullOrWhiteSpace(resultJson))
-                return new StoredInvoiceJobResult();
-
-            try
-            {
-                return JsonSerializer.Deserialize<StoredInvoiceJobResult>(resultJson, JsonOptions)
-                    ?? new StoredInvoiceJobResult();
-            }
-            catch
-            {
-                return new StoredInvoiceJobResult();
-            }
-        }
-
-        private static string BuildResultJson(
-            PdfExtractionResult? extracted,
-            long invoiceId,
-            bool isDuplicate,
-            InvoiceJobAutoMatchResult? autoMatch,
-            string message)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                invoiceId,
-                isDuplicate,
-                extractedData = extracted,
-                autoMatchResult = autoMatch,
-                message
-            }, JsonOptions);
-        }
-
-        private static InvoiceJobVerificationResult Result(
-            long jobId,
-            string outcome,
-            string message,
-            decimal? confidence = null,
-            long? invoiceId = null)
-        {
-            return new InvoiceJobVerificationResult
-            {
-                JobId = jobId,
-                InvoiceId = invoiceId,
-                Outcome = outcome,
-                Message = message,
-                Confidence = confidence
-            };
-        }
-
-        private sealed class StoredInvoiceJobResult
-        {
-            public long? InvoiceId { get; set; }
-            public bool IsDuplicate { get; set; }
-            public PdfExtractionResult? ExtractedData { get; set; }
         }
     }
 }

@@ -7,6 +7,7 @@ using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Middleware;
+using FinalProjectAuthAPI.Models;
 using FinalProjectAuthAPI.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +42,16 @@ builder.Services.AddScoped<IUploadJobWorker, UploadJobWorker>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimeNotificationService, RealtimeNotificationService>();
 builder.Services.AddSingleton<RealtimeConnectionRegistry>();
+// Internal services (domain sub-classes)
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.MatchCrudService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.MatchSuggestionService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.AutoMatchService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.AnomalyCrudService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateInvoiceService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateFileDetectionService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.UploadJobNotificationService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.InvoiceJobProcessor>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.TransactionJobProcessor>();
 builder.Services.AddSignalR();
 
 var hangfireConnectionString = builder.Configuration.GetConnectionString("myProjDB");
