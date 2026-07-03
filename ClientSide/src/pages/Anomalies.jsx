@@ -41,6 +41,7 @@ import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { useConfirm } from '../components/ConfirmContext'
 import {
   useAnomaliesListQuery,
   useAnomalyDetailsQuery,
@@ -504,6 +505,8 @@ function AnomaliesPage() {
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
 
+  const { confirm } = useConfirm()
+
   const {
     register,
     getValues,
@@ -678,8 +681,7 @@ function AnomaliesPage() {
     }
 
     const itemLabel = item.label || item.fileName || `${toLabel(item.itemType)} #${item.entityId}`
-    const confirmMessage = `Keep ${itemLabel} and soft-delete the other duplicate invoices?`
-    const confirmed = globalThis.confirm(confirmMessage)
+    const confirmed = await confirm(`Keep ${itemLabel} and soft-delete the other duplicate invoices?`)
     if (!confirmed) return
 
     setCleanupTarget(`${item.itemType}-${item.entityId}`)
