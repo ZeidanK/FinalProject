@@ -82,15 +82,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT n.id, n.event_id, n.user_id, n.event_type, n.scope, n.title, n.body,
-       n.severity, n.is_read, n.company_id, c.name AS company_name, n.link,
-       n.target_type, n.target_id, n.created_at, n.read_at
-FROM dbo.FP26_notifications n
-LEFT JOIN dbo.FP26_companies c ON c.id = n.company_id
-WHERE n.id = @Id AND n.user_id = @UserId;", con);
-                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = id;
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Notifications_GetById", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id", id },
+                        { "@UserId", userId }
+                    });
                 reader = cmd.ExecuteReader();
                 return reader.Read() ? MapNotification(reader) : null;
             }
@@ -190,20 +188,14 @@ WHERE n.id = @Id AND n.user_id = @UserId;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT
-    SUM(CASE WHEN is_read = 0 AND scope = 'personal' THEN 1 ELSE 0 END) AS personal_unread,
-    SUM(CASE WHEN is_read = 0 AND scope = 'company' AND company_id = @CompanyId THEN 1 ELSE 0 END) AS company_unread,
-    SUM(CASE WHEN is_read = 0 AND (
-        (@View = 'personal' AND scope = 'personal') OR
-        (@View = 'company' AND scope = 'company' AND company_id = @CompanyId) OR
-        (@View = 'combined')
-    ) THEN 1 ELSE 0 END) AS visible_unread
-FROM dbo.FP26_notifications
-WHERE user_id = @UserId;", con);
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
-                cmd.Parameters.Add("@View", SqlDbType.VarChar, 20).Value = view;
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = (object?)companyId ?? DBNull.Value;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Notifications_GetUnreadCounts", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@View", view },
+                        { "@CompanyId", (object?)companyId ?? DBNull.Value }
+                    });
                 reader = cmd.ExecuteReader();
                 if (!reader.Read())
                     return new NotificationUnreadCounts();
@@ -226,17 +218,9 @@ WHERE user_id = @UserId;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT uca.user_id
-FROM dbo.FP26_user_company_access uca
-INNER JOIN dbo.FP26_users u ON u.id = uca.user_id
-INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
-WHERE uca.company_id = @CompanyId
-  AND uca.status = 'active'
-  AND (uca.expires_at IS NULL OR uca.expires_at > SYSUTCDATETIME())
-  AND u.is_active = 1
-  AND c.is_active = 1;", con);
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Notifications_GetActiveUserIds", con,
+                    new Dictionary<string, object?> { { "@CompanyId", companyId } });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                     list.Add(Convert.ToInt64(reader[0]));
@@ -251,9 +235,9 @@ WHERE uca.company_id = @CompanyId
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(
-                    "SELECT TOP 1 is_active FROM dbo.FP26_users WHERE id = @UserId", con);
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_CheckIsActive", con,
+                    new Dictionary<string, object?> { { "@UserId", userId } });
                 var value = cmd.ExecuteScalar();
                 return value != null && value != DBNull.Value && Convert.ToBoolean(value);
             }
@@ -266,13 +250,13 @@ WHERE uca.company_id = @CompanyId
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-DELETE FROM dbo.FP26_notifications
-WHERE (is_read = 1 AND created_at < DATEADD(DAY, -@ReadDays, SYSUTCDATETIME()))
-   OR (is_read = 0 AND created_at < DATEADD(DAY, -@UnreadDays, SYSUTCDATETIME()));
-SELECT @@ROWCOUNT;", con);
-                cmd.Parameters.Add("@ReadDays", SqlDbType.Int).Value = readRetentionDays;
-                cmd.Parameters.Add("@UnreadDays", SqlDbType.Int).Value = unreadRetentionDays;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Notifications_DeleteExpired", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@ReadDays", readRetentionDays },
+                        { "@UnreadDays", unreadRetentionDays }
+                    });
                 return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
             }
             finally { con?.Close(); }
@@ -284,11 +268,13 @@ SELECT @@ROWCOUNT;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT TOP 1 1 FROM dbo.FP26_companies
-WHERE id = @CompanyId AND created_by_user_id = @UserId AND is_active = 1;", con);
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_CheckCreator", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@CompanyId", companyId }
+                    });
                 return cmd.ExecuteScalar() != null;
             }
             finally { con?.Close(); }

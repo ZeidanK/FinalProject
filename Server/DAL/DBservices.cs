@@ -117,10 +117,9 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    "UPDATE dbo.FP26_users SET last_login_at = GETDATE(), updated_at = GETDATE() WHERE id = @Id",
-                    con);
-                cmd.Parameters.AddWithValue("@Id", userId);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_UpdateLastLogin", con,
+                    new Dictionary<string, object?> { { "@Id", userId } });
                 cmd.ExecuteNonQuery();
             }
             catch (Exception ex)

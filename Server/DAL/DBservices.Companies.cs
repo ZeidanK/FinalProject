@@ -74,21 +74,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT TOP 1 1
-FROM dbo.FP26_user_company_access uca
-INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
-INNER JOIN dbo.FP26_users u ON u.id = uca.user_id
-WHERE uca.user_id = @UserId
-  AND uca.company_id = @CompanyId
-  AND uca.status = 'active'
-  AND (uca.expires_at IS NULL OR uca.expires_at > SYSUTCDATETIME())
-  AND u.is_active = 1
-  AND c.is_active = 1;", con);
-
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_CheckUserAccess", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@CompanyId", companyId }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && result != DBNull.Value;
             }
@@ -104,33 +96,14 @@ WHERE uca.user_id = @UserId
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-IF EXISTS (
-    SELECT 1
-    FROM dbo.FP26_user_company_access
-    WHERE user_id = @UserId
-      AND company_id = @CompanyId
-)
-BEGIN
-    UPDATE dbo.FP26_user_company_access
-    SET access_level = 'full',
-        status = 'active',
-        granted_at = GETDATE()
-    WHERE user_id = @UserId
-      AND company_id = @CompanyId;
-END
-ELSE
-BEGIN
-    INSERT INTO dbo.FP26_user_company_access
-        (user_id, company_id, access_level, status, granted_by_user_id, granted_at, created_at)
-    VALUES
-        (@UserId, @CompanyId, 'full', 'active', @GrantedByUserId, GETDATE(), GETDATE());
-END", con);
-
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
-                cmd.Parameters.Add("@GrantedByUserId", SqlDbType.BigInt).Value = userId;
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_UpsertUserAccess", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@CompanyId", companyId },
+                        { "@GrantedByUserId", userId }
+                    });
                 cmd.ExecuteNonQuery();
                 return true;
             }
@@ -181,21 +154,14 @@ END", con);
                     return 0;
                 }
 
-                using var accessCmd = new SqlCommand(@"
-IF NOT EXISTS (
-    SELECT 1
-    FROM dbo.FP26_user_company_access
-    WHERE user_id = @UserId AND company_id = @CompanyId
-)
-BEGIN
-    INSERT INTO dbo.FP26_user_company_access
-        (user_id, company_id, access_level, status, granted_by_user_id, granted_at, created_at)
-    VALUES
-        (@UserId, @CompanyId, 'full', 'active', @UserId, GETDATE(), GETDATE());
-END", con, tx);
-
-                accessCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = createdByUserId;
-                accessCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
+                var accessCmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_GrantCreatorAccess", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", createdByUserId },
+                        { "@CompanyId", companyId }
+                    });
+                accessCmd.Transaction = tx;
                 accessCmd.ExecuteNonQuery();
 
                 tx.Commit();
@@ -296,51 +262,20 @@ END", con, tx);
             try
             {
                 con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_CreatePendingRequest", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@AccountantUserId", accountantUserId },
+                        { "@CompanyId", companyId },
+                        { "@RequestedByUserId", requestedByUserId }
+                    });
 
-                // Check for an existing record
-                using var checkCmd = new SqlCommand(@"
-SELECT status
-FROM dbo.FP26_user_company_access
-WHERE user_id = @UserId AND company_id = @CompanyId;", con);
-                checkCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = accountantUserId;
-                checkCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
-                var existing = checkCmd.ExecuteScalar()?.ToString();
-
-                if (existing == "active")
+                var result = cmd.ExecuteScalar()?.ToString();
+                if (result == "already_active")
                     return (false, "This accountant is already working with your company.");
-                if (existing == "pending")
+                if (result == "already_pending")
                     return (false, "A request is already pending for this accountant.");
-
-                if (existing == null)
-                {
-                    using var insertCmd = new SqlCommand(@"
-INSERT INTO dbo.FP26_user_company_access
-    (user_id, company_id, access_level, status, granted_by_user_id, created_at)
-VALUES
-    (@UserId, @CompanyId, 'view_only', 'pending', @RequestedBy, GETDATE());", con);
-                    insertCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = accountantUserId;
-                    insertCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
-                    insertCmd.Parameters.Add("@RequestedBy", SqlDbType.BigInt).Value = requestedByUserId;
-                    insertCmd.ExecuteNonQuery();
-                }
-                else
-                {
-                    // Previously revoked — reopen as pending
-                    using var updateCmd = new SqlCommand(@"
-UPDATE dbo.FP26_user_company_access
-SET status              = 'pending',
-    access_level        = 'view_only',
-    granted_by_user_id  = @RequestedBy,
-    granted_at          = NULL,
-    revoked_at          = NULL,
-    revoked_by_user_id  = NULL
-WHERE user_id = @UserId AND company_id = @CompanyId;", con);
-                    updateCmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = accountantUserId;
-                    updateCmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
-                    updateCmd.Parameters.Add("@RequestedBy", SqlDbType.BigInt).Value = requestedByUserId;
-                    updateCmd.ExecuteNonQuery();
-                }
-
                 return (true, string.Empty);
             }
             finally { con?.Close(); }
@@ -354,21 +289,9 @@ WHERE user_id = @UserId AND company_id = @CompanyId;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT uca.id,
-       uca.company_id,
-       c.name             AS company_name,
-       uca.granted_by_user_id AS requested_by_user_id,
-       COALESCE(u.name, 'Unknown') AS requested_by_name,
-       uca.created_at,
-       uca.status
-FROM dbo.FP26_user_company_access uca
-INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
-LEFT  JOIN dbo.FP26_users     u ON u.id = uca.granted_by_user_id
-WHERE uca.user_id = @AccountantId
-  AND uca.status  = 'pending'
-ORDER BY uca.created_at DESC;", con);
-                cmd.Parameters.Add("@AccountantId", SqlDbType.BigInt).Value = accountantId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_GetPendingRequests", con,
+                    new Dictionary<string, object?> { { "@AccountantId", accountantId } });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -398,16 +321,9 @@ ORDER BY uca.created_at DESC;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT c.*, uca.access_level, u.name AS created_by_name
-FROM dbo.FP26_user_company_access uca
-INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id
-LEFT  JOIN dbo.FP26_users     u ON u.id = c.created_by_user_id
-WHERE uca.user_id = @AccountantId
-  AND uca.status  = 'active'
-  AND c.is_active = 1
-ORDER BY c.name;", con);
-                cmd.Parameters.Add("@AccountantId", SqlDbType.BigInt).Value = accountantId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_GetActiveByAccountant", con,
+                    new Dictionary<string, object?> { { "@AccountantId", accountantId } });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                     list.Add(MapCompany(reader));
@@ -422,21 +338,14 @@ ORDER BY c.name;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-UPDATE dbo.FP26_user_company_access
-SET status             = @Status,
-    access_level       = CASE WHEN @Accept = 1 THEN 'full' ELSE access_level END,
-    granted_at         = CASE WHEN @Accept = 1 THEN GETDATE() ELSE granted_at END,
-    revoked_at         = CASE WHEN @Accept = 0 THEN GETDATE() ELSE revoked_at END,
-    revoked_by_user_id = CASE WHEN @Accept = 0 THEN @AccountantUserId ELSE revoked_by_user_id END
-WHERE id      = @RequestId
-  AND user_id = @AccountantUserId
-  AND status  = 'pending';
-SELECT @@ROWCOUNT;", con);
-                cmd.Parameters.Add("@RequestId", SqlDbType.BigInt).Value = requestId;
-                cmd.Parameters.Add("@AccountantUserId", SqlDbType.BigInt).Value = accountantUserId;
-                cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = accept ? "active" : "revoked";
-                cmd.Parameters.Add("@Accept", SqlDbType.Bit).Value = accept;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_RespondToRequest", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@RequestId", requestId },
+                        { "@AccountantUserId", accountantUserId },
+                        { "@Accept", accept }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && Convert.ToInt32(result) > 0;
             }
@@ -452,18 +361,14 @@ SELECT @@ROWCOUNT;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-UPDATE dbo.FP26_user_company_access
-SET status             = 'revoked',
-    revoked_at         = GETDATE(),
-    revoked_by_user_id = @RequestedByUserId
-WHERE user_id    = @AccountantUserId
-  AND company_id = @CompanyId
-  AND status     = 'active';
-SELECT @@ROWCOUNT;", con);
-                cmd.Parameters.Add("@AccountantUserId", SqlDbType.BigInt).Value = accountantUserId;
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value = companyId;
-                cmd.Parameters.Add("@RequestedByUserId", SqlDbType.BigInt).Value = requestedByUserId;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_RevokeAccess", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@AccountantUserId", accountantUserId },
+                        { "@CompanyId", companyId },
+                        { "@RequestedByUserId", requestedByUserId }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && Convert.ToInt32(result) > 0;
             }

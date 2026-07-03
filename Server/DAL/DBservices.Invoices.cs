@@ -130,12 +130,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    "SELECT TOP 1 id FROM dbo.FP26_invoices " +
-                    "WHERE company_id = @CompanyId AND invoice_number = @InvoiceNumber AND is_duplicate = 0",
-                    con);
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Invoices_GetIdByNumber", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@InvoiceNumber", invoiceNumber }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && result != DBNull.Value ? Convert.ToInt64(result) : null;
             }
@@ -263,120 +264,59 @@ namespace FinalProjectAuthAPI.DAL
             List<CreateLineItemRequest> lineItems)
         {
             SqlConnection? con = null;
-            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
-                tx = con.BeginTransaction();
+                var lineItemsJson = System.Text.Json.JsonSerializer.Serialize(
+                    lineItems.Select(li => new
+                    {
+                        li.LineNumber,
+                        li.Description,
+                        li.Category,
+                        li.Quantity,
+                        li.UnitPrice,
+                        li.VatRate,
+                        li.TotalAmount,
+                        li.AiConfidenceScore
+                    }));
 
-                var updateCmd = new SqlCommand(@"
-                    UPDATE dbo.FP26_invoices
-                    SET
-                        company_id = @CompanyId,
-                        invoice_number = @InvoiceNumber,
-                        vendor_name = @VendorName,
-                        invoice_date = @InvoiceDate,
-                        total_amount = @TotalAmount,
-                        vendor_tax_id = @VendorTaxId,
-                        due_date = @DueDate,
-                        payment_date = @PaymentDate,
-                        subtotal = @Subtotal,
-                        vat_rate = @VatRate,
-                        vat_amount = @VatAmount,
-                        currency = @Currency,
-                        file_original_name = @FileOriginalName,
-                        file_path = @FilePath,
-                        file_type = @FileType,
-                        file_size = @FileSize,
-                        ai_extraction_confidence = @AiExtractionConfidence,
-                        ai_processed = CASE WHEN @AiExtractionConfidence IS NULL THEN ai_processed ELSE 1 END,
-                        last_four_digits_card = @LastFourDigitsCard,
-                        item_count = @ItemCount,
-                        payment_plan_total_installments = @PaymentPlanTotalInstallments,
-                        payment_plan_installment_amount = @PaymentPlanInstallmentAmount,
-                        payment_plan_frequency = @PaymentPlanFrequency,
-                        payment_plan_description = @PaymentPlanDescription,
-                        payment_plan_current_installment = @PaymentPlanCurrentInstallment,
-                        verified_by_user_id = COALESCE(@VerifiedByUserId, verified_by_user_id),
-                        is_verified = 1,
-                        status = CASE WHEN status = 'matched' THEN status ELSE 'verified' END,
-                        updated_at = GETDATE()
-                    WHERE id = @Id", con, tx);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Invoices_UpdateWithLineItems", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id", id },
+                        { "@CompanyId", companyId },
+                        { "@InvoiceNumber", invoiceNumber },
+                        { "@VendorName", vendorName },
+                        { "@InvoiceDate", invoiceDate },
+                        { "@TotalAmount", totalAmount },
+                        { "@VendorTaxId", (object?)vendorTaxId ?? DBNull.Value },
+                        { "@DueDate", (object?)dueDate ?? DBNull.Value },
+                        { "@PaymentDate", (object?)paymentDate ?? DBNull.Value },
+                        { "@Subtotal", subtotal },
+                        { "@VatRate", (object?)vatRate ?? DBNull.Value },
+                        { "@VatAmount", (object?)vatAmount ?? DBNull.Value },
+                        { "@Currency", currency },
+                        { "@FileOriginalName", (object?)fileOriginalName ?? DBNull.Value },
+                        { "@FilePath", (object?)filePath ?? DBNull.Value },
+                        { "@FileType", (object?)fileType ?? DBNull.Value },
+                        { "@FileSize", (object?)fileSize ?? DBNull.Value },
+                        { "@AiExtractionConfidence", (object?)aiConfidence ?? DBNull.Value },
+                        { "@LastFourDigitsCard", (object?)lastFourDigitsCard ?? DBNull.Value },
+                        { "@ItemCount", (object?)itemCount ?? lineItems.Count },
+                        { "@PaymentPlanTotalInstallments", (object?)paymentPlanTotalInstallments ?? DBNull.Value },
+                        { "@PaymentPlanInstallmentAmount", (object?)paymentPlanInstallmentAmount ?? DBNull.Value },
+                        { "@PaymentPlanFrequency", (object?)paymentPlanFrequency ?? DBNull.Value },
+                        { "@PaymentPlanDescription", (object?)paymentPlanDescription ?? DBNull.Value },
+                        { "@PaymentPlanCurrentInstallment", (object?)paymentPlanCurrentInstallment ?? DBNull.Value },
+                        { "@VerifiedByUserId", (object?)verifiedByUserId ?? DBNull.Value },
+                        { "@LineItemsJson", lineItemsJson }
+                    });
 
-                updateCmd.Parameters.AddWithValue("@Id", id);
-                updateCmd.Parameters.AddWithValue("@CompanyId", companyId);
-                updateCmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
-                updateCmd.Parameters.AddWithValue("@VendorName", vendorName);
-                updateCmd.Parameters.AddWithValue("@InvoiceDate", invoiceDate);
-                updateCmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
-                updateCmd.Parameters.AddWithValue("@VendorTaxId", (object?)vendorTaxId ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@DueDate", (object?)dueDate ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@PaymentDate", (object?)paymentDate ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@Subtotal", subtotal);
-                updateCmd.Parameters.AddWithValue("@VatRate", (object?)vatRate ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@VatAmount", (object?)vatAmount ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@Currency", currency);
-                updateCmd.Parameters.AddWithValue("@FileOriginalName", (object?)fileOriginalName ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@FilePath", (object?)filePath ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@FileType", (object?)fileType ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@FileSize", (object?)fileSize ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@AiExtractionConfidence", (object?)aiConfidence ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@LastFourDigitsCard", (object?)lastFourDigitsCard ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@ItemCount", (object?)itemCount ?? lineItems.Count);
-                updateCmd.Parameters.AddWithValue("@PaymentPlanTotalInstallments", (object?)paymentPlanTotalInstallments ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@PaymentPlanInstallmentAmount", (object?)paymentPlanInstallmentAmount ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@PaymentPlanFrequency", (object?)paymentPlanFrequency ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@PaymentPlanDescription", (object?)paymentPlanDescription ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@PaymentPlanCurrentInstallment", (object?)paymentPlanCurrentInstallment ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@VerifiedByUserId", (object?)verifiedByUserId ?? DBNull.Value);
-
-                var rows = updateCmd.ExecuteNonQuery();
-                if (rows <= 0)
-                {
-                    tx.Rollback();
-                    return false;
-                }
-
-                var deleteItemsCmd = new SqlCommand(
-                    "DELETE FROM dbo.FP26_invoice_line_items WHERE invoice_id = @InvoiceId",
-                    con,
-                    tx);
-                deleteItemsCmd.Parameters.AddWithValue("@InvoiceId", id);
-                deleteItemsCmd.ExecuteNonQuery();
-
-                foreach (var li in lineItems)
-                {
-                    var insertItemCmd = new SqlCommand(@"
-                        INSERT INTO dbo.FP26_invoice_line_items
-                            (invoice_id, line_number, description, category, quantity, unit_price, vat_rate, total_amount, ai_confidence_score)
-                        VALUES
-                            (@InvoiceId, @LineNumber, @Description, @Category, @Quantity, @UnitPrice, @VatRate, @TotalAmount, @AiConfidenceScore)", con, tx);
-
-                    insertItemCmd.Parameters.AddWithValue("@InvoiceId", id);
-                    insertItemCmd.Parameters.AddWithValue("@LineNumber", (object?)li.LineNumber ?? DBNull.Value);
-                    insertItemCmd.Parameters.AddWithValue("@Description", li.Description);
-                    insertItemCmd.Parameters.AddWithValue("@Category", (object?)li.Category ?? DBNull.Value);
-                    insertItemCmd.Parameters.AddWithValue("@Quantity", li.Quantity);
-                    insertItemCmd.Parameters.AddWithValue("@UnitPrice", li.UnitPrice);
-                    insertItemCmd.Parameters.AddWithValue("@VatRate", (object?)li.VatRate ?? DBNull.Value);
-                    insertItemCmd.Parameters.AddWithValue("@TotalAmount", li.TotalAmount);
-                    insertItemCmd.Parameters.AddWithValue("@AiConfidenceScore", (object?)li.AiConfidenceScore ?? DBNull.Value);
-                    insertItemCmd.ExecuteNonQuery();
-                }
-
-                tx.Commit();
-                return true;
+                var result = cmd.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
             }
-            catch
-            {
-                tx?.Rollback();
-                return false;
-            }
-            finally
-            {
-                tx?.Dispose();
-                con?.Close();
-            }
+            finally { con?.Close(); }
         }
 
         /// <summary>
@@ -390,175 +330,16 @@ namespace FinalProjectAuthAPI.DAL
         public bool DeleteInvoice(long id)
         {
             SqlConnection? con = null;
-            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
-                tx = con.BeginTransaction();
-
-                var cleanupCmd = new SqlCommand(@"
-                    DECLARE @CompanyId BIGINT;
-                    DECLARE @InvoiceNumber NVARCHAR(255);
-                    DECLARE @TotalAmount DECIMAL(18, 2);
-                    DECLARE @InvoiceDate DATE;
-                    DECLARE @ReplacementInvoiceId BIGINT;
-                    DECLARE @ActiveGroupCount INT;
-                    DECLARE @DeletedRows INT = 0;
-                    DECLARE @AffectedMatches TABLE (match_id BIGINT PRIMARY KEY);
-                    DECLARE @AffectedTransactions TABLE (transaction_id BIGINT PRIMARY KEY);
-                    DECLARE @AffectedDuplicateAnomalies TABLE (anomaly_id BIGINT PRIMARY KEY);
-
-                    SELECT
-                        @CompanyId = company_id,
-                        @InvoiceNumber = invoice_number,
-                        @TotalAmount = total_amount,
-                        @InvoiceDate = CONVERT(date, invoice_date)
-                    FROM dbo.FP26_invoices
-                    WHERE id = @InvoiceId;
-
-                    IF @CompanyId IS NULL
-                    BEGIN
-                        SELECT @DeletedRows;
-                        RETURN;
-                    END
-
-                    INSERT INTO @AffectedMatches(match_id)
-                    SELECT id
-                    FROM dbo.FP26_invoice_transaction_matches
-                    WHERE invoice_id = @InvoiceId;
-
-                    INSERT INTO @AffectedTransactions(transaction_id)
-                    SELECT DISTINCT transaction_id
-                    FROM dbo.FP26_invoice_transaction_matches
-                    WHERE invoice_id = @InvoiceId;
-
-                    INSERT INTO @AffectedDuplicateAnomalies(anomaly_id)
-                    SELECT a.id
-                    FROM dbo.FP26_anomalies a
-                    INNER JOIN dbo.FP26_invoices i ON i.id = a.related_invoice_id
-                    WHERE a.company_id = @CompanyId
-                      AND a.anomaly_type = 'duplicate'
-                      AND i.invoice_number = @InvoiceNumber
-                      AND i.total_amount = @TotalAmount
-                      AND CONVERT(date, i.invoice_date) = @InvoiceDate;
-
-                    SELECT TOP 1 @ReplacementInvoiceId = id
-                    FROM dbo.FP26_invoices
-                    WHERE company_id = @CompanyId
-                      AND invoice_number = @InvoiceNumber
-                      AND total_amount = @TotalAmount
-                      AND CONVERT(date, invoice_date) = @InvoiceDate
-                      AND id <> @InvoiceId
-                    ORDER BY
-                        CASE WHEN status = 'deleted' THEN 1 ELSE 0 END,
-                        created_at ASC,
-                        id ASC;
-
-                    UPDATE dbo.FP26_anomalies
-                    SET
-                        related_invoice_id = @ReplacementInvoiceId,
-                        updated_at = GETDATE()
-                    WHERE anomaly_type = 'duplicate'
-                      AND related_invoice_id = @InvoiceId;
-
-                    DELETE FROM dbo.FP26_anomalies
-                    WHERE (related_invoice_id = @InvoiceId AND anomaly_type <> 'duplicate')
-                       OR related_match_id IN (SELECT match_id FROM @AffectedMatches);
-
-                    DELETE FROM dbo.FP26_invoice_transaction_matches
-                    WHERE invoice_id = @InvoiceId;
-
-                    UPDATE t
-                    SET
-                        is_matched = CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                FROM dbo.FP26_invoice_transaction_matches m
-                                WHERE m.transaction_id = t.id
-                            ) THEN 1 ELSE 0 END,
-                        updated_at = GETDATE()
-                    FROM dbo.FP26_transactions t
-                    INNER JOIN @AffectedTransactions a ON a.transaction_id = t.id;
-
-                    DELETE FROM dbo.FP26_invoices
-                    WHERE id = @InvoiceId;
-                    SET @DeletedRows = @@ROWCOUNT;
-
-                    -- Keep exactly one active invoice as the canonical record. This is
-                    -- required by the filtered unique index and by duplicate detection.
-                    UPDATE dbo.FP26_invoices
-                    SET is_duplicate = 1, updated_at = GETDATE()
-                    WHERE company_id = @CompanyId
-                      AND invoice_number = @InvoiceNumber
-                      AND total_amount = @TotalAmount
-                      AND CONVERT(date, invoice_date) = @InvoiceDate
-                      AND status <> 'deleted';
-
-                    SET @ReplacementInvoiceId = NULL;
-                    SELECT TOP 1 @ReplacementInvoiceId = id
-                    FROM dbo.FP26_invoices
-                    WHERE company_id = @CompanyId
-                      AND invoice_number = @InvoiceNumber
-                      AND total_amount = @TotalAmount
-                      AND CONVERT(date, invoice_date) = @InvoiceDate
-                      AND status <> 'deleted'
-                    ORDER BY created_at ASC, id ASC;
-
-                    IF @ReplacementInvoiceId IS NOT NULL
-                    BEGIN
-                        UPDATE dbo.FP26_invoices
-                        SET is_duplicate = 0, updated_at = GETDATE()
-                        WHERE id = @ReplacementInvoiceId;
-                    END
-
-                    SELECT @ActiveGroupCount = COUNT(1)
-                    FROM dbo.FP26_invoices
-                    WHERE company_id = @CompanyId
-                      AND invoice_number = @InvoiceNumber
-                      AND total_amount = @TotalAmount
-                      AND CONVERT(date, invoice_date) = @InvoiceDate
-                      AND status <> 'deleted';
-
-                    IF @ActiveGroupCount < 2
-                    BEGIN
-                        DELETE a
-                        FROM dbo.FP26_anomalies a
-                        INNER JOIN @AffectedDuplicateAnomalies affected ON affected.anomaly_id = a.id
-                        WHERE a.anomaly_type = 'duplicate'
-                          AND a.status = 'open'
-                          AND a.company_id = @CompanyId;
-                    END
-                    ELSE
-                    BEGIN
-                        UPDATE a
-                        SET
-                            related_invoice_id = @ReplacementInvoiceId,
-                            updated_at = GETDATE()
-                        FROM dbo.FP26_anomalies a
-                        INNER JOIN @AffectedDuplicateAnomalies affected ON affected.anomaly_id = a.id
-                        WHERE a.anomaly_type = 'duplicate'
-                          AND a.status = 'open'
-                          AND a.company_id = @CompanyId;
-                    END
-
-                    SELECT @DeletedRows;
-                ", con, tx);
-                cleanupCmd.Parameters.AddWithValue("@InvoiceId", id);
-                var deletedRows = Convert.ToInt32(cleanupCmd.ExecuteScalar());
-
-                tx.Commit();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Invoices_DeleteCascade", con,
+                    new Dictionary<string, object?> { { "@InvoiceId", id } });
+                var deletedRows = Convert.ToInt32(cmd.ExecuteScalar());
                 return deletedRows > 0;
             }
-            catch
-            {
-                tx?.Rollback();
-                throw;
-            }
-            finally
-            {
-                tx?.Dispose();
-                con?.Close();
-            }
+            finally { con?.Close(); }
         }
 
         public (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteInvoices(IEnumerable<long> ids)

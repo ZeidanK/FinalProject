@@ -114,13 +114,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-UPDATE dbo.FP26_users
-SET is_public = @IsPublic
-WHERE id = @Id;
-SELECT @@ROWCOUNT;", con);
-                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = userId;
-                cmd.Parameters.Add("@IsPublic", SqlDbType.Bit).Value = isPublic;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_UpdateVisibility", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id", userId },
+                        { "@IsPublic", isPublic }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && Convert.ToInt32(result) > 0;
             }
@@ -135,25 +135,12 @@ SELECT @@ROWCOUNT;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-SELECT u.id, u.name, u.email, u.phone, u.profile_picture,
-       uca.status AS request_status
-FROM dbo.FP26_users u
-LEFT JOIN dbo.FP26_user_company_access uca
-    ON uca.user_id = u.id
-   AND uca.company_id = @CompanyId
-WHERE u.role IN ('accountant', 'accountant_business_owner')
-  AND u.is_active = 1
-  AND (
-    u.is_public = 1
-    OR (
-      @CompanyId IS NOT NULL
-      AND uca.status = 'active'
-    )
-  )
-ORDER BY u.name;", con);
-                cmd.Parameters.Add("@CompanyId", SqlDbType.BigInt).Value =
-                    (object?)requestingCompanyId ?? DBNull.Value;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_GetPublicAccountants", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", (object?)requestingCompanyId ?? DBNull.Value }
+                    });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -180,14 +167,9 @@ ORDER BY u.name;", con);
             try
             {
                 con = Connect();
-                using var cmd = new SqlCommand(@"
-                    UPDATE dbo.FP26_users
-                    SET is_active = 0,
-                        updated_at = GETDATE()
-                    WHERE id = @UserId;
-                    SELECT @@ROWCOUNT;", con);
-                cmd.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_SoftDelete", con,
+                    new Dictionary<string, object?> { { "@UserId", userId } });
                 var result = cmd.ExecuteScalar();
                 return result != null && Convert.ToInt32(result) > 0;
             }

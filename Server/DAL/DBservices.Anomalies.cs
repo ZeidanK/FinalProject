@@ -125,47 +125,28 @@ namespace FinalProjectAuthAPI.DAL
                 return false;
 
             SqlConnection? con = null;
-            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
-                tx = con.BeginTransaction();
-
                 var rowsAffected = 0;
                 foreach (var id in normalizedIds)
                 {
-                    var cmd = new SqlCommand(
-                        @"UPDATE dbo.FP26_anomalies
-                          SET status = @Status,
-                              resolved_by_user_id = CASE WHEN @Status = 'open' THEN NULL ELSE @ResolvedByUserId END,
-                              resolution_notes = CASE WHEN @Status = 'open' THEN NULL ELSE @ResolutionNotes END,
-                              resolved_at = CASE WHEN @Status = 'open' THEN NULL ELSE GETDATE() END,
-                              updated_at = GETDATE()
-                          WHERE id = @Id",
-                        con,
-                        tx);
+                    var cmd = CreateCommandWithStoredProcedure(
+                        "FP26_sp_Anomalies_ResolveBulk", con,
+                        new Dictionary<string, object?>
+                        {
+                            { "@Id", id },
+                            { "@Status", status },
+                            { "@ResolvedByUserId", resolvedByUserId },
+                            { "@ResolutionNotes", (object?)resolutionNotes ?? DBNull.Value }
+                        });
 
-                    cmd.Parameters.AddWithValue("@Status", status);
-                    cmd.Parameters.AddWithValue("@ResolvedByUserId", resolvedByUserId);
-                    cmd.Parameters.AddWithValue("@ResolutionNotes", (object?)resolutionNotes ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Id", id);
-
-                    rowsAffected += cmd.ExecuteNonQuery();
+                    rowsAffected += Convert.ToInt32(cmd.ExecuteScalar());
                 }
 
-                tx.Commit();
                 return rowsAffected > 0;
             }
-            catch
-            {
-                tx?.Rollback();
-                throw;
-            }
-            finally
-            {
-                tx?.Dispose();
-                con?.Close();
-            }
+            finally { con?.Close(); }
         }
 
         public bool ApplyDuplicateInvoiceDecision(
@@ -191,103 +172,24 @@ namespace FinalProjectAuthAPI.DAL
                 return false;
 
             SqlConnection? con = null;
-            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
-                tx = con.BeginTransaction();
+                var invoiceIdsJson = System.Text.Json.JsonSerializer.Serialize(normalizedInvoiceIds);
 
-                foreach (var invoiceId in normalizedInvoiceIds.Where(id => id != keepInvoiceId))
-                {
-                    var softDeleteCmd = new SqlCommand(@"
-                        DECLARE @AffectedTransactions TABLE (transaction_id BIGINT PRIMARY KEY);
-
-                        INSERT INTO @AffectedTransactions(transaction_id)
-                        SELECT DISTINCT transaction_id
-                        FROM dbo.FP26_invoice_transaction_matches
-                        WHERE invoice_id = @InvoiceId;
-
-                        DELETE FROM dbo.FP26_invoice_transaction_matches
-                        WHERE invoice_id = @InvoiceId;
-
-                        UPDATE t
-                        SET
-                            is_matched = CASE
-                                WHEN EXISTS (
-                                    SELECT 1
-                                    FROM dbo.FP26_invoice_transaction_matches m
-                                    WHERE m.transaction_id = t.id
-                                ) THEN 1 ELSE 0 END,
-                            updated_at = GETDATE()
-                        FROM dbo.FP26_transactions t
-                        INNER JOIN @AffectedTransactions a ON a.transaction_id = t.id;
-
-                        UPDATE dbo.FP26_invoices
-                        SET
-                            status = 'deleted',
-                            is_duplicate = 1,
-                            is_matched = 0,
-                            matched_amount = 0,
-                            updated_at = GETDATE()
-                        WHERE id = @InvoiceId;",
-                        con,
-                        tx);
-
-                    softDeleteCmd.Parameters.AddWithValue("@InvoiceId", invoiceId);
-                    softDeleteCmd.ExecuteNonQuery();
-                }
-
-                var keepCmd = new SqlCommand(@"
-                    UPDATE dbo.FP26_invoices
-                    SET
-                        status = CASE WHEN status = 'deleted' THEN 'uploaded' ELSE status END,
-                        is_duplicate = 0,
-                        updated_at = GETDATE()
-                    WHERE id = @KeepInvoiceId;",
-                    con,
-                    tx);
-
-                keepCmd.Parameters.AddWithValue("@KeepInvoiceId", keepInvoiceId);
-                if (keepCmd.ExecuteNonQuery() <= 0)
-                {
-                    tx.Rollback();
-                    return false;
-                }
-
-                var resolvedRows = 0;
-                foreach (var anomalyId in normalizedAnomalyIds)
-                {
-                    var anomalyCmd = new SqlCommand(@"
-                        UPDATE dbo.FP26_anomalies
-                        SET
-                            status = 'resolved',
-                            resolved_by_user_id = @ResolvedByUserId,
-                            resolution_notes = @ResolutionNotes,
-                            resolved_at = GETDATE(),
-                            updated_at = GETDATE()
-                        WHERE id = @AnomalyId;",
-                        con,
-                        tx);
-
-                    anomalyCmd.Parameters.AddWithValue("@ResolvedByUserId", resolvedByUserId);
-                    anomalyCmd.Parameters.AddWithValue("@ResolutionNotes", (object?)resolutionNotes ?? DBNull.Value);
-                    anomalyCmd.Parameters.AddWithValue("@AnomalyId", anomalyId);
-                    resolvedRows += anomalyCmd.ExecuteNonQuery();
-                }
-
-                tx.Commit();
-                return resolvedRows > 0;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Anomalies_ApplyDuplicateDecision", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@InvoiceIdsJson", invoiceIdsJson },
+                        { "@KeepInvoiceId", keepInvoiceId },
+                        { "@ResolvedByUserId", resolvedByUserId },
+                        { "@ResolutionNotes", (object?)resolutionNotes ?? DBNull.Value }
+                    });
+                cmd.ExecuteNonQuery();
+                return true;
             }
-            catch
-            {
-                tx?.Rollback();
-                throw;
-            }
-            finally
-            {
-                tx?.Dispose();
-                con?.Close();
-            }
+            finally { con?.Close(); }
         }
 
         public bool RestoreDuplicateInvoices(IEnumerable<long> invoiceIds)
@@ -307,16 +209,10 @@ namespace FinalProjectAuthAPI.DAL
                 var rowsAffected = 0;
                 foreach (var invoiceId in normalizedIds)
                 {
-                    var cmd = new SqlCommand(@"
-                        UPDATE dbo.FP26_invoices
-                        SET
-                            status = CASE WHEN status = 'deleted' THEN 'uploaded' ELSE status END,
-                            updated_at = GETDATE()
-                        WHERE id = @InvoiceId;",
-                        con);
-
-                    cmd.Parameters.AddWithValue("@InvoiceId", invoiceId);
-                    rowsAffected += cmd.ExecuteNonQuery();
+                    var cmd = CreateCommandWithStoredProcedure(
+                        "FP26_sp_Invoices_RestoreDeleted", con,
+                        new Dictionary<string, object?> { { "@InvoiceId", invoiceId } });
+                    rowsAffected += Convert.ToInt32(cmd.ExecuteScalar());
                 }
 
                 return rowsAffected > 0;
@@ -334,24 +230,15 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT TOP 1 a.id
-                      FROM dbo.FP26_anomalies a
-                      INNER JOIN dbo.FP26_invoices i ON i.id = a.related_invoice_id
-                      WHERE a.company_id = @CompanyId
-                        AND a.anomaly_type = 'duplicate'
-                        AND a.status = 'open'
-                        AND i.invoice_number = @InvoiceNumber
-                        AND i.total_amount = @TotalAmount
-                        AND CONVERT(date, i.invoice_date) = CONVERT(date, @InvoiceDate)
-                      ORDER BY a.created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
-                cmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
-                cmd.Parameters.AddWithValue("@InvoiceDate", invoiceDate.Date);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Anomalies_GetOpenDuplicateId", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@InvoiceNumber", invoiceNumber },
+                        { "@TotalAmount", totalAmount },
+                        { "@InvoiceDate", invoiceDate.Date }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && result != DBNull.Value
                     ? Convert.ToInt64(result)
@@ -373,46 +260,16 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT
-                          a.id,
-                          a.company_id,
-                          a.anomaly_type,
-                          a.title,
-                          a.description,
-                          a.severity,
-                          a.status,
-                          a.suggested_action,
-                          a.related_invoice_id,
-                          a.related_transaction_id,
-                          a.related_match_id,
-                          a.amount,
-                          a.detection_method,
-                          a.detection_confidence,
-                          a.resolved_by_user_id,
-                          u.name AS resolved_by_name,
-                          a.resolution_notes,
-                          a.resolved_at,
-                          a.created_at,
-                          a.updated_at
-                      FROM dbo.FP26_anomalies a
-                      INNER JOIN dbo.FP26_invoices i ON i.id = a.related_invoice_id
-                      LEFT JOIN dbo.FP26_users u ON u.id = a.resolved_by_user_id
-                      WHERE a.company_id = @CompanyId
-                        AND a.anomaly_type = 'duplicate'
-                        AND i.invoice_number = @InvoiceNumber
-                        AND i.total_amount = @TotalAmount
-                        AND CONVERT(date, i.invoice_date) = CONVERT(date, @InvoiceDate)
-                        AND (@Status IS NULL OR a.status = @Status)
-                      ORDER BY a.created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
-                cmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
-                cmd.Parameters.AddWithValue("@InvoiceDate", invoiceDate.Date);
-                cmd.Parameters.AddWithValue("@Status", (object?)status ?? DBNull.Value);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Anomalies_GetByDuplicateSignature", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@InvoiceNumber", invoiceNumber },
+                        { "@TotalAmount", totalAmount },
+                        { "@InvoiceDate", invoiceDate.Date },
+                        { "@Status", (object?)status ?? DBNull.Value }
+                    });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                     rows.Add(MapAnomaly(reader));
@@ -440,62 +297,17 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT
-                          i.id,
-                          i.company_id,
-                          i.invoice_number,
-                          i.vendor_name,
-                          i.vendor_tax_id,
-                          i.invoice_date,
-                          i.due_date,
-                          i.payment_date,
-                          i.subtotal,
-                          i.vat_rate,
-                          i.vat_amount,
-                          i.total_amount,
-                          i.currency,
-                          i.file_original_name,
-                          i.file_path,
-                          i.file_type,
-                          i.file_size,
-                          i.status,
-                          i.ai_extraction_confidence,
-                          i.ai_processed,
-                          i.is_verified,
-                          i.is_matched,
-                          i.matched_amount,
-                          i.last_four_digits_card,
-                          i.payment_plan_total_installments,
-                          i.payment_plan_installment_amount,
-                          i.payment_plan_frequency,
-                          i.payment_plan_description,
-                          i.uploaded_by_user_id,
-                          u.name AS uploaded_by_name,
-                          i.verified_by_user_id,
-                          i.is_duplicate,
-                          i.created_at,
-                          i.updated_at
-                      FROM dbo.FP26_invoices i
-                      LEFT JOIN dbo.FP26_users u ON u.id = i.uploaded_by_user_id
-                      WHERE i.company_id = @CompanyId
-                        AND i.invoice_number = @InvoiceNumber
-                        AND i.total_amount = @TotalAmount
-                        AND CONVERT(date, i.invoice_date) = CONVERT(date, @InvoiceDate)
-                        AND (@IncludeDeleted = 1 OR i.status <> 'deleted')
-                        AND (@CreatedBefore IS NULL OR i.created_at <= @CreatedBefore)
-                      ORDER BY
-                          CASE WHEN i.status = 'deleted' THEN 1 ELSE 0 END,
-                          i.created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@InvoiceNumber", invoiceNumber);
-                cmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
-                cmd.Parameters.AddWithValue("@InvoiceDate", invoiceDate.Date);
-                cmd.Parameters.AddWithValue("@IncludeDeleted", includeDeleted);
-                cmd.Parameters.AddWithValue("@CreatedBefore", (object?)createdBefore ?? DBNull.Value);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Invoices_GetDuplicatesBySignature", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@InvoiceNumber", invoiceNumber },
+                        { "@TotalAmount", totalAmount },
+                        { "@InvoiceDate", invoiceDate.Date },
+                        { "@IncludeDeleted", includeDeleted },
+                        { "@CreatedBefore", (object?)createdBefore ?? DBNull.Value }
+                    });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                     rows.Add(MapInvoice(reader));
@@ -556,21 +368,17 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"INSERT INTO dbo.FP26_transaction_file_uploads
-                        (company_id, file_hash_sha256, file_original_name, file_path, file_size, uploaded_by_user_id, created_at)
-                      VALUES
-                        (@CompanyId, @FileHash, @FileOriginalName, @FilePath, @FileSize, @UploadedByUserId, GETDATE());
-                      SELECT SCOPE_IDENTITY();",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
-                cmd.Parameters.AddWithValue("@FileOriginalName", (object?)fileOriginalName ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@FilePath", (object?)filePath ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@FileSize", (object?)fileSize ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@UploadedByUserId", (object?)uploadedByUserId ?? DBNull.Value);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_Insert", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@FileHash", fileHashSha256 },
+                        { "@FileOriginalName", (object?)fileOriginalName ?? DBNull.Value },
+                        { "@FilePath", (object?)filePath ?? DBNull.Value },
+                        { "@FileSize", (object?)fileSize ?? DBNull.Value },
+                        { "@UploadedByUserId", (object?)uploadedByUserId ?? DBNull.Value }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null ? Convert.ToInt64(result) : 0;
             }
@@ -583,15 +391,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT COUNT(1)
-                      FROM dbo.FP26_transaction_file_uploads
-                      WHERE company_id = @CompanyId AND file_hash_sha256 = @FileHash",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_CountByHash", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@FileHash", fileHashSha256 }
+                    });
                 return Convert.ToInt32(cmd.ExecuteScalar());
             }
             finally { con?.Close(); }
@@ -603,20 +409,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT TOP 1 a.id
-                      FROM dbo.FP26_transaction_file_uploads tfu
-                      INNER JOIN dbo.FP26_anomalies a ON a.id = tfu.anomaly_id
-                      WHERE tfu.company_id = @CompanyId
-                        AND tfu.file_hash_sha256 = @FileHash
-                        AND a.anomaly_type = 'duplicate_transaction_file'
-                        AND a.status = 'open'
-                      ORDER BY a.created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Anomalies_GetOpenDuplicateFileId", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@FileHash", fileHashSha256 }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result != null && result != DBNull.Value
                     ? Convert.ToInt64(result)
@@ -631,15 +430,14 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"UPDATE dbo.FP26_transaction_file_uploads
-                      SET anomaly_id = @AnomalyId
-                      WHERE id = @UploadId",
-                    con);
-
-                cmd.Parameters.AddWithValue("@AnomalyId", anomalyId);
-                cmd.Parameters.AddWithValue("@UploadId", uploadId);
-                return cmd.ExecuteNonQuery() > 0;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_SetAnomaly", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UploadId", uploadId },
+                        { "@AnomalyId", anomalyId }
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
             finally { con?.Close(); }
         }
@@ -652,15 +450,9 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT id, company_id, file_hash_sha256, file_original_name, file_path, file_size, uploaded_by_user_id, created_at, anomaly_id
-                      FROM dbo.FP26_transaction_file_uploads
-                      WHERE anomaly_id = @AnomalyId
-                      ORDER BY created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@AnomalyId", anomalyId);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_GetByAnomaly", con,
+                    new Dictionary<string, object?> { { "@AnomalyId", anomalyId } });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -698,19 +490,14 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT id, company_id, file_hash_sha256, file_original_name, file_path, file_size, uploaded_by_user_id, created_at, anomaly_id
-                      FROM dbo.FP26_transaction_file_uploads
-                      WHERE company_id = @CompanyId
-                        AND file_hash_sha256 = @FileHash
-                        AND (@CreatedBefore IS NULL OR created_at <= @CreatedBefore)
-                      ORDER BY created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
-                cmd.Parameters.AddWithValue("@CreatedBefore", (object?)createdBefore ?? DBNull.Value);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_GetByHash", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@FileHash", fileHashSha256 },
+                        { "@CreatedBefore", (object?)createdBefore ?? DBNull.Value }
+                    });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -743,15 +530,13 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT TOP 1 file_hash_sha256
-                      FROM dbo.FP26_transaction_file_uploads
-                      WHERE company_id = @CompanyId
-                      ORDER BY ABS(DATEDIFF_BIG(MILLISECOND, created_at, @AnomalyCreatedAt)), created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@AnomalyCreatedAt", anomalyCreatedAt);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_GetClosestHash", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@AnomalyCreatedAt", anomalyCreatedAt }
+                    });
                 var result = cmd.ExecuteScalar();
                 return result == null || result == DBNull.Value ? null : result.ToString();
             }
@@ -767,17 +552,15 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"UPDATE dbo.FP26_transaction_file_uploads
-                      SET anomaly_id = @AnomalyId
-                      WHERE company_id = @CompanyId
-                        AND file_hash_sha256 = @FileHash",
-                    con);
-
-                cmd.Parameters.AddWithValue("@AnomalyId", anomalyId);
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
-                return cmd.ExecuteNonQuery() > 0;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_AssignAnomalyByHash", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@AnomalyId", anomalyId },
+                        { "@CompanyId", companyId },
+                        { "@FileHash", fileHashSha256 }
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
             finally { con?.Close(); }
         }
@@ -789,14 +572,9 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT id, company_id, file_hash_sha256, file_original_name, file_path, file_size, uploaded_by_user_id, created_at, anomaly_id
-                      FROM dbo.FP26_transaction_file_uploads
-                      WHERE id = @UploadId",
-                    con);
-
-                cmd.Parameters.AddWithValue("@UploadId", uploadId);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_GetById", con,
+                    new Dictionary<string, object?> { { "@UploadId", uploadId } });
                 reader = cmd.ExecuteReader();
                 if (!reader.Read())
                     return null;
@@ -824,76 +602,15 @@ namespace FinalProjectAuthAPI.DAL
         public bool DeleteTransactionFileUpload(long uploadId)
         {
             SqlConnection? con = null;
-            SqlTransaction? tx = null;
             try
             {
                 con = Connect();
-                tx = con.BeginTransaction();
-                var cmd = new SqlCommand(@"
-                    DECLARE @CompanyId BIGINT;
-                    DECLARE @FileHash VARCHAR(64);
-                    DECLARE @AnomalyId BIGINT;
-                    DECLARE @DeletedRows INT = 0;
-
-                    SELECT
-                        @CompanyId = company_id,
-                        @FileHash = file_hash_sha256,
-                        @AnomalyId = anomaly_id
-                    FROM dbo.FP26_transaction_file_uploads
-                    WHERE id = @UploadId;
-
-                    IF @CompanyId IS NULL
-                    BEGIN
-                        SELECT @DeletedRows;
-                        RETURN;
-                    END
-
-                    DELETE FROM dbo.FP26_transaction_file_uploads
-                    WHERE id = @UploadId;
-                    SET @DeletedRows = @@ROWCOUNT;
-
-                    IF (
-                        SELECT COUNT(1)
-                        FROM dbo.FP26_transaction_file_uploads
-                        WHERE company_id = @CompanyId
-                          AND file_hash_sha256 = @FileHash
-                    ) < 2
-                    BEGIN
-                        DELETE a
-                        FROM dbo.FP26_anomalies a
-                        WHERE a.company_id = @CompanyId
-                          AND a.anomaly_type = 'duplicate_transaction_file'
-                          AND a.status = 'open'
-                          AND (
-                              a.id = @AnomalyId
-                              OR EXISTS (
-                                  SELECT 1
-                                  FROM dbo.FP26_transaction_file_uploads tfu
-                                  WHERE tfu.anomaly_id = a.id
-                                    AND tfu.file_hash_sha256 = @FileHash
-                              )
-                          );
-                    END
-
-                    SELECT @DeletedRows;",
-                    con,
-                    tx);
-
-                cmd.Parameters.AddWithValue("@UploadId", uploadId);
-                var rows = Convert.ToInt32(cmd.ExecuteScalar());
-                tx.Commit();
-                return rows > 0;
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_TransactionFileUploads_DeleteCascade", con,
+                    new Dictionary<string, object?> { { "@UploadId", uploadId } });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
-            catch
-            {
-                tx?.Rollback();
-                throw;
-            }
-            finally
-            {
-                tx?.Dispose();
-                con?.Close();
-            }
+            finally { con?.Close(); }
         }
 
         public List<AnomalyRow> GetDuplicateFileAnomaliesByHash(long companyId, string fileHashSha256, string? status)
@@ -904,42 +621,14 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT DISTINCT
-                          a.id,
-                          a.company_id,
-                          a.anomaly_type,
-                          a.title,
-                          a.description,
-                          a.severity,
-                          a.status,
-                          a.suggested_action,
-                          a.related_invoice_id,
-                          a.related_transaction_id,
-                          a.related_match_id,
-                          a.amount,
-                          a.detection_method,
-                          a.detection_confidence,
-                          a.resolved_by_user_id,
-                          u.name AS resolved_by_name,
-                          a.resolution_notes,
-                          a.resolved_at,
-                          a.created_at,
-                          a.updated_at
-                      FROM dbo.FP26_anomalies a
-                      INNER JOIN dbo.FP26_transaction_file_uploads tfu ON tfu.anomaly_id = a.id
-                      LEFT JOIN dbo.FP26_users u ON u.id = a.resolved_by_user_id
-                      WHERE a.company_id = @CompanyId
-                        AND a.anomaly_type = 'duplicate_transaction_file'
-                        AND tfu.file_hash_sha256 = @FileHash
-                        AND (@Status IS NULL OR a.status = @Status)
-                      ORDER BY a.created_at ASC",
-                    con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@FileHash", fileHashSha256);
-                cmd.Parameters.AddWithValue("@Status", (object?)status ?? DBNull.Value);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Anomalies_GetDuplicateFileByHash", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@FileHash", fileHashSha256 },
+                        { "@Status", (object?)status ?? DBNull.Value }
+                    });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                     rows.Add(MapAnomaly(reader));
