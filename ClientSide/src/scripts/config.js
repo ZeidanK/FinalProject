@@ -136,6 +136,8 @@ export const URLS = {
     verified: (id) => buildApiPath(`/UploadJobs/${id}/verified`),
     download: (id) => buildApiPath(`/UploadJobs/${id}/download`),
     byCompany: (companyId) => buildApiPath(`/UploadJobs/company/${companyId}`),
+    verifyInvoice: (id) => buildApiPath(`/UploadJobs/${id}/verify-invoice`),
+    verifyInvoices: buildApiPath('/UploadJobs/verify-invoices'),
   },
   realtime: {
     notificationsHub: buildApiPath('/realtime/notifications'),
