@@ -6,7 +6,10 @@
     "cpd": "jscpd ClientSide/src Server/BL Server/Controllers Server/DAL --format javascript,jsx,csharp --min-tokens 60 --threshold 100 --ignore \"**/{mock,node_modules,dist,build,coverage,bin,obj,.git}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd",
     "cpd:strict": "jscpd ClientSide/src Server/BL Server/Controllers Server/DAL --format javascript,jsx,csharp --min-tokens 40 --threshold 2 --ignore \"**/{mock,node_modules,dist,build,coverage,bin,obj,.git}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd-strict",
     "cpd:frontend": "jscpd ClientSide/src --format javascript,jsx --min-tokens 60 --threshold 100 --ignore \"**/{mock,node_modules,dist,build,coverage}/**\" --reporters console,json --output reports/jscpd-frontend",
-    "cpd:backend": "jscpd Server/BL Server/Controllers Server/DAL --format csharp --min-tokens 80 --threshold 100 --ignore \"**/{bin,obj,node_modules}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd-backend"
+    "cpd:backend": "jscpd Server/BL Server/Controllers Server/DAL --format csharp --min-tokens 80 --threshold 100 --ignore \"**/{bin,obj,node_modules}/**,**/Server/BL/Interfaces/ICompanyService.cs\" --reporters console,json --output reports/jscpd-backend",
+    "test:server": "cd Tests/FinalProjectAuthAPI.Tests && dotnet test",
+    "test:client": "cd ClientSide && npm test",
+    "test:all": "npm run test:client && npm run test:server"
   },
   "devDependencies": {
     "jscpd": "^4.0.5"
