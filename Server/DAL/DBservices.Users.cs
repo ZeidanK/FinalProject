@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Users ─────────────────────────────────────────────────────────────
 
-        public User? GetUserById(long id)
+        public virtual User? GetUserById(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -27,7 +27,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public List<User> GetAllUsers()
+        public virtual List<User> GetAllUsers()
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -47,7 +47,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public bool UpdateUser(long id, string? name, string? phone, string? profilePicture)
+        public virtual bool UpdateUser(long id, string? name, string? phone, string? profilePicture)
         {
             SqlConnection? con = null;
             try
@@ -70,7 +70,7 @@ namespace FinalProjectAuthAPI.DAL
 
         // ── Password operations ─────────────────────────────────────────────
 
-        public string? GetPasswordHash(long id)
+        public virtual string? GetPasswordHash(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -89,7 +89,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public bool ChangePassword(long id, string newPasswordHash)
+        public virtual bool ChangePassword(long id, string newPasswordHash)
         {
             SqlConnection? con = null;
             try
@@ -108,7 +108,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool UpdateUserVisibility(long userId, bool isPublic)
+        public virtual bool UpdateUserVisibility(long userId, bool isPublic)
         {
             SqlConnection? con = null;
             try
@@ -127,7 +127,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<AccountantInfo> GetPublicAccountants(long? requestingCompanyId)
+        public virtual List<AccountantInfo> GetPublicAccountants(long? requestingCompanyId)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -161,7 +161,7 @@ namespace FinalProjectAuthAPI.DAL
 
         // ── Account soft deletion ──────────────────────────────────────────────
 
-        public bool DeleteUserAccount(long userId)
+        public virtual bool DeleteUserAccount(long userId)
         {
             SqlConnection? con = null;
             try
@@ -176,7 +176,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool ReactivateUserAccount(long userId)
+        public virtual bool ReactivateUserAccount(long userId)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;

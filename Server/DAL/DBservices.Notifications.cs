@@ -6,7 +6,7 @@ namespace FinalProjectAuthAPI.DAL
 {
     public partial class DBservices
     {
-        public long CreateNotification(CreateNotificationRequest req)
+        public virtual long CreateNotification(CreateNotificationRequest req)
         {
             SqlConnection? con = null;
             try
@@ -36,7 +36,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<NotificationRow> CreateCompanyNotifications(
+        public virtual List<NotificationRow> CreateCompanyNotifications(
             long companyId,
             Guid eventId,
             NotificationMessage message,
@@ -75,7 +75,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public NotificationRow? GetNotificationById(long id, long userId)
+        public virtual NotificationRow? GetNotificationById(long id, long userId)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -95,7 +95,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public NotificationInboxDbResult GetNotificationInbox(
+        public virtual NotificationInboxDbResult GetNotificationInbox(
             long userId,
             string view,
             long? companyId,
@@ -140,7 +140,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public bool MarkNotificationRead(long id, long userId)
+        public virtual bool MarkNotificationRead(long id, long userId)
         {
             SqlConnection? con = null;
             try
@@ -160,7 +160,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public int MarkAllNotificationsRead(long userId, string view, long? companyId)
+        public virtual int MarkAllNotificationsRead(long userId, string view, long? companyId)
         {
             SqlConnection? con = null;
             try
@@ -181,7 +181,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public NotificationUnreadCounts GetNotificationUnreadCounts(long userId, long? companyId, string view)
+        public virtual NotificationUnreadCounts GetNotificationUnreadCounts(long userId, long? companyId, string view)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -244,7 +244,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public int DeleteExpiredNotifications(int readRetentionDays, int unreadRetentionDays)
+        public virtual int DeleteExpiredNotifications(int readRetentionDays, int unreadRetentionDays)
         {
             SqlConnection? con = null;
             try

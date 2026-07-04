@@ -11,7 +11,7 @@ namespace FinalProjectAuthAPI.DAL
         private const string COL_USER_NAME = "user_name";
         private const string COL_COMPANY_ID = "company_id";
 
-        public AdminStatsRow GetAdminStats()
+        public virtual AdminStatsRow GetAdminStats()
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -40,7 +40,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PagedResult<AdminUserRow> GetAdminUsers(
+        public virtual PagedResult<AdminUserRow> GetAdminUsers(
             int page, int limit, string? role, string? search)
         {
             SqlConnection? con    = null;
@@ -86,7 +86,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public (long Id, bool IsActive) ToggleUserActive(long id)
+        public virtual (long Id, bool IsActive) ToggleUserActive(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -106,7 +106,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PagedResult<SystemLogRow> GetSystemLogs(
+        public virtual PagedResult<SystemLogRow> GetSystemLogs(
             int page, int limit, string? level, string? category)
         {
             SqlConnection? con    = null;
@@ -150,7 +150,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PagedResult<AuditLogRow> GetAuditLogs(
+        public virtual PagedResult<AuditLogRow> GetAuditLogs(
             int page, int limit, long? companyId)
         {
             SqlConnection? con    = null;

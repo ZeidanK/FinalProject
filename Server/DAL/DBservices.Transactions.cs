@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Transactions ──────────────────────────────────────────────────────
 
-        public List<TransactionRow> GetTransactionsByCompany(
+        public virtual List<TransactionRow> GetTransactionsByCompany(
             long companyId, string? type, bool? isMatched,
             DateTime? startDate, DateTime? endDate)
         {
@@ -37,7 +37,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public TransactionRow? GetTransactionById(long id)
+        public virtual TransactionRow? GetTransactionById(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -54,7 +54,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public long CreateTransaction(
+        public virtual long CreateTransaction(
             long companyId, long? createdByUserId, TransactionInsertData data)
         {
             SqlConnection? con = null;
@@ -92,7 +92,7 @@ namespace FinalProjectAuthAPI.DAL
         /// Inserts multiple transactions inside a single SqlTransaction.
         /// Returns the list of new IDs (same order as input).
         /// </summary>
-        public List<long> BulkCreateTransactions(
+        public virtual List<long> BulkCreateTransactions(
             long companyId, long? createdByUserId,
             IEnumerable<TransactionInsertData> rows)
         {
@@ -142,7 +142,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool DeleteTransaction(long id)
+        public virtual bool DeleteTransaction(long id)
         {
             SqlConnection? con = null;
             try
@@ -156,7 +156,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteTransactions(IEnumerable<long> ids)
+        public virtual (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteTransactions(IEnumerable<long> ids)
         {
             var deletedIds = new List<long>();
             var notFoundIds = new List<long>();

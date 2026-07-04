@@ -4,7 +4,7 @@ namespace FinalProjectAuthAPI.DAL
 {
     public partial class DBservices
     {
-        public int ClearSystemLogs()
+        public virtual int ClearSystemLogs()
         {
             SqlConnection? con = null;
             try
@@ -20,7 +20,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public int ClearAuditLogs()
+        public virtual int ClearAuditLogs()
         {
             SqlConnection? con = null;
             try
@@ -36,7 +36,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool DeleteSystemLog(long id)
+        public virtual bool DeleteSystemLog(long id)
         {
             SqlConnection? con = null;
             try
@@ -52,7 +52,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool DeleteAuditLog(long id)
+        public virtual bool DeleteAuditLog(long id)
         {
             SqlConnection? con = null;
             try

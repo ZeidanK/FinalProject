@@ -12,19 +12,19 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
             _db = db;
         }
 
-        public List<AnomalyRow> GetByCompany(
+        public virtual List<AnomalyRow> GetByCompany(
             long companyId, string? status = null,
             string? severity = null, string? type = null)
         {
             return _db.GetAnomaliesByCompany(companyId, status, severity, type);
         }
 
-        public AnomalyRow? GetById(long id)
+        public virtual AnomalyRow? GetById(long id)
         {
             return _db.GetAnomalyById(id);
         }
 
-        public AnomalyStatsRow GetStats(List<AnomalyRow> rows)
+        public virtual AnomalyStatsRow GetStats(List<AnomalyRow> rows)
         {
             var stats = new AnomalyStatsRow();
 
@@ -45,7 +45,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
             return stats;
         }
 
-        public (bool Success, long Id, string Error) Create(CreateAnomalyRequest req)
+        public virtual (bool Success, long Id, string Error) Create(CreateAnomalyRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.AnomalyType))
                 return (false, 0, "Anomaly type is required.");
@@ -70,7 +70,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
                 : (false, 0, "Failed to create anomaly.");
         }
 
-        public (bool Success, string Error) Resolve(
+        public virtual (bool Success, string Error) Resolve(
             long id, long resolvedByUserId,
             ResolveAnomalyRequest req)
         {

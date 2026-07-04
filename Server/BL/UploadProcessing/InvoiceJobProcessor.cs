@@ -36,7 +36,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             _notification = notification;
         }
 
-        public async Task ProcessAsync(long jobId)
+        public virtual async Task ProcessAsync(long jobId)
         {
             var job = _jobSvc.GetById(jobId);
             if (job == null)

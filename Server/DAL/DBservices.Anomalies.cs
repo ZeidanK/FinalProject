@@ -247,7 +247,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<AnomalyRow> GetDuplicateInvoiceAnomaliesBySignature(
+        public virtual List<AnomalyRow> GetDuplicateInvoiceAnomaliesBySignature(
             long companyId,
             string invoiceNumber,
             decimal totalAmount,
@@ -283,7 +283,7 @@ namespace FinalProjectAuthAPI.DAL
             }
         }
 
-        public List<InvoiceRow> GetDuplicateInvoicesBySignature(
+        public virtual List<InvoiceRow> GetDuplicateInvoicesBySignature(
             long companyId,
             string invoiceNumber,
             decimal totalAmount,
@@ -442,7 +442,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<TransactionFileUploadRow> GetTransactionFileUploadsByAnomalyId(long anomalyId)
+        public virtual List<TransactionFileUploadRow> GetTransactionFileUploadsByAnomalyId(long anomalyId)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -479,7 +479,7 @@ namespace FinalProjectAuthAPI.DAL
             }
         }
 
-        public List<TransactionFileUploadRow> GetTransactionFileUploadsByHash(
+        public virtual List<TransactionFileUploadRow> GetTransactionFileUploadsByHash(
             long companyId,
             string fileHashSha256,
             DateTime? createdBefore = null)

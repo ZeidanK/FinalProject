@@ -5,7 +5,7 @@ namespace FinalProjectAuthAPI.DAL
 {
     public partial class DBservices
     {
-        public void InsertSystemLog(CreateSystemLogRequest log)
+        public virtual void InsertSystemLog(CreateSystemLogRequest log)
         {
             SqlConnection? con = null;
             try
@@ -32,7 +32,7 @@ namespace FinalProjectAuthAPI.DAL
             }
         }
 
-        public void InsertAuditLog(CreateAuditLogRequest log)
+        public virtual void InsertAuditLog(CreateAuditLogRequest log)
         {
             SqlConnection? con = null;
             try

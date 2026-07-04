@@ -6,7 +6,7 @@ namespace FinalProjectAuthAPI.DAL
 {
     public partial class DBservices
     {
-        public long CreateUploadJob(CreateUploadJobRequest request)
+        public virtual long CreateUploadJob(CreateUploadJobRequest request)
         {
             SqlConnection? con = null;
             try
@@ -34,7 +34,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool SetUploadJobHangfireId(long jobId, string? hangfireJobId)
+        public virtual bool SetUploadJobHangfireId(long jobId, string? hangfireJobId)
         {
             SqlConnection? con = null;
             try
@@ -52,7 +52,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool MarkUploadJobProcessing(long jobId)
+        public virtual bool MarkUploadJobProcessing(long jobId)
         {
             SqlConnection? con = null;
             try
@@ -70,7 +70,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool MarkUploadJobCompleted(long jobId, string? resultJson)
+        public virtual bool MarkUploadJobCompleted(long jobId, string? resultJson)
         {
             SqlConnection? con = null;
             try
@@ -89,7 +89,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool TryBeginUploadJobVerification(long jobId)
+        public virtual bool TryBeginUploadJobVerification(long jobId)
         {
             SqlConnection? con = null;
             try
@@ -108,7 +108,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool MarkUploadJobVerified(long jobId, string? resultJson = null)
+        public virtual bool MarkUploadJobVerified(long jobId, string? resultJson = null)
         {
             SqlConnection? con = null;
             try
@@ -127,7 +127,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool RestoreUploadJobCompleted(long jobId, string? resultJson, string? errorMessage = null)
+        public virtual bool RestoreUploadJobCompleted(long jobId, string? resultJson, string? errorMessage = null)
         {
             SqlConnection? con = null;
             try
@@ -148,7 +148,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool MarkUploadJobFailed(long jobId, string errorMessage)
+        public virtual bool MarkUploadJobFailed(long jobId, string errorMessage)
         {
             SqlConnection? con = null;
             try
@@ -167,7 +167,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool UpdateUploadJobProgress(long jobId, int progressPercent, string? resultJson = null)
+        public virtual bool UpdateUploadJobProgress(long jobId, int progressPercent, string? resultJson = null)
         {
             SqlConnection? con = null;
             try
@@ -186,7 +186,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public UploadJobRow? GetUploadJobById(long jobId)
+        public virtual UploadJobRow? GetUploadJobById(long jobId)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -206,7 +206,7 @@ namespace FinalProjectAuthAPI.DAL
             }
         }
 
-        public List<UploadJobRow> GetUploadJobsByUser(long userId, long? companyId = null, string? status = null, int take = 50)
+        public virtual List<UploadJobRow> GetUploadJobsByUser(long userId, long? companyId = null, string? status = null, int take = 50)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -257,7 +257,7 @@ namespace FinalProjectAuthAPI.DAL
             CompletedAt = r["completed_at"] == DBNull.Value ? null : Convert.ToDateTime(r["completed_at"])
         };
 
-        public bool DeleteUploadJob(long jobId)
+        public virtual bool DeleteUploadJob(long jobId)
         {
             SqlConnection? con = null;
             try

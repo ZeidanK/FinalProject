@@ -12,15 +12,15 @@ namespace FinalProjectAuthAPI.BL.Matching
             _db = db;
         }
 
-        public List<MatchRow> GetByCompany(long companyId) =>
+        public virtual List<MatchRow> GetByCompany(long companyId) =>
             _db.GetMatchesByCompany(companyId);
 
-        public MatchRow? GetById(long id) => _db.GetMatchById(id);
+        public virtual MatchRow? GetById(long id) => _db.GetMatchById(id);
 
-        public List<MatchRow> GetMatchesByInvoice(long invoiceId) =>
+        public virtual List<MatchRow> GetMatchesByInvoice(long invoiceId) =>
             _db.GetMatchesByInvoice(invoiceId);
 
-        public (bool Success, long Id, string Error) Create(
+        public virtual (bool Success, long Id, string Error) Create(
             CreateMatchRequest req, long matchedByUserId)
         {
             if (req.InvoiceId <= 0)
@@ -74,7 +74,7 @@ namespace FinalProjectAuthAPI.BL.Matching
             return (true, id, string.Empty);
         }
 
-        public bool Delete(long id)
+        public virtual bool Delete(long id)
         {
             try
             {

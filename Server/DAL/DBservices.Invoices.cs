@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Invoices ──────────────────────────────────────────────────────────
 
-        public List<InvoiceRow> GetInvoicesByCompany(
+        public virtual List<InvoiceRow> GetInvoicesByCompany(
             long companyId, string? status, DateTime? startDate,
             DateTime? endDate, bool? isMatched)
         {
@@ -37,7 +37,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public InvoiceRow? GetInvoiceById(long id)
+        public virtual InvoiceRow? GetInvoiceById(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -63,7 +63,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-    public long CreateInvoice(
+    public virtual long CreateInvoice(
         long companyId, string invoiceNumber, string vendorName,
         DateTime invoiceDate, decimal totalAmount, long? uploadedByUserId,
         string? vendorTaxId, DateTime? dueDate, DateTime? paymentDate,
@@ -143,7 +143,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public long CreateLineItem(
+        public virtual long CreateLineItem(
             long invoiceId, string description, decimal unitPrice,
             decimal totalAmount, int? lineNumber, string? category,
             decimal quantity, decimal? vatRate, decimal? aiConfidenceScore)
@@ -173,7 +173,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool UpdateInvoiceStatus(long id, string status)
+        public virtual bool UpdateInvoiceStatus(long id, string status)
         {
             SqlConnection? con = null;
             try
@@ -188,7 +188,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool MarkInvoiceVerified(long id, long verifiedByUserId)
+        public virtual bool MarkInvoiceVerified(long id, long verifiedByUserId)
         {
             SqlConnection? con = null;
             try
@@ -210,7 +210,7 @@ namespace FinalProjectAuthAPI.DAL
             }
         }
 
-        public bool UpdateInvoiceFileInfo(long id, string? fileOriginalName, string? filePath,
+        public virtual bool UpdateInvoiceFileInfo(long id, string? fileOriginalName, string? filePath,
             string? fileType, long? fileSize, decimal? aiConfidence)
         {
             SqlConnection? con = null;
@@ -234,7 +234,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool UpdateInvoice(
+        public virtual bool UpdateInvoice(
             long id,
             long companyId,
             string invoiceNumber,
@@ -327,7 +327,7 @@ namespace FinalProjectAuthAPI.DAL
             return GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
         }
 
-        public bool DeleteInvoice(long id)
+        public virtual bool DeleteInvoice(long id)
         {
             SqlConnection? con = null;
             try
@@ -342,7 +342,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteInvoices(IEnumerable<long> ids)
+        public virtual (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteInvoices(IEnumerable<long> ids)
         {
             var deletedIds = new List<long>();
             var notFoundIds = new List<long>();

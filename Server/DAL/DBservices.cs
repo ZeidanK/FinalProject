@@ -47,7 +47,7 @@ namespace FinalProjectAuthAPI.DAL
         // ── User queries ─────────────────────────────────────────────────────
 
         /// <summary>Fetch a single user by email. Returns null if not found.</summary>
-        public User? GetUserByEmail(string email)
+        public virtual User? GetUserByEmail(string email)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -84,7 +84,7 @@ namespace FinalProjectAuthAPI.DAL
         /// Insert a new user. Sets user.Id to the new identity value.
         /// Returns true when a row was created.
         /// </summary>
-        public bool CreateUser(User user)
+        public virtual bool CreateUser(User user)
         {
             SqlConnection? con = null;
             try

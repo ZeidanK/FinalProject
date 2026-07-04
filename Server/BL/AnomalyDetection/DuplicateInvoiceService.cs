@@ -16,7 +16,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
             _anomalyCrud = anomalyCrud;
         }
 
-        public (bool Success, long AnomalyId, string Error) EnsureDuplicateInvoiceAnomaly(
+        public virtual (bool Success, long AnomalyId, string Error) EnsureDuplicateInvoiceAnomaly(
             long companyId,
             long duplicateInvoiceId,
             string invoiceNumber,
@@ -55,7 +55,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
                 : (false, 0, createResult.Error);
         }
 
-        public (bool Success, string Error) KeepDuplicateInvoice(
+        public virtual (bool Success, string Error) KeepDuplicateInvoice(
             long id, long resolvedByUserId,
             KeepDuplicateInvoiceRequest req)
         {
@@ -128,7 +128,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
             return ok ? (true, string.Empty) : (false, "Failed to apply duplicate invoice decision.");
         }
 
-        public InvoiceSignature? TryGetInvoiceSignature(long invoiceId)
+        public virtual InvoiceSignature? TryGetInvoiceSignature(long invoiceId)
         {
             var invoice = _db.GetInvoiceById(invoiceId);
             if (invoice is null || string.IsNullOrWhiteSpace(invoice.InvoiceNumber))
@@ -142,7 +142,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
             };
         }
 
-        public string BuildInvoiceGroupKey(
+        public virtual string BuildInvoiceGroupKey(
             long companyId,
             string invoiceNumber,
             decimal totalAmount,

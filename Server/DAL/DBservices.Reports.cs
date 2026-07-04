@@ -5,7 +5,7 @@ namespace FinalProjectAuthAPI.DAL
 {
     public partial class DBservices
     {
-        public DashboardStatsRow GetDashboardStats(long companyId)
+        public virtual DashboardStatsRow GetDashboardStats(long companyId)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;
@@ -59,7 +59,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public ReconciliationReport GetReconciliationReport(
+        public virtual ReconciliationReport GetReconciliationReport(
             long companyId, DateTime? startDate, DateTime? endDate)
         {
             SqlConnection? con = null;
@@ -143,7 +143,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PayablesAgingReport GetPayablesAgingReport(long companyId, DateTime asOfDate)
+        public virtual PayablesAgingReport GetPayablesAgingReport(long companyId, DateTime asOfDate)
         {
             SqlConnection? con = null;
             SqlDataReader? reader = null;

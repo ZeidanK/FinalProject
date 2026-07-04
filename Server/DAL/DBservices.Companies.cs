@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Companies ─────────────────────────────────────────────────────────
 
-        public List<CompanyRow> GetAllCompanies()
+        public virtual List<CompanyRow> GetAllCompanies()
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -28,7 +28,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public CompanyRow? GetCompanyById(long id)
+        public virtual CompanyRow? GetCompanyById(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -45,7 +45,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public List<CompanyRow> GetCompaniesByUserId(long userId)
+        public virtual List<CompanyRow> GetCompaniesByUserId(long userId)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -65,7 +65,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public bool UserHasActiveCompanyAccess(long userId, long companyId)
+        public virtual bool UserHasActiveCompanyAccess(long userId, long companyId)
         {
             if (userId <= 0 || companyId <= 0)
                 return false;
@@ -87,7 +87,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool EnsureUserHasFullCompanyAccess(long userId, long companyId)
+        public virtual bool EnsureUserHasFullCompanyAccess(long userId, long companyId)
         {
             if (userId <= 0 || companyId <= 0)
                 return false;
@@ -110,7 +110,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public long CreateCompany(
+        public virtual long CreateCompany(
             string name, long createdByUserId,
             string? registrationNumber, string? street, string? city,
             string? state, string? postalCode, string country,
@@ -175,7 +175,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool UpdateCompany(
+        public virtual bool UpdateCompany(
             long id, string? name, string? street, string? city,
             string? state, string? postalCode, string? country,
             string? email, string? phone, string? website,
@@ -255,7 +255,7 @@ namespace FinalProjectAuthAPI.DAL
             return parameters;
         }
 
-        public (bool Success, string Error) CreatePendingAccessRequest(
+        public virtual (bool Success, string Error) CreatePendingAccessRequest(
             long accountantUserId, long companyId, long requestedByUserId)
         {
             SqlConnection? con = null;
@@ -281,7 +281,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<AccessRequestRow> GetPendingRequestsByAccountant(long accountantId)
+        public virtual List<AccessRequestRow> GetPendingRequestsByAccountant(long accountantId)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -313,7 +313,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public List<CompanyRow> GetActiveCompaniesByAccountant(long accountantId)
+        public virtual List<CompanyRow> GetActiveCompaniesByAccountant(long accountantId)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -332,7 +332,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public bool RespondToAccessRequest(long requestId, long accountantUserId, bool accept)
+        public virtual bool RespondToAccessRequest(long requestId, long accountantUserId, bool accept)
         {
             SqlConnection? con = null;
             try
@@ -352,7 +352,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool DisconnectAccountantFromCompany(long accountantUserId, long companyId, long requestedByUserId)
+        public virtual bool DisconnectAccountantFromCompany(long accountantUserId, long companyId, long requestedByUserId)
         {
             if (accountantUserId <= 0 || companyId <= 0)
                 return false;

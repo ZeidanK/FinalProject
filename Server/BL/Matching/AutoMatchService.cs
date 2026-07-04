@@ -26,7 +26,7 @@ namespace FinalProjectAuthAPI.BL.Matching
             _suggestions = suggestions;
         }
 
-        public async Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAsync(
+        public virtual async Task<(bool Success, long? MatchId, string Message, decimal? MatchScore)> AutoMatchAsync(
             long invoiceId,
             long userId,
             decimal minConfidenceThreshold = HIGH_CONFIDENCE_THRESHOLD)
@@ -78,7 +78,7 @@ namespace FinalProjectAuthAPI.BL.Matching
                 : (false, null, result.Error, best.MatchScore);
         }
 
-        public async Task<AutoMatchBatchResult> AutoMatchBatchAsync(
+        public virtual async Task<AutoMatchBatchResult> AutoMatchBatchAsync(
             long companyId,
             long userId,
             decimal minConfidenceThreshold = HIGH_CONFIDENCE_THRESHOLD)

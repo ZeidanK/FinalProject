@@ -15,7 +15,7 @@ namespace FinalProjectAuthAPI.BL.Matching
             _pipelineEngine = pipelineEngine;
         }
 
-        public List<SimpleMatchSuggestion> GetSimpleSuggestions(long companyId)
+        public virtual List<SimpleMatchSuggestion> GetSimpleSuggestions(long companyId)
         {
             var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: false);
             var transactions = _db.GetCandidateTransactions(companyId);
@@ -55,7 +55,7 @@ namespace FinalProjectAuthAPI.BL.Matching
             return results;
         }
 
-        public List<InstallmentGroupSuggestion> GetInstallmentSuggestions(long companyId)
+        public virtual List<InstallmentGroupSuggestion> GetInstallmentSuggestions(long companyId)
         {
             var invoices = _db.GetInvoicesByCompany(companyId, null, null, null, isMatched: null);
             var allCandidates = _db.GetCandidateTransactions(companyId);
@@ -160,7 +160,7 @@ namespace FinalProjectAuthAPI.BL.Matching
             return results;
         }
 
-        public async Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId)
+        public virtual async Task<List<MatchSuggestionRow>> GetSuggestionsAsync(long invoiceId)
         {
             Console.WriteLine($"\n[MATCH] ── GetSuggestionsAsync (Pipeline) for invoiceId={invoiceId} ──");
             return await RunPipelineForInvoiceAsync(invoiceId);
