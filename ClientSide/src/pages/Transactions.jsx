@@ -45,7 +45,6 @@ import Papa from 'papaparse'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import TransactionDetailsModal from '../components/TransactionDetailsModal'
-import { useConfirm } from '../components/ConfirmContext'
 import {
   bulkDeleteTransactions,
   createTransactionsBulk,
@@ -199,8 +198,6 @@ function TransactionsPage() {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState([])
   const [deletingTransactionIds, setDeletingTransactionIds] = useState([])
   const [bulkDeletingTransactions, setBulkDeletingTransactions] = useState(false)
-
-  const { confirm } = useConfirm()
 
   // ===================== Data Fetching =====================
 
@@ -813,7 +810,7 @@ function TransactionsPage() {
       const transactionId = transaction?.id ?? transaction?.transactionId
       if (!transactionId) return
 
-      const confirmed = await confirm(
+      const confirmed = globalThis.confirm(
         `Delete transaction #${transactionId}? This action cannot be undone.`,
       )
       if (!confirmed) return
@@ -842,7 +839,7 @@ function TransactionsPage() {
   const handleBulkDeleteTransactions = useCallback(async () => {
     if (selectedTransactionIds.length === 0) return
 
-    const confirmed = await confirm(
+    const confirmed = globalThis.confirm(
       `Delete ${selectedTransactionIds.length} selected transaction(s)? This action cannot be undone.`,
     )
     if (!confirmed) return

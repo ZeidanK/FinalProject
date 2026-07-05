@@ -41,7 +41,6 @@ import SnackbarAlert from '../components/SnackbarAlert'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useRealtime } from '../context/useRealtime'
-import { useConfirm } from '../components/ConfirmContext'
 import {
   downloadInvoicePdf,
   getInvoiceById,
@@ -128,7 +127,6 @@ function InvoicesPage() {
 
   // --- Snackbar ---
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
-  const { confirm } = useConfirm()
   const [openingInvoiceId, setOpeningInvoiceId] = useState(null)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([])
@@ -491,7 +489,7 @@ function InvoicesPage() {
 
   const handleClearQueue = useCallback(async () => {
     if (!activeCompanyId) return
-    const confirmed = await confirm(
+    const confirmed = globalThis.confirm(
       'Clear the entire upload queue for this company? This will remove all pending upload jobs and their files.',
     )
     if (!confirmed) return
@@ -1101,7 +1099,7 @@ function InvoicesPage() {
       if (!invoiceId) return
 
       const invoiceLabel = invoice?.invoice_number || invoice?.invoiceNumber || `#${invoiceId}`
-      const confirmed = await confirm(`Delete invoice ${invoiceLabel}? This action cannot be undone.`)
+      const confirmed = globalThis.confirm(`Delete invoice ${invoiceLabel}? This action cannot be undone.`)
       if (!confirmed) return
 
       setDeletingInvoiceIds((prev) => [...prev, invoiceId])
@@ -1122,7 +1120,7 @@ function InvoicesPage() {
   const handleBulkDeleteInvoices = useCallback(async () => {
     if (selectedInvoiceIds.length === 0) return
 
-    const confirmed = await confirm(
+    const confirmed = globalThis.confirm(
       `Delete ${selectedInvoiceIds.length} selected invoice(s)? This action cannot be undone.`,
     )
     if (!confirmed) return
@@ -1200,7 +1198,7 @@ function InvoicesPage() {
     const warning = belowThresholdCount > 0
       ? ` ${belowThresholdCount} selected invoice(s) are below or missing 90% confidence.`
       : ''
-    const confirmed = await confirm(
+    const confirmed = globalThis.confirm(
       `Verify ${selectedEntries.length} selected invoice(s) without opening them?${warning}`,
     )
     if (!confirmed) return
