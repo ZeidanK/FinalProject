@@ -17,7 +17,7 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
             _anomalyCrud = anomalyCrud;
         }
 
-        public virtual (bool Success, long? AnomalyId, bool IsDuplicate, string Error) RegisterTransactionFileUpload(
+        public virtual (bool Success, long? UploadId, long? AnomalyId, bool IsDuplicate, string Error) RegisterTransactionFileUpload(
             long companyId,
             string fileOriginalName,
             string filePath,
@@ -38,12 +38,12 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
                 uploadedByUserId);
 
             if (uploadId <= 0)
-                return (false, null, false, "Failed to register uploaded file.");
+                return (false, null, null, false, "Failed to register uploaded file.");
 
             var uploadCount = _db.CountTransactionFileUploadsByHash(companyId, fileHashSha256);
             var isDuplicate = uploadCount > 1;
             if (!isDuplicate)
-                return (true, null, false, string.Empty);
+                return (true, uploadId, null, false, string.Empty);
 
             var existingAnomalyId = _db.GetOpenDuplicateFileAnomalyId(companyId, fileHashSha256);
             long anomalyId;
@@ -69,13 +69,13 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
                 });
 
                 if (!createResult.Success)
-                    return (false, null, true, createResult.Error);
+                    return (false, uploadId, null, true, createResult.Error);
 
                 anomalyId = createResult.Id;
             }
 
             _db.AssignTransactionFileUploadAnomaly(uploadId, anomalyId);
-            return (true, anomalyId, true, string.Empty);
+            return (true, uploadId, anomalyId, true, string.Empty);
         }
 
         public virtual string BuildFileGroupKey(long companyId, string fileHash)

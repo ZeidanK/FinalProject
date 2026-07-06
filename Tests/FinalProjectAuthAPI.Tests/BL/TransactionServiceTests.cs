@@ -164,6 +164,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         [Fact]
         public void Delete_ValidId_ReturnsTrue()
         {
+            _mockDb.Setup(x => x.GetTransactionById(1)).Returns(new TransactionRow { Id = 1, CompanyId = 1 });
             _mockDb.Setup(x => x.DeleteTransaction(1)).Returns(true);
 
             Assert.True(_service.Delete(1));

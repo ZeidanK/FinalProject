@@ -19,7 +19,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
             decimal totalAmount,
             DateTime invoiceDate,
             string currency);
-        (bool Success, long? AnomalyId, bool IsDuplicate, string Error) RegisterTransactionFileUpload(
+        (bool Success, long? UploadId, long? AnomalyId, bool IsDuplicate, string Error) RegisterTransactionFileUpload(
             long companyId,
             string fileOriginalName,
             string filePath,

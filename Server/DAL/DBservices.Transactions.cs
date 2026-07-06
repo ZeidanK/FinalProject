@@ -79,7 +79,8 @@ namespace FinalProjectAuthAPI.DAL
                         { "@ChargeAmount",     data.ChargeAmount    },
                         { "@ChargeCurrency",   data.ChargeCurrency  },
                         { "@OriginalCurrency", data.OriginalCurrency },
-                        { "@ExchangeRate",     data.ExchangeRate    }
+                        { "@ExchangeRate",     data.ExchangeRate    },
+                        { "@FileUploadId",     data.FileUploadId    }
                     });
 
                 var result = cmd.ExecuteScalar();
@@ -94,7 +95,8 @@ namespace FinalProjectAuthAPI.DAL
         /// </summary>
         public virtual List<long> BulkCreateTransactions(
             long companyId, long? createdByUserId,
-            IEnumerable<TransactionInsertData> rows)
+            IEnumerable<TransactionInsertData> rows,
+            long? fileUploadId = null)
         {
             SqlConnection? con = null;
             SqlTransaction? tx = null;
@@ -126,6 +128,7 @@ namespace FinalProjectAuthAPI.DAL
                     cmd.Parameters.AddWithValue("@ChargeCurrency",   (object?)row.ChargeCurrency    ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@OriginalCurrency", (object?)row.OriginalCurrency  ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ExchangeRate",     (object?)row.ExchangeRate      ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@FileUploadId",     (object?)(fileUploadId ?? row.FileUploadId) ?? DBNull.Value);
 
                     var result = cmd.ExecuteScalar();
                     ids.Add(result != null ? Convert.ToInt64(result) : 0);
@@ -198,8 +201,48 @@ namespace FinalProjectAuthAPI.DAL
             Status           = r.GetStringOrDefault("status", "confirmed"),
             CreatedByUserId  = r.GetInt64OrNull("created_by_user_id"),
             CreatedByName    = r.GetStringOrNull("created_by_name"),
+            FileUploadId     = r.GetInt64OrNull("file_upload_id"),
             CreatedAt        = Convert.ToDateTime(r["created_at"]),
             UpdatedAt        = Convert.ToDateTime(r["updated_at"]),
         };
+
+        public virtual int CountTransactionsByFileUploadId(long fileUploadId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(
+                    "SELECT COUNT(1) FROM dbo.FP26_transactions WHERE file_upload_id = @FileUploadId", con);
+                cmd.Parameters.AddWithValue("@FileUploadId", fileUploadId);
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+            finally { con?.Close(); }
+        }
+
+        public virtual List<TransactionRow> GetTransactionsByFileUploadIds(List<long> fileUploadIds)
+        {
+            if (fileUploadIds == null || fileUploadIds.Count == 0)
+                return new List<TransactionRow>();
+
+            var idsParam = string.Join(",", fileUploadIds.Select((_, i) => $"@id{i}"));
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            var list = new List<TransactionRow>();
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(
+                    $"SELECT * FROM dbo.FP26_transactions WHERE file_upload_id IN ({idsParam})", con);
+                for (var i = 0; i < fileUploadIds.Count; i++)
+                    cmd.Parameters.AddWithValue($"@id{i}", fileUploadIds[i]);
+
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                    list.Add(MapTransaction(reader));
+                return list;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
     }
 }

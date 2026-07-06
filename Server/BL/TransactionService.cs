@@ -87,7 +87,7 @@ namespace FinalProjectAuthAPI.BL
                 ExchangeRate     = t.ExchangeRate
             });
 
-            var ids = _db.BulkCreateTransactions(req.CompanyId, createdByUserId, rows);
+            var ids = _db.BulkCreateTransactions(req.CompanyId, createdByUserId, rows, req.FileUploadId);
             return (true, ids, string.Empty);
         }
 
@@ -96,7 +96,16 @@ namespace FinalProjectAuthAPI.BL
             if (id <= 0)
                 return false;
 
-            return _db.DeleteTransaction(id);
+            var txn = _db.GetTransactionById(id);
+            if (txn == null)
+                return false;
+
+            var fileUploadId = txn.FileUploadId;
+            var deleted = _db.DeleteTransaction(id);
+            if (deleted && fileUploadId.HasValue)
+                TryCleanupFileUpload(fileUploadId.Value);
+
+            return deleted;
         }
 
         public (List<long> DeletedIds, List<long> NotFoundIds) BulkDelete(List<long> ids)
@@ -108,7 +117,27 @@ namespace FinalProjectAuthAPI.BL
             if (normalizedIds.Count == 0)
                 return (new List<long>(), new List<long>());
 
-            return _db.BulkDeleteTransactions(normalizedIds);
+            var affectedUploadIds = new HashSet<long>();
+            foreach (var id in normalizedIds)
+            {
+                var txn = _db.GetTransactionById(id);
+                if (txn?.FileUploadId.HasValue == true)
+                    affectedUploadIds.Add(txn.FileUploadId.Value);
+            }
+
+            var result = _db.BulkDeleteTransactions(normalizedIds);
+
+            foreach (var uploadId in affectedUploadIds)
+                TryCleanupFileUpload(uploadId);
+
+            return result;
+        }
+
+        private void TryCleanupFileUpload(long fileUploadId)
+        {
+            var remaining = _db.CountTransactionsByFileUploadId(fileUploadId);
+            if (remaining == 0)
+                _db.DeleteTransactionFileUpload(fileUploadId);
         }
 
         /// <summary>

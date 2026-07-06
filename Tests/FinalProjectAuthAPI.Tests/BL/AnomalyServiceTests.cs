@@ -292,11 +292,12 @@ namespace FinalProjectAuthAPI.Tests.BL
             var date1 = new DateTime(2026, 6, 1);
             var date2 = new DateTime(2026, 6, 30);
             _mockDupFile.Setup(x => x.RegisterTransactionFileUpload(5, "file.xlsx", "/path", 1024L, 10L, "hash123", date1, date2))
-                .Returns((true, 42L, true, ""));
+                .Returns((true, 1L, 42L, true, ""));
 
-            var (success, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(5, "file.xlsx", "/path", 1024L, 10L, "hash123", date1, date2);
+            var (success, uploadId, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(5, "file.xlsx", "/path", 1024L, 10L, "hash123", date1, date2);
 
             Assert.True(success);
+            Assert.Equal(1, uploadId);
             Assert.Equal(42, anomalyId);
             Assert.True(isDuplicate);
         }
