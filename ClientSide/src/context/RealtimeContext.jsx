@@ -109,7 +109,24 @@ export function RealtimeProvider({ children }) {
       }
     })
 
-    const onUploadJobUpdated = (payload) => emit('uploadJobUpdated', payload)
+    const onUploadJobUpdated = (payload) => {
+      emit('uploadJobUpdated', payload)
+      const status = (payload?.status ?? payload?.Status ?? '').toLowerCase()
+      const jobType = payload?.jobType ?? payload?.JobType ?? ''
+      if ((status === 'completed' || status === 'failed' || status === 'canceled') && jobType?.startsWith?.('transaction_')) {
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        const companyId = payload?.companyId ?? payload?.CompanyId
+        const jobId = payload?.id ?? payload?.Id
+        if (companyId && jobId) {
+          const key = `transaction_upload_jobs_${companyId}`
+          try {
+            const stored = JSON.parse(sessionStorage.getItem(key) || '[]')
+            const filtered = stored.filter((j) => String(j.jobId) !== String(jobId))
+            sessionStorage.setItem(key, JSON.stringify(filtered))
+          } catch { /* ignore */ }
+        }
+      }
+    }
     const onNotificationEvent = (payload) => emit('notificationEvent', payload)
     const onNotificationCreated = (payload) => {
       const eventKey = String(payload?.eventId || payload?.EventId || payload?.id || payload?.Id || '')

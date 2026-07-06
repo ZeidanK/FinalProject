@@ -48,14 +48,14 @@ import TransactionDetailsModal from '../components/TransactionDetailsModal'
 import { useConfirm } from '../components/ConfirmContext'
 import {
   bulkDeleteTransactions,
-  createTransactionsBulk,
   deleteTransaction,
   getTransactionById,
   importExcelTransactions,
   previewExcel,
 } from '../services/transactions'
 import { getUploadJobStatus } from '../services/uploadJobs'
-import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
+import { useTransactionsByCompanyQuery, useCreateTransactionsBulkMutation } from '../hooks/queries/useTransactionsQueries'
+import { useRealtime } from '../context/useRealtime'
 import {
   filterTransactionsByType,
   formatTransactionTypeLabel,
@@ -149,6 +149,7 @@ function TransactionsPage() {
   const [searchParams] = useSearchParams()
   const deepLinkedJobId = Number(searchParams.get('jobId')) || null
   const { activeCompanyId } = useCompany()
+  const { subscribe: subscribeRealtime } = useRealtime()
 
   // --- Transaction list ---
   const [transactions, setTransactions] = useState([])
@@ -211,6 +212,12 @@ function TransactionsPage() {
   })
 
   const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
+
+  const createBulkMutation = useCreateTransactionsBulkMutation({
+    companyId: activeCompanyId,
+    filters: undefined,
+    token,
+  })
 
   // ===================== Background-job polling (Excel imports) =====================
 
@@ -310,15 +317,32 @@ function TransactionsPage() {
     [token, stopTxPolling, removeTxJobFromSession, upsertImportingJob, transactionsQuery],
   )
 
-  // Restore in-flight jobs from sessionStorage on mount / company change
+  // Restore in-flight jobs from sessionStorage on mount / company change.
+  // Check job status immediately to avoid showing "processing" for already-completed jobs.
   useEffect(() => {
     if (!txSessionKey || !token) return
     let stored = []
     try { stored = JSON.parse(sessionStorage.getItem(txSessionKey) || '[]') } catch { return }
     if (stored.length === 0) return
     stored.forEach(({ jobId, fileName }) => {
-      upsertImportingJob(jobId, { status: 'processing', progress: 50, fileName })
-      startTxPolling(jobId, fileName)
+      getUploadJobStatus(jobId, token).then((job) => {
+        const jStatus = (job?.status ?? '').toLowerCase()
+        if (jStatus === 'completed' || jStatus === 'failed' || jStatus === 'canceled') {
+          removeTxJobFromSession(jobId)
+          if (jStatus === 'completed') {
+            const result = (() => { try { return JSON.parse(job.resultJson || 'null') } catch { return null } })()
+            if (!result?.isDuplicate) {
+              transactionsQuery.refetch()
+            }
+          }
+        } else {
+          upsertImportingJob(jobId, { status: jStatus || 'processing', progress: Math.min(90, job?.progressPercent ?? job?.ProgressPercent ?? 50), fileName })
+          startTxPolling(jobId, fileName)
+        }
+      }).catch(() => {
+        upsertImportingJob(jobId, { status: 'processing', progress: 50, fileName })
+        startTxPolling(jobId, fileName)
+      })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txSessionKey, token])
@@ -330,6 +354,25 @@ function TransactionsPage() {
       pollingTimers.current = {}
     }
   }, [])
+
+  // Listen for real-time upload job updates via SignalR for instant completion detection
+  useEffect(() => {
+    if (!subscribeRealtime) return
+    const unsub = subscribeRealtime('uploadJobUpdated', (job) => {
+      const jobId = job?.id ?? job?.Id
+      if (!jobId) return
+      const status = (job?.status ?? '').toLowerCase()
+      if (status === 'completed' || status === 'failed' || status === 'canceled') {
+        stopTxPolling(jobId)
+        removeTxJobFromSession(jobId)
+        upsertImportingJob(jobId, { status, progress: status === 'completed' ? 100 : 0 })
+        setImportingJobs((prev) => prev.filter((j) => j.jobId !== jobId))
+      } else {
+        upsertImportingJob(jobId, { status, progress: Math.min(90, job?.progressPercent ?? job?.ProgressPercent ?? 30) })
+      }
+    })
+    return unsub
+  }, [subscribeRealtime, stopTxPolling, removeTxJobFromSession, upsertImportingJob])
 
   useEffect(() => {
     if (transactionsQuery.error) {
@@ -722,20 +765,18 @@ function TransactionsPage() {
           })),
         }
 
-        await createTransactionsBulk(payload, token)
+        await createBulkMutation.mutateAsync(payload)
         totalImported += csvRows.length
       }
 
-      // Only show immediate success + refetch when there were CSV rows that imported synchronously.
-      // Excel import jobs are handled asynchronously and will trigger their own snackbar when done.
       if (totalImported > 0) {
         setSnack({
           open: true,
           message: `Successfully imported ${totalImported} transaction(s).`,
           severity: 'success',
         })
-        await transactionsQuery.refetch()
-      } else if (excelFiles.length > 0) {
+      }
+      if (excelFiles.length > 0) {
         setSnack({
           open: true,
           message: `${excelFiles.length} Excel file(s) queued for import — you can leave this page, we'll keep processing.`,
@@ -752,7 +793,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, transactionsQuery, saveTxJobToSession, upsertImportingJob, startTxPolling])
+  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, transactionsQuery, saveTxJobToSession, upsertImportingJob, startTxPolling, createBulkMutation])
 
   const openTransactionDetails = useCallback(
     async (tx) => {
