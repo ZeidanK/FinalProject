@@ -152,6 +152,7 @@ function TransactionsPage() {
   const deepLinkedJobId = Number(searchParams.get('jobId')) || null
   const { activeCompanyId } = useCompany()
   const queryClient = useQueryClient()
+  const { subscribe: subscribeRealtime } = useRealtime()
 
   // --- Transaction list ---
   const [transactions, setTransactions] = useState([])
