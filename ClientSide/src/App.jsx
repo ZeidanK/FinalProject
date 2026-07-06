@@ -1,4 +1,4 @@
-import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import PropTypes from 'prop-types'
 import LandingPage from './pages/LandingPage'
 import RegisterPage from './pages/Register'
@@ -133,7 +133,7 @@ CompanyRoute.propTypes = {
  * @returns {React.ReactElement} The top-level application router.
  */
 function App() {
-  const Router = import.meta.env.PROD ? HashRouter : BrowserRouter
+  const Router = HashRouter
 
   return (
     <Router>
