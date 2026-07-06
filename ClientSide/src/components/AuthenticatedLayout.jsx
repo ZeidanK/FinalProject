@@ -11,15 +11,17 @@ import {
 } from '@mui/material'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import LogoMark from './LogoMark'
-import SidebarNav, { sidebarWidth, sidebarCollapsedWidth } from './SidebarNav'
+import SidebarNav, { sidebarWidth } from './SidebarNav'
 import BreadcrumbsNav from './BreadcrumbsNav'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import NotificationBell from './NotificationBell'
+import CommandPalette from './CommandPalette'
+import PageTransitionWrapper from './PageTransitionWrapper'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -37,6 +39,7 @@ function ScrollToTopFab() {
   if (!visible) return null
   return (
     <IconButton
+      aria-label="Scroll to top"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       sx={{
         position: 'fixed', bottom: 24, right: 24, zIndex: 1200,
@@ -57,10 +60,22 @@ function AuthenticatedLayout() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
-  const location = useLocation()
 
   const handleOpen = useCallback(() => setMobileOpen(true), [])
   const handleClose = useCallback(() => setMobileOpen(false), [])
+
+  const [commandOpen, setCommandOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
   const activeCompany = activeCompanyId && Array.isArray(companies)
@@ -171,23 +186,16 @@ function AuthenticatedLayout() {
             }}
           >
             <BreadcrumbsNav />
-            <AnimatePresence mode="wait">
-              <Box
-                key={location.pathname}
-                component={motion.div}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-              >
-                <Outlet />
-              </Box>
-            </AnimatePresence>
+            <PageTransitionWrapper>
+              <Outlet />
+            </PageTransitionWrapper>
           </Box>
         </Box>
       </Box>
 
       <ScrollToTopFab />
+
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </Box>
   )
 }

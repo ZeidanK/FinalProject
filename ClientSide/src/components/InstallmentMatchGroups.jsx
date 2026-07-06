@@ -31,10 +31,11 @@ import { itemVariants } from '../utils/motionVariants'
  * @type {import('@mui/material').SxProps}
  */
 const cardBaseSx = {
-  borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+  borderRadius: 3.5,
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 /**
@@ -189,7 +190,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
               <Typography variant="caption" color="text.secondary">
                 {alreadyCount} confirmed installment{alreadyCount === 1 ? '' : 's'}
               </Typography>
-              <IconButton size="small" sx={{ p: 0 }}>
+              <IconButton size="small" aria-label="Toggle installment history" sx={{ p: 0 }}>
                 <ExpandMoreRoundedIcon
                   fontSize="small"
                   sx={{
@@ -243,6 +244,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
                           <span>
                             <IconButton
                               size="small"
+                              aria-label="Remove match"
                               onClick={() => onRemoveMatch(matchId)}
                               disabled={matchBusy || !matchId}
                               sx={{ color: 'error.main' }}
@@ -414,7 +416,6 @@ export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, on
       sx={{
         ...cardBaseSx,
         borderColor: 'rgba(251,191,36,0.35)',
-        background: 'linear-gradient(135deg, rgba(26,20,10,0.96), rgba(18,14,6,0.96))',
       }}
     >
       <CardContent>

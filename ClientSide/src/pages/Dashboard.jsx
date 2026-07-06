@@ -25,6 +25,10 @@ import EmptyState from '../components/EmptyState'
 import RecentActivityTimeline from '../components/RecentActivityTimeline'
 import MetricCard from '../components/MetricCard'
 import DashboardChart from '../components/DashboardChart'
+import GlassCard from '../components/GlassCard'
+import RevealOnScroll from '../components/RevealOnScroll'
+import AnimatedBackground from '../components/AnimatedBackground'
+import useAnimatedCounter from '../hooks/useAnimatedCounter'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { getDashboardStats, getRecentActivity, mapDashboardStatsToKpis } from '../services/dashboard'
@@ -78,6 +82,11 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 }
 
+function AnimatedKPIValue({ value, color }) {
+  const animated = useAnimatedCounter({ end: Number(value) || 0, duration: 800, enabled: true })
+  return <Typography variant="h4" sx={{ color: color || 'text.primary', fontWeight: 700 }}>{animated}</Typography>
+}
+
 function DashboardPage() {
   const { user, token } = useAuth()
   const { activeCompanyId } = useCompany()
@@ -114,28 +123,19 @@ function DashboardPage() {
     <Box
       sx={{
         py: { xs: 4, md: 6 },
-        background:
-          'radial-gradient(circle at 0% 5%, rgba(88, 166, 255, 0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66, 130, 255, 0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+        minHeight: '100%',
       }}
     >
+      <AnimatedBackground density="medium" />
       <Container
         maxWidth={false}
         disableGutters
-        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}
       >
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-          <Card
-            component={motion.div}
-            variants={itemVariants}
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              background: 'linear-gradient(135deg, rgba(14, 25, 45, 0.98), rgba(9, 17, 33, 0.97))',
-              boxShadow: '0 24px 54px rgba(0, 0, 0, 0.42)',
-            }}
-          >
+          <GlassCard variant="elevated" motionProps={{ variants: itemVariants }}>
             <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
               <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" spacing={2.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
@@ -156,17 +156,17 @@ function DashboardPage() {
                   startIcon={<RefreshRoundedIcon fontSize="small" />}
                   onClick={loadDashboard}
                   disabled={loading}
-                  sx={{ textTransform: 'none' }}
+                  sx={{ textTransform: 'none', borderColor: 'rgba(129,191,255,0.25)', '&:hover': { borderColor: 'rgba(129,191,255,0.5)' } }}
                 >
                   {loading ? 'Refreshing...' : 'Refresh KPIs'}
                 </Button>
               </Stack>
             </CardContent>
-          </Card>
+          </GlassCard>
 
           {errorMessage && (
             <Alert severity="warning" component={motion.div} variants={itemVariants} sx={{ borderRadius: 2.5 }}>
-              {errorMessage} Showing fallback KPI values until data is available.
+              {errorMessage}
             </Alert>
           )}
 
@@ -179,45 +179,38 @@ function DashboardPage() {
             />
           )}
 
-          <Grid container spacing={2} component={motion.div} variants={itemVariants}>
-            {loading
-              ? [1, 2, 3, 4].map((i) => (
-                  <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
-                    <MetricCard
-                      icon={<Skeleton variant="rounded" width={32} height={32} />}
-                      value={<Skeleton variant="text" width="54%" height={44} />}
-                      subtitle={<Skeleton variant="text" width="76%" />}
-                    />
-                  </Grid>
-                ))
-              : kpis.filter((kpi) => kpi.title !== 'Open Runs').map((kpi) => (
-                  <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }}>
-                    <MetricCard
-                      icon={kpiIcons[kpi.title]}
-                      title={kpi.title}
-                      value={kpi.value}
-                      subtitle={kpi.subtitle}
-                      color={kpiColors[kpi.title]}
-                    />
-                  </Grid>
-                ))}
-          </Grid>
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
-              <DashboardChart />
+          <RevealOnScroll>
+            <Grid container spacing={2} component={motion.div} variants={itemVariants}>
+              {loading
+                ? [1, 2, 3, 4].map((i) => (
+                    <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <MetricCard
+                        icon={<Skeleton variant="rounded" width={32} height={32} />}
+                        value={<Skeleton variant="text" width="54%" height={44} />}
+                      />
+                    </Grid>
+                  ))
+                : kpis.filter((kpi) => kpi.title !== 'Open Runs').map((kpi) => (
+                    <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <MetricCard
+                        icon={kpiIcons[kpi.title]}
+                        title={kpi.title}
+                        value={<AnimatedKPIValue value={kpi.value} color={kpiColors[kpi.title]} />}
+                        subtitle={kpi.subtitle}
+                        color={kpiColors[kpi.title]}
+                      />
+                    </Grid>
+                  ))}
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  background: 'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
-                }}
-              >
+          </RevealOnScroll>
+
+          <RevealOnScroll delay={0.1}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
+                <DashboardChart />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+              <GlassCard variant="elevated" sx={{ height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
                   <Stack spacing={1.6}>
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -231,14 +224,16 @@ function DashboardPage() {
                         onClick={() => navigate(action.path)}
                         sx={{
                           borderRadius: 2.5,
-                          border: '1px solid',
-                          borderColor: 'rgba(129, 191, 255, 0.22)',
-                          background: 'rgba(10, 18, 34, 0.75)',
+                          border: '1px solid rgba(129, 191, 255, 0.15)',
+                          background: 'rgba(10, 18, 34, 0.5)',
+                          backdropFilter: 'blur(8px)',
                           cursor: 'pointer',
-                          transition: 'border-color 0.2s, background 0.2s',
+                          transition: 'all 0.25s',
                           '&:hover': {
-                            borderColor: 'rgba(129, 191, 255, 0.5)',
-                            background: 'rgba(14, 24, 44, 0.85)',
+                            borderColor: 'rgba(129, 191, 255, 0.4)',
+                            background: 'rgba(14, 24, 44, 0.7)',
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
                           },
                         }}
                       >
@@ -257,35 +252,19 @@ function DashboardPage() {
                     ))}
                   </Stack>
                 </CardContent>
-              </Card>
+              </GlassCard>
             </Grid>
           </Grid>
+          </RevealOnScroll>
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  background: 'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
-                }}
-              >
+              <GlassCard variant="elevated" sx={{ height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
                   <Stack spacing={2}>
                     <Typography variant="h6">Continue where you left off</Typography>
                     {stats && (stats.processingInvoices > 0 || stats.unmatchedTransactions > 0 || stats.openAnomalies > 0) ? (
-                      <Card
-                        elevation={0}
-                        sx={{
-                          borderRadius: 2.5,
-                          border: '1px solid',
-                          borderColor: 'rgba(125, 211, 252, 0.38)',
-                          bgcolor: 'rgba(11, 20, 37, 0.7)',
-                        }}
-                      >
+                      <GlassCard variant="default" sx={{ borderRadius: 2.5, border: '1px solid rgba(125, 211, 252, 0.25)' }}>
                         <CardContent>
                           <Stack spacing={1}>
                             {stats.processingInvoices > 0 && (
@@ -306,7 +285,7 @@ function DashboardPage() {
                             )}
                           </Stack>
                         </CardContent>
-                      </Card>
+                      </GlassCard>
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         All caught up — no pending items right now.
@@ -317,23 +296,11 @@ function DashboardPage() {
                     <RecentActivityTimeline items={activity} loading={loading} />
                   </Stack>
                 </CardContent>
-              </Card>
+              </GlassCard>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  background: 'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
+              <GlassCard variant="glow" sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <CardContent>
                   <Stack spacing={1} alignItems="center" textAlign="center">
                     <TaskAltRoundedIcon sx={{ color: '#b7ffd2', fontSize: 48 }} />
@@ -346,7 +313,7 @@ function DashboardPage() {
                     </Typography>
                   </Stack>
                 </CardContent>
-              </Card>
+              </GlassCard>
             </Grid>
           </Grid>
         </Stack>

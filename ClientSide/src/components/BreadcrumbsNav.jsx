@@ -40,9 +40,17 @@ export default function BreadcrumbsNav({ sx }) {
 
   return (
     <Breadcrumbs
-      separator={<NavigateNextRoundedIcon sx={{ fontSize: 14, color: theme.palette.text.disabled }} />}
+      separator={<NavigateNextRoundedIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.2)' }} />}
       aria-label="breadcrumb"
-      sx={{ mb: 2, ...sx }}
+      sx={{
+        mb: 2,
+        px: 1.5,
+        py: 0.6,
+        borderRadius: 2,
+        background: 'rgba(129, 191, 255, 0.04)',
+        display: 'inline-flex',
+        ...sx,
+      }}
     >
       <Typography
         component={Link}

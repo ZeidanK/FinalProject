@@ -460,7 +460,7 @@ export default function InvoiceVerificationModal(props) {
                       </TableCell>
                       <TableCell>
                         {!readOnly ? (
-                          <IconButton size="small" onClick={function () { removeLineItem(idx) }}>
+                          <IconButton size="small" aria-label="Remove line item" onClick={function () { removeLineItem(idx) }}>
                             <DeleteOutlineRoundedIcon fontSize="small" />
                           </IconButton>
                         ) : null}
@@ -561,7 +561,7 @@ export default function InvoiceVerificationModal(props) {
         </Stack>
       )}
       headerAction={(
-        <IconButton onClick={handleClose} size="small">
+        <IconButton aria-label="Close" onClick={handleClose} size="small">
           <CloseRoundedIcon />
         </IconButton>
       )}

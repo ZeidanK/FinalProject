@@ -3,14 +3,15 @@ import { Card, CardContent, Stack, Typography } from '@mui/material'
 
 const cardSx = {
   height: '100%',
-  borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(155deg, rgba(12, 22, 40, 0.98), rgba(8, 15, 29, 0.98))',
+  borderRadius: 3.5,
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
   transition: 'border-color 0.25s, box-shadow 0.25s',
   '&:hover': {
     borderColor: 'rgba(129, 191, 255, 0.4)',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
   },
 }
 

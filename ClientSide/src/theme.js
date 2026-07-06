@@ -261,10 +261,10 @@ export const getComponentOverrides = (mode) => ({
     styleOverrides: {
       root: {
         borderRadius: 8,
-        backgroundColor: mode === 'dark' ? 'rgba(43,54,81,0.4)' : 'rgba(0,0,0,0.06)',
+        backgroundColor: mode === 'dark' ? 'rgba(20, 30, 55, 0.5)' : 'rgba(0,0,0,0.06)',
         '&::after': {
           background: mode === 'dark'
-            ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)'
+            ? 'linear-gradient(90deg, transparent, rgba(129, 191, 255, 0.06), transparent)'
             : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
         },
       },

@@ -44,9 +44,11 @@ import {
 import { useTheme } from '@mui/material/styles'
 import EmptyState from '../components/EmptyState'
 import MetricCard from '../components/MetricCard'
+import GlassCard from '../components/GlassCard'
+import AnimatedBackground from '../components/AnimatedBackground'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
-import SnackbarAlert from '../components/SnackbarAlert'
+import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import {
   useClearAdminAuditLogsMutation,
@@ -565,19 +567,9 @@ TabPanel.propTypes = {
  */
 function SectionCard({ children }) {
   return (
-    <Card
-      component={motion.div}
-      variants={itemVariants}
-      elevation={0}
-      sx={{
-        borderRadius: 3.2,
-        border: '1px solid',
-        borderColor: 'divider',
-        background: 'rgba(11, 19, 35, 0.72)',
-      }}
-    >
+    <GlassCard variant="default" motionProps={{ variants: itemVariants }}>
       <CardContent sx={{ p: { xs: 2, md: 2.4 } }}>{children}</CardContent>
-    </Card>
+    </GlassCard>
   )
 }
 
@@ -616,7 +608,7 @@ function AdminPortalPage() {
   const [auditQuery, setAuditQuery] = useState({ page: 1, limit: 50, companyId: null })
   const [auditCompanyInput, setAuditCompanyInput] = useState('')
 
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const { notify } = useNotification()
 
   const statsQuery = useAdminStatsQuery({
     token,
@@ -735,28 +727,16 @@ function AdminPortalPage() {
 
   const handleToggleUserBan = async (userId) => {
     if (String(userId) === String(currentUser?.id)) {
-      setSnack({
-        open: true,
-        message: 'You cannot ban your own admin account.',
-        severity: 'warning',
-      })
+      notify({ message: 'You cannot ban your own admin account.', severity: 'warning' })
       return
     }
 
     setToggleLoadingUserId(userId)
     try {
       const result = await toggleUserMutation.mutateAsync({ userId })
-      setSnack({
-        open: true,
-        message: result?.message || 'User ban status updated successfully.',
-        severity: 'success',
-      })
+      notify({ message: result?.message || 'User ban status updated successfully.', severity: 'success' })
     } catch (error) {
-      setSnack({
-        open: true,
-        message: error.message || 'Failed to update user ban status.',
-        severity: 'error',
-      })
+      notify({ message: error.message || 'Failed to update user ban status.', severity: 'error' })
     } finally {
       setToggleLoadingUserId(null)
     }
@@ -764,11 +744,7 @@ function AdminPortalPage() {
 
   const handleToggleUserRequest = (user) => {
     if (String(user.id) === String(currentUser?.id)) {
-      setSnack({
-        open: true,
-        message: 'You cannot ban your own admin account.',
-        severity: 'warning',
-      })
+      notify({ message: 'You cannot ban your own admin account.', severity: 'warning' })
       return
     }
 
@@ -834,17 +810,9 @@ function AdminPortalPage() {
         setAuditQuery((prev) => ({ ...prev, page: 1 }))
       }
 
-      setSnack({
-        open: true,
-        message: result?.message || 'Logs cleared.',
-        severity: 'success',
-      })
+      notify({ message: result?.message || 'Logs cleared.', severity: 'success' })
     } catch (error) {
-      setSnack({
-        open: true,
-        message: error.message || 'Failed to clear logs.',
-        severity: 'error',
-      })
+      notify({ message: error.message || 'Failed to clear logs.', severity: 'error' })
     }
   }
 
@@ -880,17 +848,9 @@ function AdminPortalPage() {
           ? await deleteLogMutation.mutateAsync({ id })
           : await deleteAuditLogMutation.mutateAsync({ id })
 
-      setSnack({
-        open: true,
-        message: result?.message || 'Log entry deleted.',
-        severity: 'success',
-      })
+      notify({ message: result?.message || 'Log entry deleted.', severity: 'success' })
     } catch (error) {
-      setSnack({
-        open: true,
-        message: error.message || 'Failed to delete log entry.',
-        severity: 'error',
-      })
+      notify({ message: error.message || 'Failed to delete log entry.', severity: 'error' })
     }
   }
 
@@ -979,7 +939,7 @@ function AdminPortalPage() {
                   </Grid>
                 ))}
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', background: 'linear-gradient(145deg, rgba(17,30,56,0.9), rgba(8,16,30,0.8))' }}>
+                  <GlassCard variant="elevated">
                     <CardContent>
                       <Typography variant="h6" gutterBottom>Platform Activity</Typography>
                       <Box sx={{ width: '100%', height: 240 }}>
@@ -998,10 +958,10 @@ function AdminPortalPage() {
                         </ResponsiveContainer>
                       </Box>
                     </CardContent>
-                  </Card>
+                  </GlassCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', background: 'linear-gradient(145deg, rgba(17,30,56,0.9), rgba(8,16,30,0.8))' }}>
+                  <GlassCard variant="elevated">
                     <CardContent>
                       <Typography variant="h6" gutterBottom>Workload Summary</Typography>
                       <Box sx={{ width: '100%', height: 240 }}>
@@ -1026,7 +986,7 @@ function AdminPortalPage() {
                         </ResponsiveContainer>
                       </Box>
                     </CardContent>
-                  </Card>
+                  </GlassCard>
                 </Grid>
               </>
             )}
@@ -1491,13 +1451,6 @@ function AdminPortalPage() {
           </Stack>
         </TabPanel>
       </SectionCard>
-
-      <SnackbarAlert
-        open={snack.open}
-        message={snack.message}
-        severity={snack.severity}
-        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-      />
 
       <Dialog
         open={Boolean(pendingClearLogsType)}

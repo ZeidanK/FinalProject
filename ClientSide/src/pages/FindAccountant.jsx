@@ -22,6 +22,9 @@ import {
 import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import { motion } from 'framer-motion'
+import AnimatedBackground from '../components/AnimatedBackground'
+import SectionHeader from '../components/SectionHeader'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useSearchParams } from 'react-router-dom'
@@ -36,12 +39,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL
   : ''
 
 const cardSx = {
-  bgcolor: 'background.paper',
-  border: '1px solid',
-  borderColor: 'divider',
   borderRadius: 3.5,
-  background:
-    'linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(10, 17, 33, 0.96) 100%)',
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 export default function FindAccountant() {
@@ -156,17 +158,21 @@ export default function FindAccountant() {
   )
 
   return (
-    <Container
-      maxWidth={false}
-      disableGutters
-      sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%' }}
-    >
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
-        <PersonSearchRoundedIcon sx={{ fontSize: 32, color: 'primary.main' }} />
-        <Typography variant="h4" fontWeight={800}>
-          Find an Accountant
-        </Typography>
-      </Stack>
+    <Box sx={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+      <AnimatedBackground density="low" />
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%', position: 'relative', zIndex: 1 }}
+      >
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
+            <PersonSearchRoundedIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+            <Typography variant="h4" fontWeight={800}>
+              Find an Accountant
+            </Typography>
+          </Stack>
+        </motion.div>
 
       {sendMsg && (
         <Alert
@@ -351,5 +357,6 @@ export default function FindAccountant() {
         </>
       )}
     </Container>
+    </Box>
   )
 }

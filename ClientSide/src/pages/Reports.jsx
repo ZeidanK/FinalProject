@@ -53,9 +53,10 @@ const EMPTY_REPORT_ROWS = []
 
 const reportCardSx = {
   borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 const statusPresentation = {

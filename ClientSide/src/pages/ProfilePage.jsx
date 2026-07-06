@@ -32,6 +32,7 @@ import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import SectionHeader from '../components/SectionHeader'
+import AnimatedBackground from '../components/AnimatedBackground'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useConfirm } from '../components/ConfirmContext'
@@ -51,12 +52,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL
   : ''
 
 const cardSx = {
-  bgcolor: 'background.paper',
-  border: '1px solid',
-  borderColor: 'divider',
   borderRadius: 3.5,
-  background:
-    'linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(10, 17, 33, 0.96) 100%)',
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 const sectionHeader = (icon, title) => (
@@ -393,11 +393,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <Container
-      maxWidth={false}
-      disableGutters
-      sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%' }}
-    >
+    <Box sx={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+      <AnimatedBackground density="low" />
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%', position: 'relative', zIndex: 1 }}
+      >
       <Box>
         {requiresCompanySetup && (
           <Alert severity="warning" sx={{ mb: 2.5 }}>
@@ -878,6 +880,7 @@ export default function ProfilePage() {
         )}
       </Box>
     </Container>
+    </Box>
   )
 }
 

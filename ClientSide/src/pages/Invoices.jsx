@@ -29,9 +29,9 @@ import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
-import SnackbarAlert from '../components/SnackbarAlert'
 import DataTable from '../components/DataTable'
 import FileUploadZone from '../components/FileUploadZone'
+import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useRealtime } from '../context/useRealtime'
@@ -118,8 +118,8 @@ function InvoicesPage() {
   const [modal, setModal] = useState({ open: false, file: null })
   const [saving, setSaving] = useState(false)
 
-  // --- Snackbar ---
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const { notify } = useNotification()
+  const setSnack = useCallback(({ message, severity }) => { notify({ message, severity }) }, [notify])
   const { confirm } = useConfirm()
   const [openingInvoiceId, setOpeningInvoiceId] = useState(null)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
@@ -1388,11 +1388,11 @@ function InvoicesPage() {
               variants={itemVariants}
               elevation={0}
               sx={{
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                background:
-                  'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+                borderRadius: 3.5,
+                border: '1px solid rgba(129, 191, 255, 0.12)',
+                background: 'rgba(14, 24, 45, 0.65)',
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
               }}
             >
               <CardContent>
@@ -1608,11 +1608,11 @@ function InvoicesPage() {
             variants={itemVariants}
             elevation={0}
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+              borderRadius: 3.5,
+              border: '1px solid rgba(129, 191, 255, 0.12)',
+              background: 'rgba(14, 24, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
             }}
           >
             <CardContent>
@@ -1663,13 +1663,6 @@ function InvoicesPage() {
         saving={saving}
       />
 
-      {/* ---- Snackbar ---- */}
-      <SnackbarAlert
-        open={snack.open}
-        message={snack.message}
-        severity={snack.severity}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
-      />
     </>
   )
 }

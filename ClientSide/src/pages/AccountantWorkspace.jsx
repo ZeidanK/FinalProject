@@ -26,6 +26,9 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
+import { motion } from 'framer-motion'
+import AnimatedBackground from '../components/AnimatedBackground'
+import SectionHeader from '../components/SectionHeader'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useSearchParams } from 'react-router-dom'
@@ -38,22 +41,12 @@ import {
 } from '../services/accountants'
 
 const cardSx = {
-  bgcolor: 'background.paper',
-  border: '1px solid',
-  borderColor: 'divider',
   borderRadius: 3.5,
-  background:
-    'linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(10, 17, 33, 0.96) 100%)',
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
-
-const sectionHeader = (icon, title) => (
-  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2.5 }}>
-    {icon}
-    <Typography variant="h6" fontWeight={700}>
-      {title}
-    </Typography>
-  </Stack>
-)
 
 export default function AccountantWorkspace() {
   const { user, token } = useAuth()
@@ -224,14 +217,18 @@ export default function AccountantWorkspace() {
   }
 
   return (
-    <Container
-      maxWidth={false}
-      disableGutters
-      sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%' }}
-    >
-      <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
-        My Workspace
-      </Typography>
+    <Box sx={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+      <AnimatedBackground density="low" />
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%', position: 'relative', zIndex: 1 }}
+      >
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
+            My Workspace
+          </Typography>
+        </motion.div>
 
       {deepLinkMessage && <Alert severity="info" sx={{ mb: 2 }}>{deepLinkMessage}</Alert>}
 
@@ -240,10 +237,10 @@ export default function AccountantWorkspace() {
          ══════════════════════════════════════════════════ */}
       <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
         <CardContent sx={{ p: 3 }}>
-          {sectionHeader(
-            <LockOpenRoundedIcon sx={{ color: 'primary.main' }} />,
-            'Availability',
-          )}
+          <SectionHeader
+            icon={<LockOpenRoundedIcon sx={{ color: 'primary.main' }} />}
+            title="Availability"
+          />
 
           <Collapse in={!!visibilityMsg}>
             {visibilityMsg && (
@@ -301,10 +298,10 @@ export default function AccountantWorkspace() {
          ══════════════════════════════════════════════════ */}
       <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
         <CardContent sx={{ p: 3 }}>
-          {sectionHeader(
-            <WorkspacesRoundedIcon sx={{ color: 'primary.main' }} />,
-            'Incoming Requests',
-          )}
+          <SectionHeader
+            icon={<WorkspacesRoundedIcon sx={{ color: 'primary.main' }} />}
+            title="Incoming Requests"
+          ></SectionHeader>
 
           {requestsError && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setRequestsError(null)}>
@@ -396,10 +393,10 @@ export default function AccountantWorkspace() {
          ══════════════════════════════════════════════════ */}
       <Card elevation={0} sx={{ ...cardSx }}>
         <CardContent sx={{ p: 3 }}>
-          {sectionHeader(
-            <BusinessRoundedIcon sx={{ color: 'secondary.main' }} />,
-            'Working With',
-          )}
+          <SectionHeader
+            icon={<BusinessRoundedIcon sx={{ color: 'secondary.main' }} />}
+            title="Working With"
+          />
 
           {loadingCompanies ? (
             <Stack spacing={2}>
@@ -527,5 +524,6 @@ export default function AccountantWorkspace() {
         </DialogActions>
       </Dialog>
     </Container>
+    </Box>
   )
 }

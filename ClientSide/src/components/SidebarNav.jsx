@@ -64,18 +64,20 @@ function NavItem({ item, collapsed, onNavigate }) {
           height: 40,
           px: collapsed ? 0 : 1.5,
           py: 0.8,
-          borderRadius: 1.5,
+          borderRadius: 2,
           color: theme.palette.text.secondary,
           backgroundColor: 'transparent',
-          transition: 'all 0.15s ease',
+          transition: 'all 0.2s ease',
           '&.active': {
-            color: theme.palette.primary.main,
-            backgroundColor: 'rgba(88,166,255,0.12)',
-            '& .MuiButton-startIcon': { color: theme.palette.primary.main },
+            color: '#fff',
+            background: 'rgba(129, 191, 255, 0.12)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(129, 191, 255, 0.15)',
+            '& .MuiButton-startIcon': { color: theme.palette.primary.light },
           },
           '&:hover:not(.active)': {
-            backgroundColor: 'rgba(255,255,255,0.04)',
-            color: theme.palette.text.primary,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            color: '#fff',
           },
         }}
         startIcon={
@@ -145,9 +147,9 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: theme.palette.background.paper,
-        borderRight: '1px solid',
-        borderColor: theme.palette.divider,
+        background: 'rgba(10, 17, 33, 0.9)',
+        backdropFilter: 'blur(16px)',
+        borderRight: '1px solid rgba(129, 191, 255, 0.08)',
         transition: 'width 0.2s ease',
         overflow: 'hidden',
       }}
@@ -167,25 +169,24 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
             </Typography>
           </Stack>
         )}
-        <IconButton size="small" onClick={() => setCollapsed(!collapsed)} sx={{ color: theme.palette.text.secondary }}>
+        <IconButton size="small" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)} sx={{ color: theme.palette.text.secondary }}>
           {collapsed ? <KeyboardDoubleArrowRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
         </IconButton>
       </Stack>
 
       {/* User card */}
       {!collapsed && (
-        <Stack
-          spacing={1}
-          sx={{
-            mx: 1.5,
-            mb: 1,
-            p: 1.2,
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: theme.palette.divider,
-            backgroundColor: 'rgba(255,255,255,0.02)',
-          }}
-        >
+          <Stack
+            spacing={1}
+            sx={{
+              mx: 1.5,
+              mb: 1,
+              p: 1.2,
+              borderRadius: 2.5,
+              border: '1px solid rgba(129, 191, 255, 0.1)',
+              background: 'rgba(129, 191, 255, 0.04)',
+            }}
+          >
           <Stack direction="row" spacing={1} alignItems="center">
             <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main, color: '#041229', fontSize: 14, fontWeight: 800 }}>
               {(user?.name || 'U').slice(0, 1).toUpperCase()}
