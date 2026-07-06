@@ -29,8 +29,8 @@ namespace FinalProjectAuthAPI.BL
             return _db.GetAdminUsers(page, limit, role, search);
         }
 
-        public (long Id, bool IsActive) ToggleUserActive(long id) =>
-            _db.ToggleUserActive(id);
+        public (long Id, bool IsBanned) ToggleUserBan(long id) =>
+            _db.ToggleUserBan(id);
 
         public PagedResult<SystemLogRow> GetLogs(
             int page = 1, int limit = 50,

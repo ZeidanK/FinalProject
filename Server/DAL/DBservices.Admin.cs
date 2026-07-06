@@ -29,6 +29,7 @@ namespace FinalProjectAuthAPI.DAL
                 {
                     TotalUsers        = Convert.ToInt32(reader["total_users"]),
                     ActiveUsers       = Convert.ToInt32(reader["active_users"]),
+                    BannedUsers       = Convert.ToInt32(reader["banned_users"]),
                     TotalCompanies    = Convert.ToInt32(reader["total_companies"]),
                     ActiveCompanies   = Convert.ToInt32(reader["active_companies"]),
                     TotalInvoices     = Convert.ToInt32(reader["total_invoices"]),
@@ -76,6 +77,7 @@ namespace FinalProjectAuthAPI.DAL
                             Role          = reader["role"]?.ToString()!,
                             Phone         = reader["phone"] as string,
                             IsActive      = reader["is_active"]      != DBNull.Value && Convert.ToBoolean(reader["is_active"]),
+                            IsBanned      = reader["is_banned"]      != DBNull.Value && Convert.ToBoolean(reader["is_banned"]),
                             EmailVerified = reader["email_verified"]  != DBNull.Value && Convert.ToBoolean(reader["email_verified"]),
                             LastLoginAt   = reader["last_login_at"]  != DBNull.Value ? Convert.ToDateTime(reader["last_login_at"]) : null,
                             CreatedAt     = Convert.ToDateTime(reader["created_at"]),
@@ -86,7 +88,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public virtual (long Id, bool IsActive) ToggleUserActive(long id)
+        public virtual (long Id, bool IsBanned) ToggleUserBan(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -94,13 +96,13 @@ namespace FinalProjectAuthAPI.DAL
             {
                 con = Connect();
                 var cmd = CreateCommandWithStoredProcedure(
-                    "FP26_sp_Admin_ToggleUserActive", con,
+                    "FP26_sp_Admin_ToggleUserBan", con,
                     new Dictionary<string, object?> { { "@Id", id } });
 
                 reader = cmd.ExecuteReader();
                 if (reader.Read())
                     return (Convert.ToInt64(reader["id"]),
-                            Convert.ToBoolean(reader["is_active"]));
+                            Convert.ToBoolean(reader["is_banned"]));
                 return (id, false);
             }
             finally { reader?.Close(); con?.Close(); }

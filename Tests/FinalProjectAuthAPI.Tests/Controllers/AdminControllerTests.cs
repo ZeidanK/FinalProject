@@ -55,9 +55,9 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         }
 
         [Fact]
-        public async Task ToggleUserActive_Success_ReturnsOk()
+        public async Task ToggleUserBan_Success_ReturnsOk()
         {
-            _mockSvc.Setup(x => x.ToggleUserActive(5)).Returns((5L, true));
+            _mockSvc.Setup(x => x.ToggleUserBan(5)).Returns((5L, true));
             _mockRealtime.Setup(x => x.CreateUserNotificationAsync(
                 It.IsAny<long>(), It.IsAny<NotificationMessage>(), It.IsAny<object>()))
                 .Returns(Task.CompletedTask);
@@ -65,15 +65,15 @@ namespace FinalProjectAuthAPI.Tests.Controllers
                 It.IsAny<string>(), It.IsAny<object>()))
                 .Returns(Task.CompletedTask);
 
-            var result = await _controller.ToggleUserActive(5);
+            var result = await _controller.ToggleUserBan(5);
 
             Assert.IsType<OkObjectResult>(result);
         }
 
         [Fact]
-        public async Task ToggleUserActive_Self_ReturnsBadRequest()
+        public async Task ToggleUserBan_Self_ReturnsBadRequest()
         {
-            var result = await _controller.ToggleUserActive(1);
+            var result = await _controller.ToggleUserBan(1);
 
             Assert.IsType<BadRequestObjectResult>(result);
         }

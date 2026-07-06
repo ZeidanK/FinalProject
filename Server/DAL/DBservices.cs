@@ -68,7 +68,8 @@ namespace FinalProjectAuthAPI.DAL
                         PasswordHash = reader["password_hash"]?.ToString()!,
                         Name         = reader["name"]?.ToString()!,
                         Role         = reader["role"]?.ToString() ?? "business_owner",
-                        IsActive     = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"])
+                        IsActive     = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"]),
+                        IsBanned     = reader["is_banned"] != DBNull.Value && Convert.ToBoolean(reader["is_banned"])
                     };
                 }
                 return null;

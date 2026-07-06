@@ -17,6 +17,7 @@ BEGIN
       AND uca.status = 'active'
       AND (uca.expires_at IS NULL OR uca.expires_at > SYSUTCDATETIME())
       AND u.is_active = 1
+      AND u.is_banned = 0
       AND c.is_active = 1;
 END
 GO

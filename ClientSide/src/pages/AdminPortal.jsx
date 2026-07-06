@@ -52,7 +52,7 @@ import {
   useAdminLogsQuery,
   useAdminStatsQuery,
   useAdminUsersQuery,
-  useToggleAdminUserActiveMutation,
+  useToggleAdminUserBanMutation,
 } from '../hooks/queries/useAdminQueries'
 import { itemVariants } from '../utils/motionVariants'
 
@@ -520,15 +520,15 @@ const formatAuditAction = (log) => {
 }
 
 /**
- * Returns the label for the user activation toggle button.
+ * Returns the label for the user ban toggle button.
  *
  * @param {boolean} isUpdating - Whether the toggle action is currently running.
- * @param {boolean} isActive - Whether the user is currently active.
+ * @param {boolean} isBanned - Whether the user is currently banned.
  * @returns {string} Button label for the current toggle state.
  */
-const getToggleActionLabel = (isUpdating, isActive) => {
+const getBanActionLabel = (isUpdating, isBanned) => {
   if (isUpdating) return 'Updating'
-  return isActive ? 'Deactivate' : 'Activate'
+  return isBanned ? 'Unban' : 'Ban'
 }
 
 /**
@@ -635,7 +635,7 @@ function AdminPortalPage() {
     enabled: activeTab === TAB_KEYS.audit,
   })
 
-  const toggleUserMutation = useToggleAdminUserActiveMutation({ token })
+  const toggleUserMutation = useToggleAdminUserBanMutation({ token })
   const clearLogsMutation = useClearAdminLogsMutation({ token })
   const clearAuditLogsMutation = useClearAdminAuditLogsMutation({ token })
   const deleteLogMutation = useDeleteAdminLogMutation({ token })
@@ -727,11 +727,11 @@ function AdminPortalPage() {
     setUsersQuery((prev) => ({ ...prev, page: 1, role: null, search: null }))
   }
 
-  const handleToggleUserActive = async (userId) => {
+  const handleToggleUserBan = async (userId) => {
     if (String(userId) === String(currentUser?.id)) {
       setSnack({
         open: true,
-        message: 'You cannot deactivate your own admin account.',
+        message: 'You cannot ban your own admin account.',
         severity: 'warning',
       })
       return
@@ -742,13 +742,13 @@ function AdminPortalPage() {
       const result = await toggleUserMutation.mutateAsync({ userId })
       setSnack({
         open: true,
-        message: result?.message || 'User status updated successfully.',
+        message: result?.message || 'User ban status updated successfully.',
         severity: 'success',
       })
     } catch (error) {
       setSnack({
         open: true,
-        message: error.message || 'Failed to update user status.',
+        message: error.message || 'Failed to update user ban status.',
         severity: 'error',
       })
     } finally {
@@ -760,25 +760,25 @@ function AdminPortalPage() {
     if (String(user.id) === String(currentUser?.id)) {
       setSnack({
         open: true,
-        message: 'You cannot deactivate your own admin account.',
+        message: 'You cannot ban your own admin account.',
         severity: 'warning',
       })
       return
     }
 
-    if (user.isActive) {
+    if (!user.isBanned) {
       setPendingToggleUser(user)
       return
     }
 
-    handleToggleUserActive(user.id)
+    handleToggleUserBan(user.id)
   }
 
-  const handleConfirmDeactivate = async () => {
+  const handleConfirmBan = async () => {
     if (!pendingToggleUser) return
     const userId = pendingToggleUser.id
     setPendingToggleUser(null)
-    await handleToggleUserActive(userId)
+    await handleToggleUserBan(userId)
   }
 
   const handleLogsLevelChange = (value) => {
@@ -1091,8 +1091,8 @@ function AdminPortalPage() {
                           <TableCell>
                             <Chip
                               size="small"
-                              color={user.isActive ? 'success' : 'default'}
-                              label={user.isActive ? 'Active' : 'Inactive'}
+                              color={user.isBanned ? 'error' : user.isActive ? 'success' : 'default'}
+                              label={user.isBanned ? 'Banned' : user.isActive ? 'Active' : 'Inactive'}
                             />
                           </TableCell>
                           <TableCell>{user.emailVerified ? 'Yes' : 'No'}</TableCell>
@@ -1110,7 +1110,7 @@ function AdminPortalPage() {
                                   onClick={() => handleToggleUserRequest(user)}
                                   startIcon={isToggleLoading ? <AutorenewRoundedIcon /> : undefined}
                                 >
-                                  {getToggleActionLabel(isToggleLoading, user.isActive)}
+                                  {getBanActionLabel(isToggleLoading, user.isBanned)}
                                 </Button>
                               </span>
                             </Tooltip>
@@ -1529,19 +1529,19 @@ function AdminPortalPage() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Deactivate user?</DialogTitle>
+        <DialogTitle>Ban user?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will block {pendingToggleUser?.name || pendingToggleUser?.email || 'this user'} from
-            accessing the system until an admin activates the account again.
+            This will permanently ban {pendingToggleUser?.name || pendingToggleUser?.email || 'this user'} from
+            accessing the system. A banned user cannot log back in.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingToggleUser(null)} color="secondary">
             Cancel
           </Button>
-          <Button onClick={handleConfirmDeactivate} color="error" variant="contained">
-            Deactivate
+          <Button onClick={handleConfirmBan} color="error" variant="contained">
+            Ban
           </Button>
         </DialogActions>
       </Dialog>

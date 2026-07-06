@@ -58,6 +58,14 @@ namespace FinalProjectAuthAPI.Models
                     NotificationEventTypes.AdminUserActiveToggled,
                     new[] { NotificationScopes.Personal },
                     new[] { NotificationTargetTypes.Profile }),
+                [NotificationEventTypes.AdminUserBanned] = Definition(
+                    NotificationEventTypes.AdminUserBanned,
+                    new[] { NotificationScopes.Personal },
+                    new[] { NotificationTargetTypes.Profile }),
+                [NotificationEventTypes.AdminUserUnbanned] = Definition(
+                    NotificationEventTypes.AdminUserUnbanned,
+                    new[] { NotificationScopes.Personal },
+                    new[] { NotificationTargetTypes.Profile }),
                 [NotificationEventTypes.UploadCompleted] = Definition(
                     NotificationEventTypes.UploadCompleted,
                     new[] { NotificationScopes.Personal },

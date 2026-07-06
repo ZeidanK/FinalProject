@@ -35,6 +35,8 @@ namespace FinalProjectAuthAPI.Models
         public const string AnomalyResolved = "anomaly.resolved";
         public const string AnomalyDuplicateDecided = "anomaly.duplicate_invoice.decided";
         public const string AdminUserActiveToggled = "admin.user.active_toggled";
+        public const string AdminUserBanned = "admin.user.banned";
+        public const string AdminUserUnbanned = "admin.user.unbanned";
         public const string UploadCompleted = "uploadjob.completed";
         public const string UploadFailed = "uploadjob.failed";
     }

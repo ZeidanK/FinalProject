@@ -58,14 +58,14 @@ namespace FinalProjectAuthAPI.Tests.BL
         }
 
         [Fact]
-        public void ToggleUserActive_ReturnsResult()
+        public void ToggleUserBan_ReturnsResult()
         {
-            _mockDb.Setup(x => x.ToggleUserActive(5)).Returns((5, false));
+            _mockDb.Setup(x => x.ToggleUserBan(5)).Returns((5, true));
 
-            var (id, isActive) = _service.ToggleUserActive(5);
+            var (id, isBanned) = _service.ToggleUserBan(5);
 
             Assert.Equal(5, id);
-            Assert.False(isActive);
+            Assert.True(isBanned);
         }
 
         [Fact]

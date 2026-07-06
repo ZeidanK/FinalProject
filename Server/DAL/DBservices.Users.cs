@@ -208,6 +208,7 @@ namespace FinalProjectAuthAPI.DAL
             Phone          = r["phone"] != DBNull.Value ? r["phone"]?.ToString() : null,
             ProfilePicture = r["profile_picture"] != DBNull.Value ? r["profile_picture"]?.ToString() : null,
             IsActive       = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"]),
+            IsBanned       = r["is_banned"] != DBNull.Value && Convert.ToBoolean(r["is_banned"]),
             IsPublic       = r.HasColumn("is_public") && r["is_public"] != DBNull.Value && Convert.ToBoolean(r["is_public"]),
         };
     }

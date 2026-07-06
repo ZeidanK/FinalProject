@@ -22,7 +22,8 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockEnv.Setup(x => x.WebRootPath).Returns(Path.GetTempPath());
             _mockGemini = new Mock<IGeminiExtractionService>();
             _mockLogger = new Mock<ILogger<PdfExtractionService>>();
-            _service = new PdfExtractionService(_mockEnv.Object, _mockGemini.Object, _mockLogger.Object);
+            var mockServiceProvider = new Mock<IServiceProvider>();
+            _service = new PdfExtractionService(_mockEnv.Object, _mockGemini.Object, mockServiceProvider.Object, _mockLogger.Object);
         }
 
         private static MemoryStream MakePdfStream(string text = "dummy text")

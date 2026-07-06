@@ -15,6 +15,7 @@ BEGIN
     SELECT
         (SELECT COUNT(*) FROM dbo.FP26_users)                         AS total_users,
         (SELECT COUNT(*) FROM dbo.FP26_users        WHERE is_active = 1) AS active_users,
+        (SELECT COUNT(*) FROM dbo.FP26_users        WHERE is_banned = 1) AS banned_users,
         (SELECT COUNT(*) FROM dbo.FP26_companies)                     AS total_companies,
         (SELECT COUNT(*) FROM dbo.FP26_companies    WHERE is_active = 1) AS active_companies,
         (SELECT COUNT(*) FROM dbo.FP26_invoices)                      AS total_invoices,

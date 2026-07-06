@@ -31,6 +31,7 @@ BEGIN
         role,
         phone,
         is_active,
+        is_banned,
         email_verified,
         last_login_at,
         created_at

@@ -36,13 +36,13 @@ export async function getAdminUsers(params = {}, token) {
 }
 
 /**
- * Toggle the active state of an admin user.
+ * Toggle the ban state of an admin user.
  *
  * @param {string|number} userId - Identifier of the user to toggle.
  * @param {string} token - JWT token used for authorization.
  * @returns {Promise<any>} Unwrapped response payload from the toggle user endpoint.
  */
-export async function toggleAdminUserActive(userId, token) {
+export async function toggleAdminUserBan(userId, token) {
   const response = await apiRequest(URLS.admin.toggleUser(userId), {
     method: 'PATCH',
     token,
