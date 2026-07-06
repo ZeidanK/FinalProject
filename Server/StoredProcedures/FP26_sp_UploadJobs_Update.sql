@@ -13,7 +13,6 @@ CREATE PROCEDURE dbo.FP26_sp_UploadJobs_Update
     @ExpectedCurrentStatus VARCHAR(50) = NULL
 AS
 BEGIN
-    SET NOCOUNT ON;
     UPDATE dbo.FP26_upload_jobs
     SET
         status = COALESCE(@Status, status),
@@ -33,7 +32,5 @@ BEGIN
         updated_at = GETDATE()
     WHERE id = @Id
       AND (@ExpectedCurrentStatus IS NULL OR status = @ExpectedCurrentStatus);
-
-    SELECT @@ROWCOUNT;
 END
 GO

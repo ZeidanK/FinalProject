@@ -456,6 +456,59 @@ function InvoicesPage() {
                 jobId: job.id,
                 verificationError: job.errorMessage || null,
               })
+            } else if (job.status === 'verifying') {
+              // Stuck verifying — TryBeginVerification does not clear resultJson, so extracted data
+              // is still present. Try to recover it so the user can click Verify again.
+              let extractedData = null
+              let serverResponse = null
+              try {
+                const result = JSON.parse(job.resultJson || 'null')
+                if (result?.extractedData) {
+                  serverResponse = {
+                    filePath: job.filePath,
+                    fileOriginalName: job.fileOriginalName,
+                    fileType: job.fileType,
+                    fileSize: job.fileSize,
+                    extractedData: result.extractedData,
+                  }
+                  extractedData = mapExtractedToForm(
+                    result.extractedData,
+                    result.extractedData?.extractionConfidence,
+                  )
+                }
+              } catch { /* skip unparseable */ }
+
+              if (extractedData) {
+                // Has data → restore as completed so Verify button is available
+                toAdd.push({
+                  id: `restored-${job.id}`,
+                  file: null,
+                  name: job.fileOriginalName || job.filePath?.split('/').pop() || `Job ${job.id}`,
+                  size: job.fileSize || 0,
+                  status: 'completed',
+                  error: null,
+                  progress: 100,
+                  extractedData,
+                  serverResponse,
+                  jobId: job.id,
+                  verificationError: job.errorMessage || null,
+                })
+              } else {
+                // No extracted data yet — genuinely in-flight, keep polling
+                toAdd.push({
+                  id: `restored-${job.id}`,
+                  file: null,
+                  name: job.fileOriginalName || job.filePath?.split('/').pop() || `Job ${job.id}`,
+                  size: job.fileSize || 0,
+                  status: 'verifying',
+                  error: null,
+                  progress: 100,
+                  extractedData: null,
+                  serverResponse: null,
+                  jobId: job.id,
+                })
+                startPolling(job.id, `restored-${job.id}`)
+              }
             } else {
               // queued / processing — add as extracting and resume polling
               toAdd.push({
@@ -463,9 +516,9 @@ function InvoicesPage() {
                 file: null,
                 name: job.fileOriginalName || job.filePath?.split('/').pop() || `Job ${job.id}`,
                 size: job.fileSize || 0,
-                status: job.status === 'verifying' ? 'verifying' : 'extracting',
+                status: 'extracting',
                 error: null,
-                progress: job.status === 'verifying' ? 100 : Math.max(job.progressPercent || 0, 10),
+                progress: Math.max(job.progressPercent || 0, 10),
                 extractedData: null,
                 serverResponse: null,
                 jobId: job.id,

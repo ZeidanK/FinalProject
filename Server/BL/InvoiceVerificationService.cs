@@ -140,9 +140,11 @@ namespace FinalProjectAuthAPI.BL
             if (reviewedValidationError != null)
                 return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.RequiresReview, reviewedValidationError, confidence);
 
-            var isResuming = storedPayload.InvoiceId.HasValue
-                && (string.Equals(job.Status, UploadJobStatuses.Completed, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(job.Status, UploadJobStatuses.Verifying, StringComparison.OrdinalIgnoreCase));
+            // A job is resumable if it is already in Verifying (stuck mid-flight with or without
+            // an InvoiceId), or if it is Completed and already has an InvoiceId from a prior attempt.
+            var isResuming = string.Equals(job.Status, UploadJobStatuses.Verifying, StringComparison.OrdinalIgnoreCase)
+                || (storedPayload.InvoiceId.HasValue
+                    && string.Equals(job.Status, UploadJobStatuses.Completed, StringComparison.OrdinalIgnoreCase));
 
             if (!isResuming)
             {
