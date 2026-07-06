@@ -50,6 +50,8 @@ namespace FinalProjectAuthAPI.Models
         public long? BankAccountId { get; set; }
 
         public long? CreatedByUserId { get; set; }
+
+        public long? FileUploadId { get; set; }
     }
 
     public class BulkCreateTransactionsRequest
@@ -62,6 +64,8 @@ namespace FinalProjectAuthAPI.Models
         [Required]
         [MinLength(1, ErrorMessage = "At least one transaction is required.")]
         public List<CreateTransactionRequest> Transactions { get; set; } = new();
+
+        public long? FileUploadId { get; set; }
     }
 
     public class BulkDeleteTransactionsRequest
@@ -151,6 +155,8 @@ namespace FinalProjectAuthAPI.Models
         public string?   ChargeCurrency   { get; init; }
         public string?   OriginalCurrency { get; init; }
         public decimal?  ExchangeRate     { get; init; }
+
+        public long? FileUploadId { get; init; }
     }
 
     // ── Transaction row ───────────────────────────────────────────────────────
@@ -178,6 +184,7 @@ namespace FinalProjectAuthAPI.Models
         public string    Status              { get; set; } = "confirmed";
         public long?     CreatedByUserId     { get; set; }   // uploader user id
         public string?   CreatedByName       { get; set; }
+        public long?     FileUploadId        { get; set; }
         public DateTime  CreatedAt           { get; set; }
         public DateTime  UpdatedAt           { get; set; }
     }

@@ -1,6 +1,7 @@
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.BL.UploadProcessing;
+using FinalProjectAuthAPI.DAL;
 using Moq;
 using Xunit;
 
@@ -20,7 +21,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             new(Mock.Of<IUploadJobService>(), Mock.Of<IFileStorageService>(),
                 Mock.Of<IExcelExtractionService>(), Mock.Of<ITransactionService>(),
                 Mock.Of<IAnomalyService>(), Mock.Of<IRealtimeNotificationService>(),
-                MakeNotifSvc());
+                MakeNotifSvc(), Mock.Of<DBservices>());
 
         [Fact]
         public async Task ProcessInvoiceJobAsync_Delegates()
@@ -50,7 +51,8 @@ namespace FinalProjectAuthAPI.Tests.BL
                 Mock.Of<ITransactionService>(),
                 Mock.Of<IAnomalyService>(),
                 Mock.Of<IRealtimeNotificationService>(),
-                MakeNotifSvc());
+                MakeNotifSvc(),
+                Mock.Of<DBservices>());
 
             var worker = new UploadJobWorker(MakeInvoiceProcessor(), mockProcessor.Object);
 

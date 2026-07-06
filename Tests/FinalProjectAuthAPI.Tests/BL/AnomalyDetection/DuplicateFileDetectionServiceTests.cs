@@ -26,11 +26,12 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
             _mockDb.Setup(x => x.CreateTransactionFileUpload(5, "hash123", "file.xlsx",
                 "/path", 1024L, 10)).Returns(0);
 
-            var (success, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
+            var (success, uploadId, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
                 5, "file.xlsx", "/path", 1024L, 10, "hash123",
                 new System.DateTime(2026, 6, 1), new System.DateTime(2026, 6, 30));
 
             Assert.False(success);
+            Assert.Null(uploadId);
             Assert.False(isDuplicate);
             Assert.Contains("Failed to register", error);
         }
@@ -43,11 +44,12 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
                 "/path", 1024L, 10)).Returns(1);
             _mockDb.Setup(x => x.CountTransactionFileUploadsByHash(5, "hash123")).Returns(1);
 
-            var (success, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
+            var (success, uploadId, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
                 5, "file.xlsx", "/path", 1024L, 10, "hash123",
                 new System.DateTime(2026, 6, 1), new System.DateTime(2026, 6, 30));
 
             Assert.True(success);
+            Assert.Equal(1, uploadId);
             Assert.Null(anomalyId);
             Assert.False(isDuplicate);
             Assert.Empty(error);
@@ -62,11 +64,12 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
             _mockDb.Setup(x => x.CountTransactionFileUploadsByHash(5, "hash123")).Returns(2);
             _mockDb.Setup(x => x.GetOpenDuplicateFileAnomalyId(5, "hash123")).Returns(42);
 
-            var (success, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
+            var (success, uploadId, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
                 5, "file.xlsx", "/path", 1024L, 10, "hash123",
                 new System.DateTime(2026, 6, 1), new System.DateTime(2026, 6, 30));
 
             Assert.True(success);
+            Assert.Equal(2, uploadId);
             Assert.Equal(42, anomalyId);
             Assert.True(isDuplicate);
             _mockDb.Verify(x => x.AssignTransactionFileUploadAnomaly(2, 42), Times.Once);
@@ -82,11 +85,12 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
             _mockDb.Setup(x => x.GetOpenDuplicateFileAnomalyId(5, "hash123")).Returns((long?)null);
             _mockCrud.Setup(x => x.Create(It.IsAny<CreateAnomalyRequest>())).Returns((true, 99, ""));
 
-            var (success, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
+            var (success, uploadId, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
                 5, "file.xlsx", "/path", 1024L, 10, "hash123",
                 new System.DateTime(2026, 6, 1), new System.DateTime(2026, 6, 30));
 
             Assert.True(success);
+            Assert.Equal(2, uploadId);
             Assert.Equal(99, anomalyId);
             Assert.True(isDuplicate);
         }
@@ -101,11 +105,12 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
             _mockDb.Setup(x => x.GetOpenDuplicateFileAnomalyId(5, "hash123")).Returns((long?)null);
             _mockCrud.Setup(x => x.Create(It.IsAny<CreateAnomalyRequest>())).Returns((false, 0, "Error"));
 
-            var (success, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
+            var (success, uploadId, anomalyId, isDuplicate, error) = _service.RegisterTransactionFileUpload(
                 5, "file.xlsx", "/path", 1024L, 10, "hash123",
                 new System.DateTime(2026, 6, 1), new System.DateTime(2026, 6, 30));
 
             Assert.False(success);
+            Assert.Equal(2, uploadId);
             Assert.True(isDuplicate);
         }
 

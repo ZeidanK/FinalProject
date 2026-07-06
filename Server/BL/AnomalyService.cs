@@ -67,7 +67,7 @@ namespace FinalProjectAuthAPI.BL
             _duplicateInvoice.EnsureDuplicateInvoiceAnomaly(companyId, duplicateInvoiceId, invoiceNumber,
                 vendorName, totalAmount, invoiceDate, currency);
 
-        public (bool Success, long? AnomalyId, bool IsDuplicate, string Error) RegisterTransactionFileUpload(
+        public (bool Success, long? UploadId, long? AnomalyId, bool IsDuplicate, string Error) RegisterTransactionFileUpload(
             long companyId, string fileOriginalName, string filePath, long fileSize,
             long uploadedByUserId, string fileHashSha256,
             DateTime? firstTransactionDate, DateTime? lastTransactionDate) =>
