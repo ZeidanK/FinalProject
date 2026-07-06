@@ -32,6 +32,7 @@ import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { useConfirm } from '../components/ConfirmContext'
 import {
   useChangePasswordMutation,
   useCreateCompanyMutation,
@@ -145,6 +146,8 @@ export default function ProfilePage() {
   const [savingCompany, setSavingCompany] = useState(false)
   const [deletingCompanyId, setDeletingCompanyId] = useState(null)
   const [companyMsg, setCompanyMsg] = useState(null)
+
+  const { confirm } = useConfirm()
 
   const isBusinessOwner = useMemo(
     () => user?.role === 'business_owner' || user?.role === 'accountant_business_owner',
@@ -383,7 +386,7 @@ export default function ProfilePage() {
   const handleDeleteCompany = async (company) => {
     if (!company?.id) return
 
-    const confirmed = globalThis.window?.confirm(
+    const confirmed = await confirm(
       `Delete ${company.name || 'this company'}? This will remove it from active company lists.`,
     )
 

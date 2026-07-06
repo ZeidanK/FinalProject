@@ -11,6 +11,7 @@ import { NotificationProvider } from './context/NotificationContext'
 import { RealtimeProvider } from './context/RealtimeContext'
 import GlobalNotifications from './components/GlobalNotifications'
 import ErrorBoundary from './components/ErrorBoundary'
+import { ConfirmProvider } from './components/ConfirmContext'
 import { queryClient } from './queries/queryClient'
 
 createRoot(document.getElementById('root')).render(
@@ -23,7 +24,9 @@ createRoot(document.getElementById('root')).render(
             <NotificationProvider>
               <RealtimeProvider>
                 <ErrorBoundary>
-                  <App />
+                  <ConfirmProvider>
+                    <App />
+                  </ConfirmProvider>
                   <GlobalNotifications />
                 </ErrorBoundary>
               </RealtimeProvider>
