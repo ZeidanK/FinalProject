@@ -48,11 +48,6 @@ const formatDate = (date) => {
   }
 }
 
-const containerVariants = {
-  hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-}
-
 const itemVariants = {
   hidden: { opacity: 0, x: -8 },
   show: { opacity: 1, x: 0, transition: { duration: 0.28 } },

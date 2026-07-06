@@ -38,7 +38,12 @@ import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import DeleteSweepRoundedIcon from '@mui/icons-material/DeleteSweepRounded'
 import { useCallback, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts'
+import { useTheme } from '@mui/material/styles'
 import EmptyState from '../components/EmptyState'
+import MetricCard from '../components/MetricCard'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
 import SnackbarAlert from '../components/SnackbarAlert'
@@ -590,6 +595,7 @@ SectionCard.propTypes = {
  */
 function AdminPortalPage() {
   const { token, user: currentUser } = useAuth()
+  const theme = useTheme()
 
   const [activeTab, setActiveTab] = useState(TAB_KEYS.stats)
 
@@ -949,15 +955,7 @@ function AdminPortalPage() {
             {statsLoading &&
               Array.from({ length: 8 }, (_, index) => index).map((index) => (
                 <Grid key={`stats-skeleton-${index}`} size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Card
-                    elevation={0}
-                    sx={{ borderRadius: 2.6, border: '1px solid', borderColor: 'divider' }}
-                  >
-                    <CardContent>
-                      <Skeleton variant="text" width="60%" />
-                      <Skeleton variant="rounded" height={30} sx={{ mt: 1 }} />
-                    </CardContent>
-                  </Card>
+                  <Skeleton variant="rounded" height={90} sx={{ borderRadius: 3 }} />
                 </Grid>
               ))}
 
@@ -970,30 +968,68 @@ function AdminPortalPage() {
               </Grid>
             )}
 
-            {!statsLoading &&
-              stats &&
-              statsCards.map((card) => (
-                <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Card
-                    elevation={0}
-                    sx={{
-                      borderRadius: 2.6,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      background: 'linear-gradient(145deg, rgba(17,30,56,0.9), rgba(8,16,30,0.8))',
-                    }}
-                  >
+            {!statsLoading && stats && (
+              <>
+                {statsCards.map((card) => (
+                  <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <MetricCard
+                      title={card.label}
+                      value={Number(card.value).toLocaleString()}
+                    />
+                  </Grid>
+                ))}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', background: 'linear-gradient(145deg, rgba(17,30,56,0.9), rgba(8,16,30,0.8))' }}>
                     <CardContent>
-                      <Typography variant="body2" color="text.secondary">
-                        {card.label}
-                      </Typography>
-                      <Typography variant="h4" sx={{ mt: 1, fontWeight: 700 }}>
-                        {Number(card.value).toLocaleString()}
-                      </Typography>
+                      <Typography variant="h6" gutterBottom>Platform Activity</Typography>
+                      <Box sx={{ width: '100%', height: 240 }}>
+                        <ResponsiveContainer>
+                          <BarChart data={[
+                            { name: 'Users', active: stats?.activeUsers ?? 0, total: (stats?.totalUsers ?? 0) - (stats?.activeUsers ?? 0) },
+                            { name: 'Companies', active: stats?.activeCompanies ?? 0, total: (stats?.totalCompanies ?? 0) - (stats?.activeCompanies ?? 0) },
+                          ]} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                            <XAxis dataKey="name" stroke={theme.palette.text.disabled} tick={{ fontSize: 12 }} />
+                            <YAxis stroke={theme.palette.text.disabled} tick={{ fontSize: 12 }} />
+                            <RechartsTooltip contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Bar dataKey="active" fill={theme.palette.success.main} name="Active" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="total" fill={theme.palette.primary.main} name="Total" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </Box>
                     </CardContent>
                   </Card>
                 </Grid>
-              ))}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', background: 'linear-gradient(145deg, rgba(17,30,56,0.9), rgba(8,16,30,0.8))' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>Workload Summary</Typography>
+                      <Box sx={{ width: '100%', height: 240 }}>
+                        <ResponsiveContainer>
+                          <PieChart>
+                            <Pie data={[
+                              { name: 'Invoices', value: stats?.totalInvoices ?? 0, color: theme.palette.primary.main },
+                              { name: 'Transactions', value: stats?.totalTransactions ?? 0, color: theme.palette.info.main },
+                              { name: 'Matches', value: stats?.totalMatches ?? 0, color: theme.palette.success.main },
+                              { name: 'Anomalies', value: stats?.openAnomalies ?? 0, color: theme.palette.warning.main },
+                            ]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3}>
+                              {[
+                                { name: 'Invoices', value: stats?.totalInvoices ?? 0, color: theme.palette.primary.main },
+                                { name: 'Transactions', value: stats?.totalTransactions ?? 0, color: theme.palette.info.main },
+                                { name: 'Matches', value: stats?.totalMatches ?? 0, color: theme.palette.success.main },
+                                { name: 'Anomalies', value: stats?.openAnomalies ?? 0, color: theme.palette.warning.main },
+                              ].map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                            </Pie>
+                            <RechartsTooltip contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Legend wrapperStyle={{ fontSize: 12 }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </>
+            )}
           </Grid>
         </TabPanel>
 

@@ -30,6 +30,8 @@ import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
+import SectionHeader from '../components/SectionHeader'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useConfirm } from '../components/ConfirmContext'
@@ -57,20 +59,8 @@ const cardSx = {
     'linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(10, 17, 33, 0.96) 100%)',
 }
 
-/**
- * Render a section header with icon and title.
- *
- * @param {React.ReactNode} icon - Icon element shown before the title.
- * @param {string} title - Section title text.
- * @returns {JSX.Element} Section header markup.
- */
 const sectionHeader = (icon, title) => (
-  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2.5 }}>
-    {icon}
-    <Typography variant="h6" fontWeight={700}>
-      {title}
-    </Typography>
-  </Stack>
+  <SectionHeader icon={icon} title={title} />
 )
 
 const emptyCompanyForm = {
@@ -109,8 +99,6 @@ export default function ProfilePage() {
   const {
     refreshCompanies,
     companies,
-    activeCompanyId,
-    setActiveCompanyId,
     loadingCompanies: loadingCompaniesFromContext,
   } = useCompany()
   const location = useLocation()
@@ -151,11 +139,6 @@ export default function ProfilePage() {
 
   const isBusinessOwner = useMemo(
     () => user?.role === 'business_owner' || user?.role === 'accountant_business_owner',
-    [user?.role],
-  )
-
-  const isAccountant = useMemo(
-    () => user?.role === 'accountant' || user?.role === 'accountant_business_owner',
     [user?.role],
   )
 
@@ -715,36 +698,38 @@ export default function ProfilePage() {
                   {['current', 'new', 'confirm'].map((key) => {
                     const { label, formKey } = passwordFieldMeta[key]
                     return (
-                      <TextField
-                        key={key}
-                        label={label}
-                        type={showPasswords[key] ? 'text' : 'password'}
-                        fullWidth
-                        value={passwordForm[formKey]}
-                        onChange={(e) =>
-                          setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
-                        }
-                        slotProps={{
-                          input: {
-                            endAdornment: (
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
-                                }
-                                edge="end"
-                              >
-                                {showPasswords[key] ? (
-                                  <VisibilityOffRoundedIcon fontSize="small" />
-                                ) : (
-                                  <VisibilityRoundedIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                            ),
-                          },
-                        }}
-                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
-                      />
+                      <Box key={key}>
+                        <TextField
+                          label={label}
+                          type={showPasswords[key] ? 'text' : 'password'}
+                          fullWidth
+                          value={passwordForm[formKey]}
+                          onChange={(e) =>
+                            setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
+                          }
+                          slotProps={{
+                            input: {
+                              endAdornment: (
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
+                                  }
+                                  edge="end"
+                                >
+                                  {showPasswords[key] ? (
+                                    <VisibilityOffRoundedIcon fontSize="small" />
+                                  ) : (
+                                    <VisibilityRoundedIcon fontSize="small" />
+                                  )}
+                                </IconButton>
+                              ),
+                            },
+                          }}
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        {key === 'new' && <PasswordStrengthMeter password={passwordForm.newPassword} />}
+                      </Box>
                     )
                   })}
 

@@ -3,50 +3,56 @@ import { useForm } from 'react-hook-form'
 import {
   Alert,
   Button,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
   Stack,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
-  InputAdornment, // Added missing component
-  IconButton,     // Added missing component
 } from '@mui/material'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
-// Added missing icon imports
+import { motion } from 'framer-motion'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
+import BusinessCenterRoundedIcon from '@mui/icons-material/BusinessCenterRounded'
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
 
 import AuthShellLayout from '../components/AuthShellLayout'
 import { registerSchema } from '../schemas/auth'
 import { useRegisterMutation } from '../hooks/queries/useAuthQueries'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 
-/**
- * Available registration role options for the onboarding form.
- *
- * @type {{label: string, value: string}[]}
- */
 const ROLE_OPTIONS = [
-  { label: 'Accountant', value: 'accountant' },
-  { label: 'Business Owner', value: 'business_owner' },
+  { label: 'Accountant', value: 'accountant', icon: <AccountBalanceRoundedIcon /> },
+  { label: 'Business Owner', value: 'business_owner', icon: <BusinessCenterRoundedIcon /> },
 ]
 
-/**
- * RegisterPage renders the account creation form and handles registration logic.
- *
- * @returns {JSX.Element} The registration page layout.
- */
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.07, duration: 0.35, ease: 'easeOut' },
+  }),
+}
+
 function RegisterPage() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [selectedRole, setSelectedRole] = useState('business_owner')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const {
     register,
     handleSubmit,
     setError,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -58,42 +64,33 @@ function RegisterPage() {
     },
   })
 
+  const passwordValue = watch('password')
+  const confirmPasswordValue = watch('confirmPassword')
+  const passwordsMatch = passwordValue && confirmPasswordValue && passwordValue === confirmPasswordValue
+  const passwordsMismatch = confirmPasswordValue && !passwordsMatch
+
   const registerMutation = useRegisterMutation()
 
-  /**
-   * Update the selected role field from the toggle button group.
-   *
-   * @param {React.MouseEvent} _event - Toggle button click event.
-   * @param {string} role - Selected role value.
-   */
   const handleRoleChange = (_event, role) => {
-    if (!role) {
-      return
-    }
-
+    if (!role) return
     setSelectedRole(role)
     setValue('role', role, { shouldDirty: true, shouldValidate: true })
   }
 
-  /**
-   * Validate the form values and call the register mutation.
-   *
-   * @param {object} formValues - Values from the registration form.
-   */
   const onSubmit = async (formValues) => {
     setErrorMessage('')
-
+    if (!acceptedTerms) {
+      setErrorMessage('You must accept the terms and conditions to register.')
+      return
+    }
     const parsed = registerSchema.safeParse(formValues)
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
         const field = issue.path[0]
-        if (typeof field === 'string') {
-          setError(field, { type: 'manual', message: issue.message })
-        }
+        if (typeof field === 'string') setError(field, { type: 'manual', message: issue.message })
       }
       return
     }
-
     try {
       await registerMutation.mutateAsync({
         name: parsed.data.name,
@@ -101,172 +98,237 @@ function RegisterPage() {
         password: parsed.data.password,
         role: parsed.data.role,
       })
-
       navigate('/login', {
         replace: true,
-        state: {
-          registrationSuccess: 'Registration successful. You can now log in.',
-        },
+        state: { registrationSuccess: 'Registration successful. You can now log in.' },
       })
     } catch (error) {
       setErrorMessage(error.message)
     }
   }
 
+  const disabled = isSubmitting || registerMutation.isPending
+
   return (
     <AuthShellLayout chipLabel="Create your account">
       <Stack spacing={2.5} component="form" onSubmit={handleSubmit(onSubmit)}>
-        <Typography variant="h4" sx={{ fontSize: { xs: '1.7rem', md: '2rem' } }}>
-          Register in seconds
-        </Typography>
+        <motion.div custom={0} variants={itemVariants} initial="hidden" animate="visible">
+          <Typography variant="h4" sx={{ fontSize: { xs: '1.7rem', md: '2rem' }, fontWeight: 700 }}>
+            Get started free
+          </Typography>
+        </motion.div>
 
-        <Typography color="text.secondary">
-          Choose your role and start your reconciliation workflow with the same
-          dark workspace style.
-        </Typography>
+        <motion.div custom={1} variants={itemVariants} initial="hidden" animate="visible">
+          <Typography color="text.secondary">
+            Choose your role and start reconciling in minutes.
+          </Typography>
+        </motion.div>
 
-        {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+        {errorMessage && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+            <Alert severity="error">{errorMessage}</Alert>
+          </motion.div>
+        )}
 
-        <TextField
-          required
-          label="Full Name"
-          name="name"
-          error={Boolean(errors.name)}
-          helperText={errors.name?.message || ' '}
-          {...register('name')}
-          autoComplete="name"
-          fullWidth
-        />
+        <motion.div custom={2} variants={itemVariants} initial="hidden" animate="visible">
+          <TextField
+            required
+            label="Full Name"
+            error={Boolean(errors.name)}
+            helperText={errors.name?.message || ' '}
+            {...register('name')}
+            autoComplete="name"
+            fullWidth
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </motion.div>
 
-        <TextField
-          required
-          label="Email"
-          name="email"
-          type="email"
-          error={Boolean(errors.email)}
-          helperText={errors.email?.message || ' '}
-          {...register('email')}
-          autoComplete="email"
-          fullWidth
-        />
+        <motion.div custom={3} variants={itemVariants} initial="hidden" animate="visible">
+          <TextField
+            required
+            label="Email"
+            type="email"
+            error={Boolean(errors.email)}
+            helperText={errors.email?.message || ' '}
+            {...register('email')}
+            autoComplete="email"
+            fullWidth
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </motion.div>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-          <TextField
-            required
-            label="Password"
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            error={Boolean(errors.password)}
-            helperText={errors.password?.message || ' '}
-            {...register('password')}
-            autoComplete="new-password"
-            fullWidth
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          <motion.div custom={4} variants={itemVariants} initial="hidden" animate="visible" style={{ flex: 1 }}>
+            <TextField
+              required
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              error={Boolean(errors.password)}
+              helperText={errors.password?.message || ' '}
+              {...register('password')}
+              autoComplete="new-password"
+              fullWidth
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <PasswordStrengthMeter password={passwordValue || ''} />
+          </motion.div>
 
-          <TextField
-            required
-            label="Confirm Password"
-            name="confirmPassword"
-            type={showConfirmPassword ? 'text' : 'password'}
-            error={Boolean(errors.confirmPassword)}
-            helperText={errors.confirmPassword?.message || ' '}
-            {...register('confirmPassword')}
-            autoComplete="new-password"
-            fullWidth
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      edge="end"
-                    >
-                      {showConfirmPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          <motion.div custom={5} variants={itemVariants} initial="hidden" animate="visible" style={{ flex: 1 }}>
+            <TextField
+              required
+              label="Confirm Password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              error={passwordsMismatch || Boolean(errors.confirmPassword)}
+              helperText={
+                passwordsMismatch
+                  ? 'Passwords do not match'
+                  : errors.confirmPassword?.message || ' '
+              }
+              {...register('confirmPassword')}
+              autoComplete="new-password"
+              fullWidth
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        edge="end"
+                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                      >
+                        {showConfirmPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </motion.div>
         </Stack>
 
-        <Stack spacing={1} alignItems="center">
-          <Typography variant="body2" color="text.secondary" textAlign="center">
-            Select your role
-          </Typography>
-
-          <ToggleButtonGroup
-            value={selectedRole}
-            exclusive
-            onChange={handleRoleChange}
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-              width: '100%',
-              maxWidth: 560,
-              justifyContent: 'center',
-              gap: 1,
-              '& .MuiToggleButtonGroup-grouped': {
-                borderRadius: '999px !important',
-                border: '1px solid rgba(129, 191, 255, 0.28) !important',
-                color: '#c7dafc',
-                fontWeight: 700,
-                textTransform: 'none',
-                px: 1.2,
-                py: 0.9,
+        <motion.div custom={6} variants={itemVariants} initial="hidden" animate="visible">
+          <Stack spacing={1} alignItems="center">
+            <Typography variant="body2" color="text.secondary" textAlign="center">
+              I am a...
+            </Typography>
+            <ToggleButtonGroup
+              value={selectedRole}
+              exclusive
+              onChange={handleRoleChange}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
                 width: '100%',
-              },
-              '& .Mui-selected': {
-                bgcolor: 'rgba(88, 166, 255, 0.24) !important',
-                color: '#ecf5ff !important',
-                borderColor: 'rgba(129, 191, 255, 0.6) !important',
-              },
-            }}
-          >
-            {ROLE_OPTIONS.map((option) => (
-              <ToggleButton key={option.value} value={option.value}>
-                {option.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Stack>
+                maxWidth: 560,
+                gap: 1,
+                '& .MuiToggleButtonGroup-grouped': {
+                  borderRadius: '12px !important',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 1.5,
+                  py: 1.2,
+                  width: '100%',
+                  gap: 0.8,
+                  transition: 'all 0.2s ease',
+                },
+                '& .Mui-selected': {
+                  bgcolor: 'rgba(88, 166, 255, 0.16) !important',
+                  color: 'primary.light',
+                  borderColor: 'primary.main',
+                },
+              }}
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <ToggleButton key={option.value} value={option.value}>
+                  {option.icon}
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
+        </motion.div>
 
-        <Button
-          type="submit"
-          size="large"
-          variant="contained"
-          disabled={isSubmitting || registerMutation.isPending}
-          sx={{ boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)' }}
-        >
-          {isSubmitting || registerMutation.isPending ? 'Creating account...' : 'Create Account'}
-        </Button>
+        <motion.div custom={7} variants={itemVariants} initial="hidden" animate="visible">
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                size="small"
+              />
+            }
+            label={
+              <Typography variant="body2" color="text.secondary">
+                I agree to the{' '}
+                <Button
+                  component={RouterLink}
+                  to="/terms"
+                  variant="text"
+                  size="small"
+                  sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline', fontSize: 'inherit', textTransform: 'none' }}
+                >
+                  Terms of Service
+                </Button>{' '}
+                and{' '}
+                <Button
+                  component={RouterLink}
+                  to="/privacy"
+                  variant="text"
+                  size="small"
+                  sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline', fontSize: 'inherit', textTransform: 'none' }}
+                >
+                  Privacy Policy
+                </Button>
+              </Typography>
+            }
+          />
+        </motion.div>
 
-        <Typography variant="body2" color="text.secondary" textAlign="center">
-          Already have an account?{' '}
+        <motion.div custom={8} variants={itemVariants} initial="hidden" animate="visible">
           <Button
-            component={RouterLink}
-            to="/login"
-            variant="text"
-            color="secondary"
-            sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}
+            type="submit"
+            size="large"
+            variant="contained"
+            fullWidth
+            disabled={disabled}
+            sx={{ boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)' }}
           >
-            Log in
+            {disabled ? 'Creating account...' : 'Create Account'}
           </Button>
-        </Typography>
+        </motion.div>
+
+        <motion.div custom={9} variants={itemVariants} initial="hidden" animate="visible">
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            Already have an account?{' '}
+            <Button
+              component={RouterLink}
+              to="/login"
+              variant="text"
+              color="secondary"
+              sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline', fontWeight: 600 }}
+            >
+              Log in
+            </Button>
+          </Typography>
+        </motion.div>
       </Stack>
     </AuthShellLayout>
   )
