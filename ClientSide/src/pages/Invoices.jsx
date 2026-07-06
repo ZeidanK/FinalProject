@@ -779,7 +779,7 @@ function InvoicesPage() {
   }, [])
 
   const openSavedInvoiceVerification = useCallback(
-    async (invoiceId) => {
+    async (invoiceId, isReadOnly = false) => {
       if (!invoiceId) return
       setReopeningInvoiceId(invoiceId)
       try {
@@ -794,6 +794,7 @@ function InvoicesPage() {
             existingInvoiceId: invoice.id,
             sourceInvoice: invoice,
             serverResponse: null,
+            isReadOnly,
           },
         })
       } catch (err) {
@@ -862,6 +863,13 @@ function InvoicesPage() {
       setSaving(true)
       try {
         const editingInvoiceId = modal.file?.existingInvoiceId || null
+
+        // Matched invoices are read-only — block saving
+        if (modal.file?.isReadOnly) {
+          setSnack({ open: true, message: 'Matched invoices cannot be edited.', severity: 'warning' })
+          setModal({ open: false, file: null })
+          return
+        }
         const sourceInvoice = modal.file?.sourceInvoice || {}
         const serverResponse = modal.file?.serverResponse || {}
         const fileOriginalName =
@@ -1468,14 +1476,16 @@ function InvoicesPage() {
                     </IconButton>
                     <IconButton
                       size="small"
-                      color="secondary"
-                      onClick={() => openSavedInvoiceVerification(inv.id)}
+                      color={inv.status === 'matched' ? 'default' : 'secondary'}
+                      onClick={() => openSavedInvoiceVerification(inv.id, inv.status === 'matched')}
                       disabled={reopeningInvoiceId === inv.id || bulkDeletingInvoices}
-                      aria-label="Reopen invoice"
-                      title="Reopen invoice"
+                      aria-label={inv.status === 'matched' ? 'View invoice (read-only)' : 'Edit invoice'}
+                      title={inv.status === 'matched' ? 'View invoice — editing disabled for matched invoices' : 'Edit invoice'}
                     >
                       {reopeningInvoiceId === inv.id ? (
                         <CircularProgress size={16} color="inherit" />
+                      ) : inv.status === 'matched' ? (
+                        <VisibilityRoundedIcon fontSize="small" />
                       ) : (
                         <EditRoundedIcon fontSize="small" />
                       )}

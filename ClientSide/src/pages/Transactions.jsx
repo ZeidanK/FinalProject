@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
@@ -56,6 +57,7 @@ import {
 } from '../services/transactions'
 import { getUploadJobStatus } from '../services/uploadJobs'
 import { useTransactionsByCompanyQuery } from '../hooks/queries/useTransactionsQueries'
+import { transactionKeys } from '../queries/queryKeys'
 import {
   filterTransactionsByType,
   formatTransactionTypeLabel,
@@ -149,6 +151,7 @@ function TransactionsPage() {
   const [searchParams] = useSearchParams()
   const deepLinkedJobId = Number(searchParams.get('jobId')) || null
   const { activeCompanyId } = useCompany()
+  const queryClient = useQueryClient()
 
   // --- Transaction list ---
   const [transactions, setTransactions] = useState([])
@@ -286,7 +289,7 @@ function TransactionsPage() {
 
             const count = result?.count ?? 0
             setSnack({ open: true, message: `Successfully imported ${count} transaction(s) from ${fileName}.`, severity: 'success' })
-            await transactionsQuery.refetch()
+            queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
             return
           }
 
@@ -307,7 +310,7 @@ function TransactionsPage() {
       }
       pollingTimers.current[jobId] = setTimeout(poll, POLL_INTERVAL_MS)
     },
-    [token, stopTxPolling, removeTxJobFromSession, upsertImportingJob, transactionsQuery],
+    [token, stopTxPolling, removeTxJobFromSession, upsertImportingJob, queryClient, activeCompanyId],
   )
 
   // Restore in-flight jobs from sessionStorage on mount / company change
@@ -734,7 +737,7 @@ function TransactionsPage() {
           message: `Successfully imported ${totalImported} transaction(s).`,
           severity: 'success',
         })
-        await transactionsQuery.refetch()
+        await queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
       } else if (excelFiles.length > 0) {
         setSnack({
           open: true,
@@ -752,7 +755,7 @@ function TransactionsPage() {
     } finally {
       setImporting(false)
     }
-  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, transactionsQuery, saveTxJobToSession, upsertImportingJob, startTxPolling])
+  }, [parsedRows, uploadedFiles, token, clearUpload, activeCompanyId, queryClient, saveTxJobToSession, upsertImportingJob, startTxPolling])
 
   const openTransactionDetails = useCallback(
     async (tx) => {

@@ -73,7 +73,7 @@ builder.Services.AddHangfireServer(options =>
     options.Queues = new[] { "uploads", "default" };
 });
 
-// AI provider toggle: set "AiProvider" in appsettings.json to "gemini" or "ollama"
+// AI provider toggle: set "AiProvider" in appsettings.json to "gemini", "ollama", or "localmodel"
 var aiProvider = builder.Configuration["AiProvider"] ?? "gemini";
 
 if (aiProvider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
@@ -86,6 +86,24 @@ if (aiProvider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
         client.Timeout = TimeSpan.FromMinutes(10);
     });
     builder.Services.AddScoped<IGeminiExtractionService, OllamaExtractionService>();
+}
+else if (aiProvider.Equals("localmodel", StringComparison.OrdinalIgnoreCase))
+{
+    var localModelSettings = new LocalModelSettings();
+    builder.Configuration.GetSection("LocalModelSettings").Bind(localModelSettings);
+    builder.Services.AddSingleton(localModelSettings);
+    builder.Services.AddHttpClient("localmodel", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+    builder.Services.AddScoped<IGeminiExtractionService, LocalModelExtractionService>();
+
+    // Register Gemini as a keyed fallback — used automatically when local model returns empty
+    var geminiSettingsFallback = new GeminiSettings();
+    builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettingsFallback);
+    builder.Services.AddSingleton(geminiSettingsFallback);
+    builder.Services.AddSingleton<GeminiApiKeyPool>();
+    builder.Services.AddKeyedScoped<IGeminiExtractionService, GeminiExtractionService>("gemini-fallback");
 }
 else
 {

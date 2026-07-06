@@ -60,6 +60,9 @@ Server/appsettings.json
 # Generated reports
 reports/
 
+# Generated local AI models and training checkpoints
+Server/LocalModel/model/
+
 # Runtime-generated content
 mock/uploads/
 mock/server/uploads/*
