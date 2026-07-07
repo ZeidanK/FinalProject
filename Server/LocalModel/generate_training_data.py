@@ -1,7 +1,8 @@
 """
 generate_training_data.py
 =========================
-Bootstraps NER training data from invoices already extracted by Gemini/Ollama.
+Bootstraps NER training data from invoices already extracted by Gemini/Ollama
+or from verified hybrid-audit JSONL records saved after user confirmation.
 
 Input  — a JSONL file where each line is a JSON object with:
   - "text"           : the raw extracted text of the invoice
@@ -58,6 +59,60 @@ FIELD_LABEL_MAP = {
 }
 
 
+def first_present(obj: dict, *keys: str):
+    for key in keys:
+        if key in obj:
+            return obj.get(key)
+    return None
+
+
+def flatten_extraction_result(result: dict) -> dict:
+    return {
+        "vendor_name": first_present(result, "vendor_name", "vendorName"),
+        "invoice_number": first_present(result, "invoice_number", "invoiceNumber"),
+        "invoice_date": first_present(result, "invoice_date", "invoiceDate"),
+        "due_date": first_present(result, "due_date", "dueDate"),
+        "total_amount": first_present(result, "total_amount", "totalAmount"),
+        "subtotal": first_present(result, "subtotal"),
+        "vat_amount": first_present(result, "vat_amount", "vatAmount"),
+        "vat_rate": first_present(result, "vat_rate", "vatRate"),
+        "vendor_tax_id": first_present(result, "vendor_tax_id", "vendorTaxId"),
+        "currency": first_present(result, "currency"),
+        "last_four_digits_card": first_present(result, "last_four_digits_card", "lastFourDigitsCard"),
+        "item_count": first_present(result, "item_count", "itemCount"),
+        "payment_plan": first_present(result, "payment_plan", "paymentPlan"),
+        "line_items": first_present(result, "line_items", "lineItems"),
+    }
+
+
+def normalize_input_record(obj: dict) -> dict:
+    if not isinstance(obj, dict):
+        return obj
+
+    source = None
+    for key in ("verifiedResult", "verified_result", "finalResult", "final_result", "mergedResult", "merged_result"):
+        candidate = obj.get(key)
+        if isinstance(candidate, dict):
+            source = candidate
+            break
+
+    if source is None and any(key in obj for key in FIELD_LABEL_MAP):
+        source = obj
+    elif source is None and isinstance(obj.get("extractedData"), dict):
+        source = obj["extractedData"]
+
+    if source is None:
+        return obj
+
+    normalized = flatten_extraction_result(source)
+    normalized["text"] = first_present(obj, "text") or first_present(source, "text", "raw_text", "rawText")
+    if not normalized["text"] and isinstance(obj.get("extractedData"), dict):
+        normalized["text"] = first_present(obj["extractedData"], "text", "raw_text", "rawText")
+    if "entities" in obj:
+        normalized["entities"] = obj["entities"]
+    return normalized
+
+
 def valid_tax_rate_span(text: str, start: int, end: int) -> bool:
     context = text[max(0, start - 24):min(len(text), end + 8)].lower()
     return "%" in context or any(word in context for word in ("vat", "tax", "gst"))
@@ -92,6 +147,7 @@ def process_record(obj: dict) -> dict | None:
     Convert one input record to the train.py JSONL format.
     Returns None if no text is present.
     """
+    obj = normalize_input_record(obj)
     text = obj.get("text", "")
     if not isinstance(text, str) or not text.strip():
         return None

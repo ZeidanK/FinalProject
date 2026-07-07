@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Controllers;
 using FinalProjectAuthAPI.DAL;
@@ -393,13 +394,19 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             _mockDb.Setup(x => x.UserHasActiveCompanyAccess(10, 5)).Returns(true);
             _mockFileSvc.Setup(x => x.SaveAsync(file, 5))
                 .ReturnsAsync(("uploads/invoices/5/test.pdf", "C:\\wwwroot\\uploads\\invoices\\5\\test.pdf"));
-            _mockJobSvc.Setup(x => x.Create(It.IsAny<CreateUploadJobRequest>())).Returns(1L);
+            CreateUploadJobRequest? capturedRequest = null;
+            _mockJobSvc.Setup(x => x.Create(It.IsAny<CreateUploadJobRequest>()))
+                .Callback<CreateUploadJobRequest>(request => capturedRequest = request)
+                .Returns(1L);
             _mockHangfire.Setup(x => x.Create(It.IsAny<Job>(), It.IsAny<EnqueuedState>()))
                 .Returns("hangfire-1");
 
             var result = await _controller.UploadPdf(file, 5, false);
 
             Assert.IsType<AcceptedResult>(result);
+            Assert.NotNull(capturedRequest);
+            using var payload = JsonDocument.Parse(capturedRequest!.PayloadJson!);
+            Assert.Equal(@"C:\wwwroot\uploads\invoices\5\test.pdf", payload.RootElement.GetProperty("savedFullPath").GetString());
         }
 
         [Fact]
@@ -420,13 +427,19 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             _mockDb.Setup(x => x.UserHasActiveCompanyAccess(10, 5)).Returns(true);
             _mockFileSvc.Setup(x => x.SaveAsync(file, 5))
                 .ReturnsAsync(("uploads/invoices/5/test.pdf", "C:\\wwwroot\\uploads\\invoices\\5\\test.pdf"));
-            _mockJobSvc.Setup(x => x.Create(It.IsAny<CreateUploadJobRequest>())).Returns(1L);
+            CreateUploadJobRequest? capturedRequest = null;
+            _mockJobSvc.Setup(x => x.Create(It.IsAny<CreateUploadJobRequest>()))
+                .Callback<CreateUploadJobRequest>(request => capturedRequest = request)
+                .Returns(1L);
             _mockHangfire.Setup(x => x.Create(It.IsAny<Job>(), It.IsAny<EnqueuedState>()))
                 .Returns("hangfire-1");
 
             var result = await _controller.UploadAndCreate(file, 5);
 
             Assert.IsType<AcceptedResult>(result);
+            Assert.NotNull(capturedRequest);
+            using var payload = JsonDocument.Parse(capturedRequest!.PayloadJson!);
+            Assert.Equal(@"C:\wwwroot\uploads\invoices\5\test.pdf", payload.RootElement.GetProperty("savedFullPath").GetString());
         }
 
         private static IFormFile MakeFormFile(string content, string fileName, string contentType = "application/pdf")

@@ -126,6 +126,21 @@ namespace FinalProjectAuthAPI.Models
         public decimal? AiConfidenceScore { get; set; }
     }
 
+    public class HybridExtractionAudit
+    {
+        public PdfExtractionResult? LocalResult { get; set; }
+        public PdfExtractionResult? GeminiResult { get; set; }
+        public PdfExtractionResult? MergedResult { get; set; }
+        public Dictionary<string, string> FieldSources { get; set; } = new();
+    }
+
+    public class PdfExtractionOutcome
+    {
+        public PdfExtractionResult ExtractedData { get; set; } = new();
+        public HybridExtractionAudit? HybridAudit { get; set; }
+        public bool UsedRegexFallback { get; set; }
+    }
+
     public class PdfExtractionResult
     {
         public string? VendorName { get; set; }
@@ -144,9 +159,10 @@ namespace FinalProjectAuthAPI.Models
         public List<ExtractedLineItem> LineItems { get; set; } = new();
         public decimal ExtractionConfidence { get; set; }
         public string ExtractionMethod { get; set; } = "text"; // "text" or "ocr"
-        public string ExtractionSource { get; set; } = "regex"; // "gemini" or "regex"
+        public string ExtractionSource { get; set; } = "regex"; // regex, gemini, localmodel, hybrid, ollama
         public string? RawText { get; set; }
     }
+
     public class PaymentPlanInfo
     {
         public int? TotalInstallments { get; set; }
@@ -157,6 +173,16 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(500)]
         public string? Description { get; set; }
     }
+
+    public class HybridExtractionSettings
+    {
+        public bool Enabled { get; set; } = true;
+        public bool AlwaysCallGemini { get; set; } = true;
+        public int GeminiTimeoutSeconds { get; set; } = 30;
+        public decimal LocalConfidenceThreshold { get; set; } = 0.75m;
+        public string VerifiedAuditFilePath { get; set; } = "LocalModel/verified_hybrid_extractions.jsonl";
+    }
+
     public class UploadInvoicePdfResponse
     {
         public string FileOriginalName { get; set; } = string.Empty;

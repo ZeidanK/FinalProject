@@ -4,6 +4,7 @@ using System.Text;
 using Hangfire;
 using Hangfire.SqlServer;
 using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Middleware;
@@ -52,7 +53,12 @@ builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateFile
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.UploadJobNotificationService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.InvoiceJobProcessor>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.TransactionJobProcessor>();
+builder.Services.AddScoped<IVerifiedHybridAuditWriter, VerifiedHybridAuditWriter>();
 builder.Services.AddSignalR();
+
+var hybridSettings = new HybridExtractionSettings();
+builder.Configuration.GetSection("HybridExtractionSettings").Bind(hybridSettings);
+builder.Services.AddSingleton(hybridSettings);
 
 var hangfireConnectionString = builder.Configuration.GetConnectionString("myProjDB");
 builder.Services.AddHangfire(config => config

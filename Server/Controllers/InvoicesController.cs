@@ -295,7 +295,15 @@ namespace FinalProjectAuthAPI.Controllers
                 });
 
                 var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
-                    w => w.ProcessInvoiceJobAsync(jobId));
+                    w => w.ProcessInvoiceJobAsync(
+                        jobId,
+                        relativePath,
+                        file.FileName,
+                        file.ContentType,
+                        file.Length,
+                        companyId,
+                        userId,
+                        UploadJobTypes.InvoiceUploadPdf));
                 _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
 
                 return Accepted(new QueueUploadJobResponse
@@ -343,7 +351,15 @@ namespace FinalProjectAuthAPI.Controllers
                 });
 
                 var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
-                    w => w.ProcessInvoiceJobAsync(jobId));
+                    w => w.ProcessInvoiceJobAsync(
+                        jobId,
+                        relativePath,
+                        file.FileName,
+                        file.ContentType,
+                        file.Length,
+                        companyId,
+                        userId,
+                        UploadJobTypes.InvoiceUploadAndCreate));
                 _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
 
                 return Accepted(new QueueUploadJobResponse

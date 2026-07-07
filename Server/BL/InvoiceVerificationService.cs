@@ -12,6 +12,7 @@ namespace FinalProjectAuthAPI.BL
         private readonly IAnomalyService _anomalySvc;
         private readonly IRealtimeNotificationService _realtime;
         private readonly DBservices _db;
+        private readonly IVerifiedHybridAuditWriter _verifiedHybridAuditWriter;
         private readonly InvoiceJobValidator _validator;
         private readonly InvoiceJobPayloadSerializer _serializer;
 
@@ -22,13 +23,15 @@ namespace FinalProjectAuthAPI.BL
             IUploadJobService jobSvc,
             IAnomalyService anomalySvc,
             IRealtimeNotificationService realtime,
-            DBservices db)
+            DBservices db,
+            IVerifiedHybridAuditWriter verifiedHybridAuditWriter)
         {
             _invoiceSvc = invoiceSvc;
             _jobSvc = jobSvc;
             _anomalySvc = anomalySvc;
             _realtime = realtime;
             _db = db;
+            _verifiedHybridAuditWriter = verifiedHybridAuditWriter;
             _validator = new InvoiceJobValidator();
             _serializer = new InvoiceJobPayloadSerializer();
         }
@@ -185,6 +188,12 @@ namespace FinalProjectAuthAPI.BL
             long invoiceId = storedPayload.InvoiceId ?? 0;
             var isDuplicate = storedPayload.IsDuplicate;
             var verificationCommitted = false;
+            var hybridAudit = ToHybridAudit(storedPayload);
+            var sourceExtraction = storedPayload.MergedResult ?? storedPayload.ExtractedData;
+            var verificationSource = automatic ? "auto_verify" : "manual_review";
+            var verifiedResult = reviewedInvoice != null
+                ? ToVerifiedResult(request, confidence, sourceExtraction)
+                : CloneResult(sourceExtraction ?? storedPayload.ExtractedData);
 
             try
             {
@@ -213,7 +222,11 @@ namespace FinalProjectAuthAPI.BL
                         invoiceId,
                         isDuplicate,
                         null,
-                        "Invoice created; verification is being finalized.");
+                        "Invoice created; verification is being finalized.",
+                        hybridAudit,
+                        verifiedResult,
+                        verificationSource,
+                        storedPayload.UsedRegexFallback);
                     _jobSvc.UpdateProgress(jobId, 100, provisionalJson);
                 }
 
@@ -229,7 +242,11 @@ namespace FinalProjectAuthAPI.BL
                     invoiceId,
                     isDuplicate,
                     null,
-                    "Invoice verified.");
+                    "Invoice verified.",
+                    hybridAudit,
+                    verifiedResult,
+                    verificationSource,
+                    storedPayload.UsedRegexFallback);
 
                 if (!_jobSvc.MarkVerified(jobId, provisionalVerifiedJson))
                     throw new InvalidOperationException("Upload job could not be marked as verified.");
@@ -253,8 +270,20 @@ namespace FinalProjectAuthAPI.BL
                     invoiceId,
                     isDuplicate,
                     autoMatch,
-                    isDuplicate ? "Duplicate invoice verified and flagged for review." : "Invoice verified.");
+                    isDuplicate ? "Duplicate invoice verified and flagged for review." : "Invoice verified.",
+                    hybridAudit,
+                    verifiedResult,
+                    verificationSource,
+                    storedPayload.UsedRegexFallback);
                 _jobSvc.MarkVerified(jobId, finalJson);
+                if (verifiedResult != null)
+                {
+                    await _verifiedHybridAuditWriter.AppendVerifiedAsync(
+                        job,
+                        storedPayload,
+                        verifiedResult,
+                        verificationSource);
+                }
 
                 if (isDuplicate)
                     await NotifyDuplicateInvoiceAnomalyAsync(job.CompanyId, invoiceId);
@@ -299,6 +328,116 @@ namespace FinalProjectAuthAPI.BL
 
                 return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Failed, ex.Message, confidence, invoiceId > 0 ? invoiceId : null);
             }
+        }
+
+        private static HybridExtractionAudit? ToHybridAudit(StoredInvoiceJobResult payload)
+        {
+            if (payload.LocalResult == null && payload.GeminiResult == null && payload.MergedResult == null)
+                return null;
+
+            return new HybridExtractionAudit
+            {
+                LocalResult = CloneResult(payload.LocalResult),
+                GeminiResult = CloneResult(payload.GeminiResult),
+                MergedResult = CloneResult(payload.MergedResult),
+                FieldSources = new Dictionary<string, string>(payload.FieldSources)
+            };
+        }
+
+        private static PdfExtractionResult? CloneResult(PdfExtractionResult? input)
+        {
+            if (input == null)
+                return null;
+
+            return new PdfExtractionResult
+            {
+                VendorName = input.VendorName,
+                InvoiceNumber = input.InvoiceNumber,
+                InvoiceDate = input.InvoiceDate,
+                DueDate = input.DueDate,
+                TotalAmount = input.TotalAmount,
+                Subtotal = input.Subtotal,
+                VatRate = input.VatRate,
+                VatAmount = input.VatAmount,
+                Currency = input.Currency,
+                VendorTaxId = input.VendorTaxId,
+                LastFourDigitsCard = input.LastFourDigitsCard,
+                ItemCount = input.ItemCount,
+                PaymentPlan = input.PaymentPlan == null
+                    ? null
+                    : new PaymentPlanInfo
+                    {
+                        TotalInstallments = input.PaymentPlan.TotalInstallments,
+                        InstallmentAmount = input.PaymentPlan.InstallmentAmount,
+                        Frequency = input.PaymentPlan.Frequency,
+                        CurrentInstallment = input.PaymentPlan.CurrentInstallment,
+                        Description = input.PaymentPlan.Description
+                    },
+                LineItems = input.LineItems.Select((item, index) => new ExtractedLineItem
+                {
+                    Description = item.Description,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalAmount = item.TotalAmount,
+                    VatRate = item.VatRate,
+                    Category = item.Category,
+                    AiConfidenceScore = item.AiConfidenceScore
+                }).ToList(),
+                ExtractionConfidence = input.ExtractionConfidence,
+                ExtractionMethod = input.ExtractionMethod,
+                ExtractionSource = input.ExtractionSource,
+                RawText = input.RawText
+            };
+        }
+
+        private static PdfExtractionResult ToVerifiedResult(
+            CreateInvoiceRequest request,
+            decimal? confidence,
+            PdfExtractionResult? sourceExtraction)
+        {
+            return new PdfExtractionResult
+            {
+                VendorName = request.VendorName,
+                InvoiceNumber = request.InvoiceNumber,
+                InvoiceDate = request.InvoiceDate,
+                DueDate = request.DueDate,
+                TotalAmount = request.TotalAmount,
+                Subtotal = request.Subtotal,
+                VatRate = request.VatRate,
+                VatAmount = request.VatAmount,
+                Currency = request.Currency,
+                VendorTaxId = request.VendorTaxId,
+                LastFourDigitsCard = request.LastFourDigitsCard,
+                ItemCount = request.ItemCount,
+                PaymentPlan = request.PaymentPlanTotalInstallments.HasValue
+                    || request.PaymentPlanInstallmentAmount.HasValue
+                    || request.PaymentPlanCurrentInstallment.HasValue
+                    || !string.IsNullOrWhiteSpace(request.PaymentPlanFrequency)
+                    || !string.IsNullOrWhiteSpace(request.PaymentPlanDescription)
+                    ? new PaymentPlanInfo
+                    {
+                        TotalInstallments = request.PaymentPlanTotalInstallments,
+                        InstallmentAmount = request.PaymentPlanInstallmentAmount,
+                        Frequency = request.PaymentPlanFrequency,
+                        CurrentInstallment = request.PaymentPlanCurrentInstallment,
+                        Description = request.PaymentPlanDescription
+                    }
+                    : null,
+                LineItems = request.LineItems.Select(item => new ExtractedLineItem
+                {
+                    Description = item.Description,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalAmount = item.TotalAmount,
+                    VatRate = item.VatRate,
+                    Category = item.Category,
+                    AiConfidenceScore = item.AiConfidenceScore
+                }).ToList(),
+                ExtractionConfidence = confidence ?? sourceExtraction?.ExtractionConfidence ?? 0m,
+                ExtractionMethod = sourceExtraction?.ExtractionMethod ?? "text",
+                ExtractionSource = sourceExtraction?.ExtractionSource ?? "hybrid",
+                RawText = sourceExtraction?.RawText
+            };
         }
 
         private async Task RestoreForReviewAsync(UploadJobRow job, string error)

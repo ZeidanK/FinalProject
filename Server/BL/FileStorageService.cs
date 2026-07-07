@@ -5,6 +5,8 @@ namespace FinalProjectAuthAPI.BL
 {
     public class FileStorageService : IFileStorageService
     {
+        private readonly string _webRoot;
+        private readonly string _contentRoot;
         private readonly string _uploadsRoot;
         private readonly string _excelUploadsRoot;
 
@@ -37,9 +39,10 @@ namespace FinalProjectAuthAPI.BL
 
         public FileStorageService(IWebHostEnvironment env)
         {
-            var wwwroot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-            _uploadsRoot = Path.Combine(wwwroot, UploadsFolder, "invoices");
-            _excelUploadsRoot = Path.Combine(wwwroot, UploadsFolder, "transactions");
+            _contentRoot = env.ContentRootPath;
+            _webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+            _uploadsRoot = Path.Combine(_webRoot, UploadsFolder, "invoices");
+            _excelUploadsRoot = Path.Combine(_webRoot, UploadsFolder, "transactions");
         }
 
         public async Task<(string RelativePath, string FullPath)> SaveAsync(IFormFile file, long companyId)
@@ -117,7 +120,7 @@ namespace FinalProjectAuthAPI.BL
             if (string.IsNullOrWhiteSpace(relativePath))
                 throw new ArgumentException("File path is required.");
 
-            var normalized = relativePath.Replace("\\", "/");
+            var normalized = relativePath.Replace("\\", "/").TrimStart('/');
 
             // Prevent path traversal
             if (normalized.Contains(".."))
@@ -127,13 +130,7 @@ namespace FinalProjectAuthAPI.BL
             if (!normalized.StartsWith("uploads/transactions/", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Invalid file path.");
 
-            var wwwroot = Directory.GetParent(_excelUploadsRoot)!.Parent!.FullName;
-            var fullPath = Path.Combine(wwwroot, normalized.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
-            if (!File.Exists(fullPath))
-                throw new FileNotFoundException("Excel file not found on server.", fullPath);
-
-            return fullPath;
+            return ResolveStoredFilePath(normalized, "uploads/transactions/", "Excel file not found on server.");
         }
 
         public string GetInvoiceFullPath(string relativePath)
@@ -141,7 +138,7 @@ namespace FinalProjectAuthAPI.BL
             if (string.IsNullOrWhiteSpace(relativePath))
                 throw new ArgumentException("File path is required.");
 
-            var normalized = relativePath.Replace("\\", "/");
+            var normalized = relativePath.Replace("\\", "/").TrimStart('/');
 
             if (normalized.Contains(".."))
                 throw new ArgumentException("Invalid file path.");
@@ -149,13 +146,7 @@ namespace FinalProjectAuthAPI.BL
             if (!normalized.StartsWith("uploads/invoices/", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Invalid file path.");
 
-            var wwwroot = Directory.GetParent(_uploadsRoot)!.Parent!.FullName;
-            var fullPath = Path.Combine(wwwroot, normalized.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
-            if (!File.Exists(fullPath))
-                throw new FileNotFoundException("Invoice file not found on server.", fullPath);
-
-            return fullPath;
+            return ResolveStoredFilePath(normalized, "uploads/invoices/", "Invoice file not found on server.");
         }
 
         public bool Delete(string relativePath)
@@ -167,9 +158,9 @@ namespace FinalProjectAuthAPI.BL
             if (relativePath.Contains(".."))
                 return false;
 
-            var fullPath = Path.Combine(
-                Directory.GetParent(_uploadsRoot)!.Parent!.FullName,
-                relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            var normalized = relativePath.Replace("\\", "/").TrimStart('/');
+            var candidatePaths = BuildCandidatePaths(normalized);
+            var fullPath = candidatePaths.FirstOrDefault(File.Exists) ?? candidatePaths[0];
 
             if (File.Exists(fullPath))
             {
@@ -202,8 +193,7 @@ namespace FinalProjectAuthAPI.BL
 
             var uniqueName = $"{userId}_{Guid.NewGuid():N}{extension}";
 
-            var wwwroot = Directory.GetParent(_uploadsRoot)!.Parent!.FullName;
-            var profileDir = Path.Combine(wwwroot, UploadsFolder, "profiles");
+            var profileDir = Path.Combine(_webRoot, UploadsFolder, "profiles");
             Directory.CreateDirectory(profileDir);
 
             var fullPath = Path.Combine(profileDir, uniqueName);
@@ -214,5 +204,50 @@ namespace FinalProjectAuthAPI.BL
 
             var relativePath = $"uploads/profiles/{uniqueName}";
             return (relativePath, fullPath);
-        }    }
+        }
+
+        private string ResolveStoredFilePath(string normalizedRelativePath, string expectedPrefix, string notFoundMessage)
+        {
+            if (!normalizedRelativePath.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Invalid file path.");
+
+            var candidatePaths = BuildCandidatePaths(normalizedRelativePath);
+            var existingPath = candidatePaths.FirstOrDefault(File.Exists);
+
+            if (existingPath != null)
+                return existingPath;
+
+            throw new FileNotFoundException(notFoundMessage, candidatePaths[0]);
+        }
+
+        private List<string> BuildCandidatePaths(string normalizedRelativePath)
+        {
+            var relativePath = normalizedRelativePath.Replace("/", Path.DirectorySeparatorChar.ToString());
+            var candidates = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void AddCandidate(string basePath)
+            {
+                if (string.IsNullOrWhiteSpace(basePath))
+                    return;
+
+                var fullPath = Path.GetFullPath(Path.Combine(basePath, relativePath));
+                if (seen.Add(fullPath))
+                    candidates.Add(fullPath);
+            }
+
+            AddCandidate(_webRoot);
+            AddCandidate(Path.Combine(_contentRoot, "wwwroot"));
+            AddCandidate(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+            AddCandidate(Path.Combine(AppContext.BaseDirectory, "wwwroot"));
+
+            var baseDirectory = new DirectoryInfo(AppContext.BaseDirectory);
+            for (var i = 0; i < 5 && baseDirectory != null; i++, baseDirectory = baseDirectory.Parent)
+            {
+                AddCandidate(Path.Combine(baseDirectory.FullName, "wwwroot"));
+            }
+
+            return candidates;
+        }
+    }
 }

@@ -2,6 +2,7 @@ using System.Text;
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -13,6 +14,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IWebHostEnvironment> _mockEnv;
         private readonly Mock<IGeminiExtractionService> _mockGemini;
         private readonly Mock<ILogger<PdfExtractionService>> _mockLogger;
+        private readonly IServiceProvider _serviceProvider;
         private readonly PdfExtractionService _service;
 
         public PdfExtractionServiceTests()
@@ -22,7 +24,13 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockEnv.Setup(x => x.WebRootPath).Returns(Path.GetTempPath());
             _mockGemini = new Mock<IGeminiExtractionService>();
             _mockLogger = new Mock<ILogger<PdfExtractionService>>();
-            _service = new PdfExtractionService(_mockEnv.Object, _mockGemini.Object, _mockLogger.Object);
+            _serviceProvider = new ServiceCollection().BuildServiceProvider();
+            _service = new PdfExtractionService(
+                _mockEnv.Object,
+                _mockGemini.Object,
+                _serviceProvider,
+                _mockLogger.Object,
+                new HybridExtractionSettings { Enabled = false });
         }
 
         private static MemoryStream MakePdfStream(string text = "dummy text")
@@ -46,7 +54,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             var result = await _service.ExtractAsync(MakePdfStream("invoice text"), "test.pdf");
 
             Assert.NotNull(result);
-            Assert.Equal("Acme", result.VendorName);
+            Assert.Equal("Acme", result.ExtractedData.VendorName);
         }
 
         [Fact]
@@ -58,7 +66,8 @@ namespace FinalProjectAuthAPI.Tests.BL
             var result = await _service.ExtractAsync(MakePdfStream("Invoice #123 from Vendor"), "test.pdf");
 
             Assert.NotNull(result);
-            Assert.Equal("regex", result.ExtractionSource);
+            Assert.Equal("regex", result.ExtractedData.ExtractionSource);
+            Assert.True(result.UsedRegexFallback);
         }
 
         [Fact]
@@ -70,7 +79,8 @@ namespace FinalProjectAuthAPI.Tests.BL
             var result = await _service.ExtractAsync(MakePdfStream("simple text"), "test.pdf");
 
             Assert.NotNull(result);
-            Assert.Equal("regex", result.ExtractionSource);
+            Assert.Equal("regex", result.ExtractedData.ExtractionSource);
+            Assert.True(result.UsedRegexFallback);
         }
     }
 }

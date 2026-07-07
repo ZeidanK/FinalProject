@@ -1,6 +1,5 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL.UploadProcessing
@@ -13,12 +12,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
         private readonly IInvoiceService _invoiceSvc;
         private readonly IAnomalyService _anomalySvc;
         private readonly UploadJobNotificationService _notification;
-
-        private static readonly JsonSerializerOptions _camelCase = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
+        private readonly InvoiceJobPayloadSerializer _resultSerializer;
 
         public InvoiceJobProcessor(
             IUploadJobService jobSvc,
@@ -34,13 +28,30 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             _invoiceSvc = invoiceSvc;
             _anomalySvc = anomalySvc;
             _notification = notification;
+            _resultSerializer = new InvoiceJobPayloadSerializer();
         }
 
-        public virtual async Task ProcessAsync(long jobId)
+        public virtual async Task ProcessAsync(
+            long jobId,
+            string? filePath = null,
+            string? fileOriginalName = null,
+            string? fileType = null,
+            long? fileSize = null,
+            long? companyId = null,
+            long? userId = null,
+            string? jobType = null)
         {
             var job = _jobSvc.GetById(jobId);
             if (job == null)
                 return;
+
+            var effectiveFilePath = string.IsNullOrWhiteSpace(filePath) ? job.FilePath : filePath;
+            var effectiveFileOriginalName = string.IsNullOrWhiteSpace(fileOriginalName) ? job.FileOriginalName : fileOriginalName;
+            var effectiveFileType = string.IsNullOrWhiteSpace(fileType) ? job.FileType : fileType;
+            var effectiveFileSize = fileSize ?? job.FileSize;
+            var effectiveCompanyId = companyId ?? job.CompanyId;
+            var effectiveUserId = userId ?? job.UserId;
+            var effectiveJobType = string.IsNullOrWhiteSpace(jobType) ? job.JobType : jobType;
 
             _jobSvc.MarkProcessing(jobId);
             _jobSvc.UpdateProgress(jobId, 10);
@@ -48,30 +59,31 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
 
             try
             {
-                var fullPath = _fileSvc.GetInvoiceFullPath(job.FilePath);
-                var fileName = string.IsNullOrWhiteSpace(job.FileOriginalName)
+                var fullPath = _fileSvc.GetInvoiceFullPath(effectiveFilePath);
+                var fileName = string.IsNullOrWhiteSpace(effectiveFileOriginalName)
                     ? Path.GetFileName(fullPath)
-                    : job.FileOriginalName;
+                    : effectiveFileOriginalName;
 
-                PdfExtractionResult extracted;
+                PdfExtractionOutcome outcome;
                 using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    extracted = await _pdfSvc.ExtractAsync(stream, fileName);
+                    outcome = await _pdfSvc.ExtractAsync(stream, fileName);
                 }
+                var extracted = outcome.ExtractedData;
 
                 _jobSvc.UpdateProgress(jobId, 60);
                 await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
 
-                if (string.Equals(job.JobType, UploadJobTypes.InvoiceUploadAndCreate, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(effectiveJobType, UploadJobTypes.InvoiceUploadAndCreate, StringComparison.OrdinalIgnoreCase))
                 {
-                    var request = BuildInvoiceRequest(job.CompanyId, extracted);
+                    var request = BuildInvoiceRequest(effectiveCompanyId, extracted);
                     var (success, invoiceId, error, isDuplicate) = _invoiceSvc.Create(
                         request,
-                        job.UserId,
+                        effectiveUserId,
                         fileName,
-                        job.FilePath,
-                        string.IsNullOrWhiteSpace(job.FileType) ? "application/pdf" : job.FileType,
-                        job.FileSize,
+                        effectiveFilePath,
+                        string.IsNullOrWhiteSpace(effectiveFileType) ? "application/pdf" : effectiveFileType,
+                        effectiveFileSize,
                         extracted.ExtractionConfidence);
 
                     if (!success)
@@ -84,27 +96,31 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
 
                     _invoiceSvc.UpdateStatus(invoiceId, "extracted");
 
-                    var result = JsonSerializer.Serialize(new
-                    {
+                    var result = _resultSerializer.BuildResultJson(
+                        extracted,
                         invoiceId,
                         isDuplicate,
-                        extractedData = extracted,
-                        message = "Invoice created from PDF in background."
-                    }, _camelCase);
+                        null,
+                        "Invoice created from PDF in background.",
+                        outcome.HybridAudit,
+                        usedRegexFallback: outcome.UsedRegexFallback);
 
                     _jobSvc.MarkCompleted(jobId, result);
                     await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
 
                     if (isDuplicate)
-                        await _notification.NotifyDuplicateInvoiceAnomalyAsync(_anomalySvc, job.CompanyId, invoiceId);
+                        await _notification.NotifyDuplicateInvoiceAnomalyAsync(_anomalySvc, effectiveCompanyId, invoiceId);
                     return;
                 }
 
-                var extractOnlyResult = JsonSerializer.Serialize(new
-                {
-                    extractedData = extracted,
-                    message = "Invoice PDF processed in background."
-                }, _camelCase);
+                var extractOnlyResult = _resultSerializer.BuildResultJson(
+                    extracted,
+                    null,
+                    false,
+                    null,
+                    "Invoice PDF processed in background.",
+                    outcome.HybridAudit,
+                    usedRegexFallback: outcome.UsedRegexFallback);
 
                 _jobSvc.MarkCompleted(jobId, extractOnlyResult);
                 await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);

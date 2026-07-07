@@ -31,18 +31,29 @@ namespace FinalProjectAuthAPI.BL.InvoiceVerification
 
         public string BuildResultJson(
             PdfExtractionResult? extracted,
-            long invoiceId,
+            long? invoiceId,
             bool isDuplicate,
             InvoiceJobAutoMatchResult? autoMatch,
-            string message)
+            string message,
+            HybridExtractionAudit? hybridAudit = null,
+            PdfExtractionResult? verifiedResult = null,
+            string? verificationSource = null,
+            bool usedRegexFallback = false)
         {
-            return JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new StoredInvoiceJobResult
             {
-                invoiceId,
-                isDuplicate,
-                extractedData = extracted,
-                autoMatchResult = autoMatch,
-                message
+                InvoiceId = invoiceId,
+                IsDuplicate = isDuplicate,
+                ExtractedData = extracted,
+                LocalResult = WithoutRawText(hybridAudit?.LocalResult),
+                GeminiResult = WithoutRawText(hybridAudit?.GeminiResult),
+                MergedResult = WithoutRawText(hybridAudit?.MergedResult),
+                FieldSources = hybridAudit?.FieldSources ?? new Dictionary<string, string>(),
+                UsedRegexFallback = usedRegexFallback,
+                VerifiedResult = WithoutRawText(verifiedResult),
+                VerificationSource = verificationSource,
+                AutoMatchResult = autoMatch,
+                Message = message
             }, JsonOptions);
         }
 
@@ -62,6 +73,34 @@ namespace FinalProjectAuthAPI.BL.InvoiceVerification
                 Confidence = confidence
             };
         }
+
+        private static PdfExtractionResult? WithoutRawText(PdfExtractionResult? result)
+        {
+            if (result == null)
+                return null;
+
+            return new PdfExtractionResult
+            {
+                VendorName = result.VendorName,
+                InvoiceNumber = result.InvoiceNumber,
+                InvoiceDate = result.InvoiceDate,
+                DueDate = result.DueDate,
+                TotalAmount = result.TotalAmount,
+                Subtotal = result.Subtotal,
+                VatRate = result.VatRate,
+                VatAmount = result.VatAmount,
+                Currency = result.Currency,
+                VendorTaxId = result.VendorTaxId,
+                LastFourDigitsCard = result.LastFourDigitsCard,
+                ItemCount = result.ItemCount,
+                PaymentPlan = result.PaymentPlan,
+                LineItems = result.LineItems,
+                ExtractionConfidence = result.ExtractionConfidence,
+                ExtractionMethod = result.ExtractionMethod,
+                ExtractionSource = result.ExtractionSource,
+                RawText = null
+            };
+        }
     }
 
     public sealed class StoredInvoiceJobResult
@@ -69,5 +108,14 @@ namespace FinalProjectAuthAPI.BL.InvoiceVerification
         public long? InvoiceId { get; set; }
         public bool IsDuplicate { get; set; }
         public PdfExtractionResult? ExtractedData { get; set; }
+        public PdfExtractionResult? LocalResult { get; set; }
+        public PdfExtractionResult? GeminiResult { get; set; }
+        public PdfExtractionResult? MergedResult { get; set; }
+        public Dictionary<string, string> FieldSources { get; set; } = new();
+        public bool UsedRegexFallback { get; set; }
+        public PdfExtractionResult? VerifiedResult { get; set; }
+        public string? VerificationSource { get; set; }
+        public InvoiceJobAutoMatchResult? AutoMatchResult { get; set; }
+        public string? Message { get; set; }
     }
 }

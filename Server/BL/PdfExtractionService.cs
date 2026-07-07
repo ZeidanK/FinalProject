@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.BL.PdfExtraction;
 using FinalProjectAuthAPI.Models;
@@ -11,44 +9,44 @@ namespace FinalProjectAuthAPI.BL
     {
         private readonly IGeminiExtractionService _geminiService;
         private readonly IGeminiExtractionService? _geminiFallback;
-        private readonly IWebHostEnvironment _env;
         private readonly ILogger<PdfExtractionService> _logger;
         private readonly PdfTextExtractor _textExtractor;
         private readonly OcrExtractor _ocrExtractor;
         private readonly RegexInvoiceParser _regexParser;
+        private readonly HybridExtractionSettings _hybridSettings;
+        private readonly HybridExtractionMerger _hybridMerger;
         private const int MinTextLength = 50;
 
         public PdfExtractionService(
             IWebHostEnvironment env,
             IGeminiExtractionService geminiService,
             IServiceProvider serviceProvider,
-            ILogger<PdfExtractionService> logger)
+            ILogger<PdfExtractionService> logger,
+            HybridExtractionSettings hybridSettings)
         {
-            _env = env;
             _geminiService = geminiService;
             _geminiFallback = serviceProvider.GetKeyedService<IGeminiExtractionService>("gemini-fallback");
             _logger = logger;
+            _hybridSettings = hybridSettings;
+            _hybridMerger = new HybridExtractionMerger(hybridSettings);
             _textExtractor = new PdfTextExtractor();
-            var tessdataPath = Path.Combine(env.ContentRootPath, "tessdata");
-            _ocrExtractor = new OcrExtractor(tessdataPath);
+            _ocrExtractor = new OcrExtractor(Path.Combine(env.ContentRootPath, "tessdata"));
             _regexParser = new RegexInvoiceParser();
         }
 
-        public async Task<PdfExtractionResult> ExtractAsync(Stream pdfStream, string fileName)
+        public async Task<PdfExtractionOutcome> ExtractAsync(Stream pdfStream, string fileName)
         {
-            Console.WriteLine("\n╔══════════════════════════════════════════════════════╗");
-            Console.WriteLine($"║  INVOICE UPLOAD PIPELINE  —  {fileName}");
-            Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+            Console.WriteLine("\n================ INVOICE UPLOAD PIPELINE ================");
+            Console.WriteLine($"File: {fileName}");
 
-            // ── Step 1: Text extraction ───────────────────────────────────
             Console.WriteLine("\n[STEP 1] Extracting text from PDF...");
-            string extractedText = _textExtractor.ExtractText(pdfStream);
-            string method = "text";
+            var extractedText = _textExtractor.ExtractText(pdfStream);
+            var method = "text";
             Console.WriteLine($"         Method : text  |  Characters extracted: {extractedText.Trim().Length}");
 
             if (extractedText.Trim().Length < MinTextLength)
             {
-                Console.WriteLine("         Text too short — trying OCR fallback...");
+                Console.WriteLine("         Text too short; trying OCR fallback...");
                 pdfStream.Position = 0;
                 var ocrText = _ocrExtractor.ExtractText(pdfStream);
                 if (ocrText.Trim().Length > extractedText.Trim().Length)
@@ -59,83 +57,148 @@ namespace FinalProjectAuthAPI.BL
                 }
                 else
                 {
-                    Console.WriteLine("         OCR produced no improvement — using original text.");
+                    Console.WriteLine("         OCR produced no improvement; using original text.");
                 }
             }
 
             Console.WriteLine($"         Final text method: {method.ToUpper()}  |  Length: {extractedText.Trim().Length} chars");
 
-            // ── Step 2: Primary AI extraction ─────────────────────────────
-            Console.WriteLine("\n[STEP 2] Running primary AI extraction...");
-            PdfExtractionResult? result = null;
-            try
-            {
-                result = await _geminiService.ParseInvoiceTextAsync(extractedText);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"         Primary AI failed: {ex.Message}");
-                _logger.LogWarning(ex, "Primary AI failed for {FileName}: {Message}", fileName, ex.Message);
-            }
+            PdfExtractionResult? result;
+            HybridExtractionAudit? hybridAudit = null;
 
-            // ── Step 2b: Gemini fallback when primary returned empty ───────
-            if (HasNoCoreFields(result) && _geminiFallback != null)
+            if (ShouldUseHybrid())
             {
-                Console.WriteLine("\n[STEP 2b] Local model returned no data — calling Gemini fallback...");
-                try
-                {
-                    var geminiResult = await _geminiFallback.ParseInvoiceTextAsync(extractedText);
-                    if (!HasNoCoreFields(geminiResult))
-                    {
-                        Console.WriteLine("         Gemini succeeded — saving as training data for future fine-tuning...");
-                        await SaveTrainingDataAsync(extractedText, geminiResult!);
-                        result = geminiResult;
-                        Console.WriteLine("         Appended to LocalModel/gemini_extractions.jsonl");
-                    }
-                    else
-                    {
-                        Console.WriteLine("         Gemini fallback also returned empty.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"         Gemini fallback failed: {ex.Message}");
-                    _logger.LogWarning(ex, "Gemini fallback failed for {FileName}: {Message}", fileName, ex.Message);
-                }
+                Console.WriteLine("\n[STEP 2] Running local-first extraction...");
+                var hybridResult = await RunHybridExtractionAsync(extractedText, fileName);
+                result = hybridResult.Result;
+                hybridAudit = hybridResult.Audit;
+            }
+            else
+            {
+                Console.WriteLine("\n[STEP 2] Running primary AI extraction...");
+                result = await TryExtractAsync(_geminiService, extractedText, fileName, "Primary AI");
             }
 
             if (!HasNoCoreFields(result))
             {
+                FinalizeResult(result!, method, extractedText);
                 Console.WriteLine($"\n         Source     : {result!.ExtractionSource?.ToUpper()}");
                 Console.WriteLine($"         Confidence : {result.ExtractionConfidence:P0}");
                 Console.WriteLine($"         Vendor     : {result.VendorName ?? "(not found)"}");
                 Console.WriteLine($"         Invoice #  : {result.InvoiceNumber ?? "(not found)"}");
                 Console.WriteLine($"         Date       : {result.InvoiceDate?.ToString("yyyy-MM-dd") ?? "(not found)"}");
                 Console.WriteLine($"         Total      : {result.TotalAmount?.ToString("0.00") ?? "(not found)"} {result.Currency}");
-                result.ExtractionMethod = method;
-                result.RawText = extractedText;
 
-                Console.WriteLine("\n[DONE] AI extraction successful — skipping regex fallback.");
-                Console.WriteLine("═══════════════════════════════════════════════════════\n");
-                return result;
+                Console.WriteLine("\n[DONE] AI extraction successful; skipping regex fallback.");
+                Console.WriteLine("========================================================\n");
+                return new PdfExtractionOutcome
+                {
+                    ExtractedData = result,
+                    HybridAudit = hybridAudit,
+                    UsedRegexFallback = false
+                };
             }
 
-            // ── Step 3: Regex fallback ────────────────────────────────────
             Console.WriteLine("\n[STEP 3] Running regex fallback extraction...");
             result = _regexParser.Parse(extractedText);
-            result.ExtractionMethod = method;
             result.ExtractionSource = "regex";
-            result.RawText = extractedText;
+            FinalizeResult(result, method, extractedText);
             Console.WriteLine($"         Vendor  : {result.VendorName ?? "(not found)"}");
             Console.WriteLine($"         Invoice#: {result.InvoiceNumber ?? "(not found)"}");
             Console.WriteLine($"         Total   : {result.TotalAmount?.ToString("0.00") ?? "(not found)"}");
 
             Console.WriteLine("\n[DONE] Regex fallback complete.");
-            Console.WriteLine("═══════════════════════════════════════════════════════\n");
-            return result;
+            Console.WriteLine("========================================================\n");
+            return new PdfExtractionOutcome
+            {
+                ExtractedData = result,
+                HybridAudit = hybridAudit,
+                UsedRegexFallback = true
+            };
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────
+        private bool ShouldUseHybrid() =>
+            _hybridSettings.Enabled
+            && _geminiFallback != null;
+
+        private async Task<(PdfExtractionResult? Result, HybridExtractionAudit? Audit)> RunHybridExtractionAsync(
+            string rawText,
+            string fileName)
+        {
+            var localResult = await TryExtractAsync(_geminiService, rawText, fileName, "Local model");
+
+            if (!_hybridSettings.AlwaysCallGemini && !HasNoCoreFields(localResult))
+            {
+                Console.WriteLine("         Local model found core fields; skipping Gemini for fast-path extraction.");
+                return (localResult, null);
+            }
+
+            if (_hybridSettings.AlwaysCallGemini)
+            {
+                Console.WriteLine("         Hybrid always-call mode enabled; requesting Gemini too.");
+            }
+            else
+            {
+                Console.WriteLine("         Local model missed core fields; requesting Gemini fallback.");
+            }
+
+            var geminiResult = await TryExtractAsync(
+                _geminiFallback!,
+                rawText,
+                fileName,
+                "Gemini",
+                TimeSpan.FromSeconds(Math.Max(1, _hybridSettings.GeminiTimeoutSeconds)));
+
+            var merged = _hybridMerger.Merge(localResult, geminiResult);
+
+            Console.WriteLine($"         Local core fields found : {!HasNoCoreFields(localResult)}");
+            Console.WriteLine($"         Gemini core fields found: {!HasNoCoreFields(geminiResult)}");
+            Console.WriteLine($"         Hybrid field sources    : {merged.FieldSources.Count}");
+
+            return (
+                merged.Result,
+                new HybridExtractionAudit
+                {
+                    LocalResult = WithoutRawText(localResult),
+                    GeminiResult = WithoutRawText(geminiResult),
+                    MergedResult = WithoutRawText(merged.Result),
+                    FieldSources = new Dictionary<string, string>(merged.FieldSources)
+                });
+        }
+
+        private async Task<PdfExtractionResult?> TryExtractAsync(
+            IGeminiExtractionService service,
+            string rawText,
+            string fileName,
+            string providerName,
+            TimeSpan? timeout = null)
+        {
+            try
+            {
+                var task = service.ParseInvoiceTextAsync(rawText);
+                return timeout.HasValue
+                    ? await task.WaitAsync(timeout.Value)
+                    : await task;
+            }
+            catch (TimeoutException ex)
+            {
+                Console.WriteLine($"         {providerName} timed out: {ex.Message}");
+                _logger.LogWarning(ex, "{ProviderName} timed out for {FileName}: {Message}", providerName, fileName, ex.Message);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"         {providerName} failed: {ex.Message}");
+                _logger.LogWarning(ex, "{ProviderName} failed for {FileName}: {Message}", providerName, fileName, ex.Message);
+                return null;
+            }
+        }
+
+        private static void FinalizeResult(PdfExtractionResult result, string extractionMethod, string rawText)
+        {
+            result.ExtractionMethod = extractionMethod;
+            result.RawText = rawText;
+        }
 
         private static bool HasNoCoreFields(PdfExtractionResult? result) =>
             result == null ||
@@ -144,52 +207,49 @@ namespace FinalProjectAuthAPI.BL
              !result.InvoiceDate.HasValue &&
              !result.TotalAmount.HasValue);
 
-        private async Task SaveTrainingDataAsync(string rawText, PdfExtractionResult result)
+        private static PdfExtractionResult? WithoutRawText(PdfExtractionResult? result)
         {
-            try
+            if (result == null)
+                return null;
+
+            return new PdfExtractionResult
             {
-                var filePath = Path.Combine(_env.ContentRootPath, "LocalModel", "gemini_extractions.jsonl");
-                var record = new
-                {
-                    text           = rawText,
-                    vendor_name    = result.VendorName,
-                    invoice_number = result.InvoiceNumber,
-                    invoice_date   = result.InvoiceDate?.ToString("yyyy-MM-dd"),
-                    due_date       = result.DueDate?.ToString("yyyy-MM-dd"),
-                    total_amount   = result.TotalAmount?.ToString(CultureInfo.InvariantCulture),
-                    subtotal       = result.Subtotal?.ToString(CultureInfo.InvariantCulture),
-                    vat_amount     = result.VatAmount?.ToString(CultureInfo.InvariantCulture),
-                    vat_rate       = result.VatRate?.ToString(CultureInfo.InvariantCulture),
-                    vendor_tax_id  = result.VendorTaxId,
-                    currency       = result.Currency,
-                    last_four_digits_card = result.LastFourDigitsCard,
-                    item_count = result.ItemCount,
-                    payment_plan = result.PaymentPlan == null ? null : new
+                VendorName = result.VendorName,
+                InvoiceNumber = result.InvoiceNumber,
+                InvoiceDate = result.InvoiceDate,
+                DueDate = result.DueDate,
+                TotalAmount = result.TotalAmount,
+                Subtotal = result.Subtotal,
+                VatRate = result.VatRate,
+                VatAmount = result.VatAmount,
+                Currency = result.Currency,
+                VendorTaxId = result.VendorTaxId,
+                LastFourDigitsCard = result.LastFourDigitsCard,
+                ItemCount = result.ItemCount,
+                PaymentPlan = result.PaymentPlan == null
+                    ? null
+                    : new PaymentPlanInfo
                     {
-                        total_installments = result.PaymentPlan.TotalInstallments,
-                        installment_amount = result.PaymentPlan.InstallmentAmount,
-                        frequency = result.PaymentPlan.Frequency,
-                        current_installment = result.PaymentPlan.CurrentInstallment,
-                        description = result.PaymentPlan.Description,
+                        TotalInstallments = result.PaymentPlan.TotalInstallments,
+                        InstallmentAmount = result.PaymentPlan.InstallmentAmount,
+                        Frequency = result.PaymentPlan.Frequency,
+                        CurrentInstallment = result.PaymentPlan.CurrentInstallment,
+                        Description = result.PaymentPlan.Description
                     },
-                    line_items = result.LineItems.Select(item => new
-                    {
-                        description = item.Description,
-                        quantity = item.Quantity,
-                        unit_price = item.UnitPrice,
-                        total_amount = item.TotalAmount,
-                        vat_rate = item.VatRate,
-                        category = item.Category,
-                        ai_confidence_score = item.AiConfidenceScore,
-                    }).ToList(),
-                };
-                var line = JsonSerializer.Serialize(record) + "\n";
-                await File.AppendAllTextAsync(filePath, line);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not save training data: {Message}", ex.Message);
-            }
+                LineItems = result.LineItems.Select(item => new ExtractedLineItem
+                {
+                    Description = item.Description,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalAmount = item.TotalAmount,
+                    VatRate = item.VatRate,
+                    Category = item.Category,
+                    AiConfidenceScore = item.AiConfidenceScore
+                }).ToList(),
+                ExtractionConfidence = result.ExtractionConfidence,
+                ExtractionMethod = result.ExtractionMethod,
+                ExtractionSource = result.ExtractionSource
+            };
         }
     }
 }

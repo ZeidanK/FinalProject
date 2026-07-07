@@ -115,6 +115,40 @@ namespace FinalProjectAuthAPI.Tests.BL.InvoiceVerification
             Assert.Contains("\"isDuplicate\":true", json);
         }
 
+        [Fact]
+        public void BuildResultJson_WithHybridAudit_RoundTripsHybridFields()
+        {
+            var extracted = new PdfExtractionResult { VendorName = "Merged" };
+            var hybridAudit = new HybridExtractionAudit
+            {
+                LocalResult = new PdfExtractionResult { VendorName = "Local" },
+                GeminiResult = new PdfExtractionResult { VendorName = "Gemini" },
+                MergedResult = extracted,
+                FieldSources = new Dictionary<string, string> { ["vendorName"] = "gemini" }
+            };
+            var verified = new PdfExtractionResult { VendorName = "Reviewed" };
+
+            var json = _serializer.BuildResultJson(
+                extracted,
+                7,
+                false,
+                null,
+                "Verified",
+                hybridAudit,
+                verified,
+                "manual_review",
+                true);
+            var payload = _serializer.ReadStoredPayload(json);
+
+            Assert.Equal("Local", payload.LocalResult!.VendorName);
+            Assert.Equal("Gemini", payload.GeminiResult!.VendorName);
+            Assert.Equal("Merged", payload.MergedResult!.VendorName);
+            Assert.Equal("Reviewed", payload.VerifiedResult!.VendorName);
+            Assert.Equal("gemini", payload.FieldSources["vendorName"]);
+            Assert.True(payload.UsedRegexFallback);
+            Assert.Equal("manual_review", payload.VerificationSource);
+        }
+
         // ── Result ────────────────────────────────────────────────────────────
 
         [Fact]

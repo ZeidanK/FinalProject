@@ -1,5 +1,6 @@
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Moq;
@@ -14,6 +15,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IAnomalyService> _mockAnomalySvc;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
         private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IVerifiedHybridAuditWriter> _mockVerifiedHybridAuditWriter;
         private readonly InvoiceVerificationService _service;
 
         public InvoiceVerificationServiceTests()
@@ -23,9 +25,11 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockAnomalySvc = new Mock<IAnomalyService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
             _mockDb = new Mock<DBservices>();
+            _mockVerifiedHybridAuditWriter = new Mock<IVerifiedHybridAuditWriter>();
             _service = new InvoiceVerificationService(
                 _mockInvoiceSvc.Object, _mockJobSvc.Object,
-                _mockAnomalySvc.Object, _mockRealtime.Object, _mockDb.Object);
+                _mockAnomalySvc.Object, _mockRealtime.Object, _mockDb.Object,
+                _mockVerifiedHybridAuditWriter.Object);
         }
 
         private static string BuildStoredPayloadJson(long? invoiceId = null, bool isDuplicate = false, decimal? confidence = 0.95m)
@@ -131,14 +135,27 @@ namespace FinalProjectAuthAPI.Tests.BL
         }
 
         [Fact]
-        public async Task VerifyJobAsync_VerifyingStatus_ReturnsInProgress()
+        public async Task VerifyJobAsync_VerifyingStatus_ResumesVerification()
         {
             var job = MakeJob(status: "verifying");
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
+            _mockInvoiceSvc.Setup(x => x.Create(
+                It.IsAny<CreateInvoiceRequest>(), 10,
+                "invoice.pdf", "/uploads/test.pdf", "application/pdf",
+                1024L, 0.95m))
+                .Returns((true, 42L, "", false));
+            _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()))
+                .Returns(true);
+            _mockInvoiceSvc.Setup(x => x.GetById(42))
+                .Returns(new InvoiceRow { Id = 42, CompanyId = 5 });
+            _mockInvoiceSvc.Setup(x => x.MarkVerified(42, 10)).Returns(true);
+            _mockJobSvc.Setup(x => x.MarkVerified(1, It.IsAny<string?>())).Returns(true);
+            _mockInvoiceSvc.Setup(x => x.AutoMatchAfterCreateAsync(42, 10, 70m))
+                .ReturnsAsync((true, 5L, "Matched", 85m));
 
             var result = await _service.VerifyJobAsync(1, 10);
 
-            Assert.Equal(InvoiceJobVerificationOutcomes.InProgress, result.Outcome);
+            Assert.Equal(InvoiceJobVerificationOutcomes.Verified, result.Outcome);
         }
 
         [Fact]
@@ -212,6 +229,139 @@ namespace FinalProjectAuthAPI.Tests.BL
             var result = await _service.VerifyJobAsync(1, 10);
 
             Assert.Equal(InvoiceJobVerificationOutcomes.Failed, result.Outcome);
+            _mockVerifiedHybridAuditWriter.Verify(
+                writer => writer.AppendVerifiedAsync(
+                    It.IsAny<UploadJobRow>(),
+                    It.IsAny<StoredInvoiceJobResult>(),
+                    It.IsAny<PdfExtractionResult>(),
+                    It.IsAny<string>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task VerifyJobAsync_ManualReview_AppendsVerifiedHybridAuditWithReviewedValues()
+        {
+            var extracted = new PdfExtractionResult
+            {
+                VendorName = "Merged Vendor",
+                InvoiceNumber = "INV-001",
+                InvoiceDate = new DateTime(2026, 6, 1),
+                TotalAmount = 1000m,
+                Currency = "USD",
+                ExtractionConfidence = 0.95m,
+                ExtractionSource = "hybrid",
+                RawText = "invoice text"
+            };
+            var serializer = new InvoiceJobPayloadSerializer();
+            var json = serializer.BuildResultJson(
+                extracted,
+                null,
+                false,
+                null,
+                "Ready",
+                new HybridExtractionAudit
+                {
+                    LocalResult = new PdfExtractionResult { VendorName = "Local Vendor" },
+                    GeminiResult = new PdfExtractionResult { VendorName = "Gemini Vendor" },
+                    MergedResult = extracted,
+                    FieldSources = new Dictionary<string, string> { ["vendorName"] = "gemini" }
+                });
+            _mockJobSvc.Setup(x => x.GetById(1)).Returns(MakeJob(resultJson: json));
+            _mockJobSvc.Setup(x => x.TryBeginVerification(1)).Returns(true);
+            _mockInvoiceSvc.Setup(x => x.Create(
+                It.IsAny<CreateInvoiceRequest>(), 10,
+                "invoice.pdf", "/uploads/test.pdf", "application/pdf",
+                1024L, 0.95m))
+                .Returns((true, 42L, "", false));
+            _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()))
+                .Returns(true);
+            _mockInvoiceSvc.Setup(x => x.GetById(42))
+                .Returns(new InvoiceRow { Id = 42, CompanyId = 5 });
+            _mockInvoiceSvc.Setup(x => x.MarkVerified(42, 10)).Returns(true);
+            _mockJobSvc.Setup(x => x.MarkVerified(1, It.IsAny<string?>())).Returns(true);
+            _mockInvoiceSvc.Setup(x => x.AutoMatchAfterCreateAsync(42, 10, 70m))
+                .ReturnsAsync((true, 5L, "Matched", 85m));
+
+            var reviewedInvoice = new CreateInvoiceRequest
+            {
+                CompanyId = 5,
+                VendorName = "Reviewed Vendor",
+                InvoiceNumber = "INV-001",
+                InvoiceDate = new DateTime(2026, 6, 1),
+                TotalAmount = 1100m,
+                Currency = "USD"
+            };
+
+            var result = await _service.VerifyJobAsync(1, 10, reviewedInvoice);
+
+            Assert.Equal(InvoiceJobVerificationOutcomes.Verified, result.Outcome);
+            _mockVerifiedHybridAuditWriter.Verify(
+                writer => writer.AppendVerifiedAsync(
+                    It.Is<UploadJobRow>(job => job.Id == 1),
+                    It.IsAny<StoredInvoiceJobResult>(),
+                    It.Is<PdfExtractionResult>(payload =>
+                        payload.VendorName == "Reviewed Vendor"
+                        && payload.TotalAmount == 1100m
+                        && payload.ExtractionSource == "hybrid"),
+                    "manual_review"),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task VerifyJobAsync_AutomaticVerification_UsesMergedResultForAuditWriter()
+        {
+            var merged = new PdfExtractionResult
+            {
+                VendorName = "Merged Vendor",
+                InvoiceNumber = "INV-001",
+                InvoiceDate = new DateTime(2026, 6, 1),
+                TotalAmount = 1000m,
+                Currency = "USD",
+                ExtractionConfidence = 0.95m,
+                ExtractionSource = "hybrid",
+                RawText = "invoice text"
+            };
+            var serializer = new InvoiceJobPayloadSerializer();
+            var json = serializer.BuildResultJson(
+                merged,
+                null,
+                false,
+                null,
+                "Ready",
+                new HybridExtractionAudit
+                {
+                    LocalResult = new PdfExtractionResult { VendorName = "Local Vendor" },
+                    GeminiResult = new PdfExtractionResult { VendorName = "Gemini Vendor" },
+                    MergedResult = merged
+                });
+            _mockJobSvc.Setup(x => x.GetById(1)).Returns(MakeJob(resultJson: json));
+            _mockJobSvc.Setup(x => x.TryBeginVerification(1)).Returns(true);
+            _mockInvoiceSvc.Setup(x => x.Create(
+                It.IsAny<CreateInvoiceRequest>(), 10,
+                "invoice.pdf", "/uploads/test.pdf", "application/pdf",
+                1024L, 0.95m))
+                .Returns((true, 42L, "", false));
+            _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()))
+                .Returns(true);
+            _mockInvoiceSvc.Setup(x => x.GetById(42))
+                .Returns(new InvoiceRow { Id = 42, CompanyId = 5 });
+            _mockInvoiceSvc.Setup(x => x.MarkVerified(42, 10)).Returns(true);
+            _mockJobSvc.Setup(x => x.MarkVerified(1, It.IsAny<string?>())).Returns(true);
+            _mockInvoiceSvc.Setup(x => x.AutoMatchAfterCreateAsync(42, 10, 70m))
+                .ReturnsAsync((true, 5L, "Matched", 85m));
+
+            var result = await _service.VerifyJobAsync(1, 10, automatic: true);
+
+            Assert.Equal(InvoiceJobVerificationOutcomes.Verified, result.Outcome);
+            _mockVerifiedHybridAuditWriter.Verify(
+                writer => writer.AppendVerifiedAsync(
+                    It.IsAny<UploadJobRow>(),
+                    It.IsAny<StoredInvoiceJobResult>(),
+                    It.Is<PdfExtractionResult>(payload =>
+                        payload.VendorName == "Merged Vendor"
+                        && payload.TotalAmount == 1000m),
+                    "auto_verify"),
+                Times.Once);
         }
 
         [Fact]

@@ -532,12 +532,12 @@ def gen_installment_invoice() -> dict:
 
 def main():
     generators = [
-        (gen_israeli_invoice,       50),   # Waxman/KSP style — Hebrew
-        (gen_english_saas_invoice,  45),   # Quizizz style — English
-        (gen_github_receipt,        45),   # GitHub receipt — English
-        (gen_cardcom_receipt,       40),   # CardCom style — Hebrew RTL
-        (gen_english_b2b_invoice,   40),   # Clean B2B invoice — English
-        (gen_installment_invoice,   40),   # Installment invoice — new pattern
+        (gen_israeli_invoice,       500),   # Waxman/KSP style — Hebrew
+        (gen_english_saas_invoice,  450),   # Quizizz style — English
+        (gen_github_receipt,        450),   # GitHub receipt — English
+        (gen_cardcom_receipt,       400),   # CardCom style — Hebrew RTL
+        (gen_english_b2b_invoice,   400),   # Clean B2B invoice — English
+        (gen_installment_invoice,   400),   # Installment invoice — new pattern
     ]
 
     examples = []

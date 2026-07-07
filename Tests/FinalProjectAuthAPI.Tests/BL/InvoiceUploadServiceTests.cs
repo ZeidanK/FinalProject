@@ -36,6 +36,11 @@ namespace FinalProjectAuthAPI.Tests.BL
             };
         }
 
+        private static PdfExtractionOutcome Outcome(PdfExtractionResult result) => new()
+        {
+            ExtractedData = result
+        };
+
         [Fact]
         public async Task UploadPdfAsync_Valid_ReturnsResponse()
         {
@@ -44,7 +49,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockFileSvc.Setup(x => x.SaveAsync(file, 5))
                 .ReturnsAsync(("uploads/invoices/5/f.pdf", "C:\\full\\f.pdf"));
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "invoice.pdf"))
-                .ReturnsAsync(new PdfExtractionResult { VendorName = "Acme" });
+                .ReturnsAsync(Outcome(new PdfExtractionResult { VendorName = "Acme" }));
 
             var (success, response, error) = await _service.UploadPdfAsync(file, 5, 10);
 
@@ -85,14 +90,14 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockFileSvc.Setup(x => x.SaveAsync(file, 5))
                 .ReturnsAsync(("uploads/invoices/5/f.pdf", "C:\\full\\f.pdf"));
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "invoice.pdf"))
-                .ReturnsAsync(new PdfExtractionResult
+                .ReturnsAsync(Outcome(new PdfExtractionResult
                 {
                     VendorName = "Acme",
                     InvoiceNumber = "INV-001",
                     TotalAmount = 1000m,
                     InvoiceDate = new DateTime(2026, 6, 1),
                     ExtractionConfidence = 0.95m,
-                });
+                }));
             _mockInvoiceSvc.Setup(x => x.Create(
                 It.IsAny<CreateInvoiceRequest>(), 10,
                 "invoice.pdf", "uploads/invoices/5/f.pdf", "application/pdf",
@@ -144,7 +149,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockFileSvc.Setup(x => x.SaveAsync(It.IsAny<IFormFile>(), 5))
                 .ReturnsAsync(("uploads/invoices/5/f.pdf", "C:\\full\\f.pdf"));
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), It.IsAny<string>()))
-                .ReturnsAsync(new PdfExtractionResult { VendorName = "Acme" });
+                .ReturnsAsync(Outcome(new PdfExtractionResult { VendorName = "Acme" }));
             _mockInvoiceSvc.Setup(x => x.Create(
                 It.IsAny<CreateInvoiceRequest>(), 10,
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),

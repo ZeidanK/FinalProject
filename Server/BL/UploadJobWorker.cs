@@ -16,8 +16,24 @@ namespace FinalProjectAuthAPI.BL
             _transactionProcessor = transactionProcessor;
         }
 
-        public async Task ProcessInvoiceJobAsync(long jobId) =>
-            await _invoiceProcessor.ProcessAsync(jobId);
+        public async Task ProcessInvoiceJobAsync(
+            long jobId,
+            string? filePath = null,
+            string? fileOriginalName = null,
+            string? fileType = null,
+            long? fileSize = null,
+            long? companyId = null,
+            long? userId = null,
+            string? jobType = null) =>
+            await _invoiceProcessor.ProcessAsync(
+                jobId,
+                filePath,
+                fileOriginalName,
+                fileType,
+                fileSize,
+                companyId,
+                userId,
+                jobType);
 
         public async Task ProcessTransactionJobAsync(long jobId) =>
             await _transactionProcessor.ProcessAsync(jobId);

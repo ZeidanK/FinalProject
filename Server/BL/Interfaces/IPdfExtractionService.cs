@@ -4,6 +4,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
 {
     public interface IPdfExtractionService
     {
-        Task<PdfExtractionResult> ExtractAsync(Stream pdfStream, string fileName);
+        Task<PdfExtractionOutcome> ExtractAsync(Stream pdfStream, string fileName);
     }
 }

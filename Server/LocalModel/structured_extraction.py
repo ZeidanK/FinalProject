@@ -131,6 +131,7 @@ def _find_payment_plan(text: str) -> tuple[dict[str, Any] | None, list[dict[str,
     amount_patterns = (
         rf"(?:installments|payments)\s+(?:of|at)\s+(?:{_CURRENCY}\s*)?(?P<amount>{_NUMBER})",
         rf"(?:installment|payment)\s+amount\s*[:\-]?\s*(?:{_CURRENCY}\s*)?(?P<amount>{_NUMBER})",
+        rf"(?:סכום\s+(?:כל\s+)?תשלום|תשלום\s+חודשי)\s*[:\-]?\s*(?:{_CURRENCY}\s*)?(?P<amount>{_NUMBER})",
     )
     for pattern in amount_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
@@ -183,15 +184,21 @@ def _iter_lines(text: str) -> Iterable[tuple[str, int]]:
 
 def _is_table_header(line: str) -> bool:
     lower = line.lower()
-    has_description = any(word in lower for word in ("description", "item", "product", "service", "particular"))
-    has_amount = any(word in lower for word in ("qty", "quantity", "price", "amount", "total"))
+    has_description = any(word in lower for word in (
+        "description", "item", "product", "service", "particular",
+        "תיאור", "פריט", "מוצר", "שירות",
+    ))
+    has_amount = any(word in lower for word in (
+        "qty", "quantity", "price", "amount", "total",
+        "כמות", "מחיר", "סכום", "סה\"כ",
+    ))
     return has_description and has_amount
 
 
 def _is_table_footer(line: str) -> bool:
     return bool(
         re.match(
-            r"\s*(?:subtotal|sub[\s-]*total|grand\s+total|total|tax|vat|gst|amount\s+due|balance\s+due|installment\s+schedule)\b",
+            r"\s*(?:subtotal|sub[\s-]*total|grand\s+total|total|tax|vat|gst|amount\s+due|balance\s+due|installment\s+schedule|סכום\s+ביניים|סה\"כ|מע\"מ|סכום\s+לתשלום|לוח\s+תשלומים)",
             line,
             re.IGNORECASE,
         )

@@ -52,6 +52,7 @@ appsettings.json
 # User-uploaded files
 Server/wwwroot/uploads/
 !Server/wwwroot/uploads/.gitkeep
+Server/App_Data/
 
 Server/appsettings.Development.json
 Server/appsettings.*.json
@@ -71,3 +72,6 @@ __pycache__/
 mock/uploads/
 mock/server/uploads/*
 !mock/server/uploads/.gitkeep
+
+# Local scratch verification / temp work
+.tmp/

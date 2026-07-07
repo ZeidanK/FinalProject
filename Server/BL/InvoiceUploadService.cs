@@ -52,10 +52,10 @@ namespace FinalProjectAuthAPI.BL
                 var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
 
                 // Extract data from the PDF
-                PdfExtractionResult extractedData;
+                PdfExtractionOutcome outcome;
                 using (var stream = file.OpenReadStream())
                 {
-                    extractedData = await _pdfSvc.ExtractAsync(stream, file.FileName);
+                    outcome = await _pdfSvc.ExtractAsync(stream, file.FileName);
                 }
 
                 var response = new UploadInvoicePdfResponse
@@ -64,7 +64,7 @@ namespace FinalProjectAuthAPI.BL
                     FileSize = file.Length,
                     FilePath = relativePath,
                     FileType = file.ContentType,
-                    ExtractedData = extractedData
+                    ExtractedData = outcome.ExtractedData
                 };
 
                 return (true, response, string.Empty);
@@ -104,11 +104,12 @@ namespace FinalProjectAuthAPI.BL
                 var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
 
                 // Extract data
-                PdfExtractionResult extracted;
+                PdfExtractionOutcome outcome;
                 using (var stream = file.OpenReadStream())
                 {
-                    extracted = await _pdfSvc.ExtractAsync(stream, file.FileName);
+                    outcome = await _pdfSvc.ExtractAsync(stream, file.FileName);
                 }
+                var extracted = outcome.ExtractedData;
 
                 // Build a CreateInvoiceRequest from extracted data
                 var request = new CreateInvoiceRequest
