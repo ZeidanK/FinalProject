@@ -217,6 +217,11 @@ namespace FinalProjectAuthAPI.BL
             if (existingPath != null)
                 return existingPath;
 
+            Console.WriteLine($"[ERROR] File not found at any candidate path. Relative: {normalizedRelativePath}");
+            foreach (var path in candidatePaths)
+                Console.WriteLine($"  Candidate: {path}  Exists={File.Exists(path)}");
+            Console.WriteLine($"  WebRoot: {_webRoot}  ContentRoot: {_contentRoot}");
+
             throw new FileNotFoundException(notFoundMessage, candidatePaths[0]);
         }
 

@@ -133,16 +133,13 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
         {
             var normalizedLocal = Normalize(localItems);
             var normalizedGemini = Normalize(geminiItems);
-            var localScore = ScoreLineItems(normalizedLocal);
-            var geminiScore = ScoreLineItems(normalizedGemini);
-
-            if (geminiScore > localScore)
+            if (normalizedGemini.Count > 0)
             {
                 fieldSources["lineItems"] = "gemini";
                 return normalizedGemini;
             }
 
-            if (normalizedLocal.Count > 0 || normalizedGemini.Count > 0)
+            if (normalizedLocal.Count > 0)
                 fieldSources["lineItems"] = "localmodel";
 
             return normalizedLocal;
@@ -228,8 +225,8 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             gemini = TrimToNull(gemini);
             if (StringEquals(local, gemini) && validator(local))
             {
-                fieldSources[fieldName] = "localmodel";
-                return local;
+                fieldSources[fieldName] = "gemini";
+                return gemini;
             }
 
             var localValid = validator(local);
@@ -249,8 +246,8 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             gemini = NormalizeDate(gemini);
             if (local.HasValue && gemini.HasValue && local.Value == gemini.Value)
             {
-                fieldSources[fieldName] = "localmodel";
-                return local;
+                fieldSources[fieldName] = "gemini";
+                return gemini;
             }
 
             var localValid = local.HasValue;
@@ -271,8 +268,8 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             gemini = RoundDecimal(gemini);
             if (local.HasValue && gemini.HasValue && local.Value == gemini.Value && validator(local))
             {
-                fieldSources[fieldName] = "localmodel";
-                return local;
+                fieldSources[fieldName] = "gemini";
+                return gemini;
             }
 
             var localValid = validator(local);
@@ -293,8 +290,8 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             gemini = NormalizePositiveInt(gemini);
             if (local.HasValue && gemini.HasValue && local.Value == gemini.Value && validator(local))
             {
-                fieldSources[fieldName] = "localmodel";
-                return local;
+                fieldSources[fieldName] = "gemini";
+                return gemini;
             }
 
             var localValid = validator(local);
@@ -314,24 +311,19 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
         {
             if (!localValid && !geminiValid)
                 return default;
-            if (localValid && !geminiValid)
-            {
-                fieldSources[fieldName] = "localmodel";
-                return local;
-            }
             if (!localValid && geminiValid)
             {
                 fieldSources[fieldName] = "gemini";
                 return gemini;
             }
-            if (isCore && localConfidence < _settings.LocalConfidenceThreshold)
+            if (localValid && !geminiValid)
             {
-                fieldSources[fieldName] = "gemini";
-                return gemini;
+                fieldSources[fieldName] = "localmodel";
+                return local;
             }
 
-            fieldSources[fieldName] = "localmodel";
-            return local;
+            fieldSources[fieldName] = "gemini";
+            return gemini;
         }
 
         private static PdfExtractionResult? Normalize(PdfExtractionResult? input)

@@ -74,6 +74,42 @@ const getUploadEntryConfidence = (entry) => {
   return value == null || Number.isNaN(confidence) ? null : confidence
 }
 
+const getDisplayedExtractionResult = (result) => {
+  if (!result || typeof result !== 'object') return null
+  return result.geminiResult || result.extractedData || null
+}
+
+const buildDisplayedUploadJobData = ({
+  result,
+  filePath,
+  fileOriginalName,
+  fileType,
+  fileSize,
+}) => {
+  const displayedResult = getDisplayedExtractionResult(result)
+  if (!displayedResult) {
+    return { extractedData: null, serverResponse: null }
+  }
+
+  return {
+    serverResponse: {
+      filePath,
+      fileOriginalName,
+      fileType,
+      fileSize,
+      extractedData: displayedResult,
+      geminiResult: result?.geminiResult || null,
+      localResult: result?.localResult || null,
+      mergedResult: result?.mergedResult || null,
+      fieldSources: result?.fieldSources || {},
+    },
+    extractedData: mapExtractedToForm(
+      displayedResult,
+      displayedResult?.extractionConfidence,
+    ),
+  }
+}
+
 /**
  * Maps invoice processing status values to MUI chip colors.
  * @type {{[key: string]: string}}
@@ -235,19 +271,15 @@ function InvoicesPage() {
 
         try {
           const result = JSON.parse(resultJson || 'null')
-          if (result?.extractedData) {
-            serverResponse = {
-              filePath,
-              fileOriginalName,
-              fileType,
-              fileSize,
-              extractedData: result.extractedData,
-            }
-            extractedData = mapExtractedToForm(
-              result.extractedData,
-              result.extractedData?.extractionConfidence,
-            )
-          }
+          const displayData = buildDisplayedUploadJobData({
+            result,
+            filePath,
+            fileOriginalName,
+            fileType,
+            fileSize,
+          })
+          extractedData = displayData.extractedData
+          serverResponse = displayData.serverResponse
         } catch {
           // Ignore malformed result payload and mark as error below.
         }
@@ -421,19 +453,15 @@ function InvoicesPage() {
               let serverResponse = null
               try {
                 const result = JSON.parse(job.resultJson || 'null')
-                if (result?.extractedData) {
-                  serverResponse = {
-                    filePath: job.filePath,
-                    fileOriginalName: job.fileOriginalName,
-                    fileType: job.fileType,
-                    fileSize: job.fileSize,
-                    extractedData: result.extractedData,
-                  }
-                  extractedData = mapExtractedToForm(
-                    result.extractedData,
-                    result.extractedData?.extractionConfidence,
-                  )
-                }
+                const displayData = buildDisplayedUploadJobData({
+                  result,
+                  filePath: job.filePath,
+                  fileOriginalName: job.fileOriginalName,
+                  fileType: job.fileType,
+                  fileSize: job.fileSize,
+                })
+                extractedData = displayData.extractedData
+                serverResponse = displayData.serverResponse
               } catch { /* skip unparseable jobs */ }
 
               if (!extractedData) continue // can't restore without data
@@ -458,19 +486,15 @@ function InvoicesPage() {
               let serverResponse = null
               try {
                 const result = JSON.parse(job.resultJson || 'null')
-                if (result?.extractedData) {
-                  serverResponse = {
-                    filePath: job.filePath,
-                    fileOriginalName: job.fileOriginalName,
-                    fileType: job.fileType,
-                    fileSize: job.fileSize,
-                    extractedData: result.extractedData,
-                  }
-                  extractedData = mapExtractedToForm(
-                    result.extractedData,
-                    result.extractedData?.extractionConfidence,
-                  )
-                }
+                const displayData = buildDisplayedUploadJobData({
+                  result,
+                  filePath: job.filePath,
+                  fileOriginalName: job.fileOriginalName,
+                  fileType: job.fileType,
+                  fileSize: job.fileSize,
+                })
+                extractedData = displayData.extractedData
+                serverResponse = displayData.serverResponse
               } catch { /* skip unparseable */ }
 
               if (extractedData) {
@@ -656,21 +680,23 @@ function InvoicesPage() {
         }
 
         // Legacy sync path (fallback — should not normally occur after the async migration)
+        const displayData = buildDisplayedUploadJobData({
+          result: response,
+          filePath: response?.filePath,
+          fileOriginalName: response?.fileOriginalName,
+          fileType: response?.fileType,
+          fileSize: response?.fileSize,
+        })
         setFiles((prev) =>
           prev.map((f) =>
             f.id === entry.id
               ? {
                   ...f,
-                  status: response?.extractedData ? 'completed' : 'error',
+                  status: displayData.extractedData ? 'completed' : 'error',
                   progress: 100,
-                  serverResponse: response,
-                  extractedData: response?.extractedData
-                    ? mapExtractedToForm(
-                        response.extractedData,
-                        response.extractedData?.extractionConfidence,
-                      )
-                    : null,
-                  error: response?.extractedData ? null : 'No extraction data returned.',
+                  serverResponse: displayData.serverResponse,
+                  extractedData: displayData.extractedData,
+                  error: displayData.extractedData ? null : 'No extraction data returned.',
                 }
               : f,
           ),

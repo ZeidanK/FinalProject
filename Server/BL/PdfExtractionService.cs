@@ -75,7 +75,9 @@ namespace FinalProjectAuthAPI.BL
 
             if (ShouldUseHybrid())
             {
-                Console.WriteLine("\n[STEP 2] Running local-first extraction...");
+                Console.WriteLine(_hybridSettings.AlwaysCallGemini
+                    ? "\n[STEP 2] Running hybrid extraction (local + Gemini)..."
+                    : "\n[STEP 2] Running local-first extraction...");
                 var hybridResult = await RunHybridExtractionAsync(extractedText, fileName);
                 result = hybridResult.Result;
                 hybridAudit = hybridResult.Audit;
@@ -86,8 +88,11 @@ namespace FinalProjectAuthAPI.BL
                 result = await TryExtractAsync(_geminiService, extractedText, fileName, "Primary AI");
             }
 
+            // Prevent regex fallback if any AI path (e.g., hybrid merge) returned core fields.
+            // Regex is a last resort and should not override a successful Gemini result.
             if (!HasNoCoreFields(result))
             {
+
                 FinalizeResult(result!, method, extractedText);
                 Console.WriteLine($"\n         Source     : {result!.ExtractionSource?.ToUpper()}");
                 Console.WriteLine($"         Confidence : {result.ExtractionConfidence:P0}");
@@ -132,22 +137,48 @@ namespace FinalProjectAuthAPI.BL
             string rawText,
             string fileName)
         {
+            if (_hybridSettings.AlwaysCallGemini)
+            {
+                Console.WriteLine("         Hybrid always-call mode enabled; requesting local model and Gemini in parallel.");
+
+                var localTask = TryExtractAsync(_geminiService, rawText, fileName, "Local model");
+                var geminiTask = TryExtractAsync(
+                    _geminiFallback!,
+                    rawText,
+                    fileName,
+                    "Gemini",
+                    TimeSpan.FromSeconds(Math.Max(1, _hybridSettings.GeminiTimeoutSeconds)));
+
+                await Task.WhenAll(localTask, geminiTask);
+
+                var parallelLocalResult = localTask.Result;
+                var parallelGeminiResult = geminiTask.Result;
+                var parallelMerged = _hybridMerger.Merge(parallelLocalResult, parallelGeminiResult);
+
+                Console.WriteLine($"         Local core fields found : {!HasNoCoreFields(parallelLocalResult)}");
+                Console.WriteLine($"         Gemini core fields found: {!HasNoCoreFields(parallelGeminiResult)}");
+                Console.WriteLine($"         Hybrid field sources    : {parallelMerged.FieldSources.Count}");
+
+                return (
+                    parallelMerged.Result,
+                    new HybridExtractionAudit
+                    {
+                        LocalResult = WithoutRawText(parallelLocalResult),
+                        GeminiResult = WithoutRawText(parallelGeminiResult),
+                        MergedResult = WithoutRawText(parallelMerged.Result),
+                        FieldSources = new Dictionary<string, string>(parallelMerged.FieldSources)
+                    });
+            }
+
             var localResult = await TryExtractAsync(_geminiService, rawText, fileName, "Local model");
 
-            if (!_hybridSettings.AlwaysCallGemini && !HasNoCoreFields(localResult))
+            if (!HasNoCoreFields(localResult))
             {
                 Console.WriteLine("         Local model found core fields; skipping Gemini for fast-path extraction.");
                 return (localResult, null);
             }
 
-            if (_hybridSettings.AlwaysCallGemini)
-            {
-                Console.WriteLine("         Hybrid always-call mode enabled; requesting Gemini too.");
-            }
-            else
-            {
-                Console.WriteLine("         Local model missed core fields; requesting Gemini fallback.");
-            }
+            Console.WriteLine("         Local model missed core fields; requesting Gemini fallback.");
 
             var geminiResult = await TryExtractAsync(
                 _geminiFallback!,
@@ -183,9 +214,18 @@ namespace FinalProjectAuthAPI.BL
             try
             {
                 var task = service.ParseInvoiceTextAsync(rawText);
-                return timeout.HasValue
-                    ? await task.WaitAsync(timeout.Value)
-                    : await task;
+                if (timeout.HasValue)
+                {
+                    var completed = await Task.WhenAny(task, Task.Delay(timeout.Value));
+                    if (completed == task)
+                        return await task;
+
+                    Console.WriteLine($"         {providerName} exceeded {timeout.Value.TotalSeconds}s timeout; waiting for completion.");
+                    _logger.LogWarning("{ProviderName} exceeded {Timeout}s for {FileName}; still waiting...", providerName, timeout.Value.TotalSeconds, fileName);
+
+                    return await task.WaitAsync(TimeSpan.FromSeconds(120));
+                }
+                return await task;
             }
             catch (TimeoutException ex)
             {

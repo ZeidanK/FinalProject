@@ -64,6 +64,8 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
                     ? Path.GetFileName(fullPath)
                     : effectiveFileOriginalName;
 
+                Console.WriteLine($"[PROCESSOR] Opening file: {fullPath} | Relative: {effectiveFilePath} | Exists: {System.IO.File.Exists(fullPath)}");
+
                 PdfExtractionOutcome outcome;
                 using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
@@ -123,6 +125,14 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
                     usedRegexFallback: outcome.UsedRegexFallback);
 
                 _jobSvc.MarkCompleted(jobId, extractOnlyResult);
+                await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
+            }
+            catch (FileNotFoundException ex)
+            {
+                var detail = $"Invoice file not found. Path: {ex.FileName}. Job file path: {effectiveFilePath}";
+                Console.WriteLine($"[PROCESSOR] {detail}");
+                _jobSvc.MarkFailed(jobId, detail);
+                _notification.LogUploadJobFailure(job, "Invoice upload job crashed", detail, "ERROR");
                 await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
             }
             catch (Exception ex)
