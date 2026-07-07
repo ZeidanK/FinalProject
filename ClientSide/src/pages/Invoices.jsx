@@ -1081,10 +1081,6 @@ function InvoicesPage() {
         const status = invoice.status || ''
         return status.trim() || null
       }
-      case 'confidence': {
-        const confidence = Number(invoice.ai_extraction_confidence ?? invoice.aiExtractionConfidence)
-        return Number.isFinite(confidence) ? confidence : null
-      }
       default:
         return null
     }
@@ -1290,11 +1286,6 @@ function InvoicesPage() {
     { key: 'total', label: 'Total', align: 'right', sortable: true, getValue: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     { key: 'currency', label: 'Currency', align: 'center', sortable: true, getValue: (row) => row.currency || 'USD' },
     { key: 'status', label: 'Status', align: 'center', sortable: true, render: (val, row) => <Chip label={row.status || 'uploaded'} size="small" color={statusColors[row.status] || 'default'} variant="outlined" /> },
-    { key: 'confidence', label: 'Confidence', align: 'center', sortable: true, render: (val, row) => {
-      const cv = row.ai_extraction_confidence ?? row.aiExtractionConfidence
-      const pc = Number(cv)
-      return cv == null || Number.isNaN(pc) ? '—' : `${Math.round(pc * 100)}%`
-    }},
   ]
 
   const invoiceRowActions = (inv) => (

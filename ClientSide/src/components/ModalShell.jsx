@@ -6,7 +6,7 @@ const Transition = forwardRef(function Transition(props, ref) {
   return <Zoom ref={ref} {...props} />
 })
 
-export default function ModalShell({ open, onClose, maxWidth, title, headerAction, children, actions }) {
+export default function ModalShell({ open, onClose, maxWidth, title, headerAction, children, actions, contentSx }) {
   return (
     <Dialog
       open={open}
@@ -39,7 +39,7 @@ export default function ModalShell({ open, onClose, maxWidth, title, headerActio
         {headerAction}
       </DialogTitle>
 
-      <DialogContent dividers sx={{ py: 3, borderColor: 'rgba(129, 191, 255, 0.08)' }}>
+      <DialogContent dividers sx={{ py: 3, borderColor: 'rgba(129, 191, 255, 0.08)', ...contentSx }}>
         {children}
       </DialogContent>
 
@@ -60,10 +60,12 @@ ModalShell.propTypes = {
   headerAction: PropTypes.node,
   children: PropTypes.node.isRequired,
   actions: PropTypes.node,
+  contentSx: PropTypes.object,
 }
 
 ModalShell.defaultProps = {
   maxWidth: 'md',
   headerAction: null,
   actions: null,
+  contentSx: {},
 }
