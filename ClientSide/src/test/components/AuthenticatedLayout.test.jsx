@@ -17,7 +17,7 @@ vi.mock('../../context/useCompany', () => ({
 }))
 
 vi.mock('../../context/ThemeModeContext', () => ({
-  useThemeMode: () => ({ mode: 'dark', toggleTheme: vi.fn() }),
+  useThemeMode: () => ({ mode: 'dark' }),
   ThemeModeProvider: ({ children }) => <>{children}</>,
 }))
 

@@ -22,13 +22,11 @@ import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import WorkspacesRoundedIcon from '@mui/icons-material/WorkspacesRounded'
 import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded'
-import Brightness6RoundedIcon from '@mui/icons-material/Brightness6Rounded'
 import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowLeftRounded'
 import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import LogoMark from './LogoMark'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useThemeMode } from '../context/ThemeModeContext'
 import PropTypes from 'prop-types'
 
 const sidebarWidth = 264
@@ -117,7 +115,6 @@ NavItem.propTypes = {
 export default function SidebarNav({ user, onLogout, onNavigate }) {
   const theme = useTheme()
   const navigate = useNavigate()
-  const { mode, toggleTheme } = useThemeMode()
   const [collapsed, setCollapsed] = useState(false)
 
   const handleLogout = useCallback(() => {
@@ -225,34 +222,6 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
 
       {/* Bottom actions */}
       <Stack spacing={0.5} sx={{ px: collapsed ? 1 : 1.5, pb: 1.5 }}>
-        <Tooltip title={collapsed ? (mode === 'dark' ? 'Light Mode' : 'Dark Mode') : ''} placement="right" arrow>
-          <Button
-            onClick={toggleTheme}
-            sx={{
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              minWidth: collapsed ? 44 : '100%',
-              width: collapsed ? 44 : '100%',
-              height: collapsed ? 44 : 40,
-              px: collapsed ? 0 : 1.5,
-              borderRadius: 1.5,
-              color: theme.palette.text.secondary,
-              '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)', color: theme.palette.text.primary },
-              ...(collapsed ? { '& .MuiButton-startIcon': { marginLeft: 0, marginRight: 0 } } : {}),
-            }}
-            startIcon={
-              <Box sx={{ display: 'flex', alignItems: 'center', minWidth: collapsed ? 0 : 22, mr: collapsed ? 0 : 1 }}>
-                <Brightness6RoundedIcon fontSize="small" />
-              </Box>
-            }
-          >
-            {!collapsed && (
-              <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                {mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              </Typography>
-            )}
-          </Button>
-        </Tooltip>
-
         <Tooltip title={collapsed ? 'Logout' : ''} placement="right" arrow>
           <Button
             onClick={handleLogout}

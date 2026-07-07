@@ -977,7 +977,15 @@ export default function ProfilePage() {
             <Typography fontWeight={700}>Delete Account</Typography>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ py: 3 }}>
+        <DialogContent
+          sx={{
+            px: 3,
+            '&.MuiDialogContent-root': {
+              paddingTop: 3,
+              paddingBottom: 3,
+            },
+          }}
+        >
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This action is permanent and cannot be undone. Enter your password to confirm.
           </Typography>

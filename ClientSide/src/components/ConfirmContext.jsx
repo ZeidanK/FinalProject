@@ -53,8 +53,16 @@ export function ConfirmProvider({ children }) {
         >
           {state.title}
         </DialogTitle>
-        <DialogContent sx={{ py: 3 }}>
-          <DialogContentText>{state.message}</DialogContentText>
+        <DialogContent
+          sx={{
+            px: 3,
+            '&.MuiDialogContent-root': {
+              paddingTop: 3,
+              paddingBottom: 3,
+            },
+          }}
+        >
+          <DialogContentText sx={{ textAlign: 'center' }}>{state.message}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
           <Button onClick={handleClose} color="inherit">Cancel</Button>

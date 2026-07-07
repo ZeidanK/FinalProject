@@ -1,35 +1,19 @@
 import { createTheme } from '@mui/material/styles'
 
-export const getDesignTokens = (mode) => ({
+export const getDesignTokens = () => ({
   palette: {
-    mode,
-    ...(mode === 'dark'
-      ? {
-          primary: { main: '#58a6ff', light: '#79b8ff', dark: '#388bfd', contrastText: '#0d1117' },
-          secondary: { main: '#7dd3fc', light: '#bae6fd', dark: '#38bdf8', contrastText: '#0c1929' },
-          background: { default: '#070b14', paper: '#0e1628', elevated: '#141e33' },
-          text: { primary: '#edf4ff', secondary: '#8b9dbb', disabled: '#3d4d66' },
-          success: { main: '#37d67a', light: '#5ee99a', dark: '#22b06a' },
-          warning: { main: '#f59e0b', light: '#fbbf24', dark: '#d97706' },
-          error: { main: '#f87171', light: '#fca5a5', dark: '#ef4444' },
-          info: { main: '#58a6ff', light: '#79b8ff', dark: '#388bfd' },
-          divider: 'rgba(43,54,81,0.6)',
-          border: 'rgba(43,54,81,0.8)',
-          chart: ['#58a6ff', '#37d67a', '#f59e0b', '#f87171', '#a78bfa', '#34d399', '#fb923c', '#67e8f9'],
-        }
-      : {
-          primary: { main: '#2563eb', light: '#60a5fa', dark: '#1d4ed8', contrastText: '#ffffff' },
-          secondary: { main: '#0891b2', light: '#22d3ee', dark: '#0e7490', contrastText: '#ffffff' },
-          background: { default: '#f8fafc', paper: '#ffffff', elevated: '#f1f5f9' },
-          text: { primary: '#0f172a', secondary: '#475569', disabled: '#94a3b8' },
-          success: { main: '#16a34a', light: '#4ade80', dark: '#15803d' },
-          warning: { main: '#d97706', light: '#fbbf24', dark: '#b45309' },
-          error: { main: '#dc2626', light: '#f87171', dark: '#b91c1c' },
-          info: { main: '#2563eb', light: '#60a5fa', dark: '#1d4ed8' },
-          divider: 'rgba(0,0,0,0.08)',
-          border: 'rgba(0,0,0,0.12)',
-          chart: ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#059669', '#ea580c', '#0891b2'],
-        }),
+    mode: 'dark',
+    primary: { main: '#58a6ff', light: '#79b8ff', dark: '#388bfd', contrastText: '#0d1117' },
+    secondary: { main: '#7dd3fc', light: '#bae6fd', dark: '#38bdf8', contrastText: '#0c1929' },
+    background: { default: '#070b14', paper: '#0e1628', elevated: '#141e33' },
+    text: { primary: '#edf4ff', secondary: '#8b9dbb', disabled: '#3d4d66' },
+    success: { main: '#37d67a', light: '#5ee99a', dark: '#22b06a' },
+    warning: { main: '#f59e0b', light: '#fbbf24', dark: '#d97706' },
+    error: { main: '#f87171', light: '#fca5a5', dark: '#ef4444' },
+    info: { main: '#58a6ff', light: '#79b8ff', dark: '#388bfd' },
+    divider: 'rgba(43,54,81,0.6)',
+    border: 'rgba(43,54,81,0.8)',
+    chart: ['#58a6ff', '#37d67a', '#f59e0b', '#f87171', '#a78bfa', '#34d399', '#fb923c', '#67e8f9'],
   },
   typography: {
     fontFamily: '"Inter", "Montserrat", "Segoe UI", system-ui, sans-serif',
@@ -50,17 +34,17 @@ export const getDesignTokens = (mode) => ({
   shape: { borderRadius: 12 },
 })
 
-export const getComponentOverrides = (mode) => ({
+export const getComponentOverrides = () => ({
   MuiCssBaseline: {
     styleOverrides: {
       body: {
         scrollbarWidth: 'thin',
-        scrollbarColor: mode === 'dark' ? '#2b3651 transparent' : '#cbd5e1 transparent',
+        scrollbarColor: '#2b3651 transparent',
         '&::-webkit-scrollbar': { width: 6, height: 6 },
         '&::-webkit-scrollbar-track': { background: 'transparent' },
         '&::-webkit-scrollbar-thumb': {
           borderRadius: 3,
-          backgroundColor: mode === 'dark' ? '#2b3651' : '#cbd5e1',
+          backgroundColor: '#2b3651',
         },
       },
     },
@@ -75,13 +59,8 @@ export const getComponentOverrides = (mode) => ({
         '&:active': { transform: 'scale(0.97)' },
       },
       contained: {
-        boxShadow: mode === 'dark'
-          ? '0 4px 14px rgba(88,166,255,0.25)'
-          : '0 4px 14px rgba(37,99,235,0.25)',
-        '&:hover': { boxShadow: mode === 'dark'
-          ? '0 6px 20px rgba(88,166,255,0.35)'
-          : '0 6px 20px rgba(37,99,235,0.35)',
-        },
+        boxShadow: '0 4px 14px rgba(88,166,255,0.25)',
+        '&:hover': { boxShadow: '0 6px 20px rgba(88,166,255,0.35)' },
       },
       outlined: {
         borderWidth: 1.5,
@@ -96,7 +75,7 @@ export const getComponentOverrides = (mode) => ({
       root: {
         borderRadius: 16,
         border: '1px solid',
-        borderColor: mode === 'dark' ? 'rgba(43,54,81,0.5)' : 'rgba(0,0,0,0.08)',
+        borderColor: 'rgba(43,54,81,0.5)',
         backgroundImage: 'none',
         transition: 'border-color 0.25s ease, box-shadow 0.25s ease',
       },
@@ -111,14 +90,10 @@ export const getComponentOverrides = (mode) => ({
     styleOverrides: {
       root: { backgroundImage: 'none' },
       elevation1: {
-        boxShadow: mode === 'dark'
-          ? '0 4px 20px rgba(0,0,0,0.4)'
-          : '0 4px 20px rgba(0,0,0,0.06)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
       },
       elevation8: {
-        boxShadow: mode === 'dark'
-          ? '0 12px 40px rgba(0,0,0,0.5)'
-          : '0 12px 40px rgba(0,0,0,0.1)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
       },
     },
   },
@@ -130,9 +105,7 @@ export const getComponentOverrides = (mode) => ({
           borderRadius: 10,
           transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           '&.Mui-focused': {
-            boxShadow: mode === 'dark'
-              ? '0 0 0 3px rgba(88,166,255,0.15)'
-              : '0 0 0 3px rgba(37,99,235,0.1)',
+            boxShadow: '0 0 0 3px rgba(88,166,255,0.15)',
           },
         },
       },
@@ -159,7 +132,7 @@ export const getComponentOverrides = (mode) => ({
     styleOverrides: {
       root: {
         borderBottom: '1px solid',
-        borderColor: mode === 'dark' ? 'rgba(43,54,81,0.3)' : 'rgba(0,0,0,0.06)',
+        borderColor: 'rgba(43,54,81,0.3)',
         padding: '12px 16px',
       },
       head: {
@@ -167,8 +140,8 @@ export const getComponentOverrides = (mode) => ({
         fontSize: '0.75rem',
         letterSpacing: '0.04em',
         textTransform: 'uppercase',
-        color: mode === 'dark' ? '#8b9dbb' : '#64748b',
-        backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+        color: '#8b9dbb',
+        backgroundColor: 'rgba(255,255,255,0.02)',
       },
     },
   },
@@ -177,7 +150,7 @@ export const getComponentOverrides = (mode) => ({
       root: {
         transition: 'background-color 0.15s ease',
         '&:hover': {
-          backgroundColor: mode === 'dark' ? 'rgba(88,166,255,0.04)' : 'rgba(37,99,235,0.03)',
+          backgroundColor: 'rgba(88,166,255,0.04)',
         },
       },
     },
@@ -189,7 +162,7 @@ export const getComponentOverrides = (mode) => ({
   },
   MuiTablePagination: {
     styleOverrides: {
-      root: { borderTop: '1px solid', borderColor: mode === 'dark' ? 'rgba(43,54,81,0.3)' : 'rgba(0,0,0,0.06)' },
+      root: { borderTop: '1px solid', borderColor: 'rgba(43,54,81,0.3)' },
       toolbar: { minHeight: 48 },
     },
   },
@@ -198,9 +171,7 @@ export const getComponentOverrides = (mode) => ({
       paper: {
         borderRadius: 16,
         backgroundImage: 'none',
-        boxShadow: mode === 'dark'
-          ? '0 24px 64px rgba(0,0,0,0.6)'
-          : '0 24px 64px rgba(0,0,0,0.15)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
       },
     },
   },
@@ -211,20 +182,20 @@ export const getComponentOverrides = (mode) => ({
     styleOverrides: {
       root: { borderRadius: 10, fontWeight: 500 },
       standardSuccess: {
-        backgroundColor: mode === 'dark' ? 'rgba(55,214,122,0.12)' : 'rgba(22,163,74,0.08)',
-        color: mode === 'dark' ? '#5ee99a' : '#15803d',
+        backgroundColor: 'rgba(55,214,122,0.12)',
+        color: '#5ee99a',
       },
       standardError: {
-        backgroundColor: mode === 'dark' ? 'rgba(248,113,113,0.12)' : 'rgba(220,38,38,0.08)',
-        color: mode === 'dark' ? '#fca5a5' : '#b91c1c',
+        backgroundColor: 'rgba(248,113,113,0.12)',
+        color: '#fca5a5',
       },
       standardWarning: {
-        backgroundColor: mode === 'dark' ? 'rgba(245,158,11,0.12)' : 'rgba(217,119,6,0.08)',
-        color: mode === 'dark' ? '#fbbf24' : '#92400e',
+        backgroundColor: 'rgba(245,158,11,0.12)',
+        color: '#fbbf24',
       },
       standardInfo: {
-        backgroundColor: mode === 'dark' ? 'rgba(88,166,255,0.12)' : 'rgba(37,99,235,0.08)',
-        color: mode === 'dark' ? '#79b8ff' : '#1e40af',
+        backgroundColor: 'rgba(88,166,255,0.12)',
+        color: '#79b8ff',
       },
     },
   },
@@ -240,7 +211,7 @@ export const getComponentOverrides = (mode) => ({
         padding: '6px 12px',
         fontSize: '0.75rem',
         fontWeight: 500,
-        backgroundColor: mode === 'dark' ? '#1e293b' : '#1e293b',
+        backgroundColor: '#1e293b',
       },
     },
   },
@@ -261,11 +232,9 @@ export const getComponentOverrides = (mode) => ({
     styleOverrides: {
       root: {
         borderRadius: 8,
-        backgroundColor: mode === 'dark' ? 'rgba(20, 30, 55, 0.5)' : 'rgba(0,0,0,0.06)',
+        backgroundColor: 'rgba(20, 30, 55, 0.5)',
         '&::after': {
-          background: mode === 'dark'
-            ? 'linear-gradient(90deg, transparent, rgba(129, 191, 255, 0.06), transparent)'
-            : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(129, 191, 255, 0.06), transparent)',
         },
       },
     },
@@ -275,7 +244,7 @@ export const getComponentOverrides = (mode) => ({
       root: { '& .MuiSwitch-thumb': { boxShadow: 'none' } },
       track: {
         borderRadius: 12,
-        backgroundColor: mode === 'dark' ? 'rgba(43,54,81,0.6)' : 'rgba(0,0,0,0.15)',
+        backgroundColor: 'rgba(43,54,81,0.6)',
       },
     },
   },
@@ -313,7 +282,7 @@ export const getComponentOverrides = (mode) => ({
   MuiBackdrop: {
     styleOverrides: {
       root: {
-        backgroundColor: mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.4)',
+        backgroundColor: 'rgba(0,0,0,0.6)',
         backdropFilter: 'blur(4px)',
       },
     },
@@ -325,7 +294,7 @@ export const getComponentOverrides = (mode) => ({
   },
   MuiDivider: {
     styleOverrides: {
-      root: { borderColor: mode === 'dark' ? 'rgba(43,54,81,0.5)' : 'rgba(0,0,0,0.08)' },
+      root: { borderColor: 'rgba(43,54,81,0.5)' },
     },
   },
   MuiToggleButton: {
@@ -349,11 +318,9 @@ export const getComponentOverrides = (mode) => ({
   },
 })
 
-const theme = (mode) => createTheme({
-  ...getDesignTokens(mode),
-  components: getComponentOverrides(mode),
+const theme = createTheme({
+  ...getDesignTokens(),
+  components: getComponentOverrides(),
 })
 
-export const darkTheme = theme('dark')
-export const lightTheme = theme('light')
-export default darkTheme
+export default theme
