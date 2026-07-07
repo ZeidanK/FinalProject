@@ -14,7 +14,8 @@ describe('TransactionDetailsModal', () => {
 
   it('shows loading state', () => {
     render(<TransactionDetailsModal open={true} loading={true} onClose={vi.fn()} />)
-    expect(screen.getByText('Loading transaction details…')).toBeInTheDocument()
+    expect(screen.getByText('Saved Transaction')).toBeInTheDocument()
+    expect(screen.queryByText('Office supplies')).not.toBeInTheDocument()
   })
 
   it('shows error state', () => {
@@ -26,7 +27,7 @@ describe('TransactionDetailsModal', () => {
     const tx = { description: 'Office supplies', amount: 150.50, transactionType: 'debit', status: 'confirmed' }
     render(<TransactionDetailsModal open={true} transaction={tx} onClose={vi.fn()} />)
     expect(screen.getByText('Office supplies')).toBeInTheDocument()
-    expect(screen.getByText('150.50')).toBeInTheDocument()
+    expect(screen.getByText('$150.50')).toBeInTheDocument()
     expect(screen.getByText('debit')).toBeInTheDocument()
     expect(screen.getByText('confirmed')).toBeInTheDocument()
   })

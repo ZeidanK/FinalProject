@@ -43,9 +43,11 @@ export default function ModalShell({ open, onClose, maxWidth, title, headerActio
         {children}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(129, 191, 255, 0.08)' }}>
-        {actions}
-      </DialogActions>
+      {actions ? (
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(129, 191, 255, 0.08)' }}>
+          {actions}
+        </DialogActions>
+      ) : null}
     </Dialog>
   )
 }
