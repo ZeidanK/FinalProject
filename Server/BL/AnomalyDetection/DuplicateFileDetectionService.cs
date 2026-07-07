@@ -8,10 +8,10 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
 {
     public class DuplicateFileDetectionService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly AnomalyCrudService _anomalyCrud;
 
-        public DuplicateFileDetectionService(DBservices db, AnomalyCrudService anomalyCrud)
+        public DuplicateFileDetectionService(IDBservices db, AnomalyCrudService anomalyCrud)
         {
             _db = db;
             _anomalyCrud = anomalyCrud;

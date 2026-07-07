@@ -13,13 +13,13 @@ namespace FinalProjectAuthAPI.BL
         private readonly IInvoiceService _invoiceSvc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IFileStorageService _fileSvc;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
         public InvoiceUploadService(
             IInvoiceService invoiceSvc,
             IPdfExtractionService pdfSvc,
             IFileStorageService fileSvc,
-            DBservices db)
+            IDBservices db)
         {
             _invoiceSvc = invoiceSvc;
             _pdfSvc = pdfSvc;

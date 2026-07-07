@@ -4,11 +4,11 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import { motion } from 'framer-motion'
 
 const headerCardSx = {
-  borderRadius: 4,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(135deg, rgba(14,25,45,0.98), rgba(9,17,33,0.97))',
-  boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
+  borderRadius: 3.5,
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 /**

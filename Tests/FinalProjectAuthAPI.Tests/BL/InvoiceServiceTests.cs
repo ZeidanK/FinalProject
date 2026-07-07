@@ -11,14 +11,14 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class InvoiceServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IMatchService> _mockMatch;
         private readonly Mock<IAnomalyService> _mockAnomaly;
         private readonly InvoiceService _service;
 
         public InvoiceServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockMatch = new Mock<IMatchService>();
             _mockAnomaly = new Mock<IAnomalyService>();
             _service = new InvoiceService(_mockDb.Object, _mockMatch.Object, _mockAnomaly.Object);

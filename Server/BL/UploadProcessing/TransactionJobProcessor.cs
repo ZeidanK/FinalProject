@@ -15,8 +15,8 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
         private readonly ITransactionService _transactionSvc;
         private readonly IAnomalyService _anomalySvc;
         private readonly IRealtimeNotificationService _realtime;
-        private readonly UploadJobNotificationService _notification;
-        private readonly DBservices _db;
+        private readonly IUploadJobNotificationService _notification;
+        private readonly IDBservices _db;
 
         private static readonly JsonSerializerOptions _camelCase = new()
         {
@@ -31,8 +31,8 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             ITransactionService transactionSvc,
             IAnomalyService anomalySvc,
             IRealtimeNotificationService realtime,
-            UploadJobNotificationService notification,
-            DBservices db)
+            IUploadJobNotificationService notification,
+            IDBservices db)
         {
             _jobSvc = jobSvc;
             _fileSvc = fileSvc;

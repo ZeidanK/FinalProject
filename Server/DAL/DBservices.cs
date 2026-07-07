@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     /// Data Access Layer – mirrors the NewsSitePro DBservices pattern.
     /// Reads the connection string from appsettings.json and calls stored procedures.
     /// </summary>
-    public partial class DBservices
+    public partial class DBservices : IDBservices
     {
         private readonly string connectionString;
 
@@ -68,7 +68,8 @@ namespace FinalProjectAuthAPI.DAL
                         PasswordHash = reader["password_hash"]?.ToString()!,
                         Name         = reader["name"]?.ToString()!,
                         Role         = reader["role"]?.ToString() ?? "business_owner",
-                        IsActive     = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"])
+                        IsActive     = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"]),
+                        IsBanned     = reader["is_banned"] != DBNull.Value && Convert.ToBoolean(reader["is_banned"])
                     };
                 }
                 return null;

@@ -19,6 +19,6 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     )
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
-    expect(screen.getByText('Please refresh the page and try again.')).toBeInTheDocument()
+    expect(screen.getByText('An unexpected error occurred. Please try refreshing the page.')).toBeInTheDocument()
   })
 })

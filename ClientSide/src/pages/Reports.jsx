@@ -26,6 +26,11 @@ import {
 } from '@mui/material'
 import { motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts'
+import { useTheme } from '@mui/material/styles'
+import AnimatedBackground from '../components/AnimatedBackground'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -49,9 +54,10 @@ const EMPTY_REPORT_ROWS = []
 
 const reportCardSx = {
   borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 const statusPresentation = {
@@ -241,6 +247,20 @@ function LoadingRows() {
 function ReportCatalog({ reconciliation, aging }) {
   const summary = reconciliation?.summary || {}
   const totalExceptions = Number(summary.unmatchedLedgerCount || 0) + Number(summary.unmatchedBankTransactionCount || 0)
+  const theme = useTheme()
+
+  const statusPieData = [
+    { name: 'Fully matched', value: Number(summary.fullyMatchedLedgerCount) || 0, color: theme.palette.success.main },
+    { name: 'Partially matched', value: Number(summary.partiallyMatchedLedgerCount) || 0, color: theme.palette.info.main },
+    { name: 'Exceptions', value: totalExceptions, color: theme.palette.warning.main },
+  ]
+  const hasPieData = statusPieData.some((d) => d.value > 0)
+
+  const agingBuckets = aging?.buckets || []
+  const agingChartData = agingBuckets
+    .filter((b) => b.amountsByCurrency?.length)
+    .map((b) => ({ name: b.label, amount: b.amountsByCurrency[0]?.amount || 0 }))
+  const hasAgingChart = agingChartData.length > 0
 
   return (
     <Grid container spacing={2} component={motion.div} variants={itemVariants}>
@@ -249,10 +269,23 @@ function ReportCatalog({ reconciliation, aging }) {
           <CardContent>
             <Stack spacing={1.4}>
               <CompareArrowsRoundedIcon sx={{ color: '#a9d5ff' }} />
-              <Typography variant="h6">Reconciliation Report</Typography>
+              <Typography variant="h6">Reconciliation Overview</Typography>
               <Typography variant="body2" color="text.secondary">
                 Compare invoice ledger entries with imported bank transactions and expose unmatched activity.
               </Typography>
+              {hasPieData && (
+                <Box sx={{ width: '100%', height: 180 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={statusPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3}>
+                        {statusPieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip size="small" label={`${formatNumber(summary.fullyMatchedLedgerCount)} fully matched`} />
                 <Chip size="small" color={totalExceptions > 0 ? 'warning' : 'success'} label={`${formatNumber(totalExceptions)} exceptions`} />
@@ -270,10 +303,23 @@ function ReportCatalog({ reconciliation, aging }) {
           <CardContent>
             <Stack spacing={1.4}>
               <ScheduleRoundedIcon sx={{ color: '#b7ffd2' }} />
-              <Typography variant="h6">Payables Aging</Typography>
+              <Typography variant="h6">Aging Overview</Typography>
               <Typography variant="body2" color="text.secondary">
                 Track unpaid vendor invoices by due date and remaining balance after historical payments.
               </Typography>
+              {hasAgingChart && (
+                <Box sx={{ width: '100%', height: 180 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={agingChartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                      <XAxis dataKey="name" stroke={theme.palette.text.disabled} tick={{ fontSize: 10 }} />
+                      <YAxis stroke={theme.palette.text.disabled} tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                      <Bar dataKey="amount" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip size="small" label={`${formatNumber(aging?.totalInvoiceCount)} unpaid invoices`} />
                 <Chip size="small" label={`${aging?.totalsByCurrency?.length || 0} currencies`} />
@@ -514,7 +560,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
         <Table size="small" aria-label="Payables aging report table" sx={{ minWidth: 1080 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Invoice</TableCell>
+              <TableCell sx={{ width: 120 }}>Invoice</TableCell>
               <TableCell>Vendor</TableCell>
               <TableCell>Invoice date</TableCell>
               <TableCell>Due date</TableCell>
@@ -529,7 +575,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.invoiceId} hover>
-                <TableCell sx={{ fontWeight: 700 }}>{row.invoiceNumber || `#${row.invoiceId}`}</TableCell>
+                <TableCell sx={{ fontWeight: 700, width: 120, wordBreak: 'break-all', whiteSpace: 'normal' }}>{row.invoiceNumber || `#${row.invoiceId}`}</TableCell>
                 <TableCell>{row.vendorName || 'Unknown vendor'}</TableCell>
                 <TableCell>{formatDate(row.invoiceDate)}</TableCell>
                 <TableCell>
@@ -548,6 +594,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
                     size="small"
                     color={row.paymentStatus === 'partially_paid' ? 'info' : 'warning'}
                     label={row.paymentStatus === 'partially_paid' ? 'Partially paid' : 'Unpaid'}
+                    sx={{ minWidth: 120 }}
                   />
                 </TableCell>
               </TableRow>
@@ -778,8 +825,9 @@ function ReportsPage() {
   }
 
   return (
-    <Box sx={{ py: { xs: 3, md: 5 }, minHeight: '100%', background: 'radial-gradient(circle at 0% 0%, rgba(88, 166, 255, 0.2), transparent 34%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)' }}>
-      <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}>
+    <Box sx={{ py: { xs: 3, md: 5 }, minHeight: '100%', position: 'relative', overflow: 'hidden' }}>
+      <AnimatedBackground density="low" />
+      <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
           <Card component={motion.div} variants={itemVariants} elevation={0} sx={{ ...reportCardSx, borderRadius: 4 }}>
             <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>

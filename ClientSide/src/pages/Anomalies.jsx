@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,8 +38,8 @@ import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
-import PageSectionLayout from '../components/PageSectionLayout'
-import SnackbarAlert from '../components/SnackbarAlert'
+import AnimatedBackground from '../components/AnimatedBackground'
+import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useConfirm } from '../components/ConfirmContext'
@@ -53,7 +54,7 @@ import { getInvoiceById } from '../services/invoices'
 import { invoiceKeys } from '../queries/queryKeys'
 import { resolveAnomalySchema } from '../schemas/anomalies'
 import { mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
-import { itemVariants } from '../utils/motionVariants'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 
 /**
@@ -445,10 +446,11 @@ function StatsCard({ title, value, hint, icon, color }) {
       variants={itemVariants}
       elevation={0}
       sx={{
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+        borderRadius: 3.5,
+        border: '1px solid rgba(129, 191, 255, 0.12)',
+        background: 'rgba(14, 24, 45, 0.65)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
       }}
     >
       <CardContent>
@@ -503,7 +505,7 @@ function AnomaliesPage() {
   const [invoiceModal, setInvoiceModal] = useState({ open: false, file: null })
   const [viewingInvoiceId, setViewingInvoiceId] = useState(null)
 
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const { notify } = useNotification()
 
   const { confirm } = useConfirm()
 
@@ -649,16 +651,11 @@ function AnomaliesPage() {
       })
 
       const actionLabel = nextStatus === 'dismissed' ? 'dismissed' : 'resolved'
-      setSnack({
-        open: true,
-        severity: 'success',
-        message: `Anomaly ${actionLabel} successfully.`,
-      })
+      notify({ severity: 'success', message: `Anomaly ${actionLabel} successfully.` })
 
       closeDetails()
     } catch (err) {
-      setSnack({
-        open: true,
+      notify({
         severity: 'error',
         message: err.message || `Failed to ${nextStatus === 'dismissed' ? 'dismiss' : 'resolve'} anomaly.`,
       })
@@ -672,11 +669,7 @@ function AnomaliesPage() {
 
     const remainingCount = detailsQuery.data.relatedItems?.length || 0
     if (remainingCount <= 1) {
-      setSnack({
-        open: true,
-        severity: 'warning',
-        message: 'Keep at least one record in the duplicate group.',
-      })
+      notify({ severity: 'warning', message: 'Keep at least one record in the duplicate group.' })
       return
     }
 
@@ -691,21 +684,13 @@ function AnomaliesPage() {
         resolutionNotes: `Kept ${itemLabel}; soft-deleted the other duplicate invoices.`,
       }, token)
 
-      setSnack({
-        open: true,
-        severity: 'success',
-        message: 'Duplicate invoice decision saved and anomaly resolved.',
-      })
+      notify({ severity: 'success', message: 'Duplicate invoice decision saved and anomaly resolved.' })
 
       await Promise.all([anomaliesQuery.refetch(), statsQuery.refetch()])
       await queryClient.invalidateQueries({ queryKey: invoiceKeys.all })
       await detailsQuery.refetch()
     } catch (err) {
-      setSnack({
-        open: true,
-        severity: 'error',
-        message: err.message || 'Failed to save duplicate decision.',
-      })
+      notify({ severity: 'error', message: err.message || 'Failed to save duplicate decision.' })
     } finally {
       setCleanupTarget(null)
     }
@@ -732,11 +717,7 @@ function AnomaliesPage() {
         },
       })
     } catch (err) {
-      setSnack({
-        open: true,
-        severity: 'error',
-        message: err.message || 'Failed to open invoice details.',
-      })
+      notify({ severity: 'error', message: err.message || 'Failed to open invoice details.' })
     } finally {
       setViewingInvoiceId(null)
     }
@@ -808,7 +789,10 @@ function AnomaliesPage() {
   ]
 
   return (
-    <PageSectionLayout>
+    <Box sx={{ py: { xs: 4, md: 6 }, position: 'relative', overflow: 'hidden' }}>
+      <AnimatedBackground density="low" />
+      <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+        <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
       <PageHeaderCard
         title="Anomalies"
         description="Monitor data quality issues and resolve exception cases quickly."
@@ -841,10 +825,11 @@ function AnomaliesPage() {
         variants={itemVariants}
         elevation={0}
         sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+          borderRadius: 3.5,
+          border: '1px solid rgba(129, 191, 255, 0.12)',
+          background: 'rgba(14, 24, 45, 0.65)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
         }}
       >
         <CardContent>
@@ -954,13 +939,9 @@ function AnomaliesPage() {
         readOnly
       />
 
-      <SnackbarAlert
-        open={snack.open}
-        severity={snack.severity}
-        message={snack.message}
-        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-      />
-    </PageSectionLayout>
+        </Stack>
+      </Container>
+    </Box>
   )
 }
 

@@ -12,11 +12,11 @@ namespace FinalProjectAuthAPI.Controllers
     public class AnomaliesController : ApiControllerBase
     {
         private readonly IAnomalyService _svc;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IFileStorageService _fileSvc;
         private readonly IRealtimeNotificationService _realtime;
 
-        public AnomaliesController(IAnomalyService svc, DBservices db, IFileStorageService fileSvc, IRealtimeNotificationService realtime)
+        public AnomaliesController(IAnomalyService svc, IDBservices db, IFileStorageService fileSvc, IRealtimeNotificationService realtime)
         {
             _svc = svc;
             _db = db;

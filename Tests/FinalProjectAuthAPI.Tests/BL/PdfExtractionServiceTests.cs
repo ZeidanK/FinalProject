@@ -25,9 +25,10 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockGemini = new Mock<IGeminiExtractionService>();
             _mockLogger = new Mock<ILogger<PdfExtractionService>>();
             _serviceProvider = new ServiceCollection().BuildServiceProvider();
+            var mockServiceProvider = new Mock<IServiceProvider>();
             _service = new PdfExtractionService(
                 _mockEnv.Object,
-                _mockGemini.Object,
+                _mockGemini.Object, mockServiceProvider.Object,
                 _serviceProvider,
                 _mockLogger.Object,
                 new HybridExtractionSettings { Enabled = false });

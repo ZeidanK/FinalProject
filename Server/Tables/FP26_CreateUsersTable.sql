@@ -17,6 +17,7 @@ CREATE TABLE dbo.FP26_users
     phone             VARCHAR(50)         NULL,
     profile_picture   VARCHAR(500)        NULL,
     is_active         BIT             NOT NULL DEFAULT 1,
+    is_banned         BIT             NOT NULL DEFAULT 0,
     email_verified    BIT             NOT NULL DEFAULT 0,
     email_verified_at DATETIME2           NULL,
     last_login_at     DATETIME2           NULL,

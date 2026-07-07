@@ -9,6 +9,7 @@ import {
   CardContent,
   Chip,
   Collapse,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -35,16 +36,17 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
 import { motion, AnimatePresence } from 'framer-motion'
-import PageSectionLayout from '../components/PageSectionLayout'
+import AnimatedBackground from '../components/AnimatedBackground'
+import RevealOnScroll from '../components/RevealOnScroll'
 import PageHeaderCard from '../components/PageHeaderCard'
-import SnackbarAlert from '../components/SnackbarAlert'
+import { useNotification } from '../context/useNotification'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import InstallmentMatchGroups from '../components/InstallmentMatchGroups'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { getInvoiceById, updateInvoice } from '../services/invoices'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
-import { itemVariants } from '../utils/motionVariants'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import { invoiceKeys, matchKeys, transactionKeys } from '../queries/queryKeys'
 import {
   useAutoMatchOnLoadMutation,
@@ -63,10 +65,11 @@ import {
  * @type {import('@mui/material').SxProps}
  */
 const cardBaseSx = {
-  borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+  borderRadius: 3.5,
+  border: '1px solid rgba(129, 191, 255, 0.12)',
+  background: 'rgba(14, 24, 45, 0.65)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
 }
 
 // --------------- helper ---------------
@@ -371,9 +374,11 @@ function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBus
       variants={itemVariants}
       elevation={0}
       sx={{
-        ...cardBaseSx,
-        borderColor: 'rgba(55,214,122,0.35)',
-        background: 'linear-gradient(135deg, rgba(14,30,22,0.96), rgba(10,20,16,0.96))',
+        borderRadius: 3.5,
+        border: '1px solid rgba(55,214,122,0.2)',
+        background: 'rgba(14, 24, 45, 0.65)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
       }}
     >
       <CardContent>
@@ -557,7 +562,8 @@ function MatchesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [matchBusy, setMatchBusy] = useState(false)
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const { notify } = useNotification()
+  const setSnack = useCallback(({ message, severity }) => { notify({ message, severity }) }, [notify])
   const [invoiceModal, setInvoiceModal] = useState({ open: false, file: null })
   const [invoiceSaving, setInvoiceSaving] = useState(false)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
@@ -982,7 +988,10 @@ function MatchesPage() {
 
   return (
     <>
-      <PageSectionLayout>
+      <Box sx={{ py: { xs: 4, md: 6 }, position: 'relative', overflow: 'hidden' }}>
+        <AnimatedBackground density="low" />
+        <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+          <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
         <PageHeaderCard
             title="Matches"
             description="Match invoices to bank transactions for reconciliation."
@@ -1058,8 +1067,6 @@ function MatchesPage() {
               sx={{
                 ...cardBaseSx,
                 borderColor: 'rgba(88,166,255,0.35)',
-                background:
-                  'linear-gradient(135deg, rgba(20,35,65,0.96), rgba(12,22,42,0.96))',
               }}
             >
               <CardContent>
@@ -1123,6 +1130,7 @@ function MatchesPage() {
           )}
 
           {/* ---- Two-Panel Matching Interface ---- */}
+          <RevealOnScroll>
           <Grid container spacing={2.5}>
             <Grid size={{ xs: 12, md: 6 }}>
               <SelectionPanel
@@ -1184,6 +1192,7 @@ function MatchesPage() {
               />
             </Grid>
           </Grid>
+          </RevealOnScroll>
 
           {/* ---- Match Action Bar ---- */}
           {(selectedInvoiceId || selectedTransactionId) && (
@@ -1195,8 +1204,6 @@ function MatchesPage() {
               sx={{
                 ...cardBaseSx,
                 borderColor: 'primary.main',
-                background:
-                  'linear-gradient(135deg, rgba(20,35,65,0.97), rgba(12,22,42,0.97))',
               }}
             >
               <CardContent>
@@ -1302,11 +1309,12 @@ function MatchesPage() {
           {/* ---- Quick Match Suggestions ---- */}
           <Box
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
-              overflow: 'hidden',
+            borderRadius: 3.5,
+            border: '1px solid rgba(129, 191, 255, 0.12)',
+            background: 'rgba(14, 24, 45, 0.65)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
             }}
           >
             <CardContent sx={{ pb: quickSuggestionsOpen ? 0 : 2 }}>
@@ -1388,11 +1396,12 @@ function MatchesPage() {
           {/* ---- Installment Plan Suggestions ---- */}
           <Box
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
-              overflow: 'hidden',
+            borderRadius: 3.5,
+            border: '1px solid rgba(129, 191, 255, 0.12)',
+            background: 'rgba(14, 24, 45, 0.65)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
             }}
           >
             <CardContent sx={{ pb: installmentSuggestionsOpen ? 0 : 2 }}>
@@ -1494,7 +1503,9 @@ function MatchesPage() {
               </Collapse>
             </CardContent>
           </Box>
-      </PageSectionLayout>
+          </Stack>
+        </Container>
+      </Box>
 
       {/* ---- Unmatch Confirmation Dialog ---- */}
       <Dialog
@@ -1538,13 +1549,6 @@ function MatchesPage() {
         saving={invoiceSaving}
       />
 
-      {/* ---- Snackbar ---- */}
-      <SnackbarAlert
-        open={snack.open}
-        message={snack.message}
-        severity={snack.severity}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
-      />
     </>
   )
 }

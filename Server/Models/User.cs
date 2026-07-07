@@ -19,6 +19,7 @@ namespace FinalProjectAuthAPI.Models
         public string? Phone { get; set; }
         public string? ProfilePicture { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsBanned { get; set; } = false;
         public bool IsPublic { get; set; } = false;
 
         // -- JWT --------------------------------------------------------------

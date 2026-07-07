@@ -42,6 +42,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
+import AnimatedBackground from '../components/AnimatedBackground'
 import Papa from 'papaparse'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -1162,14 +1163,16 @@ function TransactionsPage() {
   }
 
   return (
-    <Box
-      sx={{
-        py: { xs: 4, md: 6 },
-        overflowX: 'hidden',
-        background:
-          'radial-gradient(circle at 0% 5%, rgba(88,166,255,0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66,130,255,0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
-      }}
-    >
+    <Box sx={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+      <AnimatedBackground density="medium" />
+      <Box
+        sx={{
+          position: 'relative',
+          zIndex: 1,
+          py: { xs: 4, md: 6 },
+          overflowX: 'hidden',
+        }}
+      >
       <Container
         maxWidth={false}
         disableGutters
@@ -1200,12 +1203,11 @@ function TransactionsPage() {
             variants={itemVariants}
             elevation={0}
             sx={{
-              borderRadius: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(135deg, rgba(14,25,45,0.98), rgba(9,17,33,0.97))',
-              boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
+              borderRadius: 3.5,
+              border: '1px solid rgba(129, 191, 255, 0.12)',
+              background: 'rgba(14, 24, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
             }}
           >
             <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
@@ -1242,11 +1244,11 @@ function TransactionsPage() {
             variants={itemVariants}
             elevation={0}
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+              borderRadius: 3.5,
+              border: '1px solid rgba(129, 191, 255, 0.12)',
+              background: 'rgba(14, 24, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
             }}
           >
             <CardContent>
@@ -1320,11 +1322,11 @@ function TransactionsPage() {
               variants={itemVariants}
               elevation={0}
               sx={{
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                background:
-                  'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+                borderRadius: 3.5,
+                border: '1px solid rgba(129, 191, 255, 0.12)',
+                background: 'rgba(14, 24, 45, 0.65)',
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
               }}
             >
               <CardContent>
@@ -1517,11 +1519,11 @@ function TransactionsPage() {
             variants={itemVariants}
             elevation={0}
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+              borderRadius: 3.5,
+              border: '1px solid rgba(129, 191, 255, 0.12)',
+              background: 'rgba(14, 24, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
             }}
           >
             <CardContent>
@@ -1615,6 +1617,7 @@ function TransactionsPage() {
           {snack.message}
         </Alert>
       </Snackbar>
+    </Box>
     </Box>
   )
 }

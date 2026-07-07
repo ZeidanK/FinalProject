@@ -16,7 +16,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
         private readonly Mock<IGroupManager> _mockGroupManager;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly RealtimeConnectionRegistry _registry;
         private readonly Mock<ILogger<RealtimeNotificationService>> _mockLogger;
         private readonly Mock<IActivityLogService> _mockActivityLog;
@@ -28,7 +28,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockClients = new Mock<IHubClients>();
             _mockClientProxy = new Mock<IClientProxy>();
             _mockGroupManager = new Mock<IGroupManager>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _registry = new RealtimeConnectionRegistry();
             _mockLogger = new Mock<ILogger<RealtimeNotificationService>>();
             _mockActivityLog = new Mock<IActivityLogService>();

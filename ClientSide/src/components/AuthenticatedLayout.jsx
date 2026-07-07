@@ -1,315 +1,124 @@
 import {
   AppBar,
-  Avatar,
   Box,
-  Button,
-  Chip,
   Drawer,
   IconButton,
   Stack,
   Toolbar,
   Typography,
   useMediaQuery,
+  useTheme,
 } from '@mui/material'
-import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
-import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
-import HubRoundedIcon from '@mui/icons-material/HubRounded'
-import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
-import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
-import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
-import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
-import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
-import WorkspacesRoundedIcon from '@mui/icons-material/WorkspacesRounded'
-import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded'
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
 import { motion } from 'framer-motion'
 import LogoMark from './LogoMark'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { useTheme } from '@mui/material/styles'
-import PropTypes from 'prop-types'
+import SidebarNav, { sidebarWidth } from './SidebarNav'
+import BreadcrumbsNav from './BreadcrumbsNav'
+import { Outlet, useLocation } from 'react-router-dom'
+import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import NotificationBell from './NotificationBell'
+import CommandPalette from './CommandPalette'
+import PageTransitionWrapper from './PageTransitionWrapper'
 
-const sidebarWidth = 272
-const BUSINESS_ROLES = ['accountant', 'business_owner', 'accountant_business_owner']
-const PROFILE_ROLES = [...BUSINESS_ROLES, 'admin']
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
 
-const navItems = [
-  {
-    label: 'Dashboard',
-    to: '/dashboard',
-    icon: <DashboardRoundedIcon fontSize="small" />,
-    roles: BUSINESS_ROLES,
-  },
-  {
-    label: 'Invoices',
-    to: '/invoices',
-    icon: <ReceiptLongRoundedIcon fontSize="small" />,
-    roles: BUSINESS_ROLES,
-  },
-  {
-    label: 'Transactions',
-    to: '/transactions',
-    icon: <AccountBalanceRoundedIcon fontSize="small" />,
-    roles: BUSINESS_ROLES,
-  },
-  {
-    label: 'Matches',
-    to: '/matches',
-    icon: <HubRoundedIcon fontSize="small" />,
-    roles: BUSINESS_ROLES,
-  },
-  {
-    label: 'Anomalies',
-    to: '/anomalies',
-    icon: <ErrorOutlineRoundedIcon fontSize="small" />,
-    roles: BUSINESS_ROLES,
-  },
-  {
-    label: 'Reports',
-    to: '/reports',
-    icon: <AssessmentRoundedIcon fontSize="small" />,
-    roles: BUSINESS_ROLES,
-  },
-  {
-    label: 'Admin',
-    to: '/admin',
-    icon: <AdminPanelSettingsRoundedIcon fontSize="small" />,
-    roles: ['admin'],
-  },
-  {
-    label: 'My Workspace',
-    to: '/accountant-workspace',
-    icon: <WorkspacesRoundedIcon fontSize="small" />,
-    roles: ['accountant', 'accountant_business_owner'],
-  },
-  {
-    label: 'Find Accountant',
-    to: '/find-accountant',
-    icon: <PersonSearchRoundedIcon fontSize="small" />,
-    roles: ['business_owner', 'accountant_business_owner'],
-  },
-  {
-    label: 'Profile',
-    to: '/profile',
-    icon: <PersonRoundedIcon fontSize="small" />,
-    roles: PROFILE_ROLES,
-  },
-]
-
-/**
- * Render the authenticated sidebar content for the current user.
- *
- * @param {Object} props
- * @param {function(): void} [props.onNavigate] Callback triggered when a navigation item is clicked.
- * @param {Object} props.user Authenticated user details.
- * @param {string} [props.user.name] Display name of the user.
- * @param {string} [props.user.email] Email address of the user.
- * @param {string} [props.user.role] Role assigned to the user.
- * @param {function(): void} props.onLogout Callback invoked to sign the user out.
- * @returns {JSX.Element}
- */
-function SidebarContent({ onNavigate, user, onLogout }) {
-  const navigate = useNavigate()
-
-  /**
-   * Return the human-friendly label for the current user role.
-   * @returns {string}
-   */
-  const getRoleLabel = () => {
-    if (!user?.role) return 'Unknown role'
-    if (user.role === 'admin') return 'Administrator'
-    if (user.role === 'business_owner') return 'Business Owner'
-    if (user.role === 'accountant') return 'Accountant'
-    return user.role
-  }
-
-  const roleLabel = getRoleLabel()
-
-  /**
-   * Sign the user out and navigate to the login page.
-   * @returns {void}
-   */
-  const handleLogout = () => {
-    onLogout()
-    navigate('/login', { replace: true })
-  }
-
-  const visibleNavItems = navItems.filter((item) => {
-    if (!user?.role) return true
-    return item.roles.includes(user.role)
-  })
-
+function ScrollToTopFab() {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 400)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  if (!visible) return null
   return (
-    <Stack
+    <IconButton
+      aria-label="Scroll to top"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       sx={{
-        height: '100%',
-        p: 2,
-        background:
-          'linear-gradient(180deg, rgba(10, 17, 33, 0.98), rgba(8, 15, 28, 0.98))',
+        position: 'fixed', bottom: 24, right: 24, zIndex: 1200,
+        bgcolor: 'primary.main', color: '#fff',
+        boxShadow: '0 4px 16px rgba(88,166,255,0.35)',
+        '&:hover': { bgcolor: 'primary.dark' },
+        width: 40, height: 40,
       }}
     >
-
-      <Stack
-        spacing={1.2}
-        sx={{
-          mt: 2,
-          p: 1.2,
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'rgba(13, 22, 40, 0.72)',
-        }}
-      >
-        <Stack direction="row" spacing={1.1} alignItems="center">
-          <Avatar sx={{ bgcolor: 'primary.main', color: '#041229', fontWeight: 800 }}>
-            {(user?.name || 'U').slice(0, 1).toUpperCase()}
-          </Avatar>
-          <Stack>
-            <Typography fontWeight={700} sx={{ fontSize: '0.95rem' }}>
-              {user?.name || 'Unknown User'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {user?.email || 'No email'}
-            </Typography>
-          </Stack>
-        </Stack>
-
-        <Chip
-          label={roleLabel}
-          sx={{
-            alignSelf: 'center',
-            bgcolor: 'rgba(88, 166, 255, 0.16)',
-            border: '1px solid',
-            borderColor: 'rgba(129, 191, 255, 0.38)',
-            color: '#cde7ff',
-            fontWeight: 700,
-          }}
-        />
-      </Stack>
-
-      <Stack spacing={0.8} sx={{ mt: 2.2 }}>
-        {visibleNavItems.map((item) => (
-          <Button
-            key={item.to}
-            component={NavLink}
-            className={({ isActive }) => (isActive ? 'active' : undefined)}
-            to={item.to}
-            onClick={onNavigate}
-            startIcon={item.icon}
-            sx={{
-              justifyContent: 'flex-start',
-              textTransform: 'none',
-              px: 1.4,
-              py: 1,
-              borderRadius: 2.2,
-              color: '#dbe9ff',
-              border: '1px solid transparent',
-              '&.active': {
-                borderColor: 'rgba(125, 211, 252, 0.44)',
-                bgcolor: 'rgba(88, 166, 255, 0.2)',
-              },
-            }}
-          >
-            {item.label}
-          </Button>
-        ))}
-      </Stack>
-
-      <Box sx={{ flexGrow: 1 }} />
-
-      <Button
-        onClick={handleLogout}
-        variant="outlined"
-        color="secondary"
-        startIcon={<LogoutRoundedIcon fontSize="small" />}
-        sx={{ justifyContent: 'flex-start', textTransform: 'none', borderRadius: 2.2 }}
-      >
-        Logout
-      </Button>
-    </Stack>
+      <KeyboardArrowUpRoundedIcon />
+    </IconButton>
   )
 }
 
-SidebarContent.propTypes = {
-  onNavigate: PropTypes.func,
-  onLogout: PropTypes.func.isRequired,
-  user: PropTypes.shape({
-    name: PropTypes.string,
-    email: PropTypes.string,
-    role: PropTypes.string,
-  }),
-}
-
-/**
- * Layout wrapper for authenticated routes that renders either a sidebar
- * or a mobile drawer depending on screen size.
- *
- * @returns {JSX.Element}
- */
 function AuthenticatedLayout() {
-  const { user, logout, token } = useAuth()
+  const { user, logout } = useAuth()
   const { companies, activeCompanyId, activeCompanyName } = useCompany()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const handleOpen = () => setMobileOpen(true)
-  const handleClose = () => setMobileOpen(false)
+  const handleOpen = useCallback(() => setMobileOpen(true), [])
+  const handleClose = useCallback(() => setMobileOpen(false), [])
+
+  const [commandOpen, setCommandOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'accountant_business_owner'
-  const activeCompany =
-    activeCompanyId && Array.isArray(companies)
-      ? companies.find((c) => String(c.id ?? c.companyId) === String(activeCompanyId))
-      : null
+  const activeCompany = activeCompanyId && Array.isArray(companies)
+    ? companies.find((c) => String(c.id ?? c.companyId) === String(activeCompanyId))
+    : null
   const displayedCompanyName = activeCompany?.name || activeCompany?.companyName || activeCompanyName
 
-  const showWorkingWith = isAccountant && displayedCompanyName && token
-
-  const workingWithText = (
-    <Typography variant="body2" sx={{ ml: 3, color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
-      Working With: <span style={{ color: '#cde7ff', fontWeight: 700 }}>{displayedCompanyName}</span>
-    </Typography>
+  const sidebar = (
+    <SidebarNav
+      user={user}
+      onLogout={logout}
+      onNavigate={isMobile ? handleClose : undefined}
+    />
   )
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        background:
-          'radial-gradient(circle at 0% 5%, rgba(88, 166, 255, 0.22), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66, 130, 255, 0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
       }}
     >
-      {
-        <AppBar
-          position="sticky"
-          elevation={0}
+      <ScrollToTop />
+
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Desktop sidebar */}
+        <Box
+          component="nav"
+          aria-label="Main navigation"
           sx={{
-            backdropFilter: 'blur(12px)',
-            bgcolor: 'rgba(8, 14, 28, 0.75)',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
+            display: { xs: 'none', md: 'block' },
+            flexShrink: 0,
+            height: '100vh',
+            position: { md: 'sticky' },
+            top: 0,
           }}
         >
-          <Toolbar>
-            <IconButton edge="start" color="inherit" onClick={handleOpen} aria-label="open menu">
-              <MenuRoundedIcon />
-            </IconButton>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ ml: 1 }}>
-              <LogoMark sx={{ width: 28, height: 28 }} />
-              <Typography fontWeight={700}>ReconFlow</Typography>
-            </Stack>
-            {showWorkingWith && workingWithText}
-            <Box sx={{ flexGrow: 1 }} />
-            <NotificationBell />
-          </Toolbar>
-        </AppBar>
-      }
+          {sidebar}
+        </Box>
 
-      <Box sx={{ display: 'flex', minHeight: isMobile ? 'calc(100vh - 64px)' : '100vh', minWidth: 0 }}>
+        {/* Mobile drawer */}
         <Drawer
           variant="temporary"
           anchor="left"
@@ -317,33 +126,76 @@ function AuthenticatedLayout() {
           onClose={handleClose}
           ModalProps={{ keepMounted: true }}
           sx={{
+            display: { xs: 'block', md: 'none' },
             '& .MuiDrawer-paper': {
               width: sidebarWidth,
               borderRight: '1px solid',
               borderColor: 'divider',
-              bgcolor: 'transparent',
-              backgroundImage: 'none',
+              bgcolor: 'background.paper',
             },
           }}
         >
-          <SidebarContent onNavigate={handleClose} user={user} onLogout={logout} />
+          {sidebar}
         </Drawer>
 
-        <Box
-          component={motion.main}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.34, ease: 'easeOut' }}
-          sx={{
-            flexGrow: 1,
-            minWidth: 0,
-            overflowX: 'hidden',
-            p: { xs: 1.5, md: 2.5, xl: 3 },
-          }}
-        >
-          <Outlet />
+        {/* Main content */}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Top bar */}
+          <AppBar
+            position="sticky"
+            elevation={0}
+            sx={{
+              backdropFilter: 'blur(12px)',
+              bgcolor: 'rgba(7,11,20,0.7)',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Toolbar sx={{ minHeight: { xs: 48, md: 56 } }}>
+              {isMobile && (
+                <IconButton edge="start" color="inherit" onClick={handleOpen} aria-label="Open menu" sx={{ mr: 0.5 }}>
+                  <MenuRoundedIcon />
+                </IconButton>
+              )}
+              {isMobile && (
+                <Stack direction="row" alignItems="center" spacing={0.8} sx={{ mr: 1 }}>
+                  <LogoMark sx={{ width: 24, height: 24 }} />
+                  <Typography fontWeight={700} fontSize="0.95rem">ReconFlow</Typography>
+                </Stack>
+              )}
+
+              {isAccountant && displayedCompanyName && (
+                <Typography variant="body2" sx={{ color: 'text.secondary', ml: 2, display: { xs: 'none', sm: 'block' } }}>
+                  Working with: <span style={{ color: theme.palette.primary.light, fontWeight: 700 }}>{displayedCompanyName}</span>
+                </Typography>
+              )}
+
+              <Box sx={{ flexGrow: 1 }} />
+              <NotificationBell />
+            </Toolbar>
+          </AppBar>
+
+          {/* Page content with transitions */}
+          <Box
+            component={motion.main}
+            sx={{
+              flex: 1,
+              overflowX: 'hidden',
+              px: { xs: 1.5, sm: 2.5, md: 3, xl: 4 },
+              py: { xs: 1.5, md: 2 },
+            }}
+          >
+            <BreadcrumbsNav />
+            <PageTransitionWrapper>
+              <Outlet />
+            </PageTransitionWrapper>
+          </Box>
         </Box>
       </Box>
+
+      <ScrollToTopFab />
+
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </Box>
   )
 }

@@ -22,7 +22,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         private readonly Mock<IFileStorageService> _mockFile;
         private readonly Mock<IUploadJobService> _mockJob;
         private readonly Mock<IBackgroundJobClient> _mockHangfire;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly TransactionsController _controller;
 
         public TransactionsControllerTests()
@@ -32,7 +32,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             _mockFile = new Mock<IFileStorageService>();
             _mockJob = new Mock<IUploadJobService>();
             _mockHangfire = new Mock<IBackgroundJobClient>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _controller = new TransactionsController(
                 _mockSvc.Object, _mockExcel.Object, _mockFile.Object,
                 _mockJob.Object, _mockHangfire.Object, _mockDb.Object);

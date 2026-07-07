@@ -38,10 +38,17 @@ import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import DeleteSweepRoundedIcon from '@mui/icons-material/DeleteSweepRounded'
 import { useCallback, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts'
+import { useTheme } from '@mui/material/styles'
 import EmptyState from '../components/EmptyState'
+import MetricCard from '../components/MetricCard'
+import GlassCard from '../components/GlassCard'
+import AnimatedBackground from '../components/AnimatedBackground'
 import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
-import SnackbarAlert from '../components/SnackbarAlert'
+import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import {
   useClearAdminAuditLogsMutation,
@@ -52,7 +59,7 @@ import {
   useAdminLogsQuery,
   useAdminStatsQuery,
   useAdminUsersQuery,
-  useToggleAdminUserActiveMutation,
+  useToggleAdminUserBanMutation,
 } from '../hooks/queries/useAdminQueries'
 import { itemVariants } from '../utils/motionVariants'
 
@@ -520,15 +527,15 @@ const formatAuditAction = (log) => {
 }
 
 /**
- * Returns the label for the user activation toggle button.
+ * Returns the label for the user ban toggle button.
  *
  * @param {boolean} isUpdating - Whether the toggle action is currently running.
- * @param {boolean} isActive - Whether the user is currently active.
+ * @param {boolean} isBanned - Whether the user is currently banned.
  * @returns {string} Button label for the current toggle state.
  */
-const getToggleActionLabel = (isUpdating, isActive) => {
+const getBanActionLabel = (isUpdating, isBanned) => {
   if (isUpdating) return 'Updating'
-  return isActive ? 'Deactivate' : 'Activate'
+  return isBanned ? 'Unban' : 'Ban'
 }
 
 /**
@@ -560,19 +567,9 @@ TabPanel.propTypes = {
  */
 function SectionCard({ children }) {
   return (
-    <Card
-      component={motion.div}
-      variants={itemVariants}
-      elevation={0}
-      sx={{
-        borderRadius: 3.2,
-        border: '1px solid',
-        borderColor: 'divider',
-        background: 'rgba(11, 19, 35, 0.72)',
-      }}
-    >
+    <GlassCard variant="default" motionProps={{ variants: itemVariants }}>
       <CardContent sx={{ p: { xs: 2, md: 2.4 } }}>{children}</CardContent>
-    </Card>
+    </GlassCard>
   )
 }
 
@@ -590,6 +587,7 @@ SectionCard.propTypes = {
  */
 function AdminPortalPage() {
   const { token, user: currentUser } = useAuth()
+  const theme = useTheme()
 
   const [activeTab, setActiveTab] = useState(TAB_KEYS.stats)
 
@@ -610,7 +608,7 @@ function AdminPortalPage() {
   const [auditQuery, setAuditQuery] = useState({ page: 1, limit: 50, companyId: null })
   const [auditCompanyInput, setAuditCompanyInput] = useState('')
 
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const { notify } = useNotification()
 
   const statsQuery = useAdminStatsQuery({
     token,
@@ -635,7 +633,7 @@ function AdminPortalPage() {
     enabled: activeTab === TAB_KEYS.audit,
   })
 
-  const toggleUserMutation = useToggleAdminUserActiveMutation({ token })
+  const toggleUserMutation = useToggleAdminUserBanMutation({ token })
   const clearLogsMutation = useClearAdminLogsMutation({ token })
   const clearAuditLogsMutation = useClearAdminAuditLogsMutation({ token })
   const deleteLogMutation = useDeleteAdminLogMutation({ token })
@@ -727,30 +725,18 @@ function AdminPortalPage() {
     setUsersQuery((prev) => ({ ...prev, page: 1, role: null, search: null }))
   }
 
-  const handleToggleUserActive = async (userId) => {
+  const handleToggleUserBan = async (userId) => {
     if (String(userId) === String(currentUser?.id)) {
-      setSnack({
-        open: true,
-        message: 'You cannot deactivate your own admin account.',
-        severity: 'warning',
-      })
+      notify({ message: 'You cannot ban your own admin account.', severity: 'warning' })
       return
     }
 
     setToggleLoadingUserId(userId)
     try {
       const result = await toggleUserMutation.mutateAsync({ userId })
-      setSnack({
-        open: true,
-        message: result?.message || 'User status updated successfully.',
-        severity: 'success',
-      })
+      notify({ message: result?.message || 'User ban status updated successfully.', severity: 'success' })
     } catch (error) {
-      setSnack({
-        open: true,
-        message: error.message || 'Failed to update user status.',
-        severity: 'error',
-      })
+      notify({ message: error.message || 'Failed to update user ban status.', severity: 'error' })
     } finally {
       setToggleLoadingUserId(null)
     }
@@ -758,27 +744,23 @@ function AdminPortalPage() {
 
   const handleToggleUserRequest = (user) => {
     if (String(user.id) === String(currentUser?.id)) {
-      setSnack({
-        open: true,
-        message: 'You cannot deactivate your own admin account.',
-        severity: 'warning',
-      })
+      notify({ message: 'You cannot ban your own admin account.', severity: 'warning' })
       return
     }
 
-    if (user.isActive) {
+    if (!user.isBanned) {
       setPendingToggleUser(user)
       return
     }
 
-    handleToggleUserActive(user.id)
+    handleToggleUserBan(user.id)
   }
 
-  const handleConfirmDeactivate = async () => {
+  const handleConfirmBan = async () => {
     if (!pendingToggleUser) return
     const userId = pendingToggleUser.id
     setPendingToggleUser(null)
-    await handleToggleUserActive(userId)
+    await handleToggleUserBan(userId)
   }
 
   const handleLogsLevelChange = (value) => {
@@ -828,17 +810,9 @@ function AdminPortalPage() {
         setAuditQuery((prev) => ({ ...prev, page: 1 }))
       }
 
-      setSnack({
-        open: true,
-        message: result?.message || 'Logs cleared.',
-        severity: 'success',
-      })
+      notify({ message: result?.message || 'Logs cleared.', severity: 'success' })
     } catch (error) {
-      setSnack({
-        open: true,
-        message: error.message || 'Failed to clear logs.',
-        severity: 'error',
-      })
+      notify({ message: error.message || 'Failed to clear logs.', severity: 'error' })
     }
   }
 
@@ -874,17 +848,9 @@ function AdminPortalPage() {
           ? await deleteLogMutation.mutateAsync({ id })
           : await deleteAuditLogMutation.mutateAsync({ id })
 
-      setSnack({
-        open: true,
-        message: result?.message || 'Log entry deleted.',
-        severity: 'success',
-      })
+      notify({ message: result?.message || 'Log entry deleted.', severity: 'success' })
     } catch (error) {
-      setSnack({
-        open: true,
-        message: error.message || 'Failed to delete log entry.',
-        severity: 'error',
-      })
+      notify({ message: error.message || 'Failed to delete log entry.', severity: 'error' })
     }
   }
 
@@ -949,15 +915,7 @@ function AdminPortalPage() {
             {statsLoading &&
               Array.from({ length: 8 }, (_, index) => index).map((index) => (
                 <Grid key={`stats-skeleton-${index}`} size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Card
-                    elevation={0}
-                    sx={{ borderRadius: 2.6, border: '1px solid', borderColor: 'divider' }}
-                  >
-                    <CardContent>
-                      <Skeleton variant="text" width="60%" />
-                      <Skeleton variant="rounded" height={30} sx={{ mt: 1 }} />
-                    </CardContent>
-                  </Card>
+                  <Skeleton variant="rounded" height={90} sx={{ borderRadius: 3 }} />
                 </Grid>
               ))}
 
@@ -970,30 +928,68 @@ function AdminPortalPage() {
               </Grid>
             )}
 
-            {!statsLoading &&
-              stats &&
-              statsCards.map((card) => (
-                <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Card
-                    elevation={0}
-                    sx={{
-                      borderRadius: 2.6,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      background: 'linear-gradient(145deg, rgba(17,30,56,0.9), rgba(8,16,30,0.8))',
-                    }}
-                  >
+            {!statsLoading && stats && (
+              <>
+                {statsCards.map((card) => (
+                  <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <MetricCard
+                      title={card.label}
+                      value={Number(card.value).toLocaleString()}
+                    />
+                  </Grid>
+                ))}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <GlassCard variant="elevated">
                     <CardContent>
-                      <Typography variant="body2" color="text.secondary">
-                        {card.label}
-                      </Typography>
-                      <Typography variant="h4" sx={{ mt: 1, fontWeight: 700 }}>
-                        {Number(card.value).toLocaleString()}
-                      </Typography>
+                      <Typography variant="h6" gutterBottom>Platform Activity</Typography>
+                      <Box sx={{ width: '100%', height: 240 }}>
+                        <ResponsiveContainer>
+                          <BarChart data={[
+                            { name: 'Users', active: stats?.activeUsers ?? 0, total: (stats?.totalUsers ?? 0) - (stats?.activeUsers ?? 0) },
+                            { name: 'Companies', active: stats?.activeCompanies ?? 0, total: (stats?.totalCompanies ?? 0) - (stats?.activeCompanies ?? 0) },
+                          ]} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                            <XAxis dataKey="name" stroke={theme.palette.text.disabled} tick={{ fontSize: 12 }} />
+                            <YAxis stroke={theme.palette.text.disabled} tick={{ fontSize: 12 }} />
+                            <RechartsTooltip contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Bar dataKey="active" fill={theme.palette.success.main} name="Active" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="total" fill={theme.palette.primary.main} name="Total" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </Box>
                     </CardContent>
-                  </Card>
+                  </GlassCard>
                 </Grid>
-              ))}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <GlassCard variant="elevated">
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>Workload Summary</Typography>
+                      <Box sx={{ width: '100%', height: 240 }}>
+                        <ResponsiveContainer>
+                          <PieChart>
+                            <Pie data={[
+                              { name: 'Invoices', value: stats?.totalInvoices ?? 0, color: theme.palette.primary.main },
+                              { name: 'Transactions', value: stats?.totalTransactions ?? 0, color: theme.palette.info.main },
+                              { name: 'Matches', value: stats?.totalMatches ?? 0, color: theme.palette.success.main },
+                              { name: 'Anomalies', value: stats?.openAnomalies ?? 0, color: theme.palette.warning.main },
+                            ]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3}>
+                              {[
+                                { name: 'Invoices', value: stats?.totalInvoices ?? 0, color: theme.palette.primary.main },
+                                { name: 'Transactions', value: stats?.totalTransactions ?? 0, color: theme.palette.info.main },
+                                { name: 'Matches', value: stats?.totalMatches ?? 0, color: theme.palette.success.main },
+                                { name: 'Anomalies', value: stats?.openAnomalies ?? 0, color: theme.palette.warning.main },
+                              ].map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                            </Pie>
+                            <RechartsTooltip contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Legend wrapperStyle={{ fontSize: 12 }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </Box>
+                    </CardContent>
+                  </GlassCard>
+                </Grid>
+              </>
+            )}
           </Grid>
         </TabPanel>
 
@@ -1091,8 +1087,8 @@ function AdminPortalPage() {
                           <TableCell>
                             <Chip
                               size="small"
-                              color={user.isActive ? 'success' : 'default'}
-                              label={user.isActive ? 'Active' : 'Inactive'}
+                              color={user.isBanned ? 'error' : user.isActive ? 'success' : 'default'}
+                              label={user.isBanned ? 'Banned' : user.isActive ? 'Active' : 'Inactive'}
                             />
                           </TableCell>
                           <TableCell>{user.emailVerified ? 'Yes' : 'No'}</TableCell>
@@ -1110,7 +1106,7 @@ function AdminPortalPage() {
                                   onClick={() => handleToggleUserRequest(user)}
                                   startIcon={isToggleLoading ? <AutorenewRoundedIcon /> : undefined}
                                 >
-                                  {getToggleActionLabel(isToggleLoading, user.isActive)}
+                                  {getBanActionLabel(isToggleLoading, user.isBanned)}
                                 </Button>
                               </span>
                             </Tooltip>
@@ -1456,13 +1452,6 @@ function AdminPortalPage() {
         </TabPanel>
       </SectionCard>
 
-      <SnackbarAlert
-        open={snack.open}
-        message={snack.message}
-        severity={snack.severity}
-        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-      />
-
       <Dialog
         open={Boolean(pendingClearLogsType)}
         onClose={() => setPendingClearLogsType(null)}
@@ -1529,19 +1518,19 @@ function AdminPortalPage() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Deactivate user?</DialogTitle>
+        <DialogTitle>Ban user?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will block {pendingToggleUser?.name || pendingToggleUser?.email || 'this user'} from
-            accessing the system until an admin activates the account again.
+            This will permanently ban {pendingToggleUser?.name || pendingToggleUser?.email || 'this user'} from
+            accessing the system. A banned user cannot log back in.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingToggleUser(null)} color="secondary">
             Cancel
           </Button>
-          <Button onClick={handleConfirmDeactivate} color="error" variant="contained">
-            Deactivate
+          <Button onClick={handleConfirmBan} color="error" variant="contained">
+            Ban
           </Button>
         </DialogActions>
       </Dialog>

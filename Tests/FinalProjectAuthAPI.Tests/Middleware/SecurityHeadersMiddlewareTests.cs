@@ -13,7 +13,6 @@ namespace FinalProjectAuthAPI.Tests.Middleware
             context.Request.Scheme = "https";
             context.Request.Host = new HostString("localhost");
             context.Request.Path = "/api/test";
-            context.Response.Body = new System.IO.MemoryStream();
 
             var wasCalled = false;
             RequestDelegate next = _ =>
@@ -40,7 +39,6 @@ namespace FinalProjectAuthAPI.Tests.Middleware
             context.Request.Scheme = "https";
             context.Request.Host = new HostString("localhost");
             context.Request.Path = "/api/test";
-            context.Response.Body = new System.IO.MemoryStream();
 
             RequestDelegate next = _ => Task.CompletedTask;
             var middleware = new SecurityHeadersMiddleware(next);
@@ -58,7 +56,6 @@ namespace FinalProjectAuthAPI.Tests.Middleware
             context.Request.Scheme = "http";
             context.Request.Host = new HostString("localhost");
             context.Request.Path = "/api/test";
-            context.Response.Body = new System.IO.MemoryStream();
 
             RequestDelegate next = _ => Task.CompletedTask;
             var middleware = new SecurityHeadersMiddleware(next);

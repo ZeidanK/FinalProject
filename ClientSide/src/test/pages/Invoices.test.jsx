@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import InvoicesPage from '../../pages/Invoices'
 
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({ notify: vi.fn() }),
+}))
+
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ user: { name: 'Alice' }, token: 'test-token' }),
 }))
@@ -167,10 +171,10 @@ describe('InvoicesPage', () => {
     renderPage()
     await screen.findByText('INV-001')
     const downloadBtns = screen.getAllByRole('button', { name: /download/i })
-    const editBtns = screen.getAllByRole('button', { name: /reopen/i })
+    const editBtns = screen.getAllByRole('button', { name: /edit/i })
     const deleteBtns = screen.getAllByRole('button', { name: /^delete invoice$/i })
     expect(downloadBtns.length).toBe(3)
-    expect(editBtns.length).toBe(3)
+    expect(editBtns.length).toBe(2)
     expect(deleteBtns.length).toBe(3)
   })
 
@@ -182,8 +186,8 @@ describe('InvoicesPage', () => {
 
   it('shows upload drop zone with file input', () => {
     renderPage()
-    expect(screen.getByText(/Drop PDF files here or click to browse/)).toBeInTheDocument()
-    expect(screen.getByText(/PDF files only — up to 10 MB each/)).toBeInTheDocument()
+    expect(screen.getByText(/Drop files here or click to browse/)).toBeInTheDocument()
+    expect(screen.getByText(/application\/pdf files only/)).toBeInTheDocument()
   })
 
   it('shows auto-verify switch', () => {

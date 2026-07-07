@@ -14,7 +14,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IInvoiceService> _mockInvoiceSvc;
         private readonly Mock<IPdfExtractionService> _mockPdfSvc;
         private readonly Mock<IFileStorageService> _mockFileSvc;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly InvoiceUploadService _service;
 
         public InvoiceUploadServiceTests()
@@ -22,7 +22,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockInvoiceSvc = new Mock<IInvoiceService>();
             _mockPdfSvc = new Mock<IPdfExtractionService>();
             _mockFileSvc = new Mock<IFileStorageService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _service = new InvoiceUploadService(_mockInvoiceSvc.Object, _mockPdfSvc.Object, _mockFileSvc.Object, _mockDb.Object);
         }
 

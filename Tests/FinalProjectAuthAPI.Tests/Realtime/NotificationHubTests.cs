@@ -10,13 +10,13 @@ namespace FinalProjectAuthAPI.Tests.Realtime
 {
     public class NotificationHubTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly RealtimeConnectionRegistry _registry;
         private readonly Mock<ILogger<NotificationHub>> _mockLogger;
 
         public NotificationHubTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _registry = new RealtimeConnectionRegistry();
             _mockLogger = new Mock<ILogger<NotificationHub>>();
         }

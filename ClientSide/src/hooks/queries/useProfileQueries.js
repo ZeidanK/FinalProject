@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUserById, updateUser, changePassword, uploadProfilePicture } from '../../services/users'
+import { getUserById, updateUser, changePassword, uploadProfilePicture, deleteUserAccount } from '../../services/users'
 import { getCompaniesByUser, createCompany, updateCompany, deleteCompany } from '../../services/companies'
 import { profileKeys } from '../../queries/queryKeys'
 
@@ -143,5 +143,11 @@ export function useDeleteCompanyMutation({ userId, token }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: profileKeys.companies(userId) })
     },
+  })
+}
+
+export function useDeleteAccountMutation({ token }) {
+  return useMutation({
+    mutationFn: (userId) => deleteUserAccount(userId, token),
   })
 }

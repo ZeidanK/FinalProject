@@ -1,12 +1,20 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import TransactionsPage from '../../pages/Transactions'
+
+const queryClient = new QueryClient()
 
 let mockTransactionsQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
 
 vi.mock('../../hooks/queries/useTransactionsQueries', () => ({
   useTransactionsByCompanyQuery: () => mockTransactionsQuery,
+  useCreateTransactionsBulkMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({ notify: vi.fn() }),
 }))
 
 vi.mock('../../context/useAuth', () => ({
@@ -15,6 +23,10 @@ vi.mock('../../context/useAuth', () => ({
 
 vi.mock('../../context/useCompany', () => ({
   useCompany: () => ({ activeCompanyId: 1 }),
+}))
+
+vi.mock('../../context/useRealtime', () => ({
+  useRealtime: () => ({ isConnected: true, subscribe: vi.fn(), unsubscribe: vi.fn() }),
 }))
 
 const mockConfirm = vi.fn().mockResolvedValue(true)
@@ -71,9 +83,11 @@ describe('TransactionsPage', () => {
   })
 
   const renderPage = () => render(
-    <MemoryRouter>
-      <TransactionsPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <TransactionsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 
   it('renders page heading', () => {

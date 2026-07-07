@@ -10,13 +10,13 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class AuthServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IConfiguration> _mockConfig;
         private readonly AuthService _service;
 
         public AuthServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockConfig = new Mock<IConfiguration>();
 
             var configSection = new Mock<IConfigurationSection>();
@@ -96,7 +96,8 @@ namespace FinalProjectAuthAPI.Tests.BL
                 Email = "john@test.com",
                 PasswordHash = hashedPassword,
                 Role = "business_owner",
-                IsActive = false
+                IsActive = false,
+                IsBanned = false
             };
 
             _mockDb.Setup(x => x.GetUserByEmail("john@test.com")).Returns(user);
@@ -115,6 +116,29 @@ namespace FinalProjectAuthAPI.Tests.BL
             Assert.NotNull(token);
             Assert.Equal(1, id);
             _mockDb.Verify(x => x.ReactivateUserAccount(1), Times.Once);
+        }
+
+        [Fact]
+        public void LogIn_BannedUser_ReturnsNullToken()
+        {
+            var password = "test123";
+            var hashedPassword = User.HashPassword(password);
+            var user = new User
+            {
+                Id = 1,
+                Email = "john@test.com",
+                PasswordHash = hashedPassword,
+                IsActive = true,
+                IsBanned = true
+            };
+
+            _mockDb.Setup(x => x.GetUserByEmail("john@test.com")).Returns(user);
+
+            var (token, id, _, _, _) = _service.LogIn("john@test.com", password);
+
+            Assert.Null(token);
+            Assert.Equal(0, id);
+            _mockDb.Verify(x => x.ReactivateUserAccount(It.IsAny<long>()), Times.Never);
         }
 
         [Fact]

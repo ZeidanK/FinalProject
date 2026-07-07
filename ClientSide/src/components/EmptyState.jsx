@@ -1,43 +1,57 @@
-import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
-import { Button, Card, CardContent, Stack, Typography } from '@mui/material'
 import PropTypes from 'prop-types'
+import { Button, Stack, Typography } from '@mui/material'
+import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
+import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
+import { motion } from 'framer-motion'
+import GlassCard from './GlassCard'
 
-/**
- * Reusable empty-state card used to display a placeholder message.
- *
- * @param {object} props
- * @param {string} props.title - Heading text shown in the empty state.
- * @param {string} props.description - Supporting descriptive text.
- * @param {string} [props.actionLabel] - Optional label for the action button.
- * @param {function} [props.onAction] - Optional click handler for the action button.
- * @param {import('react').ReactNode} [props.icon] - Optional custom icon node.
- */
-function EmptyState({ title, description, actionLabel, onAction, icon }) {
+const PAGE_ICONS = {
+  invoices: DescriptionRoundedIcon,
+  transactions: AccountBalanceRoundedIcon,
+  matches: SearchOffRoundedIcon,
+  anomalies: ErrorOutlineRoundedIcon,
+  default: InboxRoundedIcon,
+}
+
+function EmptyState({ title, description, actionLabel, onAction, secondaryActionLabel, onSecondaryAction, icon, page }) {
+  const IconComponent = icon || PAGE_ICONS[page] || PAGE_ICONS.default
+
   return (
-    <Card
-      elevation={0}
-      sx={{
-        borderRadius: 3,
-        border: '1px dashed',
-        borderColor: 'rgba(129, 191, 255, 0.38)',
-        background: 'rgba(11, 19, 35, 0.72)',
-      }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
     >
-      <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
-        <Stack spacing={1.25} alignItems="flex-start">
-          {icon || <InboxRoundedIcon sx={{ color: '#a9d5ff' }} />}
-          <Typography variant="h6">{title}</Typography>
-          <Typography variant="body2" color="text.secondary">
+      <GlassCard variant="default" sx={{ textAlign: 'center', py: 4 }}>
+        <Stack spacing={1.5} alignItems="center">
+          <motion.div
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <IconComponent sx={{ fontSize: 56, color: 'rgba(129, 191, 255, 0.5)' }} />
+          </motion.div>
+          <Typography variant="h6" fontWeight={700}>{title}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
             {description}
           </Typography>
-          {actionLabel && (
-            <Button variant="contained" onClick={onAction}>
-              {actionLabel}
-            </Button>
-          )}
+          <Stack direction="row" spacing={1.5}>
+            {actionLabel && (
+              <Button variant="contained" onClick={onAction} size="small">
+                {actionLabel}
+              </Button>
+            )}
+            {secondaryActionLabel && (
+              <Button variant="outlined" onClick={onSecondaryAction} size="small">
+                {secondaryActionLabel}
+              </Button>
+            )}
+          </Stack>
         </Stack>
-      </CardContent>
-    </Card>
+      </GlassCard>
+    </motion.div>
   )
 }
 
@@ -46,7 +60,10 @@ EmptyState.propTypes = {
   description: PropTypes.string.isRequired,
   actionLabel: PropTypes.string,
   onAction: PropTypes.func,
-  icon: PropTypes.node,
+  secondaryActionLabel: PropTypes.string,
+  onSecondaryAction: PropTypes.func,
+  icon: PropTypes.elementType,
+  page: PropTypes.string,
 }
 
 export default EmptyState

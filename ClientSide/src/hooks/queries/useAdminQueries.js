@@ -8,7 +8,7 @@ import {
   getAdminLogs,
   getAdminStats,
   getAdminUsers,
-  toggleAdminUserActive,
+  toggleAdminUserBan,
 } from '../../services/admin'
 import { adminKeys } from '../../queries/queryKeys'
 
@@ -80,17 +80,17 @@ export function useAdminAuditQuery({ token, query, enabled = true }) {
 }
 
 /**
- * Toggles an admin user's active state and invalidates cached admin queries.
+ * Toggles an admin user's ban state and invalidates cached admin queries.
  *
  * @param {Object} params - Mutation parameters.
  * @param {string} params.token - Authentication token for admin requests.
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
  */
-export function useToggleAdminUserActiveMutation({ token }) {
+export function useToggleAdminUserBanMutation({ token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId }) => toggleAdminUserActive(userId, token),
+    mutationFn: ({ userId }) => toggleAdminUserBan(userId, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKeys.all })
     },

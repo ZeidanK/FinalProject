@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import MatchesPage from '../../pages/Matches'
 
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({ notify: vi.fn() }),
+}))
+
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ user: { name: 'Alice' }, token: 'test-token' }),
 }))

@@ -13,7 +13,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
     public class AnomaliesControllerTests
     {
         private readonly Mock<IAnomalyService> _mockSvc;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IFileStorageService> _mockFile;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
         private readonly AnomaliesController _controller;
@@ -21,7 +21,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         public AnomaliesControllerTests()
         {
             _mockSvc = new Mock<IAnomalyService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockFile = new Mock<IFileStorageService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
             _controller = new AnomaliesController(_mockSvc.Object, _mockDb.Object, _mockFile.Object, _mockRealtime.Object);

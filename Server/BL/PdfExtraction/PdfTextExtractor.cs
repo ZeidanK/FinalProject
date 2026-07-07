@@ -10,6 +10,8 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
     {
         public string ExtractText(Stream pdfStream)
         {
+            if (pdfStream == null)
+                throw new ArgumentNullException(nameof(pdfStream));
             var sb = new StringBuilder();
             try
             {

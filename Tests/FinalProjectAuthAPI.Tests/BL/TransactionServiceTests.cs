@@ -9,13 +9,13 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class TransactionServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IMatchService> _mockMatch;
         private readonly TransactionService _service;
 
         public TransactionServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockMatch = new Mock<IMatchService>();
             _service = new TransactionService(_mockDb.Object, _mockMatch.Object);
         }

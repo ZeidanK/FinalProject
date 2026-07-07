@@ -7,6 +7,7 @@ CREATE PROCEDURE dbo.FP26_sp_Users_CheckIsActive
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT TOP 1 is_active FROM dbo.FP26_users WHERE id = @UserId;
+    SELECT TOP 1 CASE WHEN is_active = 1 AND is_banned = 0 THEN 1 ELSE 0 END
+    FROM dbo.FP26_users WHERE id = @UserId;
 END
 GO

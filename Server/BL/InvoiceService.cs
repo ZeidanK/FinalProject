@@ -10,12 +10,12 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class InvoiceService : IInvoiceService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IMatchService? _matchService;
         private readonly IAnomalyService? _anomalyService;
 
         // Constructor for DI (optional IMatchService to avoid circular dependency issues)
-        public InvoiceService(DBservices db, IMatchService? matchService = null, IAnomalyService? anomalyService = null)
+        public InvoiceService(IDBservices db, IMatchService? matchService = null, IAnomalyService? anomalyService = null)
         {
             _db = db;
             _matchService = matchService;

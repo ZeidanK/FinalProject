@@ -22,8 +22,8 @@ describe('ConfidenceFieldRow', () => {
     expect(screen.getByRole('spinbutton')).toBeDisabled()
   })
 
-  it('shows confidence chip', () => {
-    render(<ConfidenceFieldRow label="Total" value={200} confidence={0.95} onChange={vi.fn()} />)
-    expect(screen.getByText(/high|95/i)).toBeInTheDocument()
+  it('shows confidence chip for low confidence', () => {
+    render(<ConfidenceFieldRow label="Total" value={200} confidence={0.5} onChange={vi.fn()} />)
+    expect(screen.getByText(/50%/i)).toBeInTheDocument()
   })
 })

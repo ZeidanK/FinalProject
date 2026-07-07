@@ -5,9 +5,9 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
 {
     public class AnomalyCrudService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public AnomalyCrudService(DBservices db)
+        public AnomalyCrudService(IDBservices db)
         {
             _db = db;
         }

@@ -30,6 +30,7 @@ namespace FinalProjectAuthAPI.Models
     {
         public int TotalUsers        { get; set; }
         public int ActiveUsers       { get; set; }
+        public int BannedUsers       { get; set; }
         public int TotalCompanies    { get; set; }
         public int ActiveCompanies   { get; set; }
         public int TotalInvoices     { get; set; }
@@ -46,6 +47,7 @@ namespace FinalProjectAuthAPI.Models
         public string    Role          { get; set; } = string.Empty;
         public string?   Phone         { get; set; }
         public bool      IsActive      { get; set; }
+        public bool      IsBanned      { get; set; }
         public bool      EmailVerified { get; set; }
         public DateTime? LastLoginAt   { get; set; }
         public DateTime  CreatedAt     { get; set; }

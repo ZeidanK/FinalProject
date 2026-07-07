@@ -8,12 +8,12 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class UserServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly UserService _service;
 
         public UserServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _service = new UserService(_mockDb.Object);
         }
 

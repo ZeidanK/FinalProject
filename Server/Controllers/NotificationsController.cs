@@ -13,12 +13,12 @@ namespace FinalProjectAuthAPI.Controllers
     {
         private readonly INotificationService _svc;
         private readonly IRealtimeNotificationService _realtime;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
         public NotificationsController(
             INotificationService svc,
             IRealtimeNotificationService realtime,
-            DBservices db)
+            IDBservices db)
         {
             _svc = svc;
             _realtime = realtime;

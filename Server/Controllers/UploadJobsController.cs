@@ -15,14 +15,14 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IUploadJobService _jobSvc;
         private readonly IFileStorageService _fileSvc;
         private readonly IInvoiceVerificationService _invoiceVerificationSvc;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IWebHostEnvironment _env;
 
         public UploadJobsController(
             IUploadJobService jobSvc,
             IFileStorageService fileSvc,
             IInvoiceVerificationService invoiceVerificationSvc,
-            DBservices db,
+            IDBservices db,
             IWebHostEnvironment env)
         {
             _jobSvc = jobSvc;

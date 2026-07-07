@@ -6,10 +6,10 @@ namespace FinalProjectAuthAPI.BL
 {
     public class AuthService : IAuthService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IConfiguration _config;
 
-        public AuthService(DBservices db, IConfiguration config)
+        public AuthService(IDBservices db, IConfiguration config)
         {
             _db = db;
             _config = config;
@@ -26,6 +26,11 @@ namespace FinalProjectAuthAPI.BL
             if (user.PasswordHash != User.HashPassword(password))
                 return (null, 0, string.Empty, string.Empty, string.Empty);
 
+            // Banned users cannot log in regardless of active status
+            if (user.IsBanned)
+                return (null, 0, string.Empty, string.Empty, string.Empty);
+
+            // Reactivate self-deleted (inactive) accounts on login
             if (!user.IsActive)
             {
                 _db.ReactivateUserAccount(user.Id);

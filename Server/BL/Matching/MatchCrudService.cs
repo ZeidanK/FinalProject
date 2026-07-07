@@ -5,9 +5,9 @@ namespace FinalProjectAuthAPI.BL.Matching
 {
     public class MatchCrudService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public MatchCrudService(DBservices db)
+        public MatchCrudService(IDBservices db)
         {
             _db = db;
         }

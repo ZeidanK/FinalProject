@@ -3,6 +3,22 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import AnomaliesPage from '../../pages/Anomalies'
 
+const mockQueue = []
+const mockNotify = vi.fn(({ message }) => {
+  const el = document.createElement('div')
+  el.dataset.testid = 'notification'
+  el.textContent = message
+  document.body.appendChild(el)
+})
+
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({
+    queue: mockQueue,
+    notify: mockNotify,
+    dismiss: vi.fn(),
+  }),
+}))
+
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ user: { name: 'Alice' }, token: 'test-token' }),
 }))
@@ -255,7 +271,9 @@ describe('AnomaliesPage', () => {
     await userEvent.click(detailsButtons[0])
     const resolveBtn = screen.getByRole('button', { name: /resolve/i })
     await userEvent.click(resolveBtn)
-    expect(await screen.findByText(/anomaly resolved successfully/i)).toBeInTheDocument()
+    await vi.waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
+    })
   })
 
   it('shows error snackbar on resolve failure', async () => {
@@ -268,7 +286,9 @@ describe('AnomaliesPage', () => {
     await userEvent.click(detailsButtons[0])
     const resolveBtn = screen.getByRole('button', { name: /resolve/i })
     await userEvent.click(resolveBtn)
-    expect(await screen.findByText(/API error/)).toBeInTheDocument()
+    await vi.waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    })
   })
 
   it('shows resolved/dismissed details for non-open anomalies', async () => {

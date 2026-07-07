@@ -16,7 +16,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         private readonly Mock<IUploadJobService> _mockJobSvc;
         private readonly Mock<IFileStorageService> _mockFileSvc;
         private readonly Mock<IInvoiceVerificationService> _mockVerifySvc;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IWebHostEnvironment> _mockEnv;
         private readonly UploadJobsController _controller;
 
@@ -25,7 +25,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             _mockJobSvc = new Mock<IUploadJobService>();
             _mockFileSvc = new Mock<IFileStorageService>();
             _mockVerifySvc = new Mock<IInvoiceVerificationService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockEnv = new Mock<IWebHostEnvironment>();
             _controller = new UploadJobsController(
                 _mockJobSvc.Object,

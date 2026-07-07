@@ -13,13 +13,13 @@ namespace FinalProjectAuthAPI.Tests.Controllers
     public class ReportsControllerTests
     {
         private readonly Mock<IReportService> _mockSvc;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly ReportsController _controller;
 
         public ReportsControllerTests()
         {
             _mockSvc = new Mock<IReportService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _controller = new ReportsController(_mockSvc.Object, _mockDb.Object);
             _controller.ControllerContext = new ControllerContext
             {

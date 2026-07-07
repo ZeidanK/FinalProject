@@ -35,10 +35,11 @@ function TechStackEntryCard({ entry }) {
       elevation={0}
       sx={{
         height: '100%',
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+        borderRadius: 3.5,
+        border: '1px solid rgba(129, 191, 255, 0.12)',
+        background: 'rgba(14, 24, 45, 0.65)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
       }}
     >
       <CardContent sx={{ p: { xs: 2.2, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -117,17 +118,17 @@ TechStackEntryCard.propTypes = {
 export default function TechStackPage() {
   return (
     <PageSectionLayout>
-      <Card
-        component={motion.div}
-        variants={itemVariants}
-        elevation={0}
-        sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(135deg, rgba(14,25,45,0.98), rgba(9,17,33,0.97))',
-          boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
-        }}
+        <Card
+          component={motion.div}
+          variants={itemVariants}
+          elevation={0}
+          sx={{
+            borderRadius: 3.5,
+            border: '1px solid rgba(129, 191, 255, 0.12)',
+            background: 'rgba(14, 24, 45, 0.65)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+          }}
       >
         <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
           <Stack spacing={1}>
@@ -178,10 +179,11 @@ export default function TechStackPage() {
         variants={itemVariants}
         elevation={0}
         sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+          borderRadius: 3.5,
+          border: '1px solid rgba(129, 191, 255, 0.12)',
+          background: 'rgba(14, 24, 45, 0.65)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
         }}
       >
         <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
@@ -241,10 +243,11 @@ export default function TechStackPage() {
         variants={itemVariants}
         elevation={0}
         sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+          borderRadius: 3.5,
+          border: '1px solid rgba(129, 191, 255, 0.12)',
+          background: 'rgba(14, 24, 45, 0.65)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
         }}
       >
         <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>

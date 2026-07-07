@@ -40,41 +40,45 @@ namespace FinalProjectAuthAPI.Controllers
 
         // PATCH api/admin/users/{id}/toggle
         [HttpPatch("users/{id:long}/toggle")]
-        public async Task<IActionResult> ToggleUserActive(long id)
+        public async Task<IActionResult> ToggleUserBan(long id)
         {
             var currentUserId = GetCurrentUserId();
             if (currentUserId > 0 && id == currentUserId)
             {
-                return BadRequest(new { message = "Admins cannot deactivate their own account." });
+                return BadRequest(new { message = "Admins cannot ban their own account." });
             }
 
-            var (userId, isActive) = _svc.ToggleUserActive(id);
+            var (userId, isBanned) = _svc.ToggleUserBan(id);
             var payload = new
             {
                 id = userId,
-                isActive,
-                message = isActive ? "User activated." : "User deactivated."
+                isBanned,
+                message = isBanned ? "User banned." : "User unbanned."
             };
+
+            var eventType = isBanned
+                ? FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserBanned
+                : FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserUnbanned;
 
             await _realtime.CreateUserNotificationAsync(userId, new FinalProjectAuthAPI.Models.NotificationMessage
             {
-                EventType = FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserActiveToggled,
-                Title = isActive ? "Account activated" : "Account deactivated",
-                Body = isActive
-                    ? "Your account has been activated by an administrator."
-                    : "Your account has been deactivated. Contact support if this is an error.",
-                Severity = isActive ? "success" : "error",
+                EventType = eventType,
+                Title = isBanned ? "Account banned" : "Account unbanned",
+                Body = isBanned
+                    ? "Your account has been banned by an administrator. You can no longer log in."
+                    : "Your account has been unbanned by an administrator.",
+                Severity = isBanned ? "error" : "success",
                 TargetType = FinalProjectAuthAPI.Models.NotificationTargetTypes.Profile,
                 TargetId = userId.ToString(),
-                DedupeKey = $"admin-user:{userId}:active:{isActive}:{DateTime.UtcNow.Ticks}",
+                DedupeKey = $"admin-user:{userId}:banned:{isBanned}:{DateTime.UtcNow.Ticks}",
             }, payload);
-            await _realtime.NotifyAdminsEventAsync(FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserActiveToggled, new
+            await _realtime.NotifyAdminsEventAsync(eventType, new
             {
                 targetUserId = userId,
-                isActive,
+                isBanned,
                 changedByUserId = GetCurrentUserId()
             });
-            if (!isActive)
+            if (isBanned)
                 await _realtime.RevokeUserAccessAsync(userId);
 
             return SuccessWithLegacy(payload, payload, payload.message);

@@ -6,9 +6,9 @@ namespace FinalProjectAuthAPI.BL
 {
     public class NotificationService : INotificationService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public NotificationService(DBservices db)
+        public NotificationService(IDBservices db)
         {
             _db = db;
         }

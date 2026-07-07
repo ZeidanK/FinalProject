@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 
@@ -16,85 +16,62 @@ vi.mock('../../context/useCompany', () => ({
   useCompany: () => ({ companies: [], activeCompanyId: null, activeCompanyName: '', setActiveCompanyId: vi.fn() }),
 }))
 
+vi.mock('../../context/ThemeModeContext', () => ({
+  useThemeMode: () => ({ mode: 'dark' }),
+  ThemeModeProvider: ({ children }) => <>{children}</>,
+}))
+
 describe('AuthenticatedLayout', () => {
-  it('renders ReconFlow branding', () => {
+  const renderLayout = (path = '/') =>
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route element={<AuthenticatedLayout />}>
+            <Route path="/" element={<div />} />
             <Route path="/dashboard" element={<div>Dashboard Content</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
     )
-    expect(screen.getByText('ReconFlow')).toBeInTheDocument()
+
+  it('renders ReconFlow branding', () => {
+    renderLayout('/dashboard')
+    expect(screen.getAllByText('ReconFlow').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Dashboard Content')).toBeInTheDocument()
   })
 
   it('renders user info in sidebar', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<AuthenticatedLayout />}>
-            <Route path="/" element={<div />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    )
-    expect(screen.getByText('John Doe')).toBeInTheDocument()
-    expect(screen.getByText('john@test.com')).toBeInTheDocument()
-    expect(screen.getByText('Business Owner')).toBeInTheDocument()
+    renderLayout()
+    expect(screen.getAllByText('John Doe').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('john@test.com').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Business Owner').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders nav items for business_owner role', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<AuthenticatedLayout />}>
-            <Route path="/" element={<div />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    )
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Invoices')).toBeInTheDocument()
-    expect(screen.getByText('Transactions')).toBeInTheDocument()
-    expect(screen.getByText('Matches')).toBeInTheDocument()
-    expect(screen.getByText('Anomalies')).toBeInTheDocument()
-    expect(screen.getByText('Reports')).toBeInTheDocument()
-    expect(screen.getByText('Find Accountant')).toBeInTheDocument()
-    expect(screen.getByText('Profile')).toBeInTheDocument()
+    renderLayout()
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Invoices').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Transactions').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Matches').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Anomalies').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Reports').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Find Accountant').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Admin')).not.toBeInTheDocument()
     expect(screen.queryByText('My Workspace')).not.toBeInTheDocument()
   })
 
   it('renders admin nav items for admin role', () => {
     mockUser.role = 'admin'
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<AuthenticatedLayout />}>
-            <Route path="/" element={<div />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    )
-    expect(screen.getByText('Admin')).toBeInTheDocument()
+    renderLayout()
+    expect(screen.getAllByText('Admin').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
     expect(screen.queryByText('Invoices')).not.toBeInTheDocument()
     mockUser.role = 'business_owner'
   })
 
   it('renders Logout button', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<AuthenticatedLayout />}>
-            <Route path="/" element={<div />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    )
-    expect(screen.getByText('Logout')).toBeInTheDocument()
+    renderLayout()
+    expect(screen.getAllByText('Logout').length).toBeGreaterThanOrEqual(1)
   })
 })

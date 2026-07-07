@@ -6,8 +6,8 @@ namespace FinalProjectAuthAPI.BL.Matching
 {
     public class AutoMatchService
     {
-        private readonly DBservices _db;
-        private readonly RulePipelineEngine _pipelineEngine;
+        private readonly IDBservices _db;
+        private readonly IRulePipelineEngine _pipelineEngine;
         private readonly MatchCrudService _crud;
         private readonly MatchSuggestionService _suggestions;
 
@@ -15,8 +15,8 @@ namespace FinalProjectAuthAPI.BL.Matching
         private const decimal MEDIUM_CONFIDENCE_THRESHOLD = 50m;
 
         public AutoMatchService(
-            DBservices db,
-            RulePipelineEngine pipelineEngine,
+            IDBservices db,
+            IRulePipelineEngine pipelineEngine,
             MatchCrudService crud,
             MatchSuggestionService suggestions)
         {

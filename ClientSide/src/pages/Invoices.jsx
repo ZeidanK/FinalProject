@@ -8,22 +8,15 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Container,
   FormControlLabel,
   IconButton,
   LinearProgress,
   Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   Switch,
   Typography,
 } from '@mui/material'
-import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
@@ -36,8 +29,10 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
-import PageSectionLayout from '../components/PageSectionLayout'
-import SnackbarAlert from '../components/SnackbarAlert'
+import AnimatedBackground from '../components/AnimatedBackground'
+import DataTable from '../components/DataTable'
+import FileUploadZone from '../components/FileUploadZone'
+import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useRealtime } from '../context/useRealtime'
@@ -54,7 +49,7 @@ import {
   verifyInvoiceUploadJob,
   verifyInvoiceUploadJobs,
 } from '../services/uploadJobs'
-import { itemVariants } from '../utils/motionVariants'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import {
@@ -113,21 +108,19 @@ function InvoicesPage() {
 
   // --- Upload state ---
   const [files, setFiles] = useState([])
-  const [dragActive, setDragActive] = useState(false)
   const [autoVerifyEnabled, setAutoVerifyEnabled] = useState(false)
   const [selectedUploadJobIds, setSelectedUploadJobIds] = useState([])
   const [bulkVerifying, setBulkVerifying] = useState(false)
   const [uploadQueueCollapsed, setUploadQueueCollapsed] = useState(false)
   const [invoiceListRefreshVersion, setInvoiceListRefreshVersion] = useState(0)
   const bulkVerifyingRef = useRef(false)
-  const fileInputRef = useRef(null)
 
   // --- Verification modal ---
   const [modal, setModal] = useState({ open: false, file: null })
   const [saving, setSaving] = useState(false)
 
-  // --- Snackbar ---
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
+  const { notify } = useNotification()
+  const setSnack = useCallback(({ message, severity }) => { notify({ message, severity }) }, [notify])
   const { confirm } = useConfirm()
   const [openingInvoiceId, setOpeningInvoiceId] = useState(null)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
@@ -746,32 +739,6 @@ function InvoicesPage() {
     }
   }, [files, token, stopPolling, removeJobFromSession])
 
-  // --- Drag handlers ---
-  const handleDrag = useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true)
-    else if (e.type === 'dragleave') setDragActive(false)
-  }, [])
-
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      setDragActive(false)
-      if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files)
-    },
-    [addFiles],
-  )
-
-  const handleFileInput = useCallback(
-    (e) => {
-      if (e.target.files?.length) addFiles(e.target.files)
-      e.target.value = ''
-    },
-    [addFiles],
-  )
-
   // ===================== Verification =====================
 
   const openVerification = useCallback((fileEntry) => {
@@ -1316,207 +1283,61 @@ function InvoicesPage() {
 
   const pendingFiles = files.filter((f) => f.status !== 'verified')
 
-  let invoiceListContent
+  const invoiceColumns = [
+    { key: 'invoiceNumber', label: 'Invoice #', sortable: true, getValue: (row) => row.invoice_number || row.invoiceNumber || '—', render: (val) => <Typography variant="body2" fontWeight={600}>{val}</Typography> },
+    { key: 'vendor', label: 'Vendor', sortable: true, getValue: (row) => row.vendor_name || row.vendorName || '—' },
+    { key: 'date', label: 'Date', sortable: true, getValue: (row) => (row.invoice_date || row.invoiceDate) ? new Date(row.invoice_date || row.invoiceDate).toLocaleDateString() : '—' },
+    { key: 'total', label: 'Total', align: 'right', sortable: true, getValue: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    { key: 'currency', label: 'Currency', align: 'center', sortable: true, getValue: (row) => row.currency || 'USD' },
+    { key: 'status', label: 'Status', align: 'center', sortable: true, render: (val, row) => <Chip label={row.status || 'uploaded'} size="small" color={statusColors[row.status] || 'default'} variant="outlined" /> },
+    { key: 'confidence', label: 'Confidence', align: 'center', sortable: true, render: (val, row) => {
+      const cv = row.ai_extraction_confidence ?? row.aiExtractionConfidence
+      const pc = Number(cv)
+      return cv == null || Number.isNaN(pc) ? '—' : `${Math.round(pc * 100)}%`
+    }},
+  ]
 
-  if (listLoading) {
-    invoiceListContent = (
-      <Stack spacing={1}>
-        {['invoice-skeleton-1', 'invoice-skeleton-2', 'invoice-skeleton-3', 'invoice-skeleton-4'].map((key) => (
-          <Skeleton key={key} variant="rectangular" height={40} sx={{ borderRadius: 1 }} />
-        ))}
-      </Stack>
-    )
-  } else if (invoices.length === 0) {
-    invoiceListContent = (
-      <Box sx={{ py: 6, textAlign: 'center' }}>
-        <DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-        <Typography color="text.secondary">
-          No invoices yet. Upload a PDF above to get started.
-        </Typography>
-      </Box>
-    )
-  } else {
-    invoiceListContent = (
-      <TableContainer>
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allInvoicesSelected}
-                  indeterminate={hasInvoiceSelection && !allInvoicesSelected}
-                  onChange={toggleSelectAllInvoices}
-                />
-              </TableCell>
-              <TableCell sortDirection={sortKey === 'invoiceNumber' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'invoiceNumber'}
-                  direction={sortKey === 'invoiceNumber' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('invoiceNumber')}
-                >
-                  Invoice #
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sortDirection={sortKey === 'vendor' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'vendor'}
-                  direction={sortKey === 'vendor' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('vendor')}
-                >
-                  Vendor
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sortDirection={sortKey === 'date' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'date'}
-                  direction={sortKey === 'date' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('date')}
-                >
-                  Date
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right" sortDirection={sortKey === 'total' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'total'}
-                  direction={sortKey === 'total' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('total')}
-                >
-                  Total
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center" sortDirection={sortKey === 'currency' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'currency'}
-                  direction={sortKey === 'currency' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('currency')}
-                >
-                  Currency
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center" sortDirection={sortKey === 'status' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'status'}
-                  direction={sortKey === 'status' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('status')}
-                >
-                  Status
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center" sortDirection={sortKey === 'confidence' ? sortDirection : false}>
-                <TableSortLabel
-                  active={sortKey === 'confidence'}
-                  direction={sortKey === 'confidence' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('confidence')}
-                >
-                  Confidence
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sortedInvoices.map((inv) => (
-              <TableRow key={inv.id} hover>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    size="small"
-                    checked={selectedInvoiceIds.includes(inv.id)}
-                    onChange={() => toggleInvoiceSelection(inv.id)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" fontWeight={600}>
-                    {inv.invoice_number || inv.invoiceNumber || '—'}
-                  </Typography>
-                </TableCell>
-                <TableCell>{inv.vendor_name || inv.vendorName || '—'}</TableCell>
-                <TableCell>
-                  {(inv.invoice_date || inv.invoiceDate)
-                    ? new Date(inv.invoice_date || inv.invoiceDate).toLocaleDateString()
-                    : '—'}
-                </TableCell>
-                <TableCell align="right">
-                  {(inv.total_amount ?? inv.totalAmount ?? 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </TableCell>
-                <TableCell align="center">{inv.currency || 'USD'}</TableCell>
-                <TableCell align="center">
-                  <Chip
-                    label={inv.status || 'uploaded'}
-                    size="small"
-                    color={statusColors[inv.status] || 'default'}
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  {(() => {
-                    const confidenceValue = inv.ai_extraction_confidence ?? inv.aiExtractionConfidence
-                    const parsedConfidence = Number(confidenceValue)
-                    if (confidenceValue == null || Number.isNaN(parsedConfidence)) return '—'
-                    return `${Math.round(parsedConfidence * 100)}%`
-                  })()}
-                </TableCell>
-                <TableCell align="center">
-                  <Stack direction="row" spacing={0.5} justifyContent="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenInvoice(inv)}
-                      disabled={openingInvoiceId === inv.id || bulkDeletingInvoices}
-                      aria-label="Download invoice"
-                      title="Download invoice"
-                    >
-                      {openingInvoiceId === inv.id ? (
-                        <CircularProgress size={16} />
-                      ) : (
-                        <DownloadRoundedIcon fontSize="small" />
-                      )}
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color={inv.status === 'matched' ? 'default' : 'secondary'}
-                      onClick={() => openSavedInvoiceVerification(inv.id, inv.status === 'matched')}
-                      disabled={reopeningInvoiceId === inv.id || bulkDeletingInvoices}
-                      aria-label={inv.status === 'matched' ? 'View invoice (read-only)' : 'Edit invoice'}
-                      title={inv.status === 'matched' ? 'View invoice — editing disabled for matched invoices' : 'Edit invoice'}
-                    >
-                      {reopeningInvoiceId === inv.id ? (
-                        <CircularProgress size={16} color="inherit" />
-                      ) : inv.status === 'matched' ? (
-                        <VisibilityRoundedIcon fontSize="small" />
-                      ) : (
-                        <EditRoundedIcon fontSize="small" />
-                      )}
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteInvoice(inv)}
-                      disabled={deletingInvoiceIds.includes(inv.id) || bulkDeletingInvoices}
-                      aria-label="Delete invoice"
-                      title="Delete invoice"
-                    >
-                      {deletingInvoiceIds.includes(inv.id) ? (
-                        <CircularProgress size={16} color="error" />
-                      ) : (
-                        <DeleteOutlineRoundedIcon fontSize="small" />
-                      )}
-                    </IconButton>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    )
-  }
+  const invoiceRowActions = (inv) => (
+    <Stack direction="row" spacing={0.5} justifyContent="center">
+      <IconButton size="small" onClick={() => handleOpenInvoice(inv)} disabled={openingInvoiceId === inv.id || bulkDeletingInvoices} aria-label="Download invoice" title="Download invoice">
+        {openingInvoiceId === inv.id ? <CircularProgress size={16} /> : <DownloadRoundedIcon fontSize="small" />}
+      </IconButton>
+      <IconButton size="small" color={inv.status === 'matched' ? 'default' : 'secondary'} onClick={() => openSavedInvoiceVerification(inv.id, inv.status === 'matched')} disabled={reopeningInvoiceId === inv.id || bulkDeletingInvoices} aria-label={inv.status === 'matched' ? 'View invoice (read-only)' : 'Edit invoice'} title={inv.status === 'matched' ? 'View invoice — editing disabled for matched invoices' : 'Edit invoice'}>
+        {reopeningInvoiceId === inv.id ? <CircularProgress size={16} color="inherit" /> : inv.status === 'matched' ? <VisibilityRoundedIcon fontSize="small" /> : <EditRoundedIcon fontSize="small" />}
+      </IconButton>
+      <IconButton size="small" color="error" onClick={() => handleDeleteInvoice(inv)} disabled={deletingInvoiceIds.includes(inv.id) || bulkDeletingInvoices} aria-label="Delete invoice" title="Delete invoice">
+        {deletingInvoiceIds.includes(inv.id) ? <CircularProgress size={16} color="error" /> : <DeleteOutlineRoundedIcon fontSize="small" />}
+      </IconButton>
+    </Stack>
+  )
+
+  const invoiceListContent = (
+    <DataTable
+      columns={invoiceColumns}
+      rows={sortedInvoices}
+      sortKey={sortKey}
+      sortDirection={sortDirection}
+      onSort={handleSort}
+      selectedIds={selectedInvoiceIds}
+      onToggleSelect={toggleInvoiceSelection}
+      onToggleSelectAll={toggleSelectAllInvoices}
+      allSelected={allInvoicesSelected}
+      hasSelection={hasInvoiceSelection}
+      loading={listLoading}
+      loadingRows={4}
+      emptyMessage="No invoices yet. Upload a PDF above to get started."
+      emptyIcon={<DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />}
+      getRowId={(row) => row.id}
+      rowActions={invoiceRowActions}
+    />
+  )
 
   return (
     <>
-      <PageSectionLayout>
+      <Box sx={{ py: { xs: 4, md: 6 }, position: 'relative', overflow: 'hidden' }}>
+        <AnimatedBackground density="low" />
+        <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+          <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
           <PageHeaderCard
             title="Invoices"
             description="Upload PDF invoices for AI extraction, review, and reconciliation."
@@ -1532,44 +1353,16 @@ function InvoicesPage() {
             </Alert>
           )}
 
-          <Card
-            component={motion.div}
-            variants={itemVariants}
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: '2px dashed',
-              borderColor: dragActive ? 'primary.main' : 'divider',
-              bgcolor: dragActive ? 'rgba(88,166,255,0.06)' : 'transparent',
-              transition: 'all 0.2s',
-              cursor: 'pointer',
-            }}
-            onDragEnter={handleDrag}
-            onDragOver={handleDrag}
-            onDragLeave={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <CardContent sx={{ py: { xs: 4, md: 6 }, textAlign: 'center' }}>
-              <CloudUploadRoundedIcon
-                sx={{ fontSize: 48, color: dragActive ? 'primary.main' : 'text.secondary', mb: 1.5 }}
-              />
-              <Typography variant="h6" sx={{ mb: 0.5 }}>
-                Drop PDF files here or click to browse
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                PDF files only — up to 10 MB each
-              </Typography>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/pdf"
-                multiple
-                hidden
-                onChange={handleFileInput}
-              />
-            </CardContent>
-          </Card>
+          <motion.div variants={itemVariants}>
+            <FileUploadZone
+              onFiles={(files) => {
+                if (files?.length) addFiles(files)
+              }}
+              accept="application/pdf"
+              maxSizeMB={10}
+              disabled={!activeCompanyId}
+            />
+          </motion.div>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -1599,11 +1392,11 @@ function InvoicesPage() {
               variants={itemVariants}
               elevation={0}
               sx={{
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                background:
-                  'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+                borderRadius: 3.5,
+                border: '1px solid rgba(129, 191, 255, 0.12)',
+                background: 'rgba(14, 24, 45, 0.65)',
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
               }}
             >
               <CardContent>
@@ -1819,11 +1612,11 @@ function InvoicesPage() {
             variants={itemVariants}
             elevation={0}
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+              borderRadius: 3.5,
+              border: '1px solid rgba(129, 191, 255, 0.12)',
+              background: 'rgba(14, 24, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
             }}
           >
             <CardContent>
@@ -1849,7 +1642,9 @@ function InvoicesPage() {
               {invoiceListContent}
             </CardContent>
           </Card>
-      </PageSectionLayout>
+          </Stack>
+        </Container>
+      </Box>
 
       {/* ---- Verification Modal ---- */}
       <InvoiceVerificationModal
@@ -1874,13 +1669,6 @@ function InvoicesPage() {
         saving={saving}
       />
 
-      {/* ---- Snackbar ---- */}
-      <SnackbarAlert
-        open={snack.open}
-        message={snack.message}
-        severity={snack.severity}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
-      />
     </>
   )
 }

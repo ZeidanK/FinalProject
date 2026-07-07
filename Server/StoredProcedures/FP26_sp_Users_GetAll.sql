@@ -19,6 +19,7 @@ BEGIN
         phone,
         profile_picture,
         is_active,
+        is_banned,
         is_public,
         email_verified,
         last_login_at,

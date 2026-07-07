@@ -2,6 +2,7 @@ using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Middleware;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -74,16 +75,17 @@ namespace FinalProjectAuthAPI.Tests.Middleware
         [Fact]
         public async Task InvokeAsync_ResponseAlreadyStarted_Throws()
         {
-            RequestDelegate next = async ctx =>
-            {
-                ctx.Response.StatusCode = 200;
-                await ctx.Response.WriteAsync("partial");
-                throw new InvalidOperationException("Late error");
-            };
+            var context = new DefaultHttpContext();
+            context.TraceIdentifier = "test-trace";
+            context.Request.Method = "GET";
+            context.Request.Path = "/api/test";
+            var throwingStream = new System.IO.MemoryStream();
+            throwingStream.Close();
+            context.Response.Body = throwingStream;
+
+            RequestDelegate next = _ => throw new InvalidOperationException("Late error");
             var logger = new Mock<ILogger<ExceptionHandlingMiddleware>>();
             var middleware = new ExceptionHandlingMiddleware(next, logger.Object);
-            var context = new DefaultHttpContext();
-            context.Response.Body = new System.IO.MemoryStream();
             var activityLog = new Mock<IActivityLogService>();
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>

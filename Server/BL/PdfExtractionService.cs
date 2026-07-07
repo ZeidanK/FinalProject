@@ -25,7 +25,14 @@ namespace FinalProjectAuthAPI.BL
             HybridExtractionSettings hybridSettings)
         {
             _geminiService = geminiService;
-            _geminiFallback = serviceProvider.GetKeyedService<IGeminiExtractionService>("gemini-fallback");
+            try
+            {
+                _geminiFallback = serviceProvider.GetKeyedService<IGeminiExtractionService>("gemini-fallback");
+            }
+            catch (InvalidOperationException)
+            {
+                _geminiFallback = null;
+            }
             _logger = logger;
             _hybridSettings = hybridSettings;
             _hybridMerger = new HybridExtractionMerger(hybridSettings);

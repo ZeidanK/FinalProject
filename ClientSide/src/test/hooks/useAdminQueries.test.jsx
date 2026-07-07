@@ -5,7 +5,7 @@ const mockGetAdminStats = vi.fn()
 const mockGetAdminUsers = vi.fn()
 const mockGetAdminLogs = vi.fn()
 const mockGetAdminAuditLogs = vi.fn()
-const mockToggleAdminUserActive = vi.fn()
+const mockToggleAdminUserBan = vi.fn()
 const mockClearAdminLogs = vi.fn()
 const mockClearAdminAuditLogs = vi.fn()
 const mockDeleteAdminLog = vi.fn()
@@ -16,7 +16,7 @@ vi.mock('../../services/admin', () => ({
   getAdminUsers: (...args) => mockGetAdminUsers(...args),
   getAdminLogs: (...args) => mockGetAdminLogs(...args),
   getAdminAuditLogs: (...args) => mockGetAdminAuditLogs(...args),
-  toggleAdminUserActive: (...args) => mockToggleAdminUserActive(...args),
+  toggleAdminUserBan: (...args) => mockToggleAdminUserBan(...args),
   clearAdminLogs: (...args) => mockClearAdminLogs(...args),
   clearAdminAuditLogs: (...args) => mockClearAdminAuditLogs(...args),
   deleteAdminLog: (...args) => mockDeleteAdminLog(...args),
@@ -28,7 +28,7 @@ import {
   useAdminUsersQuery,
   useAdminLogsQuery,
   useAdminAuditQuery,
-  useToggleAdminUserActiveMutation,
+  useToggleAdminUserBanMutation,
   useClearAdminLogsMutation,
   useClearAdminAuditLogsMutation,
   useDeleteAdminLogMutation,
@@ -134,20 +134,20 @@ describe('useAdminAuditQuery', () => {
   })
 })
 
-describe('useToggleAdminUserActiveMutation', () => {
+describe('useToggleAdminUserBanMutation', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('calls toggleAdminUserActive with userId and token', async () => {
-    mockToggleAdminUserActive.mockResolvedValue({ id: 1, isActive: false })
+  it('calls toggleAdminUserBan with userId and token', async () => {
+    mockToggleAdminUserBan.mockResolvedValue({ id: 1, isActive: false })
 
     const { result } = renderHook(
-      () => useToggleAdminUserActiveMutation({ token: 'tok' }),
+      () => useToggleAdminUserBanMutation({ token: 'tok' }),
       { wrapper: createWrapper() }
     )
 
     const data = await result.current.mutateAsync({ userId: 42 })
 
-    expect(mockToggleAdminUserActive).toHaveBeenCalledWith(42, 'tok')
+    expect(mockToggleAdminUserBan).toHaveBeenCalledWith(42, 'tok')
     expect(data).toEqual({ id: 1, isActive: false })
   })
 })

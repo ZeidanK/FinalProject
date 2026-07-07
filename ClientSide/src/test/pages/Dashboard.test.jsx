@@ -2,12 +2,20 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import DashboardPage from '../../pages/Dashboard'
 
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({ notify: vi.fn() }),
+}))
+
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ user: { name: 'Alice' }, token: 'test-token' }),
 }))
 
 vi.mock('../../context/useCompany', () => ({
   useCompany: () => ({ activeCompanyId: 1 }),
+}))
+
+vi.mock('../../hooks/useAnimatedCounter', () => ({
+  default: ({ end }) => Math.round(end),
 }))
 
 const mockStats = {

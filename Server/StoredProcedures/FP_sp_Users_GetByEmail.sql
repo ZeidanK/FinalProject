@@ -19,6 +19,7 @@ BEGIN
         name,
         role,
         is_active,
+        is_banned,
         last_login_at,
         created_at
     FROM dbo.FP26_users

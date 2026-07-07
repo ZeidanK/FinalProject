@@ -14,7 +14,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IUploadJobService> _mockJobSvc;
         private readonly Mock<IAnomalyService> _mockAnomalySvc;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IVerifiedHybridAuditWriter> _mockVerifiedHybridAuditWriter;
         private readonly InvoiceVerificationService _service;
 
@@ -24,7 +24,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockJobSvc = new Mock<IUploadJobService>();
             _mockAnomalySvc = new Mock<IAnomalyService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockVerifiedHybridAuditWriter = new Mock<IVerifiedHybridAuditWriter>();
             _service = new InvoiceVerificationService(
                 _mockInvoiceSvc.Object, _mockJobSvc.Object,

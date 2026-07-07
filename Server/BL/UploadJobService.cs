@@ -6,9 +6,9 @@ namespace FinalProjectAuthAPI.BL
 {
     public class UploadJobService : IUploadJobService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public UploadJobService(DBservices db)
+        public UploadJobService(IDBservices db)
         {
             _db = db;
         }

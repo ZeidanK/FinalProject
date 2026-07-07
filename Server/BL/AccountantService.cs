@@ -9,9 +9,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class AccountantService : IAccountantService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public AccountantService(DBservices db)
+        public AccountantService(IDBservices db)
         {
             _db = db;
         }
