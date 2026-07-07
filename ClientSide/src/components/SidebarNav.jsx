@@ -214,14 +214,14 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
       )}
 
       {/* Nav items */}
-      <Stack spacing={0.3} sx={{ px: collapsed ? 1 : 1.5, flex: 1, overflow: 'auto', py: 0.5 }}>
+      <Stack spacing={0.3} sx={{ px: collapsed ? 1 : 1.5, alignItems: collapsed ? 'center' : 'stretch', flex: 1, overflow: 'auto', py: 0.5 }}>
         {visibleItems.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
       </Stack>
 
       {/* Bottom actions */}
-      <Stack spacing={0.5} sx={{ px: collapsed ? 1 : 1.5, pb: 1.5 }}>
+      <Stack spacing={0.5} sx={{ px: collapsed ? 1 : 1.5, alignItems: collapsed ? 'center' : 'stretch', pb: 1.5 }}>
         <Tooltip title={collapsed ? 'Logout' : ''} placement="right" arrow>
           <Button
             onClick={handleLogout}
