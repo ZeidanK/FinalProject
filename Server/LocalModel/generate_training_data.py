@@ -38,7 +38,10 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
+
+from structured_extraction import EXTRA_ENTITY_LABELS, infer_extra_entities
 
 # Map from input JSON field name → NER label name (must match train.py BIO_LABELS)
 FIELD_LABEL_MAP = {
@@ -53,6 +56,11 @@ FIELD_LABEL_MAP = {
     "vendor_tax_id":  "TAX_ID",
     "currency":       "CURRENCY",
 }
+
+
+def valid_tax_rate_span(text: str, start: int, end: int) -> bool:
+    context = text[max(0, start - 24):min(len(text), end + 8)].lower()
+    return "%" in context or any(word in context for word in ("vat", "tax", "gst"))
 
 
 def find_spans(text: str, value: str) -> list[tuple[int, int]]:
@@ -84,12 +92,27 @@ def process_record(obj: dict) -> dict | None:
     Convert one input record to the train.py JSONL format.
     Returns None if no text is present.
     """
-    text: str = obj.get("text", "").strip()
-    if not text:
+    text = obj.get("text", "")
+    if not isinstance(text, str) or not text.strip():
         return None
 
     entities: list[dict] = []
-    seen_ranges: list[tuple[int, int]] = []   # avoid overlapping spans
+    seen_ranges: list[tuple[int, int]] = []
+
+    # Preserve reviewed annotations when an already-token-label-ready JSONL is
+    # used as input, then add newly inferred structured spans around them.
+    for entity in obj.get("entities", []):
+        try:
+            start = int(entity["start"])
+            end = int(entity["end"])
+            label = str(entity["label"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0 <= start < end <= len(text):
+            if label == "TAX_RATE" and not valid_tax_rate_span(text, start, end):
+                continue
+            entities.append({"start": start, "end": end, "label": label})
+            seen_ranges.append((start, end))
 
     for field, label in FIELD_LABEL_MAP.items():
         raw_value = obj.get(field)
@@ -100,6 +123,8 @@ def process_record(obj: dict) -> dict | None:
             continue
 
         spans = find_spans(text, value)
+        if label == "TAX_RATE":
+            spans = [span for span in spans if valid_tax_rate_span(text, *span)]
         if not spans:
             continue
 
@@ -113,6 +138,14 @@ def process_record(obj: dict) -> dict | None:
                 seen_ranges.append((start, end))
                 break   # one span per field is enough
 
+    for inferred in infer_extra_entities(text):
+        start, end = inferred["start"], inferred["end"]
+        if any(not (end <= old_start or start >= old_end) for old_start, old_end in seen_ranges):
+            continue
+        entities.append(inferred)
+        seen_ranges.append((start, end))
+
+    entities.sort(key=lambda entity: (entity["start"], entity["end"]))
     return {"text": text, "entities": entities}
 
 
@@ -121,8 +154,8 @@ def main():
         description="Generate NER training data from Gemini-extracted invoices"
     )
     parser.add_argument(
-        "--input",  required=True,
-        help="Input JSONL file (Gemini/Ollama extractions)"
+        "--input", required=True,
+        help="Input raw-extraction or annotated JSONL file"
     )
     parser.add_argument(
         "--output", required=True,
@@ -132,9 +165,13 @@ def main():
         "--min-entities", type=int, default=1,
         help="Skip records with fewer than N entity spans (default: 1)"
     )
+    parser.add_argument(
+        "--allow-missing-labels", action="store_true",
+        help="Write output even if a new structured label has no examples"
+    )
     args = parser.parse_args()
 
-    in_path  = Path(args.input)
+    in_path = Path(args.input)
     out_path = Path(args.output)
 
     if not in_path.exists():
@@ -143,6 +180,7 @@ def main():
 
     written = 0
     skipped = 0
+    label_counts: Counter[str] = Counter()
 
     with open(in_path, encoding="utf-8") as fin, \
          open(out_path, "w", encoding="utf-8") as fout:
@@ -164,11 +202,21 @@ def main():
                 continue
 
             fout.write(json.dumps(record, ensure_ascii=False) + "\n")
+            label_counts.update(entity["label"] for entity in record["entities"])
             written += 1
 
     print(f"\nDone.")
-    print(f"  Written : {written} training examples → {out_path}")
+    print(f"  Written : {written} training examples -> {out_path}")
     print(f"  Skipped : {skipped} records (no text or too few entities)")
+    print("\n  Label coverage:")
+    for label, count in sorted(label_counts.items()):
+        print(f"    {label:<24} {count}")
+
+    missing = [label for label in EXTRA_ENTITY_LABELS if label_counts[label] == 0]
+    if missing and not args.allow_missing_labels:
+        print("\n[ERROR] Missing required structured labels: " + ", ".join(missing), file=sys.stderr)
+        out_path.unlink(missing_ok=True)
+        sys.exit(1)
     print(f"\nNext step:")
     print(f"  python train.py --data {out_path} --epochs 5 --output ./model")
 

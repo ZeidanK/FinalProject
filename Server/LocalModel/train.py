@@ -62,6 +62,7 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
+from structured_extraction import EXTRA_ENTITY_LABELS
 
 
 ENTITY_LABELS = [
@@ -75,7 +76,7 @@ ENTITY_LABELS = [
     "TAX_RATE",
     "TAX_ID",
     "CURRENCY",
-]
+] + EXTRA_ENTITY_LABELS
 
 # Interleaved BIO order: O, B-VENDOR, I-VENDOR, B-INVOICE_NUM, ...
 BIO_LABELS = ["O"] + [
@@ -198,6 +199,26 @@ def read_jsonl(path: str | Path, tokenizer: Any) -> list[dict[str, list[int]]]:
     return records
 
 
+def validate_label_coverage(records: list[dict[str, list[int]]]) -> None:
+    counts: Counter[int] = Counter()
+    for record in records:
+        counts.update(label for label in record["labels"] if label > 0)
+
+    missing = [
+        label
+        for label in ENTITY_LABELS
+        if counts[LABEL2ID[f"B-{label}"]] == 0
+    ]
+    print("\nTraining label coverage:")
+    for label in ENTITY_LABELS:
+        begin_count = counts[LABEL2ID[f"B-{label}"]]
+        print(f"  {label:<24} examples={begin_count}")
+    if missing:
+        raise ValueError(
+            "Training data is missing required entity labels: " + ", ".join(missing)
+        )
+
+
 def make_train_validation_datasets(
     data_path: str,
     validation_path: str | None,
@@ -206,8 +227,10 @@ def make_train_validation_datasets(
     if validation_path:
         train_records = read_jsonl(data_path, tokenizer)
         validation_records = read_jsonl(validation_path, tokenizer)
+        validate_label_coverage(train_records + validation_records)
     else:
         records = read_jsonl(data_path, tokenizer)
+        validate_label_coverage(records)
         if len(records) < 2:
             raise ValueError("At least two examples are required for a train/val split")
 

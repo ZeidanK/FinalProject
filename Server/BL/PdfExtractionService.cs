@@ -79,13 +79,13 @@ namespace FinalProjectAuthAPI.BL
             }
 
             // ── Step 2b: Gemini fallback when primary returned empty ───────
-            if (IsEmptyResult(result) && _geminiFallback != null)
+            if (HasNoCoreFields(result) && _geminiFallback != null)
             {
                 Console.WriteLine("\n[STEP 2b] Local model returned no data — calling Gemini fallback...");
                 try
                 {
                     var geminiResult = await _geminiFallback.ParseInvoiceTextAsync(extractedText);
-                    if (!IsEmptyResult(geminiResult))
+                    if (!HasNoCoreFields(geminiResult))
                     {
                         Console.WriteLine("         Gemini succeeded — saving as training data for future fine-tuning...");
                         await SaveTrainingDataAsync(extractedText, geminiResult!);
@@ -104,7 +104,7 @@ namespace FinalProjectAuthAPI.BL
                 }
             }
 
-            if (!IsEmptyResult(result))
+            if (!HasNoCoreFields(result))
             {
                 Console.WriteLine($"\n         Source     : {result!.ExtractionSource?.ToUpper()}");
                 Console.WriteLine($"         Confidence : {result.ExtractionConfidence:P0}");
@@ -137,12 +137,12 @@ namespace FinalProjectAuthAPI.BL
 
         // ── Helpers ──────────────────────────────────────────────────────
 
-        private static bool IsEmptyResult(PdfExtractionResult? r) =>
-            r == null ||
-            (r.ExtractionConfidence == 0 &&
-             r.VendorName == null &&
-             r.InvoiceNumber == null &&
-             r.TotalAmount == null);
+        private static bool HasNoCoreFields(PdfExtractionResult? result) =>
+            result == null ||
+            (string.IsNullOrWhiteSpace(result.VendorName) &&
+             string.IsNullOrWhiteSpace(result.InvoiceNumber) &&
+             !result.InvoiceDate.HasValue &&
+             !result.TotalAmount.HasValue);
 
         private async Task SaveTrainingDataAsync(string rawText, PdfExtractionResult result)
         {
@@ -162,6 +162,26 @@ namespace FinalProjectAuthAPI.BL
                     vat_rate       = result.VatRate?.ToString(CultureInfo.InvariantCulture),
                     vendor_tax_id  = result.VendorTaxId,
                     currency       = result.Currency,
+                    last_four_digits_card = result.LastFourDigitsCard,
+                    item_count = result.ItemCount,
+                    payment_plan = result.PaymentPlan == null ? null : new
+                    {
+                        total_installments = result.PaymentPlan.TotalInstallments,
+                        installment_amount = result.PaymentPlan.InstallmentAmount,
+                        frequency = result.PaymentPlan.Frequency,
+                        current_installment = result.PaymentPlan.CurrentInstallment,
+                        description = result.PaymentPlan.Description,
+                    },
+                    line_items = result.LineItems.Select(item => new
+                    {
+                        description = item.Description,
+                        quantity = item.Quantity,
+                        unit_price = item.UnitPrice,
+                        total_amount = item.TotalAmount,
+                        vat_rate = item.VatRate,
+                        category = item.Category,
+                        ai_confidence_score = item.AiConfidenceScore,
+                    }).ToList(),
                 };
                 var line = JsonSerializer.Serialize(record) + "\n";
                 await File.AppendAllTextAsync(filePath, line);

@@ -63,6 +63,10 @@ reports/
 # Generated local AI models and training checkpoints
 Server/LocalModel/model/
 
+# Python bytecode
+__pycache__/
+*.py[cod]
+
 # Runtime-generated content
 mock/uploads/
 mock/server/uploads/*

@@ -407,8 +407,8 @@ def gen_english_b2b_invoice() -> dict:
         f"Invoice #: {invoice_num}\n"
         f"Invoice Date: {date_str}\n"
         f"Due Date: {due_str}\n\n"
-        f"Description                    Qty    Unit Price    Amount\n"
-        f"{plan:<30} {qty}      ${fmt_usd(unit)}       ${fmt_usd(subtotal)}\n\n"
+        f"Description                    Qty    Unit Price    Amount    VAT Rate\n"
+        f"{plan:<30} {qty}      ${fmt_usd(unit)}       ${fmt_usd(subtotal)}    {tax_rate}%\n\n"
         f"Subtotal                                          ${fmt_usd(subtotal)}\n"
         f"{tax_line}"
         f"TOTAL                                             ${fmt_usd(total)} USD\n"
@@ -500,6 +500,7 @@ def gen_installment_invoice() -> dict:
         f"Customer: K Z / Demo Account\n"
         f"Currency: ILS\n"
         f"{product_name}\n"
+        f"Monthly payment plan - Payment 1 of {installments}\n"
         f"Paid in {installments} installments of ILS {fmt_ils(installment_amount)}\n"
         f"ILS {fmt_ils(total)}\n\n"
         f"Description Qty Unit price Line total\n"
@@ -553,7 +554,7 @@ def main():
         for ex in examples:
             f.write(json.dumps(ex, ensure_ascii=False) + "\n")
 
-    print(f"\nGenerated {len(examples)} synthetic examples → {OUTPUT_FILE}")
+    print(f"\nGenerated {len(examples)} synthetic examples -> {OUTPUT_FILE}")
     print("\nNext steps:")
     print("  python generate_training_data.py --input synthetic_extractions.jsonl --output invoices_synthetic.jsonl")
     print("  python train.py --data invoices_synthetic.jsonl --epochs 10 --output ./model")
