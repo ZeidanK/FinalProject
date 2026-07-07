@@ -20,7 +20,7 @@ const tableShellSx = {
   borderRadius: 2,
   border: '1px solid',
   borderColor: 'divider',
-  overflow: 'hidden',
+  overflowX: 'auto',
 }
 
 const rowSx = {

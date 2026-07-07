@@ -15,6 +15,53 @@ export function confidenceColor(score) {
 }
 
 /**
+ * Return a CSS border-left color based on confidence score.
+ *
+ * @param {number|null|undefined} score - Confidence score between 0 and 1.
+ * @returns {string} CSS color value.
+ */
+export function confidenceBorderColor(score) {
+  if (score == null) return 'transparent'
+  if (score >= 0.9) return '#37d67a'
+  if (score >= 0.7) return '#f59e0b'
+  return '#f87171'
+}
+
+/**
+ * List of top-level form field keys whose confidence is tracked.
+ * @type {string[]}
+ */
+const TRACKED_FIELDS = [
+  'vendorName', 'invoiceNumber', 'invoiceDate', 'dueDate',
+  'totalAmount', 'subtotal', 'vatAmount', 'currency',
+  'vatRate', 'vendorTaxId', 'lastFourDigitsCard',
+]
+
+/**
+ * Find fields in the form data whose confidence is below a threshold.
+ *
+ * @param {object} formData - The invoice form data with { value, confidence } shapes.
+ * @param {number} [threshold=0.9] - Confidence threshold below which a field is flagged.
+ * @returns {{ field: string, label: string, confidence: number }[]} Array of low-confidence fields.
+ */
+export function lowConfidenceFields(formData, threshold) {
+  if (threshold == null) threshold = 0.9
+  if (!formData) return []
+  const result = []
+  for (const key of TRACKED_FIELDS) {
+    const field = formData[key]
+    if (field && field.confidence != null && field.confidence < threshold) {
+      result.push({
+        field: key,
+        label: key.replace(/([A-Z])/g, ' $1').replace(/^./, function (s) { return s.toUpperCase() }),
+        confidence: field.confidence,
+      })
+    }
+  }
+  return result
+}
+
+/**
  * Format a confidence score as a percentage string.
  *
  * @param {number|null|undefined} score - Confidence score between 0 and 1.
