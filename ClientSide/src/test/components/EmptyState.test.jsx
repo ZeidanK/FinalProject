@@ -27,7 +27,7 @@ describe('EmptyState', () => {
   })
 
   it('renders custom icon instead of default', () => {
-    render(<EmptyState title="Empty" description="desc" icon={<span data-testid="custom-icon" />} />)
+    render(<EmptyState title="Empty" description="desc" icon={() => <span data-testid="custom-icon" />} />)
     expect(screen.getByTestId('custom-icon')).toBeInTheDocument()
   })
 })

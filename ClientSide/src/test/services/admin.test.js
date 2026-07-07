@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getAdminStats, getAdminUsers, toggleAdminUserActive, getAdminLogs, clearAdminLogs, getAdminAuditLogs, deleteAdminLog } from '../../services/admin'
+import { getAdminStats, getAdminUsers, toggleAdminUserBan, getAdminLogs, clearAdminLogs, getAdminAuditLogs, deleteAdminLog } from '../../services/admin'
 
 const originalFetch = globalThis.fetch
 
@@ -20,9 +20,9 @@ describe('admin service', () => {
     expect(call[0]).toContain('limit=20')
   })
 
-  it('toggleAdminUserActive sends PATCH', async () => {
+  it('toggleAdminUserBan sends PATCH', async () => {
     globalThis.fetch.mockResolvedValueOnce({ ok: true, headers: new Headers({ 'content-type': 'application/json' }), json: () => Promise.resolve({ success: true, data: { isActive: false } }) })
-    expect(await toggleAdminUserActive(1, 'token')).toEqual({ isActive: false })
+    expect(await toggleAdminUserBan(1, 'token')).toEqual({ isActive: false })
   })
 
   it('getAdminLogs fetches with defaults', async () => {

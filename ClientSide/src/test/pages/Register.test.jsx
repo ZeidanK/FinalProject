@@ -12,7 +12,7 @@ describe('RegisterPage', () => {
 
   it('renders registration heading', () => {
     renderPage()
-    expect(screen.getByText('Register in seconds')).toBeInTheDocument()
+    expect(screen.getByText('Get started free')).toBeInTheDocument()
   })
 
   it('renders form fields', () => {

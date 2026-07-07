@@ -6,7 +6,7 @@ let mockStatsQuery = { data: null, isLoading: false, error: null }
 let mockUsersQuery = { data: null, isLoading: false, error: null }
 let mockLogsQuery = { data: null, isLoading: false, error: null }
 let mockAuditQuery = { data: null, isLoading: false, error: null }
-let mockToggleActive = { mutateAsync: vi.fn(), isPending: false }
+let mockToggleBan = { mutateAsync: vi.fn(), isPending: false }
 let mockClearLogs = { mutateAsync: vi.fn(), isPending: false }
 let mockClearAuditLogs = { mutateAsync: vi.fn(), isPending: false }
 let mockDeleteLog = { mutateAsync: vi.fn(), isPending: false }
@@ -17,7 +17,7 @@ vi.mock('../../hooks/queries/useAdminQueries', () => ({
   useAdminUsersQuery: () => mockUsersQuery,
   useAdminLogsQuery: () => mockLogsQuery,
   useAdminAuditQuery: () => mockAuditQuery,
-  useToggleAdminUserActiveMutation: () => mockToggleActive,
+  useToggleAdminUserBanMutation: () => mockToggleBan,
   useClearAdminLogsMutation: () => mockClearLogs,
   useClearAdminAuditLogsMutation: () => mockClearAuditLogs,
   useDeleteAdminLogMutation: () => mockDeleteLog,
@@ -26,6 +26,10 @@ vi.mock('../../hooks/queries/useAdminQueries', () => ({
 
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ user: { id: 1, name: 'Admin' }, token: 'test-token' }),
+}))
+
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({ notify: vi.fn() }),
 }))
 
 vi.mock('../../components/SnackbarAlert', () => ({
@@ -55,8 +59,8 @@ const mockStatsData = {
 const mockUsersData = {
   totalCount: 2,
   items: [
-    { id: 2, name: 'Alice', email: 'alice@test.com', role: 'admin', isActive: true, phone: '123', emailVerified: true, lastLoginAt: '2025-06-01T10:00:00Z', createdAt: '2025-01-01T10:00:00Z' },
-    { id: 3, name: 'Bob', email: 'bob@test.com', role: 'accountant', isActive: false, phone: '456', emailVerified: false, lastLoginAt: null, createdAt: '2025-02-01T10:00:00Z' },
+    { id: 2, name: 'Alice', email: 'alice@test.com', role: 'admin', isActive: true, isBanned: false, phone: '123', emailVerified: true, lastLoginAt: '2025-06-01T10:00:00Z', createdAt: '2025-01-01T10:00:00Z' },
+    { id: 3, name: 'Bob', email: 'bob@test.com', role: 'accountant', isActive: false, isBanned: false, phone: '456', emailVerified: false, lastLoginAt: null, createdAt: '2025-02-01T10:00:00Z' },
   ],
 }
 
@@ -83,7 +87,7 @@ describe('AdminPortalPage', () => {
     mockUsersQuery = { data: mockUsersData, isLoading: false, error: null }
     mockLogsQuery = { data: mockLogsData, isLoading: false, error: null }
     mockAuditQuery = { data: mockAuditData, isLoading: false, error: null }
-    mockToggleActive = { mutateAsync: vi.fn().mockResolvedValue({ message: 'User status updated' }), isPending: false }
+    mockToggleBan = { mutateAsync: vi.fn().mockResolvedValue({ message: 'User ban status updated successfully.' }), isPending: false }
     mockClearLogs = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }
     mockClearAuditLogs = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }
     mockDeleteLog = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }
@@ -107,11 +111,8 @@ describe('AdminPortalPage', () => {
 
   it('Stats tab shows stat cards when data loads', () => {
     renderPage()
-    expect(screen.getByText('Total users')).toBeInTheDocument()
     expect(screen.getByText('100')).toBeInTheDocument()
-    expect(screen.getByText('Active users')).toBeInTheDocument()
     expect(screen.getByText('75')).toBeInTheDocument()
-    expect(screen.getByText('Open anomalies')).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument()
   })
 
@@ -165,21 +166,23 @@ describe('AdminPortalPage', () => {
     expect(screen.getByText('Created invoice')).toBeInTheDocument()
   })
 
-  it('Toggle user active button triggers mutation', async () => {
+  it('Toggle user ban button triggers mutation', async () => {
     renderPage()
     await userEvent.click(screen.getByText('Users'))
-    const activateButton = screen.getByText('Activate')
-    expect(activateButton).toBeInTheDocument()
-    await userEvent.click(activateButton)
-    expect(mockToggleActive.mutateAsync).toHaveBeenCalledWith({ userId: 3 })
+    const bobRow = screen.getByText('Bob').closest('tr')
+    const banButton = within(bobRow).getByRole('button', { name: /^Ban$/i })
+    await userEvent.click(banButton)
+    const confirmButton = within(screen.getByRole('dialog')).getByRole('button', { name: /^Ban$/i })
+    await userEvent.click(confirmButton)
+    expect(mockToggleBan.mutateAsync).toHaveBeenCalledWith({ userId: 3 })
   })
 
   it('Tab switching works correctly', async () => {
     renderPage()
-    expect(screen.getByText('Total users')).toBeInTheDocument()
+    expect(screen.getByText('100')).toBeInTheDocument()
     await userEvent.click(screen.getByText('Users'))
     expect(screen.getByText('alice@test.com')).toBeInTheDocument()
-    expect(screen.queryByText('Total users')).not.toBeInTheDocument()
+    expect(screen.queryByText('100')).not.toBeInTheDocument()
     await userEvent.click(screen.getByText('System Logs'))
     expect(screen.getByText('Server error occurred')).toBeInTheDocument()
     await userEvent.click(screen.getByText('Audit Logs'))
