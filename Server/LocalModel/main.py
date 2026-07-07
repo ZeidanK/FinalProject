@@ -26,7 +26,7 @@ from transformers import AutoModelForTokenClassification, AutoTokenizer
 from structured_extraction import structured_from_ner
 
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "./model")
