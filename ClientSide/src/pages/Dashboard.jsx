@@ -122,7 +122,8 @@ function DashboardPage() {
   return (
     <Box
       sx={{
-        py: { xs: 2, md: 3 },
+        pt: 0,
+        pb: { xs: 2, md: 3 },
         position: 'relative',
         overflow: 'hidden',
         minHeight: '100%',
@@ -137,7 +138,7 @@ function DashboardPage() {
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
           <GlassCard variant="elevated" motionProps={{ variants: itemVariants }}>
             <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" spacing={2.5}>
+              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar sx={{ bgcolor: 'primary.main', color: '#041229', fontWeight: 800 }}>
                     {(user?.name || 'U').slice(0, 1).toUpperCase()}
@@ -151,6 +152,7 @@ function DashboardPage() {
                     </Typography>
                   </Stack>
                 </Stack>
+                <Box sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1 }} />
                 <Button
                   variant="outlined"
                   startIcon={<RefreshRoundedIcon fontSize="small" />}

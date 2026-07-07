@@ -104,7 +104,7 @@ export const getComponentOverrides = (mode) => ({
   },
   MuiCardContent: {
     styleOverrides: {
-      root: { '&:last-child': { paddingBottom: 'inherit' } },
+      root: {},
     },
   },
   MuiPaper: {
