@@ -826,15 +826,17 @@ export default function ProfilePage() {
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Permanently remove your account and all associated data.
                   </Typography>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<DeleteForeverRoundedIcon />}
-                    onClick={handleOpenDeleteDialog}
-                    sx={{ borderRadius: 2, px: 3, fontWeight: 600 }}
-                  >
-                    Delete Account
-                  </Button>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteForeverRoundedIcon />}
+                      onClick={handleOpenDeleteDialog}
+                      sx={{ borderRadius: 2, px: 3, fontWeight: 600 }}
+                    >
+                      Delete Account
+                    </Button>
+                  </Box>
                 </Box>
               </CardContent>
             </Card>
