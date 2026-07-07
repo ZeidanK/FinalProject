@@ -8,6 +8,7 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Container,
   FormControlLabel,
   IconButton,
   LinearProgress,
@@ -28,7 +29,7 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
-import PageSectionLayout from '../components/PageSectionLayout'
+import AnimatedBackground from '../components/AnimatedBackground'
 import DataTable from '../components/DataTable'
 import FileUploadZone from '../components/FileUploadZone'
 import { useNotification } from '../context/useNotification'
@@ -48,7 +49,7 @@ import {
   verifyInvoiceUploadJob,
   verifyInvoiceUploadJobs,
 } from '../services/uploadJobs'
-import { itemVariants } from '../utils/motionVariants'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import {
@@ -1333,7 +1334,10 @@ function InvoicesPage() {
 
   return (
     <>
-      <PageSectionLayout>
+      <Box sx={{ py: { xs: 4, md: 6 }, position: 'relative', overflow: 'hidden' }}>
+        <AnimatedBackground density="low" />
+        <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+          <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
           <PageHeaderCard
             title="Invoices"
             description="Upload PDF invoices for AI extraction, review, and reconciliation."
@@ -1638,7 +1642,9 @@ function InvoicesPage() {
               {invoiceListContent}
             </CardContent>
           </Card>
-      </PageSectionLayout>
+          </Stack>
+        </Container>
+      </Box>
 
       {/* ---- Verification Modal ---- */}
       <InvoiceVerificationModal

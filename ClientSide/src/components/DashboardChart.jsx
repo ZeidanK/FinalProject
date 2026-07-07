@@ -33,6 +33,8 @@ export default function DashboardChart({ data = MOCK_DATA }) {
       elevation={0}
       sx={{
         height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         borderRadius: 3.5,
         border: '1px solid rgba(129, 191, 255, 0.12)',
         background: 'rgba(14, 24, 45, 0.65)',
@@ -40,15 +42,16 @@ export default function DashboardChart({ data = MOCK_DATA }) {
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
       }}
     >
-      <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
+      <CardContent sx={{ p: { xs: 2.2, md: 2.8 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography variant="h6" gutterBottom>
           Weekly Overview
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Match and anomaly activity over the last 7 days.
         </Typography>
-        <Box sx={{ width: '100%', height: isMobile ? 200 : 260 }}>
-          <ResponsiveContainer>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', width: '100%' }}>
+          <Box sx={{ width: '100%', height: isMobile ? 200 : 260 }}>
+            <ResponsiveContainer>
             <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <defs>
                 <linearGradient id="matchGrad" x1="0" y1="0" x2="0" y2="1">
@@ -88,6 +91,7 @@ export default function DashboardChart({ data = MOCK_DATA }) {
               />
             </AreaChart>
           </ResponsiveContainer>
+        </Box>
         </Box>
       </CardContent>
     </Card>

@@ -9,6 +9,7 @@ import {
   CardContent,
   Chip,
   Collapse,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -35,7 +36,7 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
 import { motion, AnimatePresence } from 'framer-motion'
-import PageSectionLayout from '../components/PageSectionLayout'
+import AnimatedBackground from '../components/AnimatedBackground'
 import RevealOnScroll from '../components/RevealOnScroll'
 import PageHeaderCard from '../components/PageHeaderCard'
 import { useNotification } from '../context/useNotification'
@@ -45,7 +46,7 @@ import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { getInvoiceById, updateInvoice } from '../services/invoices'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
-import { itemVariants } from '../utils/motionVariants'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import { invoiceKeys, matchKeys, transactionKeys } from '../queries/queryKeys'
 import {
   useAutoMatchOnLoadMutation,
@@ -987,7 +988,10 @@ function MatchesPage() {
 
   return (
     <>
-      <PageSectionLayout>
+      <Box sx={{ py: { xs: 4, md: 6 }, position: 'relative', overflow: 'hidden' }}>
+        <AnimatedBackground density="low" />
+        <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+          <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
         <PageHeaderCard
             title="Matches"
             description="Match invoices to bank transactions for reconciliation."
@@ -1499,7 +1503,9 @@ function MatchesPage() {
               </Collapse>
             </CardContent>
           </Box>
-      </PageSectionLayout>
+          </Stack>
+        </Container>
+      </Box>
 
       {/* ---- Unmatch Confirmation Dialog ---- */}
       <Dialog

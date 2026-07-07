@@ -30,6 +30,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { useTheme } from '@mui/material/styles'
+import AnimatedBackground from '../components/AnimatedBackground'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -823,8 +824,9 @@ function ReportsPage() {
   }
 
   return (
-    <Box sx={{ py: { xs: 3, md: 5 }, minHeight: '100%', background: 'radial-gradient(circle at 0% 0%, rgba(88, 166, 255, 0.2), transparent 34%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)' }}>
-      <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}>
+    <Box sx={{ py: { xs: 3, md: 5 }, minHeight: '100%', position: 'relative', overflow: 'hidden' }}>
+      <AnimatedBackground density="low" />
+      <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
           <Card component={motion.div} variants={itemVariants} elevation={0} sx={{ ...reportCardSx, borderRadius: 4 }}>
             <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>

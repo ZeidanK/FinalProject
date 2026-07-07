@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,7 +38,7 @@ import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
-import PageSectionLayout from '../components/PageSectionLayout'
+import AnimatedBackground from '../components/AnimatedBackground'
 import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -53,7 +54,7 @@ import { getInvoiceById } from '../services/invoices'
 import { invoiceKeys } from '../queries/queryKeys'
 import { resolveAnomalySchema } from '../schemas/anomalies'
 import { mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
-import { itemVariants } from '../utils/motionVariants'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 
 /**
@@ -788,7 +789,10 @@ function AnomaliesPage() {
   ]
 
   return (
-    <PageSectionLayout>
+    <Box sx={{ py: { xs: 4, md: 6 }, position: 'relative', overflow: 'hidden' }}>
+      <AnimatedBackground density="low" />
+      <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+        <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
       <PageHeaderCard
         title="Anomalies"
         description="Monitor data quality issues and resolve exception cases quickly."
@@ -935,7 +939,9 @@ function AnomaliesPage() {
         readOnly
       />
 
-    </PageSectionLayout>
+        </Stack>
+      </Container>
+    </Box>
   )
 }
 
