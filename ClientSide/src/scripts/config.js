@@ -62,6 +62,7 @@ export const URLS = {
     changePassword: (id) => buildApiPath(`/Users/${id}/password`),
     profilePicture: (id) => buildApiPath(`/Users/${id}/profile-picture`),
     visibility: (id) => buildApiPath(`/Users/${id}/visibility`),
+    verifyPassword: buildApiPath('/Users/verify-password'),
   },
   companies: {
     base: buildApiPath('/Companies'),

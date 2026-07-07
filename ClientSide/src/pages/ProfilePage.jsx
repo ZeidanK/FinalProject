@@ -10,6 +10,10 @@ import {
   CircularProgress,
   Collapse,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -27,9 +31,10 @@ import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded'
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
+import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import PropTypes from 'prop-types'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import SectionHeader from '../components/SectionHeader'
 import AnimatedBackground from '../components/AnimatedBackground'
@@ -39,6 +44,7 @@ import { useConfirm } from '../components/ConfirmContext'
 import {
   useChangePasswordMutation,
   useCreateCompanyMutation,
+  useDeleteAccountMutation,
   useDeleteCompanyMutation,
   useUpdateCompanyMutation,
   useUpdateProfileMutation,
@@ -95,7 +101,7 @@ const passwordFieldMeta = {
  * @returns {JSX.Element} Profile page content.
  */
 export default function ProfilePage() {
-  const { user, token, updateUser: updateAuthUser } = useAuth()
+  const { user, token, updateUser: updateAuthUser, logout } = useAuth()
   const {
     refreshCompanies,
     companies,
@@ -126,6 +132,12 @@ export default function ProfilePage() {
   })
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState(null)
+
+  // ── Delete account state ───────────────────────────────────
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   // ── Companies state ────────────────────────────────────────
   const [editingCompanyId, setEditingCompanyId] = useState(null)
@@ -162,6 +174,9 @@ export default function ProfilePage() {
   const createCompanyMutation = useCreateCompanyMutation({ userId: user?.id, token })
   const updateCompanyMutation = useUpdateCompanyMutation({ userId: user?.id, token })
   const deleteCompanyMutation = useDeleteCompanyMutation({ userId: user?.id, token })
+  const deleteAccountMutation = useDeleteAccountMutation({ token })
+
+  const navigate = useNavigate()
 
   const loadingProfile = profileQuery.isLoading || profileQuery.isFetching
   const loadingCompanies = loadingCompaniesFromContext
@@ -272,6 +287,40 @@ export default function ProfilePage() {
       setPasswordMsg({ type: 'error', text: err.message || 'Failed to change password.' })
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  // ── Delete account ─────────────────────────────────────────
+  /**
+   * Open the delete account confirmation dialog.
+   */
+  const handleOpenDeleteDialog = () => {
+    setDeletePassword('')
+    setDeleteError(null)
+    setDeleteDialogOpen(true)
+  }
+
+  /**
+   * Confirm and execute account deletion after password verification.
+   */
+  const handleConfirmDelete = async () => {
+    if (!deletePassword.trim()) {
+      setDeleteError('Please enter your password.')
+      return
+    }
+
+    setDeletingAccount(true)
+    setDeleteError(null)
+
+    try {
+      await deleteAccountMutation.mutateAsync(user.id)
+      setDeleteDialogOpen(false)
+      logout()
+      navigate('/login')
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete account.')
+    } finally {
+      setDeletingAccount(false)
     }
   }
 
@@ -432,7 +481,7 @@ export default function ProfilePage() {
         <Grid container spacing={3} sx={{ mb: 3 }}>
           {/* Section A */}
           <Grid size={{ xs: 12, md: 7 }}>
-            <Card elevation={0} sx={{ ...cardSx, height: 'fit-content' }}>
+            <Card elevation={0} sx={{ ...cardSx, height: '100%' }}>
               <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
                 {sectionHeader(
                   <EditRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
@@ -677,7 +726,7 @@ export default function ProfilePage() {
 
           {/* Section B */}
           <Grid size={{ xs: 12, md: 5 }}>
-            <Card elevation={0} sx={{ ...cardSx, height: 'fit-content' }}>
+            <Card elevation={0} sx={{ ...cardSx, height: '100%' }}>
               <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
                 {sectionHeader(
                   <LockResetRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
@@ -763,6 +812,30 @@ export default function ProfilePage() {
                     </Button>
                   </Box>
                 </Stack>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* ═══ Delete Account ═══ */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <DeleteForeverRoundedIcon sx={{ color: 'error.main', fontSize: 22 }} />
+                    <Typography variant="subtitle1" fontWeight={700} color="error.main">
+                      Delete Account
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Permanently remove your account and all associated data.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteForeverRoundedIcon />}
+                    onClick={handleOpenDeleteDialog}
+                    sx={{ borderRadius: 2, px: 3, fontWeight: 600 }}
+                  >
+                    Delete Account
+                  </Button>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
@@ -880,6 +953,75 @@ export default function ProfilePage() {
         )}
       </Box>
     </Container>
+
+      {/* ═══ Delete Account Confirmation Dialog ═══ */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deletingAccount && setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 3,
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DeleteForeverRoundedIcon color="error" />
+            <Typography fontWeight={700}>Delete Account</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ py: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This action is permanent and cannot be undone. Enter your password to confirm.
+          </Typography>
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            error={Boolean(deleteError)}
+            helperText={deleteError}
+            sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+            slotProps={{
+              input: {
+                autoFocus: true,
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deletingAccount}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            disabled={deletingAccount || !deletePassword.trim()}
+            color="error"
+            variant="contained"
+            startIcon={
+              deletingAccount ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <DeleteForeverRoundedIcon />
+              )
+            }
+          >
+            {deletingAccount ? 'Deleting...' : 'Delete My Account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

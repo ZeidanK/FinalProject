@@ -560,7 +560,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
         <Table size="small" aria-label="Payables aging report table" sx={{ minWidth: 1080 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Invoice</TableCell>
+              <TableCell sx={{ width: 120 }}>Invoice</TableCell>
               <TableCell>Vendor</TableCell>
               <TableCell>Invoice date</TableCell>
               <TableCell>Due date</TableCell>
@@ -575,7 +575,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.invoiceId} hover>
-                <TableCell sx={{ fontWeight: 700 }}>{row.invoiceNumber || `#${row.invoiceId}`}</TableCell>
+                <TableCell sx={{ fontWeight: 700, width: 120, wordBreak: 'break-all', whiteSpace: 'normal' }}>{row.invoiceNumber || `#${row.invoiceId}`}</TableCell>
                 <TableCell>{row.vendorName || 'Unknown vendor'}</TableCell>
                 <TableCell>{formatDate(row.invoiceDate)}</TableCell>
                 <TableCell>
@@ -594,6 +594,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
                     size="small"
                     color={row.paymentStatus === 'partially_paid' ? 'info' : 'warning'}
                     label={row.paymentStatus === 'partially_paid' ? 'Partially paid' : 'Unpaid'}
+                    sx={{ minWidth: 120 }}
                   />
                 </TableCell>
               </TableRow>
