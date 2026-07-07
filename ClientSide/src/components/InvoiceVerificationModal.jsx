@@ -737,25 +737,15 @@ export default function InvoiceVerificationModal(props) {
             <Tab value="pdf" label="PDF" />
             <Tab value="form" label="Form" />
           </Tabs>
-
-          {activeTab === 'pdf' ? pdfContent : null}
-
-          {activeTab === 'form' ? (
-            <Box sx={{ maxHeight: '65vh', overflowY: 'auto', pr: 0.25 }}>
-              {formContent}
-            </Box>
-          ) : null}
+          {activeTab === 'pdf' ? pdfContent : formContent}
         </Stack>
       ) : (
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             {pdfContent}
           </Grid>
-
           <Grid size={{ xs: 12, md: 6 }}>
-            <Box sx={{ maxHeight: '72vh', overflowY: 'auto', pr: 0.5 }}>
-              {formContent}
-            </Box>
+            {formContent}
           </Grid>
         </Grid>
       )}
