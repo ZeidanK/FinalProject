@@ -36,6 +36,7 @@ let mockUploadProfilePictureMutation = { mutateAsync: vi.fn(), isPending: false 
 let mockCreateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockUpdateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockDeleteCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
+let mockDeleteAccountMutation = { mutateAsync: vi.fn(), isPending: false }
 
 vi.mock('../../hooks/queries/useProfileQueries', () => ({
   useUserProfileQuery: () => mockProfileQuery,
@@ -45,6 +46,7 @@ vi.mock('../../hooks/queries/useProfileQueries', () => ({
   useCreateCompanyMutation: () => mockCreateCompanyMutation,
   useUpdateCompanyMutation: () => mockUpdateCompanyMutation,
   useDeleteCompanyMutation: () => mockDeleteCompanyMutation,
+  useDeleteAccountMutation: () => mockDeleteAccountMutation,
 }))
 
 const sampleProfile = {
@@ -72,6 +74,7 @@ describe('ProfilePage', () => {
     mockCreateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
     mockUpdateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
     mockDeleteCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
+    mockDeleteAccountMutation = { mutateAsync: vi.fn(), isPending: false }
   })
 
   it('renders profile section heading', () => {

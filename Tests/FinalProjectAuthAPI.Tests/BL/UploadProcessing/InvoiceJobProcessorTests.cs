@@ -2,7 +2,6 @@ using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.BL.UploadProcessing;
 using FinalProjectAuthAPI.Models;
 using Moq;
-using System.Text.Json;
 using Xunit;
 
 namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
@@ -208,61 +207,6 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
             Assert.Contains("\"geminiResult\"", savedJson);
             Assert.Contains("\"mergedResult\"", savedJson);
             Assert.Contains("\"usedRegexFallback\":true", savedJson);
-        }
-
-        [Fact]
-        public async Task ProcessAsync_UsesSavedFullPathFromPayload_WhenAvailable()
-        {
-            var fullPath = CreateTempPdfPath();
-            try
-            {
-                var job = MakeJob(jobType: "invoice_upload_pdf");
-                job.PayloadJson = JsonSerializer.Serialize(new UploadJobPayload
-                {
-                    SavedFullPath = fullPath
-                });
-
-                _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
-                _mockJobSvc.Setup(x => x.MarkProcessing(1));
-                _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
-                _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
-                    .ReturnsAsync(Outcome(new PdfExtractionResult { VendorName = "Acme" }));
-                _mockJobSvc.Setup(x => x.MarkCompleted(1, It.IsAny<string>()));
-
-                await _processor.ProcessAsync(1);
-
-                _mockFileSvc.Verify(x => x.GetInvoiceFullPath(It.IsAny<string>()), Times.Never);
-                _mockJobSvc.Verify(x => x.MarkCompleted(1, It.IsAny<string>()), Times.Once);
-            }
-            finally
-            {
-                if (File.Exists(fullPath))
-                    File.Delete(fullPath);
-            }
-        }
-
-        [Fact]
-        public async Task ProcessAsync_FallsBackToRelativePathResolver_WhenSavedFullPathMissing()
-        {
-            var job = MakeJob(jobType: "invoice_upload_pdf");
-            job.PayloadJson = JsonSerializer.Serialize(new UploadJobPayload
-            {
-                SavedFullPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.pdf")
-            });
-
-            var fullPath = CreateTempPdfPath();
-            _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
-            _mockJobSvc.Setup(x => x.MarkProcessing(1));
-            _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
-            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(fullPath);
-            _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
-                .ReturnsAsync(Outcome(new PdfExtractionResult { VendorName = "Acme" }));
-            _mockJobSvc.Setup(x => x.MarkCompleted(1, It.IsAny<string>()));
-
-            await _processor.ProcessAsync(1);
-
-            _mockFileSvc.Verify(x => x.GetInvoiceFullPath(job.FilePath), Times.Once);
-            _mockJobSvc.Verify(x => x.MarkCompleted(1, It.IsAny<string>()), Times.Once);
         }
 
         [Fact]

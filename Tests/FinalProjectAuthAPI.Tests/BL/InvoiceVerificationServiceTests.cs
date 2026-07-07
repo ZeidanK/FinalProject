@@ -137,7 +137,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         [Fact]
         public async Task VerifyJobAsync_VerifyingStatus_ResumesVerification()
         {
-            var job = MakeJob(status: "verifying");
+            var job = MakeJob(status: "verifying", resultJson: BuildStoredPayloadJson(invoiceId: 42));
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
             _mockInvoiceSvc.Setup(x => x.Create(
                 It.IsAny<CreateInvoiceRequest>(), 10,

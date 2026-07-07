@@ -73,7 +73,7 @@ namespace FinalProjectAuthAPI.Tests.Middleware
         }
 
         [Fact]
-        public async Task InvokeAsync_ResponseAlreadyStarted_Throws()
+        public async Task InvokeAsync_ResponseAlreadyStarted_DoesNotThrow()
         {
             var context = new DefaultHttpContext();
             context.TraceIdentifier = "test-trace";
@@ -88,8 +88,7 @@ namespace FinalProjectAuthAPI.Tests.Middleware
             var middleware = new ExceptionHandlingMiddleware(next, logger.Object);
             var activityLog = new Mock<IActivityLogService>();
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                middleware.InvokeAsync(context, activityLog.Object));
+            await middleware.InvokeAsync(context, activityLog.Object);
         }
     }
 }

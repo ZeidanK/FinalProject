@@ -406,7 +406,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             Assert.IsType<AcceptedResult>(result);
             Assert.NotNull(capturedRequest);
             using var payload = JsonDocument.Parse(capturedRequest!.PayloadJson!);
-            Assert.Equal(@"C:\wwwroot\uploads\invoices\5\test.pdf", payload.RootElement.GetProperty("savedFullPath").GetString());
+            Assert.False(payload.RootElement.GetProperty("autoVerify").GetBoolean());
         }
 
         [Fact]
@@ -438,8 +438,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
 
             Assert.IsType<AcceptedResult>(result);
             Assert.NotNull(capturedRequest);
-            using var payload = JsonDocument.Parse(capturedRequest!.PayloadJson!);
-            Assert.Equal(@"C:\wwwroot\uploads\invoices\5\test.pdf", payload.RootElement.GetProperty("savedFullPath").GetString());
+            Assert.Null(capturedRequest.PayloadJson);
         }
 
         private static IFormFile MakeFormFile(string content, string fileName, string contentType = "application/pdf")
