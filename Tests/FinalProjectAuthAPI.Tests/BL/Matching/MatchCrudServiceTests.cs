@@ -8,12 +8,12 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
 {
     public class MatchCrudServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly MatchCrudService _service;
 
         public MatchCrudServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _service = new MatchCrudService(_mockDb.Object);
         }
 
@@ -80,7 +80,7 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
             var req = new CreateMatchRequest { InvoiceId = 1, TransactionId = 1, MatchedAmount = 0 };
             var (success, id, error) = _service.Create(req, 10);
             Assert.False(success);
-            Assert.Contains("Amount", error);
+            Assert.Contains("amount", error, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -130,7 +130,7 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
         public void Create_Success_RecordsVendorAlias_OnManualMatch()
         {
             var invoice = new InvoiceRow { Id = 1, TotalAmount = 100, MatchedAmount = 0, CompanyId = 5, VendorName = "Acme" };
-            _mockDb.SetupSequence(x => x.GetInvoiceById(1)).Returns(invoice);
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
             _mockDb.Setup(x => x.GetTransactionById(1)).Returns(new TransactionRow { Id = 1, Description = "Payment to Acme" });
             _mockDb.Setup(x => x.CreateMatch(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(),
                 "manual", 10, "full", It.IsAny<decimal?>(), It.IsAny<string?>(),

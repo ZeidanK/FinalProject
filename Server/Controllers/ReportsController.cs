@@ -11,9 +11,9 @@ namespace FinalProjectAuthAPI.Controllers
     public class ReportsController : ApiControllerBase
     {
         private readonly IReportService _svc;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public ReportsController(IReportService svc, DBservices db)
+        public ReportsController(IReportService svc, IDBservices db)
         {
             _svc = svc;
             _db = db;

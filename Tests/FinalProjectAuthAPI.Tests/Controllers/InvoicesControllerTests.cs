@@ -22,7 +22,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         private readonly Mock<IFileStorageService> _mockFileSvc;
         private readonly Mock<IUploadJobService> _mockJobSvc;
         private readonly Mock<IBackgroundJobClient> _mockHangfire;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IWebHostEnvironment> _mockEnv;
         private readonly Mock<IAnomalyService> _mockAnomaly;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
@@ -34,7 +34,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             _mockFileSvc = new Mock<IFileStorageService>();
             _mockJobSvc = new Mock<IUploadJobService>();
             _mockHangfire = new Mock<IBackgroundJobClient>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockEnv = new Mock<IWebHostEnvironment>();
             _mockAnomaly = new Mock<IAnomalyService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();

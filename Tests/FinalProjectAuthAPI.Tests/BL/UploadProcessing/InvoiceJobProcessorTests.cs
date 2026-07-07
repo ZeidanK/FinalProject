@@ -13,7 +13,7 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         private readonly Mock<IPdfExtractionService> _mockPdfSvc;
         private readonly Mock<IInvoiceService> _mockInvoiceSvc;
         private readonly Mock<IAnomalyService> _mockAnomalySvc;
-        private readonly Mock<UploadJobNotificationService> _mockNotifSvc;
+        private readonly Mock<IUploadJobNotificationService> _mockNotifSvc;
         private readonly InvoiceJobProcessor _processor;
 
         public InvoiceJobProcessorTests()
@@ -25,10 +25,18 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
             _mockAnomalySvc = new Mock<IAnomalyService>();
             var realtimeMock = new Mock<IRealtimeNotificationService>();
             var activityLogMock = new Mock<IActivityLogService>();
-            _mockNotifSvc = new Mock<UploadJobNotificationService>(realtimeMock.Object, activityLogMock.Object);
+            _mockNotifSvc = new Mock<IUploadJobNotificationService>();
             _processor = new InvoiceJobProcessor(
                 _mockJobSvc.Object, _mockFileSvc.Object, _mockPdfSvc.Object,
                 _mockInvoiceSvc.Object, _mockAnomalySvc.Object, _mockNotifSvc.Object);
+        }
+
+        private static string CreateTempPdf(string fullPath)
+        {
+            var dir = System.IO.Path.GetDirectoryName(fullPath)!;
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(fullPath, "dummy pdf content");
+            return fullPath;
         }
 
         private static UploadJobRow MakeJob(long id = 1, string jobType = "invoice_upload_pdf", string status = "queued")
@@ -58,11 +66,12 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         [Fact]
         public async Task ProcessAsync_UploadAndCreate_Success_CreatesInvoice()
         {
+            var pdfPath = CreateTempPdf(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "test_invoice.pdf"));
             var job = MakeJob(jobType: "invoice_upload_and_create");
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
             _mockJobSvc.Setup(x => x.MarkProcessing(1));
             _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
-            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns("C:\\full\\path.pdf");
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(pdfPath);
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
                 .ReturnsAsync(new PdfExtractionResult
                 {
@@ -87,11 +96,12 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         [Fact]
         public async Task ProcessAsync_UploadAndCreate_CreateFails_MarksFailed()
         {
+            var pdfPath = CreateTempPdf(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "test_invoice_create_fail.pdf"));
             var job = MakeJob(jobType: "invoice_upload_and_create");
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
             _mockJobSvc.Setup(x => x.MarkProcessing(1));
             _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
-            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns("C:\\full\\path.pdf");
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(pdfPath);
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
                 .ReturnsAsync(new PdfExtractionResult { VendorName = "Acme", ExtractionConfidence = 0.5m });
             _mockInvoiceSvc.Setup(x => x.Create(
@@ -108,11 +118,12 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         [Fact]
         public async Task ProcessAsync_UploadAndCreate_DuplicateInvoice_NotifiesAnomaly()
         {
+            var pdfPath = CreateTempPdf(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "test_invoice_dup.pdf"));
             var job = MakeJob(jobType: "invoice_upload_and_create");
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
             _mockJobSvc.Setup(x => x.MarkProcessing(1));
             _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
-            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns("C:\\full\\path.pdf");
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(pdfPath);
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
                 .ReturnsAsync(new PdfExtractionResult { VendorName = "Acme", ExtractionConfidence = 0.9m });
             _mockInvoiceSvc.Setup(x => x.Create(It.IsAny<CreateInvoiceRequest>(), 10,
@@ -130,11 +141,12 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         [Fact]
         public async Task ProcessAsync_ExtractOnly_Success()
         {
+            var pdfPath = CreateTempPdf(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "test_extract.pdf"));
             var job = MakeJob(jobType: "invoice_upload_pdf");
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
             _mockJobSvc.Setup(x => x.MarkProcessing(1));
             _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
-            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns("C:\\full\\path.pdf");
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(pdfPath);
             _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
                 .ReturnsAsync(new PdfExtractionResult { VendorName = "Acme" });
             _mockJobSvc.Setup(x => x.MarkCompleted(1, It.IsAny<string>()));

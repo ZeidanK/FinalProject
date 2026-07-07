@@ -8,6 +8,8 @@ using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Middleware;
 using FinalProjectAuthAPI.Models;
+using FinalProjectAuthAPI.MatchingEngine;
+using FinalProjectAuthAPI.BL.UploadProcessing;
 using FinalProjectAuthAPI.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +19,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ── Dependency Injection: register BL services ───────────────────────────
-builder.Services.AddScoped<DBservices>();
+builder.Services.AddScoped<IDBservices, DBservices>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
@@ -28,7 +30,7 @@ builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
 builder.Services.AddScoped<IInvoiceVerificationService, InvoiceVerificationService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
-builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.RulePipelineEngine>();
+builder.Services.AddScoped<IRulePipelineEngine, RulePipelineEngine>();
 builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.IFxRateProvider, FinalProjectAuthAPI.MatchingEngine.MockFxRateProvider>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -49,7 +51,7 @@ builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.AutoMatchService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.AnomalyCrudService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateInvoiceService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateFileDetectionService>();
-builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.UploadJobNotificationService>();
+builder.Services.AddScoped<IUploadJobNotificationService, UploadJobNotificationService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.InvoiceJobProcessor>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.TransactionJobProcessor>();
 builder.Services.AddSignalR();

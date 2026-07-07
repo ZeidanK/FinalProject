@@ -9,14 +9,14 @@ namespace FinalProjectAuthAPI.BL
     public class RealtimeNotificationService : IRealtimeNotificationService
     {
         private readonly IHubContext<NotificationHub> _hubContext;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly RealtimeConnectionRegistry _registry;
         private readonly ILogger<RealtimeNotificationService> _logger;
         private readonly IActivityLogService _activityLog;
 
         public RealtimeNotificationService(
             IHubContext<NotificationHub> hubContext,
-            DBservices db,
+            IDBservices db,
             RealtimeConnectionRegistry registry,
             ILogger<RealtimeNotificationService> logger,
             IActivityLogService activityLog)

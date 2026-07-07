@@ -26,7 +26,14 @@ namespace FinalProjectAuthAPI.BL
         {
             _env = env;
             _geminiService = geminiService;
-            _geminiFallback = serviceProvider.GetKeyedService<IGeminiExtractionService>("gemini-fallback");
+            try
+            {
+                _geminiFallback = serviceProvider.GetKeyedService<IGeminiExtractionService>("gemini-fallback");
+            }
+            catch (InvalidOperationException)
+            {
+                _geminiFallback = null;
+            }
             _logger = logger;
             _textExtractor = new PdfTextExtractor();
             var tessdataPath = Path.Combine(env.ContentRootPath, "tessdata");

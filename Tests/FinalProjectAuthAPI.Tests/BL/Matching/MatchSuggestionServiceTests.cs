@@ -9,14 +9,14 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
 {
     public class MatchSuggestionServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
-        private readonly Mock<RulePipelineEngine> _mockPipeline;
+        private readonly Mock<IDBservices> _mockDb;
+        private readonly Mock<IRulePipelineEngine> _mockPipeline;
         private readonly MatchSuggestionService _service;
 
         public MatchSuggestionServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
-            _mockPipeline = new Mock<RulePipelineEngine>();
+            _mockDb = new Mock<IDBservices>();
+            _mockPipeline = new Mock<IRulePipelineEngine>();
             _service = new MatchSuggestionService(_mockDb.Object, _mockPipeline.Object);
         }
 

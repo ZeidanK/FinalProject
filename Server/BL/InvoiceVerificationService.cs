@@ -11,7 +11,7 @@ namespace FinalProjectAuthAPI.BL
         private readonly IUploadJobService _jobSvc;
         private readonly IAnomalyService _anomalySvc;
         private readonly IRealtimeNotificationService _realtime;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly InvoiceJobValidator _validator;
         private readonly InvoiceJobPayloadSerializer _serializer;
 
@@ -22,7 +22,7 @@ namespace FinalProjectAuthAPI.BL
             IUploadJobService jobSvc,
             IAnomalyService anomalySvc,
             IRealtimeNotificationService realtime,
-            DBservices db)
+            IDBservices db)
         {
             _invoiceSvc = invoiceSvc;
             _jobSvc = jobSvc;
@@ -178,6 +178,12 @@ namespace FinalProjectAuthAPI.BL
             }
             else if (string.Equals(job.Status, UploadJobStatuses.Completed, StringComparison.OrdinalIgnoreCase)
                 && !_jobSvc.TryBeginVerification(jobId))
+            {
+                return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.InProgress, "Invoice verification is already in progress.", confidence);
+            }
+
+            if (string.Equals(job.Status, UploadJobStatuses.Verifying, StringComparison.OrdinalIgnoreCase)
+                && (storedPayload.InvoiceId == null || storedPayload.InvoiceId <= 0))
             {
                 return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.InProgress, "Invoice verification is already in progress.", confidence);
             }

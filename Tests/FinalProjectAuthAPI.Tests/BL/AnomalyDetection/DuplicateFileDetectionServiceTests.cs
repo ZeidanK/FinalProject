@@ -8,13 +8,13 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
 {
     public class DuplicateFileDetectionServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<AnomalyCrudService> _mockCrud;
         private readonly DuplicateFileDetectionService _service;
 
         public DuplicateFileDetectionServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockCrud = new Mock<AnomalyCrudService>(_mockDb.Object);
             _service = new DuplicateFileDetectionService(_mockDb.Object, _mockCrud.Object);
         }

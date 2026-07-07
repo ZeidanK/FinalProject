@@ -8,12 +8,12 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
 {
     public class AnomalyCrudServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly AnomalyCrudService _service;
 
         public AnomalyCrudServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _service = new AnomalyCrudService(_mockDb.Object);
         }
 
@@ -131,7 +131,7 @@ namespace FinalProjectAuthAPI.Tests.BL.AnomalyDetection
                 It.IsAny<long?>(), It.IsAny<long?>(), It.IsAny<long?>(),
                 It.IsAny<decimal?>(), It.IsAny<string>(), It.IsAny<decimal?>())).Returns(42);
 
-            var req = new CreateAnomalyRequest { CompanyId = 5, AnomalyType = "fraud", Title = "Test" };
+            var req = new CreateAnomalyRequest { CompanyId = 5, AnomalyType = "fraud", Title = "Test", Severity = null! };
             var (success, id, error) = _service.Create(req);
             Assert.True(success);
             Assert.Equal(42, id);

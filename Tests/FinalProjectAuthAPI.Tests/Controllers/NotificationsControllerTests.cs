@@ -14,14 +14,14 @@ namespace FinalProjectAuthAPI.Tests.Controllers
     {
         private readonly Mock<INotificationService> _mockSvc;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly NotificationsController _controller;
 
         public NotificationsControllerTests()
         {
             _mockSvc = new Mock<INotificationService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _controller = new NotificationsController(_mockSvc.Object, _mockRealtime.Object, _mockDb.Object);
             _controller.ControllerContext = new ControllerContext
             {

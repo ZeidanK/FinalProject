@@ -7,10 +7,10 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
 {
     public class DuplicateInvoiceService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly AnomalyCrudService _anomalyCrud;
 
-        public DuplicateInvoiceService(DBservices db, AnomalyCrudService anomalyCrud)
+        public DuplicateInvoiceService(IDBservices db, AnomalyCrudService anomalyCrud)
         {
             _db = db;
             _anomalyCrud = anomalyCrud;

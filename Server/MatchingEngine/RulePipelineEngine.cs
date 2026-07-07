@@ -7,7 +7,7 @@ namespace FinalProjectAuthAPI.MatchingEngine
     /// Implements the 5-layer waterfall pipeline with pre-execution constraints,
     /// auto-matching, and fallback suggested matches for UI review.
     /// </summary>
-    public class RulePipelineEngine
+    public class RulePipelineEngine : IRulePipelineEngine
     {
         private readonly List<IMatchingRule> _layer1Rules;
         private readonly List<IMatchingRule> _layer2Rules;

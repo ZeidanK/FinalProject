@@ -6,10 +6,10 @@ namespace FinalProjectAuthAPI.BL
 {
     public class AuthService : IAuthService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IConfiguration _config;
 
-        public AuthService(DBservices db, IConfiguration config)
+        public AuthService(IDBservices db, IConfiguration config)
         {
             _db = db;
             _config = config;

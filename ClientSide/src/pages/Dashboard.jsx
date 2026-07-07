@@ -122,7 +122,7 @@ function DashboardPage() {
   return (
     <Box
       sx={{
-        py: { xs: 4, md: 6 },
+        py: { xs: 2, md: 3 },
         position: 'relative',
         overflow: 'hidden',
         minHeight: '100%',

@@ -15,8 +15,8 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         private readonly Mock<ITransactionService> _mockTxnSvc;
         private readonly Mock<IAnomalyService> _mockAnomalySvc;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
-        private readonly Mock<UploadJobNotificationService> _mockNotifSvc;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IUploadJobNotificationService> _mockNotifSvc;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly TransactionJobProcessor _processor;
 
         public TransactionJobProcessorTests()
@@ -28,8 +28,8 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
             _mockAnomalySvc = new Mock<IAnomalyService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
             var activityLogMock = new Mock<IActivityLogService>();
-            _mockNotifSvc = new Mock<UploadJobNotificationService>(_mockRealtime.Object, activityLogMock.Object);
-            _mockDb = new Mock<DBservices>();
+            _mockNotifSvc = new Mock<IUploadJobNotificationService>();
+            _mockDb = new Mock<IDBservices>();
             _processor = new TransactionJobProcessor(
                 _mockJobSvc.Object, _mockFileSvc.Object, _mockExcelSvc.Object,
                 _mockTxnSvc.Object, _mockAnomalySvc.Object, _mockRealtime.Object, _mockNotifSvc.Object,

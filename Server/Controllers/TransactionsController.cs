@@ -18,7 +18,7 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IFileStorageService _fileSvc;
         private readonly IUploadJobService _jobSvc;
         private readonly IBackgroundJobClient _backgroundJobClient;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
         public TransactionsController(
             ITransactionService svc,
@@ -26,7 +26,7 @@ namespace FinalProjectAuthAPI.Controllers
             IFileStorageService fileSvc,
             IUploadJobService jobSvc,
             IBackgroundJobClient backgroundJobClient,
-            DBservices db)
+            IDBservices db)
         {
             _svc = svc;
             _excelSvc = excelSvc;

@@ -14,10 +14,10 @@ namespace FinalProjectAuthAPI.BL
             "ERROR"
         };
 
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly ILogger<ActivityLogService> _logger;
 
-        public ActivityLogService(DBservices db, ILogger<ActivityLogService> logger)
+        public ActivityLogService(IDBservices db, ILogger<ActivityLogService> logger)
         {
             _db = db;
             _logger = logger;

@@ -12,7 +12,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IInvoiceService _invoiceSvc;
         private readonly IAnomalyService _anomalySvc;
-        private readonly UploadJobNotificationService _notification;
+        private readonly IUploadJobNotificationService _notification;
 
         private static readonly JsonSerializerOptions _camelCase = new()
         {
@@ -26,7 +26,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             IPdfExtractionService pdfSvc,
             IInvoiceService invoiceSvc,
             IAnomalyService anomalySvc,
-            UploadJobNotificationService notification)
+            IUploadJobNotificationService notification)
         {
             _jobSvc = jobSvc;
             _fileSvc = fileSvc;

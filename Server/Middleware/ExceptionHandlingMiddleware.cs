@@ -34,24 +34,26 @@ public class ExceptionHandlingMiddleware
                 UserAgent = context.Request.Headers["User-Agent"].ToString()
             });
 
-            if (context.Response.HasStarted)
+            try
             {
-                throw;
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                context.Response.ContentType = "application/json";
+
+                var payload = new
+                {
+                    code = "INTERNAL_SERVER_ERROR",
+                    message = "An unexpected error occurred.",
+                    traceId,
+                    timestamp = DateTimeOffset.UtcNow
+                };
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
             }
-
-            context.Response.Clear();
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/json";
-
-            var payload = new
+            catch (Exception innerEx)
             {
-                code = "INTERNAL_SERVER_ERROR",
-                message = "An unexpected error occurred.",
-                traceId,
-                timestamp = DateTimeOffset.UtcNow
-            };
-
-            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+                _logger.LogWarning(innerEx, "Failed to write error response for TraceId: {TraceId}. Response may have already started.", traceId);
+            }
         }
     }
 

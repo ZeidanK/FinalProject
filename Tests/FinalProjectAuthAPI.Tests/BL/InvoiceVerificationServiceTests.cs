@@ -13,7 +13,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IUploadJobService> _mockJobSvc;
         private readonly Mock<IAnomalyService> _mockAnomalySvc;
         private readonly Mock<IRealtimeNotificationService> _mockRealtime;
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly InvoiceVerificationService _service;
 
         public InvoiceVerificationServiceTests()
@@ -22,7 +22,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockJobSvc = new Mock<IUploadJobService>();
             _mockAnomalySvc = new Mock<IAnomalyService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _service = new InvoiceVerificationService(
                 _mockInvoiceSvc.Object, _mockJobSvc.Object,
                 _mockAnomalySvc.Object, _mockRealtime.Object, _mockDb.Object);

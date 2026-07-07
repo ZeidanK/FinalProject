@@ -90,7 +90,7 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             {
                 @"(?:invoice|receipt|inv|bill)\s*(?:#|no\.?|number)\s*[:.]?\s*([\w-]+)",
                 @"(?:חשבונית|קבלה)\s*(?:מס['׳]?\.?)\s*[:.]?\s*([\w-]+)",
-                @"(?:inv[.\s#-]*)([\w-]{3,20})",
+                @"(?:inv[.\s#-]*)([\w-]{2,20})",
                 @"#\s*([\w-]{3,20})"
             };
 
@@ -98,7 +98,7 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             {
                 var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
                 if (match.Success)
-                    return match.Groups[1].Value.Trim();
+                    return match.Groups[1].Value.Trim().Trim('-');
             }
             return null;
         }
@@ -140,14 +140,15 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
         {
             var labeledPatterns = new[]
             {
+                @"(?:invoice\s*date|date\s*of\s*issue|issued\s*(?:on)?|receipt\s*date|תאריך)\s*[:.]?\s*(\d{4}[/\-\.]\d{1,2}[/\-\.]\d{1,2})",
                 @"(?:invoice\s*date|date\s*of\s*issue|issued\s*(?:on)?|receipt\s*date|תאריך)\s*[:.]?\s*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})",
                 @"(?:invoice\s*date|date\s*of\s*issue|issued\s*(?:on)?|receipt\s*date|תאריך)\s*[:.]?\s*(\w+\s+\d{1,2},?\s*\d{4})",
             };
 
             var fallbackPatterns = new[]
             {
-                @"(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})",
                 @"(\d{4}[/\-\.]\d{1,2}[/\-\.]\d{1,2})",
+                @"(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})",
                 @"(\w+\s+\d{1,2},?\s*\d{4})"
             };
 
@@ -230,7 +231,7 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
         {
             var patterns = new[]
             {
-                @"(?:tax\s*id|tin|vat\s*(?:no|number|reg)|ע\.?מ|ח\.?פ)\s*[:.]?\s*(\d[\d\-]{5,15})",
+                @"(?:tax\s*id|tin|vat\s*(?:no|number|reg)|ע\.?מ|ח\.?פ)\s*[:.]?\s*(?:[A-Z]{2}-)?(\d[\d\-]{5,15})",
                 @"(?:business\s*(?:no|number|id)|registration)\s*[:.]?\s*(\d[\d\-]{5,15})"
             };
 
@@ -419,6 +420,10 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
             var items = new List<ExtractedLineItem>();
             var patDescFirst4 = new Regex(
                 @"^(.+?)\s+(\d[\d,]*(?:\.\d{1,2})?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patDescFirst3 = new Regex(
+                @"^(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
+            var patDescFirst2 = new Regex(
+                @"^(.+?)\s+[$€£₪]?(\d[\d,]*\.\d{2})\s*$");
 
             foreach (var line in lines)
             {
@@ -430,6 +435,20 @@ namespace FinalProjectAuthAPI.BL.PdfExtraction
 
                 var m = patDescFirst4.Match(line);
                 if (m.Success && TryParseLineItem4ColDescFirst(m, 0.60m, out var item))
+                {
+                    items.Add(item);
+                    continue;
+                }
+
+                m = patDescFirst3.Match(line);
+                if (m.Success && TryParseLineItem3ColDescFirst(m, 0.55m, out item))
+                {
+                    items.Add(item);
+                    continue;
+                }
+
+                m = patDescFirst2.Match(line);
+                if (m.Success && TryParseLineItem2ColDescFirst(m, out item))
                     items.Add(item);
             }
             return items;

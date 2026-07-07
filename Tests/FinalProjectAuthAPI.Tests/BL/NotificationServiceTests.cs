@@ -8,12 +8,12 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class NotificationServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly NotificationService _service;
 
         public NotificationServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _service = new NotificationService(_mockDb.Object);
         }
 

@@ -9,9 +9,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class ReportService : IReportService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public ReportService(DBservices db)
+        public ReportService(IDBservices db)
         {
             _db = db;
         }

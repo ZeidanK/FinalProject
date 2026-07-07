@@ -9,9 +9,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class BankAccountService : IBankAccountService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public BankAccountService(DBservices db)
+        public BankAccountService(IDBservices db)
         {
             _db = db;
         }

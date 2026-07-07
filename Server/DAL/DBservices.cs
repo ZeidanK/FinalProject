@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     /// Data Access Layer – mirrors the NewsSitePro DBservices pattern.
     /// Reads the connection string from appsettings.json and calls stored procedures.
     /// </summary>
-    public partial class DBservices
+    public partial class DBservices : IDBservices
     {
         private readonly string connectionString;
 

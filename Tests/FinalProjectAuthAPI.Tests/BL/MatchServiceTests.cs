@@ -10,8 +10,8 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class MatchServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
-        private readonly Mock<RulePipelineEngine> _mockPipeline;
+        private readonly Mock<IDBservices> _mockDb;
+        private readonly Mock<IRulePipelineEngine> _mockPipeline;
         private readonly Mock<MatchCrudService> _mockCrud;
         private readonly Mock<MatchSuggestionService> _mockSuggestions;
         private readonly Mock<AutoMatchService> _mockAutoMatch;
@@ -19,8 +19,8 @@ namespace FinalProjectAuthAPI.Tests.BL
 
         public MatchServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
-            _mockPipeline = new Mock<RulePipelineEngine>();
+            _mockDb = new Mock<IDBservices>();
+            _mockPipeline = new Mock<IRulePipelineEngine>();
             _mockCrud = new Mock<MatchCrudService>(_mockDb.Object);
             _mockSuggestions = new Mock<MatchSuggestionService>(_mockDb.Object, _mockPipeline.Object);
             _mockAutoMatch = new Mock<AutoMatchService>(_mockDb.Object, _mockPipeline.Object, _mockCrud.Object, _mockSuggestions.Object);

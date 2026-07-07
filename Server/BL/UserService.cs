@@ -10,9 +10,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public UserService(DBservices db)
+        public UserService(IDBservices db)
         {
             _db = db;
         }

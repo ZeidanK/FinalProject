@@ -8,6 +8,8 @@ namespace FinalProjectAuthAPI.BL.GeminiExtraction
     {
         public PdfExtractionResult? Parse(string responseText)
         {
+            if (string.IsNullOrWhiteSpace(responseText))
+                return null;
             try
             {
                 var cleanJson = responseText.Trim();

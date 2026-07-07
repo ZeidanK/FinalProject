@@ -18,7 +18,7 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IFileStorageService _fileSvc;
         private readonly IUploadJobService _jobSvc;
         private readonly IBackgroundJobClient _backgroundJobClient;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IWebHostEnvironment _env;
         private readonly IAnomalyService _anomalySvc;
         private readonly IRealtimeNotificationService _realtime;
@@ -28,7 +28,7 @@ namespace FinalProjectAuthAPI.Controllers
             IFileStorageService fileSvc,
             IUploadJobService jobSvc,
             IBackgroundJobClient backgroundJobClient,
-            DBservices db,
+            IDBservices db,
             IWebHostEnvironment env,
             IAnomalyService anomalySvc,
             IRealtimeNotificationService realtime)

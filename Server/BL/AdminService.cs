@@ -9,9 +9,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class AdminService : IAdminService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public AdminService(DBservices db)
+        public AdminService(IDBservices db)
         {
             _db = db;
         }

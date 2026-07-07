@@ -6,10 +6,10 @@ namespace FinalProjectAuthAPI.BL.Matching
 {
     public class MatchSuggestionService
     {
-        private readonly DBservices _db;
-        private readonly RulePipelineEngine _pipelineEngine;
+        private readonly IDBservices _db;
+        private readonly IRulePipelineEngine _pipelineEngine;
 
-        public MatchSuggestionService(DBservices db, RulePipelineEngine pipelineEngine)
+        public MatchSuggestionService(IDBservices db, IRulePipelineEngine pipelineEngine)
         {
             _db = db;
             _pipelineEngine = pipelineEngine;

@@ -10,13 +10,13 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class AuthServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IConfiguration> _mockConfig;
         private readonly AuthService _service;
 
         public AuthServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockConfig = new Mock<IConfiguration>();
 
             var configSection = new Mock<IConfigurationSection>();

@@ -7,12 +7,12 @@ namespace FinalProjectAuthAPI.Realtime
     [Authorize]
     public class NotificationHub : Hub
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly RealtimeConnectionRegistry _registry;
         private readonly ILogger<NotificationHub> _logger;
 
         public NotificationHub(
-            DBservices db,
+            IDBservices db,
             RealtimeConnectionRegistry registry,
             ILogger<NotificationHub> logger)
         {

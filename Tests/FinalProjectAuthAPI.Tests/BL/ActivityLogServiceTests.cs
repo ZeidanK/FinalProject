@@ -9,13 +9,13 @@ namespace FinalProjectAuthAPI.Tests.BL
 {
     public class ActivityLogServiceTests
     {
-        private readonly Mock<DBservices> _mockDb;
+        private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<ILogger<ActivityLogService>> _mockLogger;
         private readonly ActivityLogService _service;
 
         public ActivityLogServiceTests()
         {
-            _mockDb = new Mock<DBservices>();
+            _mockDb = new Mock<IDBservices>();
             _mockLogger = new Mock<ILogger<ActivityLogService>>();
             _service = new ActivityLogService(_mockDb.Object, _mockLogger.Object);
         }

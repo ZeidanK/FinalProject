@@ -5,7 +5,7 @@ using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL.UploadProcessing
 {
-    public class UploadJobNotificationService
+    public class UploadJobNotificationService : IUploadJobNotificationService
     {
         private readonly IRealtimeNotificationService _realtime;
         private readonly IActivityLogService _activityLog;

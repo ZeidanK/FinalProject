@@ -10,9 +10,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class CompanyService : ICompanyService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public CompanyService(DBservices db)
+        public CompanyService(IDBservices db)
         {
             _db = db;
         }

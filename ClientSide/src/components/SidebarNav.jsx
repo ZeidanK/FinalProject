@@ -61,7 +61,7 @@ function NavItem({ item, collapsed, onNavigate }) {
           justifyContent: collapsed ? 'center' : 'flex-start',
           minWidth: collapsed ? 44 : '100%',
           width: collapsed ? 44 : '100%',
-          height: 40,
+          height: collapsed ? 44 : 40,
           px: collapsed ? 0 : 1.5,
           py: 0.8,
           borderRadius: 2,
@@ -79,6 +79,7 @@ function NavItem({ item, collapsed, onNavigate }) {
             backgroundColor: 'rgba(255,255,255,0.05)',
             color: '#fff',
           },
+          ...(collapsed ? { '& .MuiButton-startIcon': { marginLeft: 0, marginRight: 0 } } : {}),
         }}
         startIcon={
           <Box sx={{
@@ -231,11 +232,12 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
               justifyContent: collapsed ? 'center' : 'flex-start',
               minWidth: collapsed ? 44 : '100%',
               width: collapsed ? 44 : '100%',
-              height: 40,
+              height: collapsed ? 44 : 40,
               px: collapsed ? 0 : 1.5,
               borderRadius: 1.5,
               color: theme.palette.text.secondary,
               '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)', color: theme.palette.text.primary },
+              ...(collapsed ? { '& .MuiButton-startIcon': { marginLeft: 0, marginRight: 0 } } : {}),
             }}
             startIcon={
               <Box sx={{ display: 'flex', alignItems: 'center', minWidth: collapsed ? 0 : 22, mr: collapsed ? 0 : 1 }}>
@@ -258,11 +260,12 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
               justifyContent: collapsed ? 'center' : 'flex-start',
               minWidth: collapsed ? 44 : '100%',
               width: collapsed ? 44 : '100%',
-              height: 40,
+              height: collapsed ? 44 : 40,
               px: collapsed ? 0 : 1.5,
               borderRadius: 1.5,
               color: theme.palette.text.secondary,
               '&:hover': { backgroundColor: 'rgba(255,82,82,0.08)', color: '#f87171' },
+              ...(collapsed ? { '& .MuiButton-startIcon': { marginLeft: 0, marginRight: 0 } } : {}),
             }}
             startIcon={
               <Box sx={{ display: 'flex', alignItems: 'center', minWidth: collapsed ? 0 : 22, mr: collapsed ? 0 : 1 }}>
