@@ -1,3 +1,4 @@
+using System.IO;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.Models;
@@ -13,6 +14,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
         private readonly IAnomalyService _anomalySvc;
         private readonly IUploadJobNotificationService _notification;
         private readonly InvoiceJobPayloadSerializer _resultSerializer;
+        private readonly IWebHostEnvironment _env;
 
         public InvoiceJobProcessor(
             IUploadJobService jobSvc,
@@ -20,7 +22,8 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             IPdfExtractionService pdfSvc,
             IInvoiceService invoiceSvc,
             IAnomalyService anomalySvc,
-            IUploadJobNotificationService notification)
+            IUploadJobNotificationService notification,
+            IWebHostEnvironment env)
         {
             _jobSvc = jobSvc;
             _fileSvc = fileSvc;
@@ -29,6 +32,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             _anomalySvc = anomalySvc;
             _notification = notification;
             _resultSerializer = new InvoiceJobPayloadSerializer();
+            _env = env;
         }
 
         public virtual async Task ProcessAsync(
@@ -59,12 +63,10 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
 
             try
             {
-                var fullPath = _fileSvc.GetInvoiceFullPath(effectiveFilePath);
+                var fullPath = await ResolveFilePathAsync(effectiveFilePath);
                 var fileName = string.IsNullOrWhiteSpace(effectiveFileOriginalName)
                     ? Path.GetFileName(fullPath)
                     : effectiveFileOriginalName;
-
-                Console.WriteLine($"[PROCESSOR] Opening file: {fullPath} | Relative: {effectiveFilePath} | Exists: {System.IO.File.Exists(fullPath)}");
 
                 PdfExtractionOutcome outcome;
                 using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -141,6 +143,28 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
                 _notification.LogUploadJobFailure(job, "Invoice upload job crashed", ex.Message, "ERROR");
                 await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
             }
+        }
+
+        private async Task<string> ResolveFilePathAsync(string relativePath)
+        {
+            // Compute the full path the same way FileStorageService.SaveAsync does
+            var normalized = relativePath.Replace("\\", "/").TrimStart('/');
+            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+            var localRelative = normalized.Replace("/", Path.DirectorySeparatorChar.ToString());
+            var directPath = Path.GetFullPath(Path.Combine(webRoot, localRelative));
+
+            if (File.Exists(directPath))
+                return directPath;
+
+            // File not found at the direct path — try a short delay in case of antivirus or FS latency
+            Console.WriteLine($"[PROCESSOR] Direct path not found: {directPath} | Retrying once after 1s...");
+            await Task.Delay(1000);
+
+            if (File.Exists(directPath))
+                return directPath;
+
+            // Final fallback: use FileStorageService's candidate path search
+            return _fileSvc.GetInvoiceFullPath(relativePath);
         }
 
         private static CreateInvoiceRequest BuildInvoiceRequest(long companyId, PdfExtractionResult extracted)

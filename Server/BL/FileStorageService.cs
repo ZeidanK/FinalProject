@@ -43,6 +43,7 @@ namespace FinalProjectAuthAPI.BL
             _webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
             _uploadsRoot = Path.Combine(_webRoot, UploadsFolder, "invoices");
             _excelUploadsRoot = Path.Combine(_webRoot, UploadsFolder, "transactions");
+            Console.WriteLine($"[FileStorageService] WebRoot={_webRoot} ContentRoot={_contentRoot} WebRootPath={env.WebRootPath ?? "null"}");
         }
 
         public async Task<(string RelativePath, string FullPath)> SaveAsync(IFormFile file, long companyId)
@@ -146,6 +147,15 @@ namespace FinalProjectAuthAPI.BL
             if (!normalized.StartsWith("uploads/invoices/", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Invalid file path.");
 
+            // Build the path exactly like SaveAsync does:
+            // _webRoot/uploads/invoices/{companyId}/{uniqueName}
+            var localRelative = normalized.Replace("/", Path.DirectorySeparatorChar.ToString());
+            var directPath = Path.GetFullPath(Path.Combine(_webRoot, localRelative));
+
+            if (File.Exists(directPath))
+                return directPath;
+
+            // Fallback: search across candidate paths (for legacy deployments or migrated files)
             return ResolveStoredFilePath(normalized, "uploads/invoices/", "Invoice file not found on server.");
         }
 
