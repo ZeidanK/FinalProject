@@ -78,6 +78,16 @@ namespace FinalProjectAuthAPI.Controllers
                 : BadRequest(new { message = error });
         }
 
+        // PATCH api/transactions/{id}/requires-invoice
+        [HttpPatch("{id:long}/requires-invoice")]
+        public IActionResult SetRequiresInvoice(long id, [FromBody] SetRequiresInvoiceRequest request)
+        {
+            var ok = _svc.SetRequiresInvoice(id, request.RequiresInvoice);
+            return ok
+                ? Ok(new { message = $"Transaction requires_invoice set to {request.RequiresInvoice}." })
+                : NotFound(new { message = "Transaction not found." });
+        }
+
         // DELETE api/transactions/{id}
         [HttpDelete("{id:long}")]
         public IActionResult Delete(long id)

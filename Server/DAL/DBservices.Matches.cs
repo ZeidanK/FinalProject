@@ -92,39 +92,6 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<MatchSuggestionRow> GetMatchSuggestionsForInvoice(long invoiceId)
-        {
-            SqlConnection? con    = null;
-            SqlDataReader? reader = null;
-            var list = new List<MatchSuggestionRow>();
-            try
-            {
-                con = Connect();
-                var cmd = CreateCommandWithStoredProcedure(
-                    "FP26_sp_Matches_GetSuggestionsForInvoice", con,
-                    new Dictionary<string, object?> { { "@InvoiceId", invoiceId } });
-
-                reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    list.Add(new MatchSuggestionRow
-                    {
-                        Id               = Convert.ToInt64(reader["id"]),
-                        TransactionDate  = Convert.ToDateTime(reader["transaction_date"]),
-                        Description      = reader["description"]?.ToString()!,
-                        Amount           = Convert.ToDecimal(reader["amount"]),
-                        TransactionType  = reader["transaction_type"]?.ToString()!,
-                        ReferenceNumber  = reader["reference_number"] as string,
-                        AmountDifference = Convert.ToDecimal(reader["amount_difference"]),
-                        MatchScore       = Convert.ToDecimal(reader["match_score"]),
-                        DaysDifference   = Convert.ToInt32(reader["days_difference"])
-                    });
-                }
-                return list;
-            }
-            finally { reader?.Close(); con?.Close(); }
-        }
-
         public List<MatchRow> GetMatchesByInvoice(long invoiceId)
         {
             SqlConnection? con = null;
@@ -199,7 +166,8 @@ namespace FinalProjectAuthAPI.DAL
                         ChargeAmount    = reader["charge_amount"] != DBNull.Value ? Convert.ToDecimal(reader["charge_amount"]) : null,
                         TransactionType = reader["transaction_type"]?.ToString() ?? string.Empty,
                         ReferenceNumber = reader["reference_number"] as string,
-                        VendorName      = reader["vendor_name"] as string
+                        VendorName      = reader["vendor_name"] as string,
+                        RequiresInvoice = reader["requires_invoice"] != DBNull.Value && Convert.ToBoolean(reader["requires_invoice"])
                     });
                 }
                 return list;

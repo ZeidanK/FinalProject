@@ -49,23 +49,35 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
         }
 
         [Fact]
-        public void IsPaymentPlanInvoice_HasInstallmentAmount_ReturnsTrue()
+        public void IsPaymentPlanInvoice_HasInstallmentAmountOnly_ReturnsFalse()
         {
             var invoice = new InvoiceRow
             {
                 Id = 1,
                 PaymentPlanInstallmentAmount = 333.33m
             };
-            Assert.True(TxPoolClassifier.IsPaymentPlanInvoice(invoice));
+            Assert.False(TxPoolClassifier.IsPaymentPlanInvoice(invoice));
         }
 
         [Fact]
-        public void IsPaymentPlanInvoice_HasPaymentPlanDescription_ReturnsTrue()
+        public void IsPaymentPlanInvoice_HasPaymentPlanDescriptionOnly_ReturnsFalse()
         {
             var invoice = new InvoiceRow
             {
                 Id = 1,
                 PaymentPlanDescription = "Monthly payment"
+            };
+            Assert.False(TxPoolClassifier.IsPaymentPlanInvoice(invoice));
+        }
+
+        [Fact]
+        public void IsPaymentPlanInvoice_HasInstallmentsAndAmount_ReturnsTrue()
+        {
+            var invoice = new InvoiceRow
+            {
+                Id = 1,
+                PaymentPlanTotalInstallments = 3,
+                PaymentPlanInstallmentAmount = 333.33m
             };
             Assert.True(TxPoolClassifier.IsPaymentPlanInvoice(invoice));
         }

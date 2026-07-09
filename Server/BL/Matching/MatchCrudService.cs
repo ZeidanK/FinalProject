@@ -68,7 +68,10 @@ namespace FinalProjectAuthAPI.BL.Matching
                         _db.RecordVendorAlias(matchedInvoice.CompanyId, matchedInvoice.VendorName, txn.Description);
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARN] Failed to record vendor alias for invoice #{req.InvoiceId}: {ex.Message}");
+                }
             }
 
             return (true, id, string.Empty);
@@ -88,7 +91,10 @@ namespace FinalProjectAuthAPI.BL.Matching
                         _db.RejectVendorAlias(invoice.CompanyId, match.VendorName, match.TransactionDescription);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] Failed to reject vendor alias for match #{id}: {ex.Message}");
+            }
 
             return _db.DeleteMatch(id);
         }

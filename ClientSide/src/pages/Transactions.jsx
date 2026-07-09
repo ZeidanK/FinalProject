@@ -20,6 +20,7 @@ import {
   Skeleton,
   Snackbar,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -29,6 +30,7 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
@@ -54,6 +56,7 @@ import {
   getTransactionById,
   importExcelTransactions,
   previewExcel,
+  setRequiresInvoice,
 } from '../services/transactions'
 import { getUploadJobStatus } from '../services/uploadJobs'
 import { useTransactionsByCompanyQuery, useCreateTransactionsBulkMutation } from '../hooks/queries/useTransactionsQueries'
@@ -173,6 +176,7 @@ function TransactionsPage() {
 
   // --- Filters ---
   const [typeFilter, setTypeFilter] = useState('all')
+  const [invoiceFilter, setInvoiceFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [sortKey, setSortKey] = useState('date')
   const [sortDirection, setSortDirection] = useState('desc')
@@ -472,7 +476,13 @@ function TransactionsPage() {
 
   // Client-side filtering for type + search
   const filteredTransactions = useMemo(() => {
-    const byType = filterTransactionsByType(transactions, typeFilter)
+    const byInvoiceFilter = transactions.filter((t) => {
+      if (invoiceFilter === 'all') return true
+      if (invoiceFilter === 'required') return t.requiresInvoice !== false
+      if (invoiceFilter === 'not_required') return t.requiresInvoice === false
+      return true
+    })
+    const byType = filterTransactionsByType(byInvoiceFilter, typeFilter)
 
     let filtered = byType
     if (searchTerm.trim()) {
@@ -929,6 +939,26 @@ function TransactionsPage() {
     }
   }, [selectedTransactionIds, token])
 
+  const handleToggleRequiresInvoice = useCallback(async (tx, newValue) => {
+    const id = tx.id ?? tx.transactionId
+    try {
+      await setRequiresInvoice(id, newValue, token)
+      setTransactions((prev) =>
+        prev.map((t) =>
+          (t.id ?? t.transactionId) === id
+            ? { ...t, requiresInvoice: newValue }
+            : t,
+        ),
+      )
+    } catch (err) {
+      setSnack({
+        open: true,
+        message: err.message || 'Failed to update transaction classification.',
+        severity: 'error',
+      })
+    }
+  }, [token])
+
   // ===================== Render =====================
 
   const validCount = parsedRows.filter((r) => r._valid).length
@@ -1022,6 +1052,9 @@ function TransactionsPage() {
                     Type
                   </TableSortLabel>
                 </TableCell>
+                <TableCell align="center" sx={{ width: 100 }}>
+                  Invoice Req.
+                </TableCell>
                 <TableCell
                   sx={{ width: { xs: 140, md: 180 } }}
                   sortDirection={sortKey === 'category' ? sortDirection : false}
@@ -1100,6 +1133,16 @@ function TransactionsPage() {
                         color={typeColors[type] || 'default'}
                         variant="outlined"
                       />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title={tx.requiresInvoice === false ? 'No invoice needed — click to require matching' : 'Requires an invoice — click to mark as no invoice needed'}>
+                        <Switch
+                          size="small"
+                          checked={tx.requiresInvoice !== false}
+                          onChange={(e) => handleToggleRequiresInvoice(tx, e.target.checked)}
+                          disabled={matched}
+                        />
+                      </Tooltip>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
@@ -1564,6 +1607,18 @@ function TransactionsPage() {
                           {formatTransactionTypeLabel(type)}
                         </MenuItem>
                       ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 160 }}>
+                    <InputLabel>Invoice Required</InputLabel>
+                    <Select
+                      value={invoiceFilter}
+                      label="Invoice Required"
+                      onChange={(e) => setInvoiceFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="required">Needs Invoice</MenuItem>
+                      <MenuItem value="not_required">No Invoice Needed</MenuItem>
                     </Select>
                   </FormControl>
                 </Stack>

@@ -27,13 +27,14 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
             var invoice = new InvoiceRow
             {
                 PaymentPlanInstallmentAmount = 250,
+                PaymentPlanTotalInstallments = 12,
                 TotalAmount = 3000
             };
             var txn = new TransactionRow
             {
                 Amount = -255,
                 ChargeAmount = 250,
-                TransactionType = "installment"
+                TransactionType = "תשלומים"
             };
 
             var result = rule.Evaluate(invoice, txn, 0.60);

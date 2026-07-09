@@ -6,7 +6,7 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
 {
     public class RulePipelineEngineTests
     {
-        private readonly RulePipelineEngine _engine = new();
+        private readonly RulePipelineEngine _engine = new(new MockFxRateProvider());
 
         [Fact]
         public void Execute_EmptyInvoices_ReturnsEmptyResult()

@@ -92,6 +92,7 @@ export const URLS = {
     bulkDelete: buildApiPath('/Transactions/bulk'),
     previewExcel: buildApiPath('/Transactions/preview-excel'),
     importExcel: buildApiPath('/Transactions/import-excel'),
+    requiresInvoice: (id) => buildApiPath(`/Transactions/${id}/requires-invoice`),
   },
   matches: {
     base: buildApiPath('/Matches'),

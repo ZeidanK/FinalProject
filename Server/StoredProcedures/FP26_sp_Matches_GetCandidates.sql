@@ -8,8 +8,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT id, transaction_date, posted_date, description, amount, charge_amount,
-           transaction_type, reference_number, vendor_name
+           transaction_type, reference_number, vendor_name, requires_invoice
     FROM dbo.FP26_transactions
-    WHERE company_id = @CompanyId AND is_matched = 0;
+    WHERE company_id = @CompanyId AND is_matched = 0 AND requires_invoice = 1;
 END
 GO

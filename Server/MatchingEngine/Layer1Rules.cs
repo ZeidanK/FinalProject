@@ -2,20 +2,12 @@ using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.MatchingEngine
 {
-    /// <summary>
-    /// Layer 1: Absolute Direct Matches (Confidence: 99.9%)
-    /// </summary>
     public class Rule1_1_ExactMetadataToken : BaseRule
     {
         public override int Layer => 1;
         public override string Name => "Exact Metadata Token (1.1)";
         public override double Confidence => 0.999;
 
-        /// <summary>
-        /// Rule 1.1: transaction.reference_number or transaction.description 
-        /// contains the exact string sequence of invoice.invoice_number 
-        /// (where invoice number length > 3).
-        /// </summary>
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
             if (string.IsNullOrWhiteSpace(invoice.InvoiceNumber) || invoice.InvoiceNumber.Length <= 3)
@@ -23,7 +15,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
             var invNum = invoice.InvoiceNumber.Trim();
 
-            // Check reference_number
             if (!string.IsNullOrWhiteSpace(transaction.ReferenceNumber) &&
                 transaction.ReferenceNumber.IndexOf(invNum, StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -35,7 +26,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
                 };
             }
 
-            // Check description
             if (!string.IsNullOrWhiteSpace(transaction.Description) &&
                 transaction.Description.IndexOf(invNum, StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -51,9 +41,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
         }
     }
 
-    /// <summary>
-    /// Rule 1.2: The Trinity Match — amount AND vendor name AND date all match exactly.
-    /// </summary>
     public class Rule1_2_TrinityMatch : BaseRule
     {
         public override int Layer => 1;
@@ -62,17 +49,16 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
-            // transaction.amount == invoice.total_amount
             if (Math.Abs(Math.Abs(transaction.Amount) - invoice.TotalAmount) > 0.001m)
                 return new RuleEvalResult { Matched = false };
 
-            // clean_text(transaction.vendor_name) == clean_text(invoice.vendor_name)
-            var cleanedTxnVendor = TextLaunderer.CleanText(transaction.VendorName);
-            var cleanedInvVendor = TextLaunderer.CleanText(invoice.VendorName);
-            if (!string.Equals(cleanedTxnVendor, cleanedInvVendor, StringComparison.OrdinalIgnoreCase))
+            var normalizedTxn = VendorNameNormalizer.Normalize(transaction.VendorName);
+            var normalizedInv = VendorNameNormalizer.Normalize(invoice.VendorName);
+            var cleanedTxn = TextLaunderer.CleanText(normalizedTxn);
+            var cleanedInv = TextLaunderer.CleanText(normalizedInv);
+            if (!string.Equals(cleanedTxn, cleanedInv, StringComparison.OrdinalIgnoreCase))
                 return new RuleEvalResult { Matched = false };
 
-            // transaction.transaction_date == invoice.invoice_date
             if (transaction.TransactionDate.Date != invoice.InvoiceDate.Date)
                 return new RuleEvalResult { Matched = false };
 
@@ -85,9 +71,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
         }
     }
 
-    /// <summary>
-    /// Rule 1.3: Tokenized Card Match — card last4 + amount + date window ≤ 3 days.
-    /// </summary>
     public class Rule1_3_TokenizedCardMatch : BaseRule
     {
         public override int Layer => 1;
@@ -96,27 +79,75 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
-            // transaction.card_last4 must not be null
             if (string.IsNullOrWhiteSpace(transaction.CardLast4))
                 return new RuleEvalResult { Matched = false };
 
-            // card_last4 matches invoice.last_four_digits_card
             if (!string.Equals(transaction.CardLast4, invoice.LastFourDigitsCard, StringComparison.OrdinalIgnoreCase))
                 return new RuleEvalResult { Matched = false };
 
-            // transaction.amount == invoice.total_amount
-            if (Math.Abs(Math.Abs(transaction.Amount) - invoice.TotalAmount) > 0.001m)
+            var effectiveAmount = TransactionAmountHelper.GetEffectiveAmount(transaction);
+            if (Math.Abs(effectiveAmount - invoice.TotalAmount) > 0.001m)
                 return new RuleEvalResult { Matched = false };
 
-            // AbsoluteDaysBetween(transaction.transaction_date, invoice.invoice_date) <= 3
             if (AbsoluteDaysBetween(transaction.TransactionDate, invoice.InvoiceDate) > 3)
                 return new RuleEvalResult { Matched = false };
 
             return new RuleEvalResult
             {
                 Matched = true,
-                MatchedAmount = Math.Abs(transaction.Amount),
+                MatchedAmount = effectiveAmount,
                 MatchReason = $"Card last-4 '{transaction.CardLast4}' match with amount and date within 3 days"
+            };
+        }
+    }
+
+    public class Rule1_4_CardAndAmountMatch : BaseRule
+    {
+        public override int Layer => 1;
+        public override string Name => "Card + Amount Match (1.4)";
+        public override double Confidence => 0.99;
+
+        public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
+        {
+            if (string.IsNullOrWhiteSpace(transaction.CardLast4) || string.IsNullOrWhiteSpace(invoice.LastFourDigitsCard))
+                return new RuleEvalResult { Matched = false };
+
+            if (!string.Equals(transaction.CardLast4, invoice.LastFourDigitsCard, StringComparison.OrdinalIgnoreCase))
+                return new RuleEvalResult { Matched = false };
+
+            var effectiveAmount = TransactionAmountHelper.GetEffectiveAmount(transaction);
+            if (Math.Abs(effectiveAmount - invoice.TotalAmount) > 0.001m)
+                return new RuleEvalResult { Matched = false };
+
+            return new RuleEvalResult
+            {
+                Matched = true,
+                MatchedAmount = effectiveAmount,
+                MatchReason = $"Card last-4 '{transaction.CardLast4}' and amount ({effectiveAmount:F2}) match invoice"
+            };
+        }
+    }
+
+    public class Rule1_5_AmountAndVendorFuzzyMatch : BaseRule
+    {
+        public override int Layer => 1;
+        public override string Name => "Amount + Vendor Fuzzy Match (1.5)";
+        public override double Confidence => 0.95;
+
+        public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
+        {
+            var effectiveAmount = TransactionAmountHelper.GetEffectiveAmount(transaction);
+            if (Math.Abs(effectiveAmount - invoice.TotalAmount) > 0.001m)
+                return new RuleEvalResult { Matched = false };
+
+            if (fuzzyScore <= 0.85)
+                return new RuleEvalResult { Matched = false };
+
+            return new RuleEvalResult
+            {
+                Matched = true,
+                MatchedAmount = effectiveAmount,
+                MatchReason = $"Amount ({effectiveAmount:F2}) matches invoice total with vendor similarity={fuzzyScore:P1}"
             };
         }
     }

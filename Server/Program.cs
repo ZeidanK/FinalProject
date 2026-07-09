@@ -62,6 +62,10 @@ var hybridSettings = new HybridExtractionSettings();
 builder.Configuration.GetSection("HybridExtractionSettings").Bind(hybridSettings);
 builder.Services.AddSingleton(hybridSettings);
 
+var classificationSettings = new TransactionClassificationSettings();
+builder.Configuration.GetSection("TransactionClassification").Bind(classificationSettings);
+builder.Services.AddSingleton(classificationSettings);
+
 var hangfireConnectionString = builder.Configuration.GetConnectionString("myProjDB");
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

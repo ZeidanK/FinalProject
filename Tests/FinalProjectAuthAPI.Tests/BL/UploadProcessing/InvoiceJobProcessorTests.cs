@@ -26,9 +26,14 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
             var realtimeMock = new Mock<IRealtimeNotificationService>();
             var activityLogMock = new Mock<IActivityLogService>();
             _mockNotifSvc = new Mock<IUploadJobNotificationService>();
+            var mockEnv = new Mock<IWebHostEnvironment>();
+            mockEnv.Setup(e => e.WebRootPath).Returns("C:\\temp\\wwwroot");
+            mockEnv.Setup(e => e.ContentRootPath).Returns("C:\\temp");
+
             _processor = new InvoiceJobProcessor(
                 _mockJobSvc.Object, _mockFileSvc.Object, _mockPdfSvc.Object,
-                _mockInvoiceSvc.Object, _mockAnomalySvc.Object, _mockNotifSvc.Object);
+                _mockInvoiceSvc.Object, _mockAnomalySvc.Object, _mockNotifSvc.Object,
+                mockEnv.Object);
         }
 
         private static string CreateTempPdf(string fullPath)

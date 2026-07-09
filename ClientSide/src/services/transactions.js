@@ -124,6 +124,24 @@ export async function bulkDeleteTransactions(ids, token) {
  * @param {string} token - JWT token for authorization.
  * @returns {Promise<any>} Unwrapped response payload from the preview endpoint.
  */
+/**
+ * Set whether a transaction requires an invoice match.
+ *
+ * @param {string|number} id - Transaction identifier.
+ * @param {boolean} requiresInvoice - Whether the transaction should expect an invoice.
+ * @param {string} token - JWT token for authorization.
+ * @returns {Promise<any>} Unwrapped response payload.
+ */
+export async function setRequiresInvoice(id, requiresInvoice, token) {
+  const response = await apiRequest(URLS.transactions.requiresInvoice(id), {
+    method: 'PATCH',
+    body: { requiresInvoice },
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
 export async function previewExcel(file, companyId, token) {
   const formData = new FormData()
   formData.append('file', file)

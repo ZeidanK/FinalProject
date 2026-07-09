@@ -1,7 +1,8 @@
 -- ============================================================
 -- Run this script in SSMS against: igroup104_test2
--- Deletes a match AND resets invoice + transaction is_matched flags
--- atomically inside a transaction.
+-- Deletes a match and subtracts matched_amount from invoice.
+-- Only sets is_matched=0 when no remaining matches exist.
+-- Atomic transaction.
 -- ============================================================
 
 IF OBJECT_ID('dbo.FP26_sp_Matches_Delete', 'P') IS NOT NULL
@@ -16,11 +17,11 @@ BEGIN
 
     BEGIN TRANSACTION;
     BEGIN TRY
-        -- Read FKs before deleting
         DECLARE @InvoiceId     BIGINT;
         DECLARE @TransactionId BIGINT;
+        DECLARE @MatchedAmount DECIMAL(15,2);
 
-        SELECT @InvoiceId = invoice_id, @TransactionId = transaction_id
+        SELECT @InvoiceId = invoice_id, @TransactionId = transaction_id, @MatchedAmount = matched_amount
         FROM dbo.FP26_invoice_transaction_matches
         WHERE id = @Id;
 
@@ -34,7 +35,9 @@ BEGIN
         DELETE FROM dbo.FP26_invoice_transaction_matches WHERE id = @Id;
 
         UPDATE dbo.FP26_invoices
-        SET is_matched = 0, status = 'processed', matched_amount = 0, updated_at = GETDATE()
+        SET matched_amount = matched_amount - @MatchedAmount,
+            is_matched = CASE WHEN (SELECT COUNT(*) FROM dbo.FP26_invoice_transaction_matches WHERE invoice_id = @InvoiceId) = 0 THEN 0 ELSE 1 END,
+            updated_at = GETDATE()
         WHERE id = @InvoiceId;
 
         UPDATE dbo.FP26_transactions

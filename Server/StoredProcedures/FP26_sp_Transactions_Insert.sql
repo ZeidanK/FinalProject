@@ -24,7 +24,8 @@ CREATE PROCEDURE dbo.FP26_sp_Transactions_Insert
     @ChargeCurrency    VARCHAR(3)    = NULL,
     @OriginalCurrency  VARCHAR(3)    = NULL,
     @ExchangeRate      DECIMAL(18,8) = NULL,
-    @FileUploadId      BIGINT        = NULL
+    @FileUploadId      BIGINT        = NULL,
+    @RequiresInvoice   BIT           = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -34,14 +35,14 @@ BEGIN
          description, vendor_name, card_last4, amount, transaction_type,
          category, reference_number,
          charge_amount, charge_currency, original_currency, exchange_rate,
-         is_matched, is_anomaly, is_duplicate,
+         requires_invoice, is_matched, is_anomaly, is_duplicate,
          status, created_by_user_id, file_upload_id, created_at, updated_at)
     VALUES
         (@CompanyId, @TransactionDate, @PostedDate,
          @Description, @VendorName, @CardLast4, @Amount, @TransactionType,
          @Category, @ReferenceNumber,
          @ChargeAmount, @ChargeCurrency, @OriginalCurrency, @ExchangeRate,
-         0, 0, 0,
+         ISNULL(@RequiresInvoice, 1), 0, 0, 0,
          'confirmed', @CreatedByUserId, @FileUploadId, GETDATE(), GETDATE());
 
     SELECT SCOPE_IDENTITY() AS id;

@@ -1,5 +1,10 @@
 namespace FinalProjectAuthAPI.MatchingEngine
 {
+    public interface IFxRateProvider
+    {
+        decimal? GetRate(string sourceCurrency, string targetCurrency, DateTime date);
+    }
+
     /// <summary>
     /// Mock FX rate provider that returns realistic exchange rates for common currency pairs.
     /// In production, this would call an external FX API (e.g., OpenExchangeRates, XE, etc.).

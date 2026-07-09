@@ -35,6 +35,8 @@ import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
+import ReceiptIcon from '@mui/icons-material/Receipt'
+import MoneyOffRoundedIcon from '@mui/icons-material/MoneyOffRounded'
 import { motion, AnimatePresence } from 'framer-motion'
 import AnimatedBackground from '../components/AnimatedBackground'
 import RevealOnScroll from '../components/RevealOnScroll'
@@ -581,6 +583,7 @@ function MatchesPage() {
   const [matchedItemsOpen, setMatchedItemsOpen] = useState(true)
   const [quickSuggestionsOpen, setQuickSuggestionsOpen] = useState(true)
   const [installmentSuggestionsOpen, setInstallmentSuggestionsOpen] = useState(true)
+  const [noInvoiceOpen, setNoInvoiceOpen] = useState(false)
 
   // ----- Prevent double auto-match in StrictMode -----
   const autoMatchRanRef = useRef(false)
@@ -882,6 +885,13 @@ function MatchesPage() {
     return transactionDate.includes(q) || vendorName.includes(q) || chargeAmountText.includes(q)
   })
 
+  const invoiceTransactions = filteredTransactions.filter(
+    (t) => t.requiresInvoice !== false,
+  )
+  const noInvoiceTransactions = filteredTransactions.filter(
+    (t) => t.requiresInvoice === false,
+  )
+
   const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId)
   const selectedTransaction = transactions.find((t) => t.id === selectedTransactionId)
 
@@ -1009,7 +1019,7 @@ function MatchesPage() {
           >
             {[
               { label: 'Unmatched Invoices', value: invoices.length, color: '#f59e0b' },
-              { label: 'Unmatched Transactions', value: transactions.length, color: '#f59e0b' },
+              { label: 'Unmatched Transactions', value: invoiceTransactions.length, color: '#f59e0b' },
               { label: 'Total Matches', value: matches.length, color: '#37d67a' },
               {
                 label: 'Total Matched',
@@ -1172,7 +1182,7 @@ function MatchesPage() {
               <SelectionPanel
                 icon={AccountBalanceRoundedIcon}
                 title="Unmatched Transactions"
-                count={filteredTransactions.length}
+                count={invoiceTransactions.length}
                 searchPlaceholder="Search by date, vendor, or amount…"
                 searchValue={transactionSearch}
                 onSearchChange={setTransactionSearch}
@@ -1180,9 +1190,9 @@ function MatchesPage() {
                 emptyMessage={
                   transactionSearch
                     ? 'No transactions match your search.'
-                    : 'All transactions are matched!'
+                    : 'All transactions requiring invoices are matched!'
                 }
-                items={filteredTransactions}
+                items={invoiceTransactions}
                 selectedId={selectedTransactionId}
                 onSelect={setSelectedTransactionId}
                 renderPrimary={(trx) => trx.vendor_name || trx.vendorName || trx.description || '—'}
@@ -1193,6 +1203,65 @@ function MatchesPage() {
             </Grid>
           </Grid>
           </RevealOnScroll>
+
+          {/* ---- No Invoice Expected Section ---- */}
+          {noInvoiceTransactions.length > 0 && (
+            <RevealOnScroll>
+              <Card elevation={0} sx={cardBaseSx}>
+                <CardContent sx={{ p: 0 }}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    onClick={() => setNoInvoiceOpen((prev) => !prev)}
+                    sx={{ p: 2, cursor: 'pointer' }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <MoneyOffRoundedIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                      <Typography variant="subtitle2" fontWeight={600} color="text.secondary">
+                        No Invoice Expected ({noInvoiceTransactions.length})
+                      </Typography>
+                    </Stack>
+                    <IconButton size="small">
+                      {noInvoiceOpen ? <KeyboardArrowUpRoundedIcon /> : <KeyboardArrowDownRoundedIcon />}
+                    </IconButton>
+                  </Stack>
+                  <Collapse in={noInvoiceOpen}>
+                    <Stack spacing={0.5} sx={{ px: 2, pb: 2 }}>
+                      {noInvoiceTransactions.map((trx) => (
+                        <Stack
+                          key={trx.id}
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="space-between"
+                          sx={{
+                            p: 1,
+                            borderRadius: 1.5,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            opacity: 0.7,
+                          }}
+                        >
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" fontWeight={500}>
+                              {trx.vendor_name || trx.vendorName || trx.description || '—'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {fmtDate(trx.transaction_date || trx.transactionDate)} &middot; {fmtAmount(trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? 0)}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            No invoice needed
+                          </Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </Collapse>
+                </CardContent>
+              </Card>
+            </RevealOnScroll>
+          )}
 
           {/* ---- Match Action Bar ---- */}
           {(selectedInvoiceId || selectedTransactionId) && (

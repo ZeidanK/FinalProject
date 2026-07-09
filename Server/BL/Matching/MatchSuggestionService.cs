@@ -32,6 +32,9 @@ namespace FinalProjectAuthAPI.BL.Matching
                     if (string.Equals(txn.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
                         continue;
 
+                    if (!txn.RequiresInvoice)
+                        continue;
+
                     if (txn.TransactionDate.Date == invoice.InvoiceDate.Date &&
                         Math.Abs(txn.Amount) == remaining)
                     {
@@ -61,7 +64,8 @@ namespace FinalProjectAuthAPI.BL.Matching
             var allCandidates = _db.GetCandidateTransactions(companyId);
 
             var installmentTxns = allCandidates
-                .Where(t => string.Equals(t.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
+                .Where(t => string.Equals(t.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase) &&
+                            t.RequiresInvoice)
                 .ToList();
 
             Console.WriteLine($"[DEBUG][תשלומים] Found {installmentTxns.Count} installment transactions for companyId={companyId}");
@@ -173,7 +177,9 @@ namespace FinalProjectAuthAPI.BL.Matching
                 return new List<MatchSuggestionRow>();
 
             var transactionList = _db.GetTransactionsByCompany(
-                invoice.CompanyId, type: null, isMatched: false, startDate: null, endDate: null);
+                invoice.CompanyId, type: null, isMatched: false, startDate: null, endDate: null)
+                .Where(t => t.RequiresInvoice)
+                .ToList();
 
             if (transactionList.Count == 0)
                 return new List<MatchSuggestionRow>();

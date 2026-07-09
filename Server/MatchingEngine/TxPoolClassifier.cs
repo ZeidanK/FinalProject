@@ -1,23 +1,13 @@
-using FinalProjectAuthAPI.Models;
+﻿using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.MatchingEngine
 {
-    /// <summary>
-    /// Centralizes the logic for deciding whether an invoice should be matched
-    /// against installment transactions ("תשלומים") only, or normal transactions only.
-    /// </summary>
     public static class TxPoolClassifier
     {
-        /// <summary>
-        /// Heuristic definition of a "payment-plan" invoice.
-        /// </summary>
         public static bool IsPaymentPlanInvoice(InvoiceRow invoice)
         {
             if (invoice == null) return false;
-
-            return (invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1)
-                || (invoice.PaymentPlanInstallmentAmount.HasValue && invoice.PaymentPlanInstallmentAmount.Value > 0)
-                || !string.IsNullOrWhiteSpace(invoice.PaymentPlanDescription);
+            return invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1;
         }
 
         public static bool IsInstallmentTxn(TransactionRow txn)
@@ -25,9 +15,26 @@ namespace FinalProjectAuthAPI.MatchingEngine
             return txn != null && string.Equals(txn.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Filters transactions to the pool allowed for a given invoice.
-        /// </summary>
+        public static bool IsMonthlyChargeTxn(TransactionRow txn)
+        {
+            return txn != null && string.Equals(txn.TransactionType, "חיוב חודשי", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsImmediateChargeTxn(TransactionRow txn)
+        {
+            return txn != null && string.Equals(txn.TransactionType, "חיוב עסקות מיידי", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsCreditTxn(TransactionRow txn)
+        {
+            return txn != null && string.Equals(txn.TransactionType, "קרדיט", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsRegularTxn(TransactionRow txn)
+        {
+            return txn != null && string.Equals(txn.TransactionType, "רגילה", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static List<TransactionRow> FilterTxnsForInvoice(
             InvoiceRow invoice,
             List<TransactionRow> candidateTransactions)
@@ -42,4 +49,3 @@ namespace FinalProjectAuthAPI.MatchingEngine
         }
     }
 }
-

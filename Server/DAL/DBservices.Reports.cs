@@ -35,6 +35,7 @@ namespace FinalProjectAuthAPI.DAL
                     stats.TotalTransactions = Convert.ToInt32(reader["total_transactions"]);
                     stats.MatchedTransactions = Convert.ToInt32(reader["matched_transactions"]);
                     stats.UnmatchedTransactions = Convert.ToInt32(reader["unmatched_transactions"]);
+                    stats.TransactionsWithoutInvoice = Convert.ToInt32(reader["transactions_without_invoice"]);
                     stats.TotalTransactionVolume = Convert.ToDecimal(reader["total_transaction_volume"]);
                     stats.TotalDebits = Convert.ToDecimal(reader["total_debits"]);
                     stats.TotalCredits = Convert.ToDecimal(reader["total_credits"]);

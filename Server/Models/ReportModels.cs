@@ -23,9 +23,10 @@ namespace FinalProjectAuthAPI.Models
         public decimal TotalInvoiceAmount   { get; set; }
         public decimal AvgInvoiceAmount     { get; set; }
         // Transactions
-        public int     TotalTransactions    { get; set; }
-        public int     MatchedTransactions  { get; set; }
-        public int     UnmatchedTransactions { get; set; }
+        public int     TotalTransactions        { get; set; }
+        public int     MatchedTransactions      { get; set; }
+        public int     UnmatchedTransactions     { get; set; }
+        public int     TransactionsWithoutInvoice { get; set; }
         public decimal TotalTransactionVolume { get; set; }
         public decimal TotalDebits          { get; set; }
         public decimal TotalCredits         { get; set; }

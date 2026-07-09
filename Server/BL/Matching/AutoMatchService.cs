@@ -109,7 +109,10 @@ namespace FinalProjectAuthAPI.BL.Matching
                     invoice.PaymentPlanTotalInstallments.Value > 1;
 
                 if (isInstallmentInvoice && !match.InstallmentNumber.HasValue)
+                {
+                    Console.WriteLine($"[WARN] Installment invoice #{match.InvoiceId} auto-match skipped: missing InstallmentNumber (Rule: {match.RuleName})");
                     continue;
+                }
 
                 var matchReq = RulePipelineEngine.ToCreateMatchRequest(match, userId);
                 var createResult = _crud.Create(matchReq, userId);

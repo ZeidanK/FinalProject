@@ -11,12 +11,14 @@ namespace FinalProjectAuthAPI.BL
     {
         private readonly IDBservices _db;
         private readonly IMatchService? _matchService;
+        private readonly TransactionClassificationSettings _classificationSettings;
 
         // Constructor for DI (optional IMatchService to avoid circular dependency issues)
-        public TransactionService(IDBservices db, IMatchService? matchService = null)
+        public TransactionService(IDBservices db, IMatchService? matchService = null, TransactionClassificationSettings? classificationSettings = null)
         {
             _db = db;
             _matchService = matchService;
+            _classificationSettings = classificationSettings ?? new TransactionClassificationSettings();
         }
 
         public List<TransactionRow> GetByCompany(
@@ -25,6 +27,26 @@ namespace FinalProjectAuthAPI.BL
             _db.GetTransactionsByCompany(companyId, type, isMatched, startDate, endDate);
 
         public TransactionRow? GetById(long id) => _db.GetTransactionById(id);
+
+        private bool ShouldRequireInvoice(string? transactionType, string? vendorName, string? description, bool? explicitValue)
+        {
+            if (explicitValue.HasValue)
+                return explicitValue.Value;
+
+            // Check transaction type
+            if (!string.IsNullOrWhiteSpace(transactionType) &&
+                _classificationSettings.NoInvoiceTransactionTypes.Any(t =>
+                    string.Equals(t, transactionType, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            // Check vendor name / description for known non-invoice patterns
+            var textToCheck = $"{vendorName ?? ""} {description ?? ""}";
+            if (_classificationSettings.NoInvoiceVendorPatterns.Any(p =>
+                textToCheck.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))
+                return false;
+
+            return true;
+        }
 
         public (bool Success, long Id, string Error) Create(
             CreateTransactionRequest req, long createdByUserId)
@@ -37,6 +59,7 @@ namespace FinalProjectAuthAPI.BL
             if (req.Amount == 0)
                 return (false, 0, "Amount cannot be zero.");
 
+            var trxType = req.TransactionType ?? "debit";
             var id = _db.CreateTransaction(
                 req.CompanyId, createdByUserId,
                 new TransactionInsertData
@@ -47,8 +70,9 @@ namespace FinalProjectAuthAPI.BL
                     VendorName       = req.VendorName?.Trim(),
                     CardLast4        = req.CardLast4?.Trim(),
                     Amount           = req.Amount,
-                    TransactionType  = req.TransactionType ?? "debit",
+                    TransactionType  = trxType,
                     Category         = req.Category,
+                    RequiresInvoice  = ShouldRequireInvoice(trxType, req.VendorName, req.Description, req.RequiresInvoice),
                     ReferenceNumber  = req.ReferenceNumber,
                     ChargeAmount     = req.ChargeAmount,
                     ChargeCurrency   = req.ChargeCurrency,
@@ -70,25 +94,38 @@ namespace FinalProjectAuthAPI.BL
             if (req.Transactions == null || req.Transactions.Count == 0)
                 return (false, new List<long>(), "No transactions provided.");
 
-            var rows = req.Transactions.Select(t => new TransactionInsertData
+            var rows = req.Transactions.Select(t =>
             {
-                TransactionDate  = t.TransactionDate,
-                PostedDate       = t.PostedDate,
-                Description      = t.Description ?? string.Empty,
-                VendorName       = t.VendorName,
-                CardLast4        = t.CardLast4,
-                Amount           = t.Amount,
-                TransactionType  = t.TransactionType ?? "debit",
-                Category         = t.Category,
-                ReferenceNumber  = t.ReferenceNumber,
-                ChargeAmount     = t.ChargeAmount,
-                ChargeCurrency   = t.ChargeCurrency,
-                OriginalCurrency = t.OriginalCurrency,
-                ExchangeRate     = t.ExchangeRate
+                var trxType = t.TransactionType ?? "debit";
+                return new TransactionInsertData
+                {
+                    TransactionDate  = t.TransactionDate,
+                    PostedDate       = t.PostedDate,
+                    Description      = t.Description ?? string.Empty,
+                    VendorName       = t.VendorName,
+                    CardLast4        = t.CardLast4,
+                    Amount           = t.Amount,
+                    TransactionType  = trxType,
+                    Category         = t.Category,
+                    RequiresInvoice  = ShouldRequireInvoice(trxType, t.VendorName, t.Description, t.RequiresInvoice),
+                    ReferenceNumber  = t.ReferenceNumber,
+                    ChargeAmount     = t.ChargeAmount,
+                    ChargeCurrency   = t.ChargeCurrency,
+                    OriginalCurrency = t.OriginalCurrency,
+                    ExchangeRate     = t.ExchangeRate
+                };
             });
 
             var ids = _db.BulkCreateTransactions(req.CompanyId, createdByUserId, rows, req.FileUploadId);
             return (true, ids, string.Empty);
+        }
+
+        public bool SetRequiresInvoice(long id, bool requiresInvoice)
+        {
+            if (id <= 0)
+                return false;
+
+            return _db.SetTransactionRequiresInvoice(id, requiresInvoice);
         }
 
         public bool Delete(long id)

@@ -25,6 +25,7 @@ CREATE TABLE dbo.FP26_transactions
     charge_currency      VARCHAR(3)          NULL,   -- currency of charge (ISO 4217)
     original_currency    VARCHAR(3)          NULL,   -- ISO 4217
     exchange_rate        DECIMAL(18,8)       NULL,
+    requires_invoice     BIT             NOT NULL DEFAULT 1,
     is_matched           BIT             NOT NULL DEFAULT 0,
     is_anomaly           BIT             NOT NULL DEFAULT 0,
     is_duplicate         BIT             NOT NULL DEFAULT 0,

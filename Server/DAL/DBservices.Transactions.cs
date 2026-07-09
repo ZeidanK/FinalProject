@@ -80,7 +80,8 @@ namespace FinalProjectAuthAPI.DAL
                         { "@ChargeCurrency",   data.ChargeCurrency  },
                         { "@OriginalCurrency", data.OriginalCurrency },
                         { "@ExchangeRate",     data.ExchangeRate    },
-                        { "@FileUploadId",     data.FileUploadId    }
+                        { "@FileUploadId",     data.FileUploadId    },
+                    { "@RequiresInvoice",  data.RequiresInvoice }
                     });
 
                 var result = cmd.ExecuteScalar();
@@ -129,6 +130,7 @@ namespace FinalProjectAuthAPI.DAL
                     cmd.Parameters.AddWithValue("@OriginalCurrency", (object?)row.OriginalCurrency  ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@ExchangeRate",     (object?)row.ExchangeRate      ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@FileUploadId",     (object?)(fileUploadId ?? row.FileUploadId) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@RequiresInvoice", row.RequiresInvoice);
 
                     var result = cmd.ExecuteScalar();
                     ids.Add(result != null ? Convert.ToInt64(result) : 0);
@@ -195,6 +197,7 @@ namespace FinalProjectAuthAPI.DAL
             ChargeCurrency   = r.GetStringOrNull("charge_currency"),
             OriginalCurrency = r.GetStringOrNull("original_currency"),
             ExchangeRate     = r.GetDecimalOrNull("exchange_rate"),
+            RequiresInvoice  = r.GetBoolOrDefault("requires_invoice", true),
             IsMatched        = r.GetBoolOrDefault("is_matched",  false),
             IsAnomaly        = r.GetBoolOrDefault("is_anomaly",  false),
             IsDuplicate      = r.GetBoolOrDefault("is_duplicate", false),
@@ -205,6 +208,24 @@ namespace FinalProjectAuthAPI.DAL
             CreatedAt        = Convert.ToDateTime(r["created_at"]),
             UpdatedAt        = Convert.ToDateTime(r["updated_at"]),
         };
+
+        public virtual bool SetTransactionRequiresInvoice(long id, bool requiresInvoice)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Transactions_SetRequiresInvoice", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@Id", id },
+                        { "@RequiresInvoice", requiresInvoice }
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
 
         public virtual int CountTransactionsByFileUploadId(long fileUploadId)
         {

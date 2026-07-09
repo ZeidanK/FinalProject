@@ -45,6 +45,7 @@ namespace FinalProjectAuthAPI.DAL
         (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteTransactions(IEnumerable<long> ids);
         int CountTransactionsByFileUploadId(long fileUploadId);
         List<TransactionRow> GetTransactionsByFileUploadIds(List<long> fileUploadIds);
+        bool SetTransactionRequiresInvoice(long id, bool requiresInvoice);
 
         List<InvoiceRow> GetInvoicesByCompany(long companyId, string? status, DateTime? startDate, DateTime? endDate, bool? isMatched);
         InvoiceRow? GetInvoiceById(long id);
@@ -87,7 +88,6 @@ namespace FinalProjectAuthAPI.DAL
         MatchRow? GetMatchById(long id);
         long CreateMatch(long invoiceId, long transactionId, decimal matchedAmount, string matchMethod, long? matchedByUserId, string matchType, decimal? matchConfidence, string? matchReason, int? installmentNumber = null, string? installmentNote = null);
         bool DeleteMatch(long id);
-        List<MatchSuggestionRow> GetMatchSuggestionsForInvoice(long invoiceId);
         List<MatchRow> GetMatchesByInvoice(long invoiceId);
         List<TransactionCandidate> GetCandidateTransactions(long companyId);
         List<VendorAlias> GetVendorAliases(long companyId);

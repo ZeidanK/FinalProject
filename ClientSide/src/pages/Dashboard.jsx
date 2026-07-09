@@ -265,7 +265,7 @@ function DashboardPage() {
                 <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
                   <Stack spacing={2}>
                     <Typography variant="h6">Continue where you left off</Typography>
-                    {stats && (stats.processingInvoices > 0 || stats.unmatchedTransactions > 0 || stats.openAnomalies > 0) ? (
+                    {stats && (stats.processingInvoices > 0 || stats.unmatchedTransactions > 0 || stats.transactionsWithoutInvoice > 0 || stats.openAnomalies > 0) ? (
                       <GlassCard variant="default" sx={{ borderRadius: 2.5, border: '1px solid rgba(125, 211, 252, 0.25)' }}>
                         <CardContent>
                           <Stack spacing={1}>
@@ -277,6 +277,11 @@ function DashboardPage() {
                             {stats.unmatchedTransactions > 0 && (
                               <Typography variant="body2" color="text.secondary">
                                 {stats.unmatchedTransactions} transaction{stats.unmatchedTransactions === 1 ? '' : 's'} awaiting match review
+                              </Typography>
+                            )}
+                            {stats.transactionsWithoutInvoice > 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                {stats.transactionsWithoutInvoice} transaction{stats.transactionsWithoutInvoice === 1 ? '' : 's'} without invoices
                               </Typography>
                             )}
                             {stats.openAnomalies > 0 && (

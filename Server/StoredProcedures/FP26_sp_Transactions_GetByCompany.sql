@@ -32,6 +32,7 @@ BEGIN
         t.charge_currency,
         t.original_currency,
         t.exchange_rate,
+        t.requires_invoice,
         t.is_matched,
         t.is_anomaly,
         t.is_duplicate,

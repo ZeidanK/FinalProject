@@ -52,6 +52,8 @@ namespace FinalProjectAuthAPI.Models
         public long? CreatedByUserId { get; set; }
 
         public long? FileUploadId { get; set; }
+
+        public bool? RequiresInvoice { get; set; }
     }
 
     public class BulkCreateTransactionsRequest
@@ -93,6 +95,7 @@ namespace FinalProjectAuthAPI.Models
         public string?   OriginalCurrency  { get; set; }
         public decimal?  ExchangeRate      { get; set; }
         public decimal?  BalanceAfter      { get; set; }
+        public bool?     RequiresInvoice   { get; set; }
         public string    SheetName         { get; set; } = string.Empty;
         public int       RowNumber         { get; set; }
     }
@@ -121,6 +124,11 @@ namespace FinalProjectAuthAPI.Models
         public string FilePath { get; set; } = string.Empty;
         public ExcelExtractionResult ExtractionResult { get; set; } = new();
         public List<long>? CreatedTransactionIds { get; set; }
+    }
+
+    public class SetRequiresInvoiceRequest
+    {
+        public bool RequiresInvoice { get; set; }
     }
 
     public class ImportExcelRequest
@@ -157,6 +165,8 @@ namespace FinalProjectAuthAPI.Models
         public decimal?  ExchangeRate     { get; init; }
 
         public long? FileUploadId { get; init; }
+
+        public bool RequiresInvoice { get; init; } = true;
     }
 
     // ── Transaction row ───────────────────────────────────────────────────────
@@ -178,6 +188,7 @@ namespace FinalProjectAuthAPI.Models
         public string?   ChargeCurrency      { get; set; }   // currency of charge
         public string?   OriginalCurrency    { get; set; }
         public decimal?  ExchangeRate        { get; set; }
+        public bool      RequiresInvoice     { get; set; } = true;
         public bool      IsMatched           { get; set; }
         public bool      IsAnomaly           { get; set; }
         public bool      IsDuplicate         { get; set; }

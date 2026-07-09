@@ -11,6 +11,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         (bool Success, List<long> Ids, string Error) BulkCreate(BulkCreateTransactionsRequest req, long createdByUserId);
         bool Delete(long id);
         (List<long> DeletedIds, List<long> NotFoundIds) BulkDelete(List<long> ids);
+        bool SetRequiresInvoice(long id, bool requiresInvoice);
         Task<AutoMatchBatchResult?> AutoMatchBatchAfterImportAsync(long companyId, long userId, decimal minConfidenceThreshold = 70m);
     }
 }

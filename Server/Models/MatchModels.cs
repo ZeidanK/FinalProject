@@ -95,9 +95,10 @@ namespace FinalProjectAuthAPI.Models
 
     public class TransactionCandidate : TransactionMatchBase
     {
-        public string?   VendorName    { get; set; }
-        public decimal?  ChargeAmount  { get; set; }
-        public DateTime? PostedDate    { get; set; }
+        public string?   VendorName      { get; set; }
+        public decimal?  ChargeAmount    { get; set; }
+        public DateTime? PostedDate      { get; set; }
+        public bool      RequiresInvoice { get; set; } = true;
     }
 
     public class VendorAlias

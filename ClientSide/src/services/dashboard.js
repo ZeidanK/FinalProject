@@ -86,7 +86,7 @@ export function mapDashboardStatsToKpis(stats) {
     {
       title: 'Pending Matches',
       value: String(toNumber(safeStats.unmatchedTransactions, 0)),
-      subtitle: 'Transactions awaiting review',
+      subtitle: `Transactions awaiting review${safeStats.transactionsWithoutInvoice > 0 ? ` (${safeStats.transactionsWithoutInvoice} without invoices)` : ''}`,
     },
     {
       title: 'Pending Invoice Matches',
