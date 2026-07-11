@@ -169,6 +169,32 @@ namespace FinalProjectAuthAPI.Models
         public bool RequiresInvoice { get; init; } = true;
     }
 
+    // ── Filter / Pagination Models ────────────────────────────────────────────
+
+    public class TransactionFilterRequest
+    {
+        public string? Type { get; set; }
+        public bool? IsMatched { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? SearchTerm { get; set; }
+        public bool? RequiresInvoice { get; set; }
+        public string? Category { get; set; }
+        public string? SortBy { get; set; } = "transaction_date";
+        public string? SortDirection { get; set; } = "DESC";
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10000;
+    }
+
+    public class PagedResponse<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalCount / Math.Max(PageSize, 1));
+    }
+
     // ── Transaction row ───────────────────────────────────────────────────────
     public class TransactionRow
     {

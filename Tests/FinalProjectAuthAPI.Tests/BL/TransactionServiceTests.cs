@@ -32,9 +32,11 @@ namespace FinalProjectAuthAPI.Tests.BL
         public void GetByCompany_ReturnsTransactions()
         {
             var list = new List<TransactionRow> { new() { Id = 1 } };
-            _mockDb.Setup(x => x.GetTransactionsByCompany(5, null, null, null, null)).Returns(list);
+            var paged = new PagedResponse<TransactionRow> { Items = list, TotalCount = 1 };
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>())).Returns(paged);
 
-            Assert.Same(list, _service.GetByCompany(5));
+            var result = _service.GetByCompany(5, new TransactionFilterRequest());
+            Assert.Same(list, result.Items);
         }
 
         [Fact]

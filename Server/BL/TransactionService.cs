@@ -21,10 +21,9 @@ namespace FinalProjectAuthAPI.BL
             _classificationSettings = classificationSettings ?? new TransactionClassificationSettings();
         }
 
-        public List<TransactionRow> GetByCompany(
-            long companyId, string? type = null, bool? isMatched = null,
-            DateTime? startDate = null, DateTime? endDate = null) =>
-            _db.GetTransactionsByCompany(companyId, type, isMatched, startDate, endDate);
+        public PagedResponse<TransactionRow> GetByCompany(
+            long companyId, TransactionFilterRequest filter) =>
+            _db.GetTransactionsByCompany(companyId, filter);
 
         public TransactionRow? GetById(long id) => _db.GetTransactionById(id);
 

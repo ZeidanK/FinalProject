@@ -93,8 +93,9 @@ namespace FinalProjectAuthAPI.BL.Matching
             var result = new AutoMatchBatchResult();
 
             var invoices = _db.GetUnmatchedInvoicesByCompany(companyId);
-            var transactions = _db.GetTransactionsByCompany(
-                companyId, type: null, isMatched: false, startDate: null, endDate: null);
+            var transactionsResponse = _db.GetTransactionsByCompany(
+                companyId, new TransactionFilterRequest { IsMatched = false, PageSize = 100000 });
+            var transactions = transactionsResponse.Items;
 
             if (invoices.Count == 0 || transactions.Count == 0)
                 return result;

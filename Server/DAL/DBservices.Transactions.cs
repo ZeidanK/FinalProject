@@ -8,13 +8,13 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Transactions ──────────────────────────────────────────────────────
 
-        public virtual List<TransactionRow> GetTransactionsByCompany(
-            long companyId, string? type, bool? isMatched,
-            DateTime? startDate, DateTime? endDate)
+        public virtual PagedResponse<TransactionRow> GetTransactionsByCompany(
+            long companyId, TransactionFilterRequest filter)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
             var list = new List<TransactionRow>();
+            int totalCount = 0;
             try
             {
                 con = Connect();
@@ -22,17 +22,38 @@ namespace FinalProjectAuthAPI.DAL
                     "FP26_sp_Transactions_GetByCompany", con,
                     new Dictionary<string, object?>
                     {
-                        { "@CompanyId",  companyId  },
-                        { "@Type",       type       },
-                        { "@IsMatched",  isMatched  },
-                        { "@StartDate",  startDate  },
-                        { "@EndDate",    endDate    }
+                        { "@CompanyId",       companyId              },
+                        { "@Type",            filter.Type            },
+                        { "@IsMatched",       filter.IsMatched       },
+                        { "@StartDate",       filter.StartDate       },
+                        { "@EndDate",         filter.EndDate         },
+                        { "@PageNumber",      filter.PageNumber      },
+                        { "@PageSize",        filter.PageSize        },
+                        { "@SortBy",          filter.SortBy          },
+                        { "@SortDirection",   filter.SortDirection   },
+                        { "@SearchTerm",      filter.SearchTerm      },
+                        { "@RequiresInvoice", filter.RequiresInvoice },
+                        { "@Category",        filter.Category        },
                     });
 
                 reader = cmd.ExecuteReader();
+
+                // First result set: total count
+                if (reader.Read())
+                    totalCount = Convert.ToInt32(reader[0]);
+
+                // Second result set: data rows
+                reader.NextResult();
                 while (reader.Read())
                     list.Add(MapTransaction(reader));
-                return list;
+
+                return new PagedResponse<TransactionRow>
+                {
+                    Items = list,
+                    TotalCount = totalCount,
+                    PageNumber = filter.PageNumber,
+                    PageSize = filter.PageSize,
+                };
             }
             finally { reader?.Close(); con?.Close(); }
         }

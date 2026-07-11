@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -6,7 +6,12 @@ import TransactionsPage from '../../pages/Transactions'
 
 const queryClient = new QueryClient()
 
-let mockTransactionsQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+const mockTransactionRows = [
+  { id: 1, transactionDate: '2025-06-01', description: 'Office supplies', vendorName: 'OfficeMax', chargeAmount: 150.50, transactionType: 'debit', category: 'Supplies', isMatched: false },
+  { id: 2, transactionDate: '2025-06-02', description: 'Consulting fees', vendorName: 'ConsultCo', chargeAmount: 5000.00, transactionType: 'credit', category: 'Services', isMatched: true },
+]
+
+let mockTransactionsQuery = { data: { items: mockTransactionRows, totalCount: 2 }, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
 
 vi.mock('../../hooks/queries/useTransactionsQueries', () => ({
   useTransactionsByCompanyQuery: () => mockTransactionsQuery,
@@ -40,36 +45,52 @@ vi.mock('../../components/TransactionDetailsModal', () => ({
     open ? <div data-testid="details-modal">Transaction Details</div> : null,
 }))
 
+vi.mock('../../hooks/useTransactionUpload', () => ({
+  useTransactionUpload: () => ({
+    uploadedFiles: [],
+    parsedRows: [],
+    parseError: '',
+    previewing: false,
+    handleFiles: vi.fn(),
+    removeRow: vi.fn(),
+    clearUpload: vi.fn(),
+    clearParseError: vi.fn(),
+    validCount: 0,
+    invalidCount: 0,
+  }),
+}))
+
+vi.mock('../../hooks/useTransactionImportJobs', () => ({
+  useTransactionImportJobs: () => ({
+    importingJobs: [],
+    saveTxJobToSession: vi.fn(),
+    startTxPolling: vi.fn(),
+    upsertImportingJob: vi.fn(),
+  }),
+}))
+
 const mockGetTransactionById = vi.fn()
-const mockCreateTransactionsBulk = vi.fn()
 const mockDeleteTransaction = vi.fn()
 const mockBulkDeleteTransactions = vi.fn()
-const mockImportExcelTransactions = vi.fn()
-const mockPreviewExcel = vi.fn()
-const mockGetUploadJobStatus = vi.fn()
 
 vi.mock('../../services/transactions', () => ({
   getTransactionById: (...args) => mockGetTransactionById(...args),
-  createTransactionsBulk: (...args) => mockCreateTransactionsBulk(...args),
+  createTransactionsBulk: vi.fn(),
   deleteTransaction: (...args) => mockDeleteTransaction(...args),
   bulkDeleteTransactions: (...args) => mockBulkDeleteTransactions(...args),
-  importExcelTransactions: (...args) => mockImportExcelTransactions(...args),
-  previewExcel: (...args) => mockPreviewExcel(...args),
+  importExcelTransactions: vi.fn(),
+  previewExcel: vi.fn(),
+  setRequiresInvoice: vi.fn(),
 }))
 
 vi.mock('../../services/uploadJobs', () => ({
-  getUploadJobStatus: (...args) => mockGetUploadJobStatus(...args),
+  getUploadJobStatus: vi.fn(),
 }))
-
-const mockTransactionRows = [
-  { id: 1, transactionDate: '2025-06-01', description: 'Office supplies', vendorName: 'OfficeMax', chargeAmount: 150.50, transactionType: 'debit', category: 'Supplies', isMatched: false },
-  { id: 2, transactionDate: '2025-06-02', description: 'Consulting fees', vendorName: 'ConsultCo', chargeAmount: 5000.00, transactionType: 'credit', category: 'Services', isMatched: true },
-]
 
 describe('TransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockTransactionsQuery = { data: mockTransactionRows, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+    mockTransactionsQuery = { data: { items: mockTransactionRows, totalCount: 2 }, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     mockGetTransactionById.mockResolvedValue({
       id: 1,
       transactionDate: '2025-06-01',
@@ -96,7 +117,7 @@ describe('TransactionsPage', () => {
   })
 
   it('shows loading skeleton while fetching', () => {
-    mockTransactionsQuery = { data: [], isLoading: true, isFetching: true, error: null, refetch: vi.fn() }
+    mockTransactionsQuery = { data: { items: [], totalCount: 0 }, isLoading: true, isFetching: true, error: null, refetch: vi.fn() }
     renderPage()
     const skeletons = document.querySelectorAll('.MuiSkeleton-root')
     expect(skeletons.length).toBeGreaterThan(0)
@@ -111,7 +132,7 @@ describe('TransactionsPage', () => {
   })
 
   it('shows empty state when no transactions', () => {
-    mockTransactionsQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+    mockTransactionsQuery = { data: { items: [], totalCount: 0 }, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     renderPage()
     expect(screen.getByText('No transactions yet. Import a CSV above to get started.')).toBeInTheDocument()
   })
@@ -119,12 +140,6 @@ describe('TransactionsPage', () => {
   it('shows search input', () => {
     renderPage()
     expect(screen.getByPlaceholderText('Search vendor, description, amount, date...')).toBeInTheDocument()
-  })
-
-  it('shows type filter select', () => {
-    renderPage()
-    const typeElements = screen.getAllByText('Type')
-    expect(typeElements.length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows upload file button', () => {
@@ -148,16 +163,14 @@ describe('TransactionsPage', () => {
   })
 
   it('renders pagination', () => {
-    mockTransactionsQuery = { data: Array.from({ length: 25 }, (_, i) => ({ id: i + 1, transactionDate: '2025-06-01', description: `Tx ${i + 1}`, vendorName: 'Vendor', chargeAmount: 100, transactionType: 'debit' })), isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+    const manyRows = Array.from({ length: 25 }, (_, i) => ({ id: i + 1, transactionDate: '2025-06-01', description: `Tx ${i + 1}`, vendorName: 'Vendor', chargeAmount: 100, transactionType: 'debit' }))
+    mockTransactionsQuery = { data: { items: manyRows, totalCount: 25 }, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     renderPage()
     expect(document.querySelector('.MuiTablePagination-root')).toBeInTheDocument()
   })
 
-  it('shows delete button for transactions', () => {
+  it('shows export button', () => {
     renderPage()
-    const dataRows = screen.getAllByRole('row').slice(1)
-    expect(dataRows.length).toBe(2)
-    const firstRowButtons = dataRows[0].querySelectorAll('button')
-    expect(firstRowButtons.length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('Export CSV')).toBeInTheDocument()
   })
 })

@@ -177,7 +177,8 @@ namespace FinalProjectAuthAPI.BL.Matching
                 return new List<MatchSuggestionRow>();
 
             var transactionList = _db.GetTransactionsByCompany(
-                invoice.CompanyId, type: null, isMatched: false, startDate: null, endDate: null)
+                invoice.CompanyId, new TransactionFilterRequest { IsMatched = false })
+                .Items
                 .Where(t => t.RequiresInvoice)
                 .ToList();
 

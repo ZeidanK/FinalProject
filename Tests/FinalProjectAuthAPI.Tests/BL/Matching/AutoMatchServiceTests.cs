@@ -118,6 +118,8 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
         public async Task AutoMatchBatchAsync_NoInvoices_ReturnsEmpty()
         {
             _mockDb.Setup(x => x.GetUnmatchedInvoicesByCompany(5)).Returns(new List<InvoiceRow>());
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>()))
+                .Returns(new PagedResponse<TransactionRow>());
             var result = await _service.AutoMatchBatchAsync(5, 10);
             Assert.Equal(0, result.SuccessfulMatches);
         }
@@ -129,8 +131,8 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
             {
                 new() { Id = 1, TotalAmount = 100 }
             });
-            _mockDb.Setup(x => x.GetTransactionsByCompany(5, null, false, null, null))
-                .Returns(new List<TransactionRow>());
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>()))
+                .Returns(new PagedResponse<TransactionRow>());
             var result = await _service.AutoMatchBatchAsync(5, 10);
             Assert.Equal(0, result.SuccessfulMatches);
         }
@@ -147,7 +149,8 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
                 new() { Id = 1, Amount = -100, Description = "Payment" }
             };
             _mockDb.Setup(x => x.GetUnmatchedInvoicesByCompany(5)).Returns(invoices);
-            _mockDb.Setup(x => x.GetTransactionsByCompany(5, null, false, null, null)).Returns(transactions);
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>()))
+                .Returns(new PagedResponse<TransactionRow> { Items = transactions, TotalCount = transactions.Count });
 
             var pipelineResult = new PipelineResult();
             pipelineResult.AutoMatches.Add(new MatchResult

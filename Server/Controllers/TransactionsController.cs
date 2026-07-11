@@ -36,15 +36,12 @@ namespace FinalProjectAuthAPI.Controllers
             _db = db;
         }
 
-        // GET api/transactions/company/{companyId}?type=&isMatched=&startDate=&endDate=
+        // GET api/transactions/company/{companyId}?type=&isMatched=&startDate=&endDate=&pageNumber=&pageSize=&sortBy=&sortDirection=&searchTerm=&requiresInvoice=&category=
         [HttpGet("company/{companyId:long}")]
         public IActionResult GetByCompany(
             long companyId,
-            [FromQuery] string? type,
-            [FromQuery] bool? isMatched,
-            [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate) =>
-            Ok(_svc.GetByCompany(companyId, type, isMatched, startDate, endDate));
+            [FromQuery] TransactionFilterRequest filter) =>
+            Ok(_svc.GetByCompany(companyId, filter ?? new TransactionFilterRequest()));
 
         // GET api/transactions/{id}
         [HttpGet("{id:long}")]

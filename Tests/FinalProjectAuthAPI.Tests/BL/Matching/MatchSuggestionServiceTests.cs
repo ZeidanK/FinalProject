@@ -96,8 +96,8 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
         public async Task GetSuggestionsAsync_NoTransactions_ReturnsEmpty()
         {
             _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(new InvoiceRow { Id = 1, CompanyId = 5 });
-            _mockDb.Setup(x => x.GetTransactionsByCompany(5, null, false, null, null))
-                .Returns(new List<TransactionRow>());
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>()))
+                .Returns(new PagedResponse<TransactionRow>());
             var result = await _service.GetSuggestionsAsync(1);
             Assert.Empty(result);
         }
@@ -111,7 +111,8 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
                 new() { Id = 1, Amount = -100, TransactionDate = new System.DateTime(2026, 6, 1), Description = "Payment", TransactionType = "debit" }
             };
             _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
-            _mockDb.Setup(x => x.GetTransactionsByCompany(5, null, false, null, null)).Returns(txns);
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>()))
+                .Returns(new PagedResponse<TransactionRow> { Items = txns, TotalCount = txns.Count });
 
             var pipelineResult = new PipelineResult();
             pipelineResult.AutoMatches.Add(new MatchResult

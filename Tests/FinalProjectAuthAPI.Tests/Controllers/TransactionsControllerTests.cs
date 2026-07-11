@@ -52,10 +52,11 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         [Fact]
         public void GetByCompany_ReturnsOk()
         {
-            _mockSvc.Setup(x => x.GetByCompany(5, null, null, null, null))
-                .Returns(new List<TransactionRow>());
+            var filter = new TransactionFilterRequest();
+            _mockSvc.Setup(x => x.GetByCompany(5, filter))
+                .Returns(new PagedResponse<TransactionRow>());
 
-            var result = _controller.GetByCompany(5, null, null, null, null);
+            var result = _controller.GetByCompany(5, filter);
 
             Assert.IsType<OkObjectResult>(result);
         }

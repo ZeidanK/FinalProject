@@ -37,7 +37,7 @@ namespace FinalProjectAuthAPI.DAL
         bool UpdateBankAccount(long id, string? bankName, string? accountName, string? accountNumberMasked, string? accountType, string? currency, bool? isActive, decimal? balance, DateTime? lastSyncAt);
         bool SoftDeleteBankAccount(long id);
 
-        List<TransactionRow> GetTransactionsByCompany(long companyId, string? type, bool? isMatched, DateTime? startDate, DateTime? endDate);
+        PagedResponse<TransactionRow> GetTransactionsByCompany(long companyId, TransactionFilterRequest filter);
         TransactionRow? GetTransactionById(long id);
         long CreateTransaction(long companyId, long? createdByUserId, TransactionInsertData data);
         List<long> BulkCreateTransactions(long companyId, long? createdByUserId, IEnumerable<TransactionInsertData> rows, long? fileUploadId = null);
