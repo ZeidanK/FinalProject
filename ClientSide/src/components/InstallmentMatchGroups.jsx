@@ -24,55 +24,8 @@ import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded'
 import { itemVariants } from '../utils/motionVariants'
-
-/**
- * Base styling for installment match group cards.
- *
- * @type {import('@mui/material').SxProps}
- */
-const cardBaseSx = {
-  borderRadius: 3.5,
-  border: '1px solid rgba(129, 191, 255, 0.12)',
-  background: 'rgba(14, 24, 45, 0.65)',
-  backdropFilter: 'blur(16px)',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
-}
-
-/**
- * Format a numeric value as a localized decimal amount.
- *
- * @param {number|string} v - Raw amount value.
- * @returns {string} Formatted amount with two decimal places.
- */
-const fmtAmount = (v) =>
-  (Number(v) || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-
-/**
- * Format a date string or timestamp to the current locale's short date.
- *
- * @param {string|number|Date|null|undefined} d - Date input.
- * @returns {string} Localized date or placeholder when missing.
- */
-const fmtDate = (d) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString()
-}
-
-/**
- * Format a date string or timestamp to month and year.
- *
- * @param {string|number|Date|null|undefined} d - Date input.
- * @returns {string|null} Localized month-year string or null when invalid.
- */
-const fmtMonth = (d) => {
-  if (!d) return null
-  const date = new Date(d)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-}
+import { cardBaseSx } from '../utils/sharedStyles'
+import { fmtAmount, fmtDate, fmtMonth } from '../utils/formatters'
 
 // ── Single installment group card ─────────────────────────────────────────
 

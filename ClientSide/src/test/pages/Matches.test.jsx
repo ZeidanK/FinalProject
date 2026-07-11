@@ -203,17 +203,85 @@ describe('MatchesPage', () => {
     expect(screen.getByText(/Failed to load matches/)).toBeInTheDocument()
   })
 
-  it('renders invoice reopen button for unmatched invoices', async () => {
+  it('renders invoice edit button for unmatched invoices', async () => {
     mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
     renderPage()
     await screen.findByText('INV-010')
-    const reopenBtns = screen.getAllByRole('button', { name: /reopen/i })
-    expect(reopenBtns.length).toBeGreaterThanOrEqual(1)
+    const editBtns = screen.getAllByRole('button', { name: /edit/i })
+    expect(editBtns.length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders confidence chips for matches when available', async () => {
     mockMatchesQuery = { ...mockMatchesQuery, data: sampleMatches }
     renderPage()
     expect(await screen.findByText('100%')).toBeInTheDocument()
+  })
+
+  it('shows pagination when many invoices', async () => {
+    const manyInvoices = Array.from({ length: 25 }, (_, i) => ({
+      id: 100 + i,
+      invoice_number: `INV-MANY-${i}`,
+      vendor_name: `Vendor ${i}`,
+      invoice_date: '2025-07-01T10:00:00Z',
+      total_amount: 100 + i,
+    }))
+    mockInvoicesQuery = { ...mockInvoicesQuery, data: manyInvoices }
+    renderPage()
+    expect(await screen.findByLabelText(/unmatched invoices list/i)).toBeInTheDocument()
+    const pagination = document.querySelector('.MuiPagination-root')
+    expect(pagination).toBeInTheDocument()
+  })
+
+  it('supports keyboard navigation on invoice items', async () => {
+    mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
+    renderPage()
+    await screen.findByText('INV-010')
+    const items = screen.getAllByRole('button', { name: /INV-010|INV-011/ })
+    expect(items.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('shows undo button when quick match suggestions are denied', async () => {
+    mockSimpleSuggestionsQuery = { ...mockSimpleSuggestionsQuery, data: sampleSimpleSuggestions }
+    renderPage()
+    expect(await screen.findByText('Quick Match Suggestions')).toBeInTheDocument()
+    const denyBtns = screen.getAllByRole('button', { name: /deny/i })
+    await userEvent.click(denyBtns[0])
+    const undoBtn = await screen.findByRole('button', { name: /undo 1 skipped/i }, { timeout: 2000 })
+    expect(undoBtn).toBeInTheDocument()
+  })
+
+  it('shows match action bar when invoice and transaction selected', async () => {
+    mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: sampleUnmatchedTransactions }
+    renderPage()
+    await screen.findByText('INV-010')
+    const invoiceItem = screen.getByRole('button', { name: /INV-010/ })
+    await userEvent.click(invoiceItem)
+    const transactionItem = screen.getByRole('button', { name: /Vendor Z/ })
+    await userEvent.click(transactionItem)
+    expect(screen.getByRole('button', { name: /create match/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument()
+  })
+
+  it('clears selection when clear button clicked', async () => {
+    mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: sampleUnmatchedTransactions }
+    renderPage()
+    await screen.findByText('INV-010')
+    const invoiceItem = screen.getByRole('button', { name: /INV-010/ })
+    await userEvent.click(invoiceItem)
+    const transactionItem = screen.getByRole('button', { name: /Vendor Z/ })
+    await userEvent.click(transactionItem)
+    await userEvent.click(screen.getByRole('button', { name: /clear/i }))
+    expect(screen.queryByRole('button', { name: /create match/i })).not.toBeInTheDocument()
+  })
+
+  it('shows no-invoice-expected section when transactions have requiresInvoice=false', async () => {
+    const noInvoiceTxns = [
+      { id: 30, vendor_name: 'Internal Transfer', transaction_date: '2025-07-01T10:00:00Z', amount: 1000, requiresInvoice: false },
+    ]
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: noInvoiceTxns }
+    renderPage()
+    expect(await screen.findByText(/No Invoice Expected/i)).toBeInTheDocument()
   })
 })

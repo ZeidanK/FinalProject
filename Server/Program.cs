@@ -142,19 +142,6 @@ else
       });
   });
 
-  // Allow any origin for SignalR during development to avoid negotiate negotiation failures
-  builder.Services.AddCors(options =>
-  {
-      options.AddPolicy("SignalRDev", policy =>
-      {
-          policy.SetIsOriginAllowed(origin => true)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-      });
-  });
-
-
 // JWT Authentication – mirrors the NewsSitePro setup
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = jwtSettings["Key"]!;
@@ -224,7 +211,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
   app.UseCors("AllowFrontend");
-  app.UseCors("SignalRDev");
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseMiddleware<ActivityLoggingMiddleware>();

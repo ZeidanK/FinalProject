@@ -27,8 +27,8 @@ createRoot(document.getElementById('root')).render(
                   <ConfirmProvider>
                     <App />
                   </ConfirmProvider>
-                  <GlobalNotifications />
                 </ErrorBoundary>
+                <GlobalNotifications />
               </RealtimeProvider>
             </NotificationProvider>
           </CompanyProvider>
