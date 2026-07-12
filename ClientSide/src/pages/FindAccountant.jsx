@@ -38,6 +38,7 @@ import {
   getPublicAccountantsPaginated,
   sendAccountantRequest,
   disconnectAccountant,
+  submitAccountantReview,
 } from '../services/accountants'
 import { APP_CONFIG } from '../scripts/config'
 import { accountantKeys } from '../queries/queryKeys'
@@ -52,7 +53,7 @@ const SORT_OPTIONS = [
 ]
 
 export default function FindAccountant() {
-  const { token } = useAuth()
+  const { user, token } = useAuth()
   const { activeCompanyId } = useCompany()
   const { notify } = useNotification()
   const confirm = useConfirm()
@@ -68,6 +69,10 @@ export default function FindAccountant() {
   const [sortBy, setSortBy] = useState('name')
   const [sortDirection, setSortDirection] = useState('ASC')
   const [detailAccountant, setDetailAccountant] = useState(null)
+
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewText, setReviewText] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
 
   const targetAccountantId = useMemo(
     () => Number(searchParams.get('accountantId')) || null,
@@ -119,6 +124,34 @@ export default function FindAccountant() {
       notify({ message: err.message || 'Failed to remove accountant.', severity: 'error' })
     },
   })
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ accountantId, companyId, rating, review }) =>
+      submitAccountantReview(accountantId, companyId, rating, review, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountantKeys.all })
+      notify({ message: 'Review submitted.', severity: 'success' })
+      setReviewRating(0)
+      setReviewText('')
+    },
+    onError: (err) => {
+      notify({ message: err.message || 'Failed to submit review.', severity: 'error' })
+    },
+  })
+
+  const handleSubmitReview = useCallback(() => {
+    if (!detailAccountant || !activeCompanyId || reviewRating < 1) return
+    setSubmittingReview(true)
+    reviewMutation.mutate(
+      {
+        accountantId: detailAccountant.id,
+        companyId: activeCompanyId,
+        rating: reviewRating,
+        review: reviewText.trim() || null,
+      },
+      { onSettled: () => setSubmittingReview(false) },
+    )
+  }, [detailAccountant, activeCompanyId, reviewRating, reviewText, reviewMutation])
 
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value
@@ -180,6 +213,8 @@ export default function FindAccountant() {
 
   const openDetail = useCallback((accountant) => {
     setDetailAccountant(accountant)
+    setReviewRating(0)
+    setReviewText('')
   }, [])
 
   const specialties = useMemo(
@@ -556,6 +591,48 @@ export default function FindAccountant() {
                       <Chip key={c} label={c} size="small" color="success" variant="outlined" />
                     ))}
                   </Stack>
+                </Box>
+              )}
+
+              {['business_owner', 'accountant_business_owner', 'admin'].includes(user?.role) && activeCompanyId && (
+                <Box sx={{ pt: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                    Submit a Review
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1 }}>
+                    <Rating
+                      value={reviewRating}
+                      onChange={(_e, v) => setReviewRating(v || 0)}
+                      size="small"
+                      icon={<StarRoundedIcon sx={{ fontSize: 20 }} />}
+                      emptyIcon={<StarRoundedIcon sx={{ fontSize: 20, opacity: 0.3 }} />}
+                    />
+                    {reviewRating > 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        {reviewRating} / 5
+                      </Typography>
+                    )}
+                  </Stack>
+                  <TextField
+                    placeholder="Write your review (optional)"
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                    size="small"
+                    multiline
+                    minRows={2}
+                    maxRows={4}
+                    fullWidth
+                    sx={{ mb: 1 }}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handleSubmitReview}
+                    disabled={submittingReview || reviewRating < 1}
+                    startIcon={submittingReview ? <CircularProgress size={14} /> : undefined}
+                  >
+                    {submittingReview ? 'Submitting...' : 'Submit Review'}
+                  </Button>
                 </Box>
               )}
 

@@ -47,7 +47,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public virtual bool UpdateUser(long id, string? name, string? phone, string? profilePicture)
+        public virtual bool UpdateUser(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null, string? website = null)
         {
             SqlConnection? con = null;
             try
@@ -57,10 +57,15 @@ namespace FinalProjectAuthAPI.DAL
                     "FP26_sp_Users_Update", con,
                     new Dictionary<string, object?>
                     {
-                        { "@Id",             id             },
-                        { "@Name",           name           },
-                        { "@Phone",          phone          },
-                        { "@ProfilePicture", profilePicture }
+                        { "@Id",                id                },
+                        { "@Name",              name              },
+                        { "@Phone",             phone             },
+                        { "@ProfilePicture",    profilePicture    },
+                        { "@Bio",               (object?)bio ?? DBNull.Value },
+                        { "@YearsOfExperience", (object?)yearsOfExperience ?? DBNull.Value },
+                        { "@HourlyRate",        (object?)hourlyRate ?? DBNull.Value },
+                        { "@Location",          (object?)location ?? DBNull.Value },
+                        { "@Website",           (object?)website ?? DBNull.Value },
                     });
 
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
@@ -217,6 +222,143 @@ namespace FinalProjectAuthAPI.DAL
                 return response;
             }
             finally { reader?.Close(); con?.Close(); }
+        }
+
+        // ── Accountant specialties ─────────────────────────────────────────────
+
+        public virtual bool AddAccountantSpecialty(long userId, string specialty)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantSpecialties_Add", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@Specialty", specialty },
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        public virtual bool RemoveAccountantSpecialty(long userId, string specialty)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantSpecialties_Remove", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@Specialty", specialty },
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        // ── Accountant certifications ──────────────────────────────────────────
+
+        public virtual bool AddAccountantCertification(long userId, string certification)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantCertifications_Add", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@Certification", certification },
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        public virtual bool RemoveAccountantCertification(long userId, string certification)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantCertifications_Remove", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@UserId", userId },
+                        { "@Certification", certification },
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        // ── Accountant reviews ──────────────────────────────────────────────────
+
+        public virtual bool UpsertAccountantReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantReviews_Upsert", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@AccountantUserId", accountantUserId },
+                        { "@CompanyId",        companyId },
+                        { "@Rating",           rating },
+                        { "@Review",           (object?)review ?? DBNull.Value },
+                        { "@CreatedByUserId",  createdByUserId },
+                    });
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
+        // ── Fetch specialties/certifications for a user ────────────────────────
+
+        public virtual List<string> GetAccountantSpecialties(long userId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantSpecialties_GetByUser", con,
+                    new Dictionary<string, object?> { { "@UserId", userId } });
+                var result = new List<string>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                    result.Add(Convert.ToString(reader["specialty"]) ?? "");
+                return result;
+            }
+            finally { con?.Close(); }
+        }
+
+        public virtual List<string> GetAccountantCertifications(long userId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantCertifications_GetByUser", con,
+                    new Dictionary<string, object?> { { "@UserId", userId } });
+                var result = new List<string>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                    result.Add(Convert.ToString(reader["certification"]) ?? "");
+                return result;
+            }
+            finally { con?.Close(); }
         }
 
         // ── Account soft deletion ──────────────────────────────────────────────

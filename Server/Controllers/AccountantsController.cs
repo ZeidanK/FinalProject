@@ -217,5 +217,108 @@ namespace FinalProjectAuthAPI.Controllers
 
             return ok ? Ok(new { message = "Accountant disconnected successfully." }) : BadRequest(new { message = "Failed to disconnect accountant." });
         }
+
+        // GET api/accountants/{id}/specialties
+        // Fetch all specialties for an accountant.
+        [HttpGet("{id:long}/specialties")]
+        public IActionResult GetSpecialties(long id)
+        {
+            if (GetCurrentUserId() != id)
+                return Forbid();
+            return Ok(_svc.GetSpecialties(id));
+        }
+
+        // POST api/accountants/{id}/specialties
+        // Add a specialty to an accountant's profile.
+        [HttpPost("{id:long}/specialties")]
+        public IActionResult AddSpecialty(long id, [FromBody] SpecialtyRequest request)
+        {
+            if (GetCurrentUserId() != id)
+                return Forbid();
+
+            var ok = _svc.AddSpecialty(id, request.Specialty);
+
+            return ok
+                ? Ok(new { message = "Specialty added." })
+                : BadRequest(new { message = "Failed to add specialty." });
+        }
+
+        // DELETE api/accountants/{id}/specialties?specialty={specialty}
+        // Remove a specialty from an accountant's profile.
+        [HttpDelete("{id:long}/specialties")]
+        public IActionResult RemoveSpecialty(long id, [FromQuery] string specialty)
+        {
+            if (GetCurrentUserId() != id)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(specialty))
+                return BadRequest(new { message = "Specialty is required." });
+
+            var ok = _svc.RemoveSpecialty(id, specialty);
+
+            return ok
+                ? Ok(new { message = "Specialty removed." })
+                : BadRequest(new { message = "Failed to remove specialty." });
+        }
+
+        // GET api/accountants/{id}/certifications
+        // Fetch all certifications for an accountant.
+        [HttpGet("{id:long}/certifications")]
+        public IActionResult GetCertifications(long id)
+        {
+            if (GetCurrentUserId() != id)
+                return Forbid();
+            return Ok(_svc.GetCertifications(id));
+        }
+
+        // POST api/accountants/{id}/certifications
+        // Add a certification to an accountant's profile.
+        [HttpPost("{id:long}/certifications")]
+        public IActionResult AddCertification(long id, [FromBody] CertificationRequest request)
+        {
+            if (GetCurrentUserId() != id)
+                return Forbid();
+
+            var ok = _svc.AddCertification(id, request.Certification);
+
+            return ok
+                ? Ok(new { message = "Certification added." })
+                : BadRequest(new { message = "Failed to add certification." });
+        }
+
+        // DELETE api/accountants/{id}/certifications?certification={certification}
+        // Remove a certification from an accountant's profile.
+        [HttpDelete("{id:long}/certifications")]
+        public IActionResult RemoveCertification(long id, [FromQuery] string certification)
+        {
+            if (GetCurrentUserId() != id)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(certification))
+                return BadRequest(new { message = "Certification is required." });
+
+            var ok = _svc.RemoveCertification(id, certification);
+
+            return ok
+                ? Ok(new { message = "Certification removed." })
+                : BadRequest(new { message = "Failed to remove certification." });
+        }
+
+        // POST api/accountants/{id}/reviews
+        // Submit or update a review for an accountant (by a business owner).
+        [HttpPost("{id:long}/reviews")]
+        [Authorize(Roles = "business_owner,accountant_business_owner,admin")]
+        public IActionResult SubmitReview(long id, [FromBody] SubmitReviewRequest request)
+        {
+            if (request.Rating < 1 || request.Rating > 5)
+                return BadRequest(new { message = "Rating must be between 1 and 5." });
+
+            var currentUserId = GetCurrentUserId();
+            var ok = _svc.SubmitReview(id, request.CompanyId, request.Rating, request.Review, currentUserId);
+
+            return ok
+                ? Ok(new { message = "Review submitted." })
+                : BadRequest(new { message = "Failed to submit review." });
+        }
     }
 }

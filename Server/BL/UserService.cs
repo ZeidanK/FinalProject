@@ -21,12 +21,12 @@ namespace FinalProjectAuthAPI.BL
 
         public List<User> GetAll() => _db.GetAllUsers();
 
-        public bool Update(long id, string? name, string? phone, string? profilePicture)
+        public bool Update(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null, string? website = null)
         {
             if (name != null && string.IsNullOrWhiteSpace(name))
                 return false;
 
-            return _db.UpdateUser(id, name?.Trim(), phone?.Trim(), profilePicture);
+            return _db.UpdateUser(id, name?.Trim(), phone?.Trim(), profilePicture, bio, yearsOfExperience, hourlyRate, location, website);
         }
 
         public bool ChangePassword(long id, string currentPassword, string newPassword)

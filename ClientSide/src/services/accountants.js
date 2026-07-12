@@ -113,6 +113,117 @@ export async function respondToRequest(requestId, accept, token) {
   return unwrapEnvelope(response)
 }
 
+/**
+ * Fetch all specialties for an accountant.
+ *
+ * @param {string|number} accountantId
+ * @param {string} token
+ * @returns {Promise<string[]>}
+ */
+export async function getAccountantSpecialties(accountantId, token) {
+  const response = await apiRequest(URLS.accountants.specialties(accountantId), { token })
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Add a specialty to an accountant's profile.
+ *
+ * @param {string|number} accountantId
+ * @param {string} specialty
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function addAccountantSpecialty(accountantId, specialty, token) {
+  const response = await apiRequest(URLS.accountants.specialties(accountantId), {
+    method: 'POST',
+    body: { specialty },
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Remove a specialty from an accountant's profile.
+ *
+ * @param {string|number} accountantId
+ * @param {string} specialty
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function removeAccountantSpecialty(accountantId, specialty, token) {
+  const url = `${URLS.accountants.specialties(accountantId)}?specialty=${encodeURIComponent(specialty)}`
+  const response = await apiRequest(url, {
+    method: 'DELETE',
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Fetch all certifications for an accountant.
+ *
+ * @param {string|number} accountantId
+ * @param {string} token
+ * @returns {Promise<string[]>}
+ */
+export async function getAccountantCertifications(accountantId, token) {
+  const response = await apiRequest(URLS.accountants.certifications(accountantId), { token })
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Add a certification to an accountant's profile.
+ *
+ * @param {string|number} accountantId
+ * @param {string} certification
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function addAccountantCertification(accountantId, certification, token) {
+  const response = await apiRequest(URLS.accountants.certifications(accountantId), {
+    method: 'POST',
+    body: { certification },
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Remove a certification from an accountant's profile.
+ *
+ * @param {string|number} accountantId
+ * @param {string} certification
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function removeAccountantCertification(accountantId, certification, token) {
+  const url = `${URLS.accountants.certifications(accountantId)}?certification=${encodeURIComponent(certification)}`
+  const response = await apiRequest(url, {
+    method: 'DELETE',
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
+/**
+ * Submit or update a review for an accountant.
+ *
+ * @param {string|number} accountantId
+ * @param {string|number} companyId
+ * @param {number} rating - 1-5
+ * @param {string|null} review
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function submitAccountantReview(accountantId, companyId, rating, review, token) {
+  const response = await apiRequest(URLS.accountants.reviews(accountantId), {
+    method: 'POST',
+    body: { companyId, rating, review },
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
 export async function disconnectAccountant(accountantId, companyId, token) {
   const url = `${URLS.accountants.base}/${accountantId}/connection?companyId=${companyId}`
   const response = await apiRequest(url, {

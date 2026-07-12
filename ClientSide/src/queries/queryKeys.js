@@ -78,6 +78,9 @@ export const invoiceKeys = {
 export const accountantKeys = {
   all: ['accountants'],
   list: (query) => [...accountantKeys.all, 'list', query],
+  specialties: (userId) => [...accountantKeys.all, 'specialties', userId],
+  certifications: (userId) => [...accountantKeys.all, 'certifications', userId],
+  reviews: (userId) => [...accountantKeys.all, 'reviews', userId],
 }
 
 /**

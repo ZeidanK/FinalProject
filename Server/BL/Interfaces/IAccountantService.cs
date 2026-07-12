@@ -11,5 +11,13 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         List<CompanyRow> GetActiveCompanies(long accountantId);
         bool RespondToRequest(long requestId, long accountantUserId, bool accept);
         bool DisconnectAccountant(long accountantId, long companyId, long requestedByUserId);
+
+        List<string> GetSpecialties(long userId);
+        bool AddSpecialty(long userId, string specialty);
+        bool RemoveSpecialty(long userId, string specialty);
+        List<string> GetCertifications(long userId);
+        bool AddCertification(long userId, string certification);
+        bool RemoveCertification(long userId, string certification);
+        bool SubmitReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId);
     }
 }

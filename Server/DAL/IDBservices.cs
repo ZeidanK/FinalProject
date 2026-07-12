@@ -10,7 +10,7 @@ namespace FinalProjectAuthAPI.DAL
 
         User? GetUserById(long id);
         List<User> GetAllUsers();
-        bool UpdateUser(long id, string? name, string? phone, string? profilePicture);
+        bool UpdateUser(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null, string? website = null);
         string? GetPasswordHash(long id);
         bool ChangePassword(long id, string newPasswordHash);
         bool UpdateUserVisibility(long userId, bool isPublic);
@@ -31,6 +31,14 @@ namespace FinalProjectAuthAPI.DAL
         List<CompanyRow> GetActiveCompaniesByAccountant(long accountantId);
         bool RespondToAccessRequest(long requestId, long accountantUserId, bool accept);
         bool DisconnectAccountantFromCompany(long accountantUserId, long companyId, long requestedByUserId);
+
+        bool AddAccountantSpecialty(long userId, string specialty);
+        bool RemoveAccountantSpecialty(long userId, string specialty);
+        bool AddAccountantCertification(long userId, string certification);
+        bool RemoveAccountantCertification(long userId, string certification);
+        bool UpsertAccountantReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId);
+        List<string> GetAccountantSpecialties(long userId);
+        List<string> GetAccountantCertifications(long userId);
 
         List<BankAccountRow> GetBankAccountsByCompany(long companyId);
         BankAccountRow? GetBankAccountById(long id);

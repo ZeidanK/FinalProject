@@ -36,5 +36,26 @@ namespace FinalProjectAuthAPI.BL
 
         public bool DisconnectAccountant(long accountantId, long companyId, long requestedByUserId) =>
             _db.DisconnectAccountantFromCompany(accountantId, companyId, requestedByUserId);
+
+        public List<string> GetSpecialties(long userId) =>
+            _db.GetAccountantSpecialties(userId);
+
+        public bool AddSpecialty(long userId, string specialty) =>
+            _db.AddAccountantSpecialty(userId, specialty);
+
+        public bool RemoveSpecialty(long userId, string specialty) =>
+            _db.RemoveAccountantSpecialty(userId, specialty);
+
+        public List<string> GetCertifications(long userId) =>
+            _db.GetAccountantCertifications(userId);
+
+        public bool AddCertification(long userId, string certification) =>
+            _db.AddAccountantCertification(userId, certification);
+
+        public bool RemoveCertification(long userId, string certification) =>
+            _db.RemoveAccountantCertification(userId, certification);
+
+        public bool SubmitReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId) =>
+            _db.UpsertAccountantReview(accountantUserId, companyId, rating, review, createdByUserId);
     }
 }

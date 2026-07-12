@@ -160,5 +160,8 @@ export const URLS = {
     requests: (id) => buildApiPath(`/Accountants/${id}/requests`),
     companies: (id) => buildApiPath(`/Accountants/${id}/companies`),
     respondToRequest: (requestId) => buildApiPath(`/Accountants/requests/${requestId}/respond`),
+    specialties: (id) => buildApiPath(`/Accountants/${id}/specialties`),
+    certifications: (id) => buildApiPath(`/Accountants/${id}/certifications`),
+    reviews: (id) => buildApiPath(`/Accountants/${id}/reviews`),
   },
 }

@@ -30,14 +30,22 @@ const mockCompanies = [
 
 const mockGetUserById = vi.fn()
 const mockUpdateUserVisibility = vi.fn()
+const mockUpdateUser = vi.fn()
 const mockGetAccountantRequests = vi.fn()
 const mockGetAccountantCompanies = vi.fn()
 const mockRespondToRequest = vi.fn()
 const mockDisconnectAccountant = vi.fn()
+const mockGetAccountantSpecialties = vi.fn()
+const mockGetAccountantCertifications = vi.fn()
+const mockAddAccountantSpecialty = vi.fn()
+const mockRemoveAccountantSpecialty = vi.fn()
+const mockAddAccountantCertification = vi.fn()
+const mockRemoveAccountantCertification = vi.fn()
 
 vi.mock('../../services/users', () => ({
   getUserById: (...args) => mockGetUserById(...args),
   updateUserVisibility: (...args) => mockUpdateUserVisibility(...args),
+  updateUser: (...args) => mockUpdateUser(...args),
 }))
 
 vi.mock('../../services/accountants', () => ({
@@ -45,6 +53,12 @@ vi.mock('../../services/accountants', () => ({
   getAccountantCompanies: (...args) => mockGetAccountantCompanies(...args),
   respondToRequest: (...args) => mockRespondToRequest(...args),
   disconnectAccountant: (...args) => mockDisconnectAccountant(...args),
+  getAccountantSpecialties: (...args) => mockGetAccountantSpecialties(...args),
+  getAccountantCertifications: (...args) => mockGetAccountantCertifications(...args),
+  addAccountantSpecialty: (...args) => mockAddAccountantSpecialty(...args),
+  removeAccountantSpecialty: (...args) => mockRemoveAccountantSpecialty(...args),
+  addAccountantCertification: (...args) => mockAddAccountantCertification(...args),
+  removeAccountantCertification: (...args) => mockRemoveAccountantCertification(...args),
 }))
 
 describe('AccountantWorkspace', () => {
@@ -52,9 +66,12 @@ describe('AccountantWorkspace', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetUserById.mockResolvedValue({ isPublic: true })
+    mockGetUserById.mockResolvedValue({ isPublic: true, bio: '', yearsOfExperience: null, hourlyRate: null, location: '', website: '' })
     mockGetAccountantRequests.mockResolvedValue(mockRequests)
     mockGetAccountantCompanies.mockResolvedValue(mockCompanies)
+    mockGetAccountantSpecialties.mockResolvedValue([])
+    mockGetAccountantCertifications.mockResolvedValue([])
+    mockUpdateUser.mockResolvedValue({})
   })
 
   it('renders the page heading', async () => {

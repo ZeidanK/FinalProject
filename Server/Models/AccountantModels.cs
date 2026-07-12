@@ -67,4 +67,38 @@ namespace FinalProjectAuthAPI.Models
     {
         public bool IsPublic { get; set; }
     }
+
+    /// <summary>Request body for adding/removing a specialty.</summary>
+    public class SpecialtyRequest
+    {
+        public string Specialty { get; set; } = string.Empty;
+    }
+
+    /// <summary>Request body for adding/removing a certification.</summary>
+    public class CertificationRequest
+    {
+        public string Certification { get; set; } = string.Empty;
+    }
+
+    /// <summary>Request body for submitting or updating a review.</summary>
+    public class SubmitReviewRequest
+    {
+        public long CompanyId { get; set; }
+        public byte Rating { get; set; }
+        public string? Review { get; set; }
+    }
+
+    /// <summary>Review row returned by the API.</summary>
+    public class ReviewRow
+    {
+        public long Id { get; set; }
+        public long AccountantUserId { get; set; }
+        public long CompanyId { get; set; }
+        public byte Rating { get; set; }
+        public string? Review { get; set; }
+        public long CreatedByUserId { get; set; }
+        public string CreatedByName { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
 }

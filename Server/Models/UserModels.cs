@@ -12,6 +12,18 @@ namespace FinalProjectAuthAPI.Models
 
         [StringLength(500)]
         public string? ProfilePicture { get; set; }
+
+        public string? Bio { get; set; }
+
+        public int? YearsOfExperience { get; set; }
+
+        public decimal? HourlyRate { get; set; }
+
+        [StringLength(255)]
+        public string? Location { get; set; }
+
+        [StringLength(500)]
+        public string? Website { get; set; }
     }
 
     public class ChangePasswordRequest
