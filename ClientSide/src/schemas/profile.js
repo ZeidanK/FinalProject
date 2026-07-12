@@ -7,7 +7,11 @@ import { z } from 'zod'
  */
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(1, 'Name cannot be empty.'),
-  phone: z.string().trim().max(30, 'Phone must be at most 30 characters.').optional().or(z.literal('')),
+  phone: z
+    .string()
+    .trim()
+    .max(30, 'Phone must be at most 30 characters.')
+    .optional(),
 })
 
 /**
@@ -33,5 +37,5 @@ export const passwordChangeSchema = z
  */
 export const companySchema = z.object({
   name: z.string().trim().min(1, 'Company name is required.'),
-  email: z.string().email('Email must contain @').trim().min(1, 'Email is required.'),
+  email: z.string().email('Invalid email address.').trim(),
 })

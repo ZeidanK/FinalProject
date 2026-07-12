@@ -4,7 +4,6 @@ import {
   Avatar,
   Box,
   Button,
-  Card,
   CardContent,
   Chip,
   CircularProgress,
@@ -32,12 +31,14 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import PropTypes from 'prop-types'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import SectionHeader from '../components/SectionHeader'
 import AnimatedBackground from '../components/AnimatedBackground'
+import GlassCard from '../components/GlassCard'
+import CompanyCard from '../components/CompanyCard'
+import CompanyForm from '../components/CompanyForm'
+import { APP_CONFIG } from '../scripts/config'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useConfirm } from '../components/ConfirmContext'
@@ -53,23 +54,12 @@ import {
 } from '../hooks/queries/useProfileQueries'
 import { companySchema, passwordChangeSchema, profileUpdateSchema } from '../schemas/profile'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
-  ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
-  : ''
-
-const cardSx = {
-  borderRadius: 3.5,
-  border: '1px solid rgba(129, 191, 255, 0.12)',
-  background: 'rgba(14, 24, 45, 0.65)',
-  backdropFilter: 'blur(16px)',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+const getProfilePictureUrl = (path) => {
+  if (!path) return undefined
+  return `${APP_CONFIG.apiBaseUrl.replace(/\/api\/?$/, '')}/${path}`
 }
 
-const sectionHeader = (icon, title) => (
-  <SectionHeader icon={icon} title={title} />
-)
-
-const emptyCompanyForm = {
+const createEmptyCompanyForm = () => ({
   name: '',
   registrationNumber: '',
   street: '',
@@ -83,13 +73,13 @@ const emptyCompanyForm = {
   taxId: '',
   vatNumber: '',
   currency: 'USD',
-}
+})
 
-const passwordFieldMeta = {
-  current: { label: 'Current Password', formKey: 'currentPassword' },
-  new: { label: 'New Password', formKey: 'newPassword' },
-  confirm: { label: 'Confirm New Password', formKey: 'confirmPassword' },
-}
+const PASSWORD_FIELDS = [
+  { key: 'current', label: 'Current Password', formKey: 'currentPassword' },
+  { key: 'new', label: 'New Password', formKey: 'newPassword' },
+  { key: 'confirm', label: 'Confirm New Password', formKey: 'confirmPassword' },
+]
 
 /**
  * ProfilePage is the user settings page where profile data, password changes,
@@ -141,7 +131,7 @@ export default function ProfilePage() {
 
   // ── Companies state ────────────────────────────────────────
   const [editingCompanyId, setEditingCompanyId] = useState(null)
-  const [companyForm, setCompanyForm] = useState({ ...emptyCompanyForm })
+  const [companyForm, setCompanyForm] = useState(() => createEmptyCompanyForm())
   const [addingCompany, setAddingCompany] = useState(false)
   const [savingCompany, setSavingCompany] = useState(false)
   const [deletingCompanyId, setDeletingCompanyId] = useState(null)
@@ -207,7 +197,7 @@ export default function ProfilePage() {
 
   const avatarSrc = useMemo(() => {
     if (profilePicPreview) return profilePicPreview
-    if (profile?.profilePicture) return `${API_BASE}/${profile.profilePicture}`
+    if (profile?.profilePicture) return getProfilePictureUrl(profile.profilePicture)
     return undefined
   }, [profilePicPreview, profile?.profilePicture])
 
@@ -357,7 +347,7 @@ export default function ProfilePage() {
   const startAddCompany = () => {
     setEditingCompanyId(null)
     setAddingCompany(true)
-    setCompanyForm({ ...emptyCompanyForm })
+    setCompanyForm(createEmptyCompanyForm())
     setCompanyMsg(null)
   }
 
@@ -460,6 +450,7 @@ export default function ProfilePage() {
         <Box sx={{ mb: 4, textAlign: 'center' }}>
           <Typography
             variant="h4"
+            component="h1"
             fontWeight={800}
             sx={{
               background: 'linear-gradient(135deg, #cde7ff 0%, #58a6ff 100%)',
@@ -481,12 +472,12 @@ export default function ProfilePage() {
         <Grid container spacing={3} sx={{ mb: 3 }}>
           {/* Section A */}
           <Grid size={{ xs: 12, md: 7 }}>
-            <Card elevation={0} sx={{ ...cardSx, height: '100%' }}>
+            <GlassCard sx={{ height: '100%' }} role="region" aria-label="Personal Information">
               <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
-                {sectionHeader(
-                  <EditRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
-                  'Personal Information',
-                )}
+                <SectionHeader
+                  icon={<EditRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="Personal Information"
+                />
 
                 {loadingProfile ? (
                   <Stack spacing={2.5} sx={{ mt: 1 }}>
@@ -534,6 +525,7 @@ export default function ProfilePage() {
                           <IconButton
                             component="label"
                             size="small"
+                            aria-label="Upload profile picture"
                             sx={{
                               position: 'absolute',
                               bottom: -6,
@@ -614,6 +606,7 @@ export default function ProfilePage() {
                             variant="outlined"
                             color="secondary"
                             startIcon={<CloseRoundedIcon />}
+                            aria-label="Cancel editing profile"
                             onClick={() => {
                               setEditingProfile(false)
                               setProfilePicFile(null)
@@ -638,6 +631,7 @@ export default function ProfilePage() {
                             }
                             disabled={savingProfile}
                             onClick={handleSaveProfile}
+                            aria-label="Save profile changes"
                             sx={{ borderRadius: 2 }}
                           >
                             Save Changes
@@ -711,6 +705,7 @@ export default function ProfilePage() {
                             variant="contained"
                             startIcon={<EditRoundedIcon />}
                             onClick={() => setEditingProfile(true)}
+                            aria-label="Edit profile"
                             sx={{ borderRadius: 2, px: 4, py: 1.2, fontWeight: 700 }}
                           >
                             Edit Profile
@@ -721,17 +716,17 @@ export default function ProfilePage() {
                   </>
                 )}
               </CardContent>
-            </Card>
+            </GlassCard>
           </Grid>
 
           {/* Section B */}
           <Grid size={{ xs: 12, md: 5 }}>
-            <Card elevation={0} sx={{ ...cardSx, height: '100%' }}>
+            <GlassCard sx={{ height: '100%' }} role="region" aria-label="Change Password">
               <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
-                {sectionHeader(
-                  <LockResetRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
-                  'Change Password',
-                )}
+                <SectionHeader
+                  icon={<LockResetRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="Change Password"
+                />
 
                 <Collapse in={!!passwordMsg}>
                   {passwordMsg && (
@@ -746,43 +741,41 @@ export default function ProfilePage() {
                 </Collapse>
 
                 <Stack spacing={2.5} sx={{ mt: 1 }}>
-                  {['current', 'new', 'confirm'].map((key) => {
-                    const { label, formKey } = passwordFieldMeta[key]
-                    return (
-                      <Box key={key}>
-                        <TextField
-                          label={label}
-                          type={showPasswords[key] ? 'text' : 'password'}
-                          fullWidth
-                          value={passwordForm[formKey]}
-                          onChange={(e) =>
-                            setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
-                          }
-                          slotProps={{
-                            input: {
-                              endAdornment: (
-                                <IconButton
-                                  size="small"
-                                  onClick={() =>
-                                    setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
-                                  }
-                                  edge="end"
-                                >
-                                  {showPasswords[key] ? (
-                                    <VisibilityOffRoundedIcon fontSize="small" />
-                                  ) : (
-                                    <VisibilityRoundedIcon fontSize="small" />
-                                  )}
-                                </IconButton>
-                              ),
-                            },
-                          }}
-                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
-                        />
-                        {key === 'new' && <PasswordStrengthMeter password={passwordForm.newPassword} />}
-                      </Box>
-                    )
-                  })}
+                  {PASSWORD_FIELDS.map(({ key, label, formKey }) => (
+                    <Box key={key}>
+                      <TextField
+                        label={label}
+                        type={showPasswords[key] ? 'text' : 'password'}
+                        fullWidth
+                        value={passwordForm[formKey]}
+                        onChange={(e) =>
+                          setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
+                        }
+                        slotProps={{
+                          input: {
+                            endAdornment: (
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
+                                }
+                                edge="end"
+                                aria-label={showPasswords[key] ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+                              >
+                                {showPasswords[key] ? (
+                                  <VisibilityOffRoundedIcon fontSize="small" />
+                                ) : (
+                                  <VisibilityRoundedIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            ),
+                          },
+                        }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                      {key === 'new' && <PasswordStrengthMeter password={passwordForm.newPassword} />}
+                    </Box>
+                  ))}
 
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
                     <Button
@@ -839,7 +832,7 @@ export default function ProfilePage() {
                   </Box>
                 </Box>
               </CardContent>
-            </Card>
+            </GlassCard>
           </Grid>
         </Grid>
 
@@ -848,12 +841,12 @@ export default function ProfilePage() {
            ══════════════════════════════════════════════════ */}
         {isBusinessOwner && (
           <Box>
-            <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
+            <GlassCard sx={{ mb: 3 }} role="region" aria-label="My Companies">
               <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
-                {sectionHeader(
-                  <BusinessRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />,
-                  'My Companies',
-                )}
+                <SectionHeader
+                  icon={<BusinessRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="My Companies"
+                />
 
                 <Collapse in={!!companyMsg}>
                   {companyMsg && (
@@ -950,7 +943,7 @@ export default function ProfilePage() {
                   </Stack>
                 )}
               </CardContent>
-            </Card>
+            </GlassCard>
           </Box>
         )}
       </Box>
@@ -1036,307 +1029,3 @@ export default function ProfilePage() {
   )
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Sub-components
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * CompanyCard renders a compact summary view for a company record.
- *
- * @param {object} props
- * @param {object} props.company - Company data object.
- * @param {Function} props.onEdit - Handler for edit action.
- * @param {Function} props.onDelete - Handler for delete action.
- * @param {boolean} props.deleting - Whether the company is currently being deleted.
- * @returns {JSX.Element} Company card markup.
- */
-function CompanyCard({ company, onEdit, onDelete, deleting }) {
-  const c = company
-  return (
-    <Box
-      sx={{
-        p: 2.5,
-        borderRadius: 2.5,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'rgba(14, 22, 40, 0.5)',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          borderColor: 'rgba(88, 166, 255, 0.4)',
-          bgcolor: 'rgba(88, 166, 255, 0.04)',
-          transform: 'translateY(-1px)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        },
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-        <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
-          <Typography fontWeight={700} fontSize="1.05rem">
-            {c.name}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {c.registrationNumber || c.registration_number
-              ? `Reg: ${c.registrationNumber || c.registration_number}`
-              : 'No registration number'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {[c.city, c.state, c.country].filter(Boolean).join(', ') || 'No address'}
-            {c.currency ? <>&nbsp;·&nbsp;{c.currency || 'USD'}</> : ''}
-          </Typography>
-          {(c.email || c.phone) && (
-            <Typography variant="body2" color="text.secondary">
-              {[c.email, c.phone].filter(Boolean).join(' · ')}
-            </Typography>
-          )}
-        </Stack>
-        <Stack direction="row" spacing={0.5} sx={{ ml: 2, flexShrink: 0 }}>
-          <IconButton
-            size="small"
-            onClick={onEdit}
-            sx={{
-              color: 'primary.main',
-              '&:hover': { bgcolor: 'rgba(88, 166, 255, 0.12)' },
-            }}
-          >
-            <EditRoundedIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            color="error"
-            onClick={onDelete}
-            disabled={deleting}
-            sx={{ '&:hover': { bgcolor: 'rgba(255, 82, 82, 0.12)' } }}
-          >
-            {deleting ? <CircularProgress size={16} /> : <DeleteOutlineRoundedIcon fontSize="small" />}
-          </IconButton>
-        </Stack>
-      </Stack>
-    </Box>
-  )
-}
-
-CompanyCard.propTypes = {
-  company: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    name: PropTypes.string,
-    registrationNumber: PropTypes.string,
-    registration_number: PropTypes.string,
-    city: PropTypes.string,
-    state: PropTypes.string,
-    country: PropTypes.string,
-    currency: PropTypes.string,
-    email: PropTypes.string,
-    phone: PropTypes.string,
-  }).isRequired,
-  onEdit: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  deleting: PropTypes.bool,
-}
-
-CompanyCard.defaultProps = {
-  deleting: false,
-}
-
-/**
- * CompanyForm renders the create/edit company input form.
- *
- * @param {object} props
- * @param {object} props.form - Current form field values.
- * @param {Function} props.setForm - Setter for form state.
- * @param {boolean} props.saving - Loading state for the save action.
- * @param {Function} props.onSave - Callback when the save button is clicked.
- * @param {Function} props.onCancel - Callback when the cancel button is clicked.
- * @param {boolean} props.isNew - Whether the form is creating a new company.
- * @returns {JSX.Element} Company form markup.
- */
-function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
-  /**
-   * Create an onChange handler for the company form field.
-   *
-   * @param {string} field - Field key to update.
-   * @returns {Function} Change handler for the field.
-   */
-  const handleChange = (field) => (e) =>
-    setForm((p) => ({ ...p, [field]: e.target.value }))
-
-  return (
-    <Box
-      sx={{
-        p: 2.5,
-        mb: 1.5,
-        borderRadius: 2.5,
-        border: '1px solid',
-        borderColor: 'primary.main',
-        bgcolor: 'rgba(88, 166, 255, 0.04)',
-      }}
-    >
-      <Typography fontWeight={700} sx={{ mb: 2 }}>
-        {isNew ? 'New Company' : 'Edit Company'}
-      </Typography>
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Company Name *"
-            fullWidth
-            value={form.name}
-            onChange={handleChange('name')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Registration Number"
-            fullWidth
-            value={form.registrationNumber}
-            onChange={handleChange('registrationNumber')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Street"
-            fullWidth
-            value={form.street}
-            onChange={handleChange('street')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="City"
-            fullWidth
-            value={form.city}
-            onChange={handleChange('city')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="State"
-            fullWidth
-            value={form.state}
-            onChange={handleChange('state')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="Postal Code"
-            fullWidth
-            value={form.postalCode}
-            onChange={handleChange('postalCode')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="Country"
-            fullWidth
-            value={form.country}
-            onChange={handleChange('country')}
-          />
-        </Grid>
-
-        <Grid size={12}>
-          <Divider sx={{ my: 0.5 }} />
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Email"
-            fullWidth
-            value={form.email}
-            onChange={handleChange('email')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Phone"
-            fullWidth
-            value={form.phone}
-            onChange={handleChange('phone')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Website"
-            fullWidth
-            value={form.website}
-            onChange={handleChange('website')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="Tax ID"
-            fullWidth
-            value={form.taxId}
-            onChange={handleChange('taxId')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="VAT Number"
-            fullWidth
-            value={form.vatNumber}
-            onChange={handleChange('vatNumber')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="Currency"
-            fullWidth
-            value={form.currency}
-            onChange={handleChange('currency')}
-          />
-        </Grid>
-      </Grid>
-
-      <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 2.5 }}>
-        <Button
-          variant="outlined"
-          color="secondary"
-          startIcon={<CloseRoundedIcon />}
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={
-            saving ? (
-              <CircularProgress size={18} color="inherit" />
-            ) : (
-              <SaveRoundedIcon />
-            )
-          }
-          disabled={saving}
-          onClick={onSave}
-        >
-          {isNew ? 'Create Company' : 'Save Changes'}
-        </Button>
-      </Stack>
-    </Box>
-  )
-}
-
-CompanyForm.propTypes = {
-  form: PropTypes.shape({
-    name: PropTypes.string,
-    registrationNumber: PropTypes.string,
-    street: PropTypes.string,
-    city: PropTypes.string,
-    state: PropTypes.string,
-    postalCode: PropTypes.string,
-    country: PropTypes.string,
-    email: PropTypes.string,
-    phone: PropTypes.string,
-    website: PropTypes.string,
-    taxId: PropTypes.string,
-    vatNumber: PropTypes.string,
-    currency: PropTypes.string,
-  }).isRequired,
-  setForm: PropTypes.func.isRequired,
-  saving: PropTypes.bool.isRequired,
-  onSave: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired,
-  isNew: PropTypes.bool,
-}
-
-CompanyForm.defaultProps = {
-  isNew: false,
-}
