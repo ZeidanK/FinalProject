@@ -50,8 +50,7 @@ namespace FinalProjectAuthAPI.Controllers
         private static readonly HashSet<string> ValidRoles = new()
         {
             "business_owner",
-            "accountant",
-            "accountant_business_owner"
+            "accountant"
         };
 
         // POST api/auth/register

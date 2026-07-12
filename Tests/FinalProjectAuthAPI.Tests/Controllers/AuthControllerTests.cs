@@ -77,7 +77,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
                 Name = "John",
                 Email = "john@test.com",
                 Password = "password123",
-                Role = "superadmin"
+                Role = "accountant_business_owner"
             });
 
             Assert.IsType<BadRequestObjectResult>(result);

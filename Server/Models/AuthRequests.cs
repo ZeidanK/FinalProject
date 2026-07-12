@@ -22,7 +22,7 @@ namespace FinalProjectAuthAPI.Models
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
         public string Password { get; set; } = string.Empty;
 
         /// <summary>
@@ -30,7 +30,6 @@ namespace FinalProjectAuthAPI.Models
         ///   business_owner          – can manage their own company
         ///   accountant              – manages client businesses
         ///   admin                   – full system access
-        ///   accountant_business_owner – both roles combined
         /// </summary>
         public string Role { get; set; } = "business_owner";
     }

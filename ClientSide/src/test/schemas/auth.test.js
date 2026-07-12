@@ -63,8 +63,8 @@ describe('registerSchema', () => {
     const result = registerSchema.safeParse({
       name: 'John Doe',
       email: 'john@example.com',
-      password: '12345',
-      confirmPassword: '12345',
+    password: '1234567',
+    confirmPassword: '1234567',
       role: 'business_owner',
     })
     expect(result.success).toBe(false)
@@ -90,7 +90,6 @@ describe('registerSchema', () => {
     }
     expect(registerSchema.safeParse({ ...base, role: 'accountant' }).success).toBe(true)
     expect(registerSchema.safeParse({ ...base, role: 'business_owner' }).success).toBe(true)
-    expect(registerSchema.safeParse({ ...base, role: 'accountant_business_owner' }).success).toBe(true)
   })
 
   it('rejects invalid role', () => {

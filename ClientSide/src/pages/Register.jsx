@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Alert,
   Button,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   IconButton,
   InputAdornment,
@@ -50,11 +52,11 @@ function RegisterPage() {
   const {
     register,
     handleSubmit,
-    setError,
     setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       name: '',
       email: '',
@@ -83,20 +85,12 @@ function RegisterPage() {
       setErrorMessage('You must accept the terms and conditions to register.')
       return
     }
-    const parsed = registerSchema.safeParse(formValues)
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0]
-        if (typeof field === 'string') setError(field, { type: 'manual', message: issue.message })
-      }
-      return
-    }
     try {
       await registerMutation.mutateAsync({
-        name: parsed.data.name,
-        email: parsed.data.email,
-        password: parsed.data.password,
-        role: parsed.data.role,
+        name: formValues.name,
+        email: formValues.email,
+        password: formValues.password,
+        role: formValues.role,
       })
       navigate('/login', {
         replace: true,
@@ -311,7 +305,14 @@ function RegisterPage() {
             disabled={disabled}
             sx={{ boxShadow: '0 14px 36px rgba(76, 151, 255, 0.35)' }}
           >
-            {disabled ? 'Creating account...' : 'Create Account'}
+            {disabled ? (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CircularProgress size={20} color="inherit" />
+                <span>Creating account...</span>
+              </Stack>
+            ) : (
+              'Create Account'
+            )}
           </Button>
         </motion.div>
 
