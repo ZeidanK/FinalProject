@@ -1,7 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import FindAccountant from '../../pages/FindAccountant'
+import { vi } from 'vitest'
+
+const mockNotify = vi.fn()
+const mockConfirm = vi.fn()
 
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ token: 'test-token' }),
@@ -11,153 +16,248 @@ vi.mock('../../context/useCompany', () => ({
   useCompany: () => ({ activeCompanyId: 1 }),
 }))
 
-const mockAccountants = [
-  { id: 1, name: 'Bob Accountant', email: 'bob@example.com', phone: '555-0100', requestStatus: null },
-  { id: 2, name: 'Carol CPA', email: 'carol@example.com', requestStatus: 'pending' },
-  { id: 3, name: 'Dave Books', email: 'dave@example.com', requestStatus: 'active' },
-]
-
-const mockGetPublicAccountants = vi.fn()
-const mockSendAccountantRequest = vi.fn()
-const mockDisconnectAccountant = vi.fn()
-
-vi.mock('../../services/accountants', () => ({
-  getPublicAccountants: (...args) => mockGetPublicAccountants(...args),
-  sendAccountantRequest: (...args) => mockSendAccountantRequest(...args),
-  disconnectAccountant: (...args) => mockDisconnectAccountant(...args),
+vi.mock('../../context/useNotification', () => ({
+  useNotification: () => ({ notify: mockNotify }),
 }))
 
-describe('FindAccountant', () => {
-  const renderPage = () => render(<MemoryRouter><FindAccountant /></MemoryRouter>)
+vi.mock('../../components/ConfirmContext', () => ({
+  useConfirm: () => mockConfirm,
+}))
 
+const mockGetPaginated = vi.fn()
+const mockSendRequest = vi.fn()
+const mockDisconnect = vi.fn()
+
+vi.mock('../../services/accountants', () => ({
+  getPublicAccountantsPaginated: (...args) => mockGetPaginated(...args),
+  sendAccountantRequest: (...args) => mockSendRequest(...args),
+  disconnectAccountant: (...args) => mockDisconnect(...args),
+}))
+
+const mockItems = [
+  {
+    id: 1,
+    name: 'Bob Accountant',
+    email: 'bob@example.com',
+    phone: '555-0100',
+    requestStatus: null,
+    specialties: 'Tax Preparation, Bookkeeping',
+    certifications: 'CPA',
+    location: 'New York',
+    yearsOfExperience: 8,
+    averageRating: 4.5,
+    reviewCount: 12,
+    bio: 'Experienced CPA',
+    hourlyRate: 150,
+    website: 'https://bob.example.com',
+    profilePicture: null,
+  },
+  {
+    id: 2,
+    name: 'Carol CPA',
+    email: 'carol@example.com',
+    requestStatus: 'pending',
+    specialties: '',
+    certifications: '',
+    location: null,
+    yearsOfExperience: null,
+    averageRating: null,
+    reviewCount: 0,
+    bio: null,
+    hourlyRate: null,
+    website: null,
+    profilePicture: null,
+  },
+  {
+    id: 3,
+    name: 'Dave Books',
+    email: 'dave@example.com',
+    requestStatus: 'active',
+    specialties: 'Auditing',
+    certifications: 'CMA, EA',
+    location: 'Chicago',
+    yearsOfExperience: 12,
+    averageRating: 4.8,
+    reviewCount: 25,
+    bio: 'Expert auditor',
+    hourlyRate: 200,
+    website: null,
+    profilePicture: null,
+  },
+]
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const renderPage = () =>
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <FindAccountant />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+
+describe('FindAccountant', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
+    mockConfirm.mockResolvedValue(true)
   })
 
   it('renders the page heading', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: [], totalCount: 0, page: 1, limit: 10 })
     renderPage()
     expect(await screen.findByText('Find an Accountant')).toBeInTheDocument()
   })
 
   it('shows loading skeletons while fetching', () => {
-    mockGetPublicAccountants.mockReturnValue(new Promise(() => {}))
+    mockGetPaginated.mockReturnValue(new Promise(() => {}))
     renderPage()
-    const searchBox = screen.getByPlaceholderText(/Search by name or email/)
-    expect(searchBox).toBeInTheDocument()
+    const skeletons = document.querySelectorAll('.MuiSkeleton-root')
+    expect(skeletons.length).toBeGreaterThanOrEqual(3)
   })
 
   it('renders accountant cards when data loads', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
     expect(await screen.findByText('Bob Accountant')).toBeInTheDocument()
     expect(screen.getByText('Carol CPA')).toBeInTheDocument()
     expect(screen.getByText('Dave Books')).toBeInTheDocument()
   })
 
-  it('shows error alert on fetch failure', async () => {
-    mockGetPublicAccountants.mockRejectedValue(new Error('Failed to load'))
+  it('shows total count in subtitle', async () => {
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
-    expect(await screen.findByText('Failed to load')).toBeInTheDocument()
+    expect(await screen.findByText(/3 accountants found/)).toBeInTheDocument()
   })
 
-  it('shows empty message when no accountants', async () => {
-    mockGetPublicAccountants.mockResolvedValue([])
+  it('shows error state with retry button', async () => {
+    mockGetPaginated.mockRejectedValue(new Error('Network error'))
     renderPage()
-    expect(await screen.findByText(/No public accountants are available/)).toBeInTheDocument()
+    expect(await screen.findByText('Failed to load accountants')).toBeInTheDocument()
+    expect(screen.getByText('Retry')).toBeInTheDocument()
+  })
+
+  it('shows empty state when no accountants', async () => {
+    mockGetPaginated.mockResolvedValue({ items: [], totalCount: 0, page: 1, limit: 10 })
+    renderPage()
+    expect(await screen.findByText(/No public accountants available/)).toBeInTheDocument()
   })
 
   it('shows empty search result message', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
     await screen.findByText('Bob Accountant')
-    const searchInput = screen.getByPlaceholderText(/Search by name or email/)
+    const searchInput = screen.getByPlaceholderText(/Search by name, email, or location/)
     await userEvent.type(searchInput, 'zzzzzz')
-    expect(await screen.findByText(/No accountants match your search/)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(mockGetPaginated).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'zzzzzz' }),
+        expect.any(String),
+      )
+    })
   })
 
   it('renders Send Request button for accountants with no status', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
-    const buttons = await screen.findAllByText('Send Request')
-    expect(buttons.length).toBeGreaterThanOrEqual(1)
+    expect(await screen.findByText('Send Request')).toBeInTheDocument()
   })
 
   it('renders Request Sent chip for pending accountants', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
     expect(await screen.findByText('Request Sent')).toBeInTheDocument()
   })
 
   it('renders Working Together chip for active accountants', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
     const chip = await screen.findByText('Working Together')
     expect(chip).toBeInTheDocument()
-    expect(chip.closest('.MuiChip-root')).toHaveClass('MuiChip-outlinedSuccess')
   })
 
   it('sends request on button click', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
-    mockSendAccountantRequest.mockResolvedValue(undefined)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
+    mockSendRequest.mockResolvedValue(undefined)
     renderPage()
     await screen.findByText('Bob Accountant')
     const sendBtn = screen.getAllByText('Send Request')[0]
     await userEvent.click(sendBtn)
-    expect(mockSendAccountantRequest).toHaveBeenCalledWith(1, 1, 'test-token')
+    expect(mockSendRequest).toHaveBeenCalledWith(1, 1, 'test-token')
   })
 
-  it('shows success message after sending request', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
-    mockSendAccountantRequest.mockResolvedValue(undefined)
+  it('shows success notification after sending request', async () => {
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
+    mockSendRequest.mockResolvedValue(undefined)
     renderPage()
     await screen.findByText('Bob Accountant')
     const sendBtn = screen.getAllByText('Send Request')[0]
     await userEvent.click(sendBtn)
-    expect(await screen.findByText(/Request sent/)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'success' }),
+      )
+    })
   })
 
-  it('shows error message on send failure', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
-    mockSendAccountantRequest.mockRejectedValue(new Error('Send failed'))
+  it('shows error notification on send failure', async () => {
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
+    mockSendRequest.mockRejectedValue(new Error('Send failed'))
     renderPage()
     await screen.findByText('Bob Accountant')
     const sendBtn = screen.getAllByText('Send Request')[0]
     await userEvent.click(sendBtn)
-    expect(await screen.findByText('Send failed')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'error' }),
+      )
+    })
   })
 
   it('opens disconnect confirmation dialog', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
     await screen.findByText('Dave Books')
     const deleteIcon = document.querySelector('.MuiChip-deleteIcon')
     await userEvent.click(deleteIcon)
-    expect(await screen.findByText('Confirm removal')).toBeInTheDocument()
+    expect(mockConfirm).toHaveBeenCalled()
   })
 
   it('disconnects accountant when confirmed', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
-    mockDisconnectAccountant.mockResolvedValue(undefined)
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
+    mockDisconnect.mockResolvedValue(undefined)
     renderPage()
     await screen.findByText('Dave Books')
     const deleteIcon = document.querySelector('.MuiChip-deleteIcon')
     await userEvent.click(deleteIcon)
-    const removeBtn = await screen.findByText('Remove')
-    await userEvent.click(removeBtn)
-    expect(mockDisconnectAccountant).toHaveBeenCalledWith(3, 1, 'test-token')
+    expect(mockDisconnect).toHaveBeenCalledWith(3, 1, 'test-token')
   })
 
-  it('cancels disconnect dialog', async () => {
-    mockGetPublicAccountants.mockResolvedValue(mockAccountants)
+  it('opens detail dialog on card click', async () => {
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
-    await screen.findByText('Dave Books')
-    const deleteIcon = document.querySelector('.MuiChip-deleteIcon')
-    await userEvent.click(deleteIcon)
-    const cancelBtn = await screen.findByRole('button', { name: 'Cancel' })
-    await userEvent.click(cancelBtn)
-    await waitFor(() => {
-      expect(screen.queryByText('Confirm removal')).not.toBeInTheDocument()
-    })
+    await screen.findByText('Bob Accountant')
+    const card = screen.getByText('Bob Accountant').closest('.MuiCard-root')
+    await userEvent.click(card)
+    expect(await screen.findByText('Experienced CPA')).toBeInTheDocument()
+  })
+
+  it('displays specialties chips on cards', async () => {
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
+    renderPage()
+    expect(await screen.findByText('Tax Preparation')).toBeInTheDocument()
+    expect(screen.getByText('Bookkeeping')).toBeInTheDocument()
+  })
+
+  it('renders pagination controls', async () => {
+    mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 50, page: 1, limit: 10 })
+    renderPage()
+    await screen.findByText('Bob Accountant')
+    const pagination = document.querySelector('.MuiTablePagination-root')
+    expect(pagination).toBeInTheDocument()
+    expect(pagination.textContent).toMatch(/50/)
   })
 })

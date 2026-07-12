@@ -159,6 +159,66 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
+        public virtual PagedAccountantsResponse GetPublicAccountantsPaginated(long? companyId, int page, int limit, string? search, string? sortBy, string? sortDirection)
+        {
+            SqlConnection? con    = null;
+            SqlDataReader? reader = null;
+            var response = new PagedAccountantsResponse();
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_GetPublicAccountants_Paginated", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId",     (object?)companyId ?? DBNull.Value },
+                        { "@Page",          page },
+                        { "@Limit",         limit },
+                        { "@Search",        (object?)search ?? DBNull.Value },
+                        { "@SortBy",        sortBy ?? "name" },
+                        { "@SortDirection", sortDirection ?? "ASC" },
+                    });
+                reader = cmd.ExecuteReader();
+
+                // First result set: total count
+                if (reader.Read())
+                {
+                    response.TotalCount = Convert.ToInt32(reader[0]);
+                }
+
+                // Second result set: paginated data
+                if (reader.NextResult())
+                {
+                    while (reader.Read())
+                    {
+                        response.Items.Add(new AccountantInfo
+                        {
+                            Id                = Convert.ToInt64(reader["id"]),
+                            Name              = reader["name"]?.ToString() ?? string.Empty,
+                            Email             = reader["email"]?.ToString() ?? string.Empty,
+                            Phone             = reader["phone"] != DBNull.Value ? reader["phone"]?.ToString() : null,
+                            ProfilePicture    = reader["profile_picture"] != DBNull.Value ? reader["profile_picture"]?.ToString() : null,
+                            RequestStatus     = reader["request_status"] != DBNull.Value ? reader["request_status"]?.ToString() : null,
+                            Bio               = reader["bio"] != DBNull.Value ? reader["bio"]?.ToString() : null,
+                            YearsOfExperience  = reader["years_of_experience"] != DBNull.Value ? Convert.ToInt32(reader["years_of_experience"]) : null,
+                            HourlyRate        = reader["hourly_rate"] != DBNull.Value ? Convert.ToDecimal(reader["hourly_rate"]) : null,
+                            Location          = reader["location"] != DBNull.Value ? reader["location"]?.ToString() : null,
+                            Website           = reader["website"] != DBNull.Value ? reader["website"]?.ToString() : null,
+                            Specialties       = reader["specialties"]?.ToString() ?? string.Empty,
+                            Certifications    = reader["certifications"]?.ToString() ?? string.Empty,
+                            AverageRating     = reader["average_rating"] != DBNull.Value ? Convert.ToDecimal(reader["average_rating"]) : null,
+                            ReviewCount       = reader["review_count"] != DBNull.Value ? Convert.ToInt32(reader["review_count"]) : 0,
+                        });
+                    }
+                }
+
+                response.Page = page;
+                response.Limit = limit;
+                return response;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
         // ── Account soft deletion ──────────────────────────────────────────────
 
         public virtual bool DeleteUserAccount(long userId)

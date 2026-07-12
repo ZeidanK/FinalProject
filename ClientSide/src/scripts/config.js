@@ -27,6 +27,8 @@ const resolveApiBaseUrl = () => {
 
 const API_BASE_URL = normalizeBaseUrl(resolveApiBaseUrl())
 
+const APP_SERVER_BASE = API_BASE_URL.replace(/\/api\/?$/i, '') || '/'
+
 /**
  * Build a full API path using the configured base URL.
  *
@@ -42,6 +44,7 @@ const buildApiPath = (path = '') => `${API_BASE_URL}${path}`
  */
 export const APP_CONFIG = {
   apiBaseUrl: API_BASE_URL,
+  serverBaseUrl: APP_SERVER_BASE,
 }
 
 /**
@@ -152,6 +155,7 @@ export const URLS = {
   },
   accountants: {
     base: buildApiPath('/Accountants'),
+    paginated: buildApiPath('/Accountants/paginated'),
     sendRequest: (id) => buildApiPath(`/Accountants/${id}/request`),
     requests: (id) => buildApiPath(`/Accountants/${id}/requests`),
     companies: (id) => buildApiPath(`/Accountants/${id}/companies`),

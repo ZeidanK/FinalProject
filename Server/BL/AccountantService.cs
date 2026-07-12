@@ -19,6 +19,9 @@ namespace FinalProjectAuthAPI.BL
         public List<AccountantInfo> GetPublicAccountants(long? requestingCompanyId) =>
             _db.GetPublicAccountants(requestingCompanyId);
 
+        public PagedAccountantsResponse GetPublicAccountantsPaginated(long? companyId, int page, int limit, string? search, string? sortBy, string? sortDirection) =>
+            _db.GetPublicAccountantsPaginated(companyId, page, limit, search, sortBy, sortDirection);
+
         public (bool Success, string Error) SendRequest(long accountantId, long companyId, long requestedByUserId) =>
             _db.CreatePendingAccessRequest(accountantId, companyId, requestedByUserId);
 

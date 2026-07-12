@@ -26,6 +26,25 @@ namespace FinalProjectAuthAPI.Controllers
         public IActionResult GetPublic([FromQuery] long? companyId) =>
             Ok(_svc.GetPublicAccountants(companyId));
 
+        // GET api/accountants/paginated?companyId={id}&page=1&limit=20&search=&sortBy=name&sortDirection=ASC
+        // Paginated directory with search, sort, and enriched profile data.
+        [HttpGet("paginated")]
+        public IActionResult GetPublicPaginated(
+            [FromQuery] long? companyId,
+            [FromQuery] int page = 1,
+            [FromQuery] int limit = 20,
+            [FromQuery] string? search = null,
+            [FromQuery] string? sortBy = "name",
+            [FromQuery] string? sortDirection = "ASC")
+        {
+            if (page < 1) page = 1;
+            if (limit < 1) limit = 20;
+            if (limit > 100) limit = 100;
+
+            var result = _svc.GetPublicAccountantsPaginated(companyId, page, limit, search, sortBy, sortDirection);
+            return Ok(result);
+        }
+
         // POST api/accountants/{accountantId}/request
         // Business owner sends a work request to a public accountant.
         [HttpPost("{accountantId:long}/request")]

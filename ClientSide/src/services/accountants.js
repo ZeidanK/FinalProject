@@ -20,6 +20,42 @@ export async function getPublicAccountants(companyId, token) {
 }
 
 /**
+ * Fetch paginated public accountants with search, sort, and enriched profiles.
+ *
+ * @param {object} params
+ * @param {string|number|null} params.companyId
+ * @param {number} [params.page=1]
+ * @param {number} [params.limit=20]
+ * @param {string} [params.search]
+ * @param {string} [params.sortBy='name'] - name, email, experience, rating
+ * @param {string} [params.sortDirection='ASC']
+ * @param {string} token
+ * @returns {Promise<{items: Array, totalCount: number, page: number, limit: number}>}
+ */
+export async function getPublicAccountantsPaginated(params = {}, token) {
+  const {
+    companyId,
+    page = 1,
+    limit = 20,
+    search,
+    sortBy = 'name',
+    sortDirection = 'ASC',
+  } = params
+  const response = await apiRequest(URLS.accountants.paginated, {
+    token,
+    query: {
+      companyId,
+      page,
+      limit,
+      search: search || undefined,
+      sortBy,
+      sortDirection,
+    },
+  })
+  return unwrapEnvelope(response)
+}
+
+/**
  * Send a work request from a company to an accountant.
  *
  * @param {string|number} accountantId - Target accountant user ID.

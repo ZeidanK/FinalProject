@@ -14,6 +14,26 @@ namespace FinalProjectAuthAPI.Models
         /// The access status relative to the requesting company: null, "pending", or "active".
         /// </summary>
         public string? RequestStatus { get; set; }
+        public string? Bio { get; set; }
+        public int? YearsOfExperience { get; set; }
+        public decimal? HourlyRate { get; set; }
+        public string? Location { get; set; }
+        public string? Website { get; set; }
+        public string Specialties { get; set; } = string.Empty;
+        public string Certifications { get; set; } = string.Empty;
+        public decimal? AverageRating { get; set; }
+        public int ReviewCount { get; set; }
+    }
+
+    /// <summary>
+    /// Paginated response wrapper for the accountant directory.
+    /// </summary>
+    public class PagedAccountantsResponse
+    {
+        public List<AccountantInfo> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int Limit { get; set; }
     }
 
     /// <summary>

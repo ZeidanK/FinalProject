@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getPublicAccountants, sendAccountantRequest, getAccountantRequests, getAccountantCompanies, respondToRequest } from '../../services/accountants'
+import { getPublicAccountants, getPublicAccountantsPaginated, sendAccountantRequest, getAccountantRequests, getAccountantCompanies, respondToRequest } from '../../services/accountants'
 
 const originalFetch = globalThis.fetch
 
@@ -36,5 +36,24 @@ describe('accountants service', () => {
   it('respondToRequest sends PATCH', async () => {
     globalThis.fetch.mockResolvedValueOnce({ ok: true, headers: new Headers({ 'content-type': 'application/json' }), json: () => Promise.resolve({ success: true, data: { status: 'active' } }) })
     expect(await respondToRequest(1, true, 'token')).toEqual({ status: 'active' })
+  })
+
+  it('getPublicAccountantsPaginated fetches with defaults', async () => {
+    const pagedResponse = { items: [{ id: 1, name: 'Test' }], totalCount: 1, page: 1, limit: 20 }
+    globalThis.fetch.mockResolvedValueOnce({ ok: true, headers: new Headers({ 'content-type': 'application/json' }), json: () => Promise.resolve(pagedResponse) })
+    const result = await getPublicAccountantsPaginated({}, 'token')
+    expect(result.totalCount).toBe(1)
+    expect(result.items).toHaveLength(1)
+  })
+
+  it('getPublicAccountantsPaginated passes query params', async () => {
+    globalThis.fetch.mockResolvedValueOnce({ ok: true, headers: new Headers({ 'content-type': 'application/json' }), json: () => Promise.resolve({ items: [], totalCount: 0, page: 1, limit: 10 }) })
+    await getPublicAccountantsPaginated({ companyId: 5, page: 2, limit: 10, search: 'bob', sortBy: 'experience', sortDirection: 'DESC' }, 'token')
+    const calledUrl = globalThis.fetch.mock.calls[0][0]
+    expect(calledUrl).toContain('page=2')
+    expect(calledUrl).toContain('limit=10')
+    expect(calledUrl).toContain('search=bob')
+    expect(calledUrl).toContain('sortBy=experience')
+    expect(calledUrl).toContain('sortDirection=DESC')
   })
 })

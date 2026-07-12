@@ -15,6 +15,7 @@ namespace FinalProjectAuthAPI.DAL
         bool ChangePassword(long id, string newPasswordHash);
         bool UpdateUserVisibility(long userId, bool isPublic);
         List<AccountantInfo> GetPublicAccountants(long? requestingCompanyId);
+        PagedAccountantsResponse GetPublicAccountantsPaginated(long? companyId, int page, int limit, string? search, string? sortBy, string? sortDirection);
         bool DeleteUserAccount(long userId);
         bool ReactivateUserAccount(long userId);
 

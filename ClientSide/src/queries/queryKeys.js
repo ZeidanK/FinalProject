@@ -73,6 +73,14 @@ export const invoiceKeys = {
 }
 
 /**
+ * Key factories for accountant directory React Query caches.
+ */
+export const accountantKeys = {
+  all: ['accountants'],
+  list: (query) => [...accountantKeys.all, 'list', query],
+}
+
+/**
  * Key factories for match-related React Query caches.
  *
  * @type {{all: string[], byCompany: function(string|number): Array, suggestions: function(string|number): Array, simpleSuggestions: function(string|number): Array, installmentSuggestions: function(string|number): Array}}

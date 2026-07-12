@@ -205,5 +205,72 @@ namespace FinalProjectAuthAPI.Tests.Controllers
 
             Assert.IsType<BadRequestObjectResult>(result);
         }
+
+        [Fact]
+        public void GetPublicPaginated_DefaultParams_ReturnsOk()
+        {
+            var expected = new PagedAccountantsResponse
+            {
+                TotalCount = 1,
+                Page = 1,
+                Limit = 20,
+                Items = new List<AccountantInfo>
+                {
+                    new() { Id = 1, Name = "Test", Email = "test@test.com" }
+                }
+            };
+            _mockSvc.Setup(x => x.GetPublicAccountantsPaginated(null, 1, 20, null, "name", "ASC"))
+                .Returns(expected);
+
+            var result = _controller.GetPublicPaginated(null, 1, 20, null, "name", "ASC");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var data = Assert.IsType<PagedAccountantsResponse>(okResult.Value);
+            Assert.Equal(1, data.TotalCount);
+            Assert.Equal(1, data.Items.Count);
+        }
+
+        [Fact]
+        public void GetPublicPaginated_WithSearchAndSort_ReturnsOk()
+        {
+            var expected = new PagedAccountantsResponse
+            {
+                TotalCount = 0,
+                Page = 1,
+                Limit = 10,
+                Items = new List<AccountantInfo>()
+            };
+            _mockSvc.Setup(x => x.GetPublicAccountantsPaginated(5, 1, 10, "bob", "experience", "DESC"))
+                .Returns(expected);
+
+            var result = _controller.GetPublicPaginated(5, 1, 10, "bob", "experience", "DESC");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var data = Assert.IsType<PagedAccountantsResponse>(okResult.Value);
+            Assert.Equal(0, data.TotalCount);
+            Assert.Equal(10, data.Limit);
+        }
+
+        [Fact]
+        public void GetPublicPaginated_ClampsPageAndLimit()
+        {
+            var expected = new PagedAccountantsResponse
+            {
+                TotalCount = 0,
+                Page = 1,
+                Limit = 100,
+                Items = new List<AccountantInfo>()
+            };
+            _mockSvc.Setup(x => x.GetPublicAccountantsPaginated(null, 1, 100, null, "name", "ASC"))
+                .Returns(expected);
+
+            // page=0 -> clamped to 1, limit=999 -> clamped to 100
+            var result = _controller.GetPublicPaginated(null, 0, 999, null, "name", "ASC");
+
+            _mockSvc.Verify(x => x.GetPublicAccountantsPaginated(null, 1, 100, null, "name", "ASC"));
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var data = Assert.IsType<PagedAccountantsResponse>(okResult.Value);
+            Assert.Equal(100, data.Limit);
+        }
     }
 }
