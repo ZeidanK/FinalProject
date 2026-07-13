@@ -156,6 +156,7 @@ function InvoicesPage() {
   const [autoVerifyEnabled, setAutoVerifyEnabled] = useState(false)
   const [selectedUploadJobIds, setSelectedUploadJobIds] = useState([])
   const [bulkVerifying, setBulkVerifying] = useState(false)
+  const [bulkRemovingUploads, setBulkRemovingUploads] = useState(false)
   const [uploadQueueCollapsed, setUploadQueueCollapsed] = useState(false)
   const [invoiceListRefreshVersion, setInvoiceListRefreshVersion] = useState(0)
   const bulkVerifyingRef = useRef(false)
@@ -624,7 +625,7 @@ function InvoicesPage() {
     } catch (err) {
       setSnack({ open: true, message: err.message || 'Failed to clear queue.', severity: 'error' })
     }
-  }, [activeCompanyId, token, stopPolling, sessionKey])
+  }, [activeCompanyId, confirm, token, stopPolling, sessionKey, setSnack])
 
   // ===================== Data Fetching =====================
 
@@ -1261,12 +1262,14 @@ function InvoicesPage() {
     () => readyUploadEntries.map((entry) => entry.jobId),
     [readyUploadEntries],
   )
+  const selectedReadyUploadEntries = useMemo(
+    () => readyUploadEntries.filter((entry) => selectedUploadJobIds.includes(entry.jobId)),
+    [readyUploadEntries, selectedUploadJobIds],
+  )
   const allReadyUploadsSelected =
     readyUploadJobIds.length > 0
     && readyUploadJobIds.every((jobId) => selectedUploadJobIds.includes(jobId))
-  const selectedReadyUploadCount = readyUploadJobIds
-    .filter((jobId) => selectedUploadJobIds.includes(jobId))
-    .length
+  const selectedReadyUploadCount = selectedReadyUploadEntries.length
 
   const toggleUploadSelection = useCallback((jobId) => {
     setSelectedUploadJobIds((prev) =>
@@ -1284,9 +1287,7 @@ function InvoicesPage() {
   }, [readyUploadJobIds])
 
   const handleVerifySelectedUploads = useCallback(async () => {
-    const selectedEntries = readyUploadEntries.filter((entry) =>
-      selectedUploadJobIds.includes(entry.jobId),
-    )
+    const selectedEntries = selectedReadyUploadEntries
     if (selectedEntries.length === 0) return
 
     const belowThresholdCount = selectedEntries.filter((entry) => {
@@ -1346,7 +1347,43 @@ function InvoicesPage() {
       bulkVerifyingRef.current = false
       setBulkVerifying(false)
     }
-  }, [readyUploadEntries, selectedUploadJobIds, token, stopPolling, removeJobFromSession, invoicesQuery])
+  }, [selectedReadyUploadEntries, confirm, token, stopPolling, removeJobFromSession, invoicesQuery, setSnack])
+
+  const handleRemoveSelectedUploads = useCallback(async () => {
+    const selectedEntries = selectedReadyUploadEntries
+    if (selectedEntries.length === 0) return
+
+    const confirmed = await confirm(
+      `Remove ${selectedEntries.length} selected invoice(s) from the upload queue? This will delete their upload jobs and files.`,
+    )
+    if (!confirmed) return
+
+    setBulkRemovingUploads(true)
+    try {
+      await Promise.allSettled(
+        selectedEntries.map((entry) => deleteUploadJob(entry.jobId, token)),
+      )
+      const removedJobIds = selectedEntries.map((entry) => entry.jobId)
+
+      removedJobIds.forEach((jobId) => {
+        stopPolling(jobId)
+        removeJobFromSession(jobId)
+      })
+
+      setFiles((prev) => prev.filter((entry) => !removedJobIds.includes(entry.jobId)))
+      setSelectedUploadJobIds((prev) => prev.filter((jobId) => !removedJobIds.includes(jobId)))
+
+      setSnack({
+        open: true,
+        message: `Removed ${removedJobIds.length} invoice(s) from the upload queue.`,
+        severity: 'success',
+      })
+    } catch (err) {
+      setSnack({ open: true, message: err.message || 'Failed to remove selected uploads.', severity: 'error' })
+    } finally {
+      setBulkRemovingUploads(false)
+    }
+  }, [selectedReadyUploadEntries, confirm, token, stopPolling, removeJobFromSession, setSnack])
 
   // ===================== Render =====================
 
@@ -1539,7 +1576,7 @@ function InvoicesPage() {
                         checked={allReadyUploadsSelected}
                         indeterminate={selectedReadyUploadCount > 0 && !allReadyUploadsSelected}
                         onChange={toggleSelectAllReadyUploads}
-                        disabled={readyUploadJobIds.length === 0 || bulkVerifying}
+                        disabled={readyUploadJobIds.length === 0 || bulkVerifying || bulkRemovingUploads}
                       />
                     )}
                     label={`Select all ready (${readyUploadJobIds.length})`}
@@ -1551,7 +1588,7 @@ function InvoicesPage() {
                       variant="contained"
                       startIcon={bulkVerifying ? <CircularProgress size={14} color="inherit" /> : <CheckCircleRoundedIcon />}
                       onClick={handleVerifySelectedUploads}
-                      disabled={selectedReadyUploadCount === 0 || bulkVerifying}
+                      disabled={selectedReadyUploadCount === 0 || bulkVerifying || bulkRemovingUploads}
                     >
                       {bulkVerifying ? 'Verifying…' : `Verify Selected (${selectedReadyUploadCount})`}
                     </Button>
@@ -1559,8 +1596,18 @@ function InvoicesPage() {
                       size="small"
                       color="error"
                       variant="outlined"
+                      startIcon={bulkRemovingUploads ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlineRoundedIcon />}
+                      onClick={handleRemoveSelectedUploads}
+                      disabled={selectedReadyUploadCount === 0 || bulkVerifying || bulkRemovingUploads}
+                    >
+                      {bulkRemovingUploads ? 'Removing…' : `Remove Selected (${selectedReadyUploadCount})`}
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      variant="outlined"
                       onClick={handleClearQueue}
-                      disabled={bulkVerifying}
+                      disabled={bulkVerifying || bulkRemovingUploads}
                     >
                       Clear Upload Queue
                     </Button>
@@ -1601,8 +1648,8 @@ function InvoicesPage() {
                           size="small"
                           checked={Boolean(entry.jobId && selectedUploadJobIds.includes(entry.jobId))}
                           onChange={() => toggleUploadSelection(entry.jobId)}
-                          disabled={!isReady || bulkVerifying}
-                          inputProps={{ 'aria-label': `Select ${entry.name} for verification` }}
+                          disabled={!isReady || bulkVerifying || bulkRemovingUploads}
+                          inputProps={{ 'aria-label': `Select ${entry.name}` }}
                         />
 
                         {/* Icon */}
@@ -1679,7 +1726,7 @@ function InvoicesPage() {
                               size="small"
                               variant="contained"
                               startIcon={<VisibilityRoundedIcon />}
-                              disabled={bulkVerifying}
+                              disabled={bulkVerifying || bulkRemovingUploads}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 openVerification(entry)
@@ -1690,7 +1737,7 @@ function InvoicesPage() {
                           )}
                           <IconButton
                             size="small"
-                            disabled={bulkVerifying || entry.status === 'verifying'}
+                            disabled={bulkVerifying || bulkRemovingUploads || entry.status === 'verifying'}
                             onClick={(e) => {
                               e.stopPropagation()
                               removeFile(entry.id)

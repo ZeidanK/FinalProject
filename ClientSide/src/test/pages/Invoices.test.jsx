@@ -1,6 +1,7 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import InvoicesPage from '../../pages/Invoices'
 
 vi.mock('../../context/useNotification', () => ({
@@ -19,8 +20,10 @@ vi.mock('../../context/useRealtime', () => ({
   useRealtime: () => ({ isConnected: false, subscribe: vi.fn() }),
 }))
 
+const mockConfirm = vi.hoisted(() => vi.fn())
+
 vi.mock('../../components/ConfirmContext', () => ({
-  useConfirm: () => ({ confirm: vi.fn() }),
+  useConfirm: () => ({ confirm: mockConfirm }),
 }))
 
 let mockInvoicesQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
@@ -115,18 +118,48 @@ const sampleInvoices = [
   },
 ]
 
+const buildCompletedUploadJob = (id, fileOriginalName) => ({
+  id,
+  jobType: 'invoice_upload_pdf',
+  status: 'completed',
+  fileOriginalName,
+  filePath: `/uploads/invoices/${fileOriginalName}`,
+  fileType: 'application/pdf',
+  fileSize: 2048,
+  resultJson: JSON.stringify({
+    extractedData: {
+      vendorName: `Vendor ${id}`,
+      invoiceNumber: `INV-${id}`,
+      invoiceDate: '2025-06-01',
+      dueDate: '2025-06-30',
+      totalAmount: 1200,
+      subtotal: 1000,
+      vatAmount: 200,
+      currency: 'USD',
+      vatRate: 0.2,
+      vendorTaxId: `TAX-${id}`,
+      lastFourDigitsCard: '1234',
+      extractionConfidence: 0.95,
+      lineItems: [],
+    },
+  }),
+})
+
 describe('InvoicesPage', () => {
   const renderPage = () => render(<MemoryRouter><InvoicesPage /></MemoryRouter>)
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockConfirm.mockResolvedValue(true)
     mockInvoicesQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     mockUploadMutation = { mutateAsync: vi.fn(), isPending: false }
     mockCreateMutation = { mutateAsync: vi.fn(), isPending: false }
     mockUpdateMutation = { mutateAsync: vi.fn(), isPending: false }
     mockDeleteMutation = { mutateAsync: vi.fn(), isPending: false }
     mockBulkDeleteMutation = { mutateAsync: vi.fn(), isPending: false }
+    mockDeleteUploadJob.mockResolvedValue({})
     mockGetMyUploadJobs.mockResolvedValue([])
+    sessionStorage.clear()
   })
 
   it('renders PageHeaderCard with "Invoices" title', () => {
@@ -205,6 +238,30 @@ describe('InvoicesPage', () => {
     await user.click(screen.getByRole('switch', { name: /Use local model instead of Gemini/i }))
 
     expect(screen.getByText(/Local model is less accurate than Gemini/)).toBeInTheDocument()
+  })
+
+  it('removes selected ready uploads without clearing the rest when delete reports an error', async () => {
+    const user = userEvent.setup()
+    mockGetMyUploadJobs.mockResolvedValue([
+      buildCompletedUploadJob(101, 'first.pdf'),
+      buildCompletedUploadJob(102, 'second.pdf'),
+    ])
+    mockDeleteUploadJob.mockRejectedValueOnce(new Error('Delete response failed after server removal'))
+
+    renderPage()
+
+    expect(await screen.findByText('first.pdf')).toBeInTheDocument()
+    expect(screen.getByText('second.pdf')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: /select first\.pdf/i }))
+    await user.click(screen.getByRole('button', { name: /remove selected \(1\)/i }))
+
+    expect(mockConfirm).toHaveBeenCalledWith(expect.stringMatching(/Remove 1 selected invoice/))
+    await waitFor(() => expect(mockDeleteUploadJob).toHaveBeenCalledWith(101, 'test-token'))
+    expect(mockDeleteUploadJob).not.toHaveBeenCalledWith(102, 'test-token')
+    await waitFor(() => expect(screen.queryByText('first.pdf')).not.toBeInTheDocument())
+    expect(screen.getByText('second.pdf')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /remove selected \(0\)/i })).toBeDisabled()
   })
 
   it('renders invoice record count in table header', async () => {
