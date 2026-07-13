@@ -88,6 +88,12 @@ export function formatTransactionTypeLabel(type) {
 export function exportTransactionsToCSV(transactions, filename = 'transactions.csv') {
   if (!transactions.length) return
 
+  const escapeCsvValue = (value) => {
+    const str = value === null || value === undefined ? '' : String(value)
+    const safe = typeof str === 'string' && /^[=+\-@]/.test(str) ? `'${str}` : str
+    return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+  }
+
   const headers = [
     'ID', 'Date', 'Posted Date', 'Vendor', 'Description',
     'Amount', 'Type', 'Category', 'Reference Number',
@@ -114,18 +120,11 @@ export function exportTransactionsToCSV(transactions, filename = 'transactions.c
   ])
 
   const csvContent = [
-    headers.join(','),
-    ...rows.map((row) =>
-      row.map((cell) => {
-        const str = String(cell ?? '')
-        return str.includes(',') || str.includes('"') || str.includes('\n')
-          ? `"${str.replace(/"/g, '""')}"`
-          : str
-      }).join(','),
-    ),
-  ].join('\n')
+    headers.map(escapeCsvValue).join(','),
+    ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+  ].join('\r\n')
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

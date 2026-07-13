@@ -365,7 +365,7 @@ function MatchesPage() {
   }, [invoicesQuery.data])
 
   useEffect(() => {
-    setTransactions(Array.isArray(transactionsQuery.data) ? transactionsQuery.data : [])
+    setTransactions(transactionsQuery.data?.items ?? [])
   }, [transactionsQuery.data])
 
   useEffect(() => {

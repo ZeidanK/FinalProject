@@ -19,7 +19,7 @@ import { useNotification } from '../context/useNotification'
 import { useConfirm } from '../components/ConfirmContext'
 import {
   bulkDeleteTransactions, deleteTransaction, getTransactionById,
-  importExcelTransactions, setRequiresInvoice,
+  getTransactionsByCompany, importExcelTransactions, setRequiresInvoice,
 } from '../services/transactions'
 import { getUploadJobStatus } from '../services/uploadJobs'
 import { useTransactionsByCompanyQuery, useCreateTransactionsBulkMutation } from '../hooks/queries/useTransactionsQueries'
@@ -297,10 +297,24 @@ function TransactionsPage() {
     }
   }, [parsedRows, uploadedFiles, token, activeCompanyId, queryClient, createBulkMutation, clearUpload, notify, saveTxJobToSession, startTxPolling])
 
-  const handleExport = useCallback(() => {
-    const data = Array.isArray(transactionsQuery.data?.items) ? transactionsQuery.data.items : (Array.isArray(transactionsQuery.data) ? transactionsQuery.data : [])
-    exportTransactionsToCSV(data)
-  }, [transactionsQuery.data])
+  const handleExport = useCallback(async () => {
+    if (!activeCompanyId) return
+    const exportFilters = {
+      type: typeFilter !== 'all' ? typeFilter : undefined,
+      requiresInvoice: invoiceFilter !== 'all' ? (invoiceFilter === 'required') : undefined,
+      searchTerm: searchTerm.trim() || undefined,
+      sortBy: sortKey === 'date' ? 'transaction_date'
+        : sortKey === 'vendor' ? 'vendor_name'
+        : sortKey === 'type' ? 'transaction_type'
+        : sortKey === 'matched' ? 'is_matched'
+        : sortKey,
+      sortDirection: sortDirection.toUpperCase(),
+      pageNumber: 1,
+      pageSize: 100000,
+    }
+    const data = await getTransactionsByCompany(activeCompanyId, exportFilters, token)
+    exportTransactionsToCSV(data?.items ?? data)
+  }, [activeCompanyId, token, typeFilter, invoiceFilter, searchTerm, sortKey, sortDirection])
 
   return (
     <ErrorBoundary>
