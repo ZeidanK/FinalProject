@@ -784,7 +784,7 @@ function InvoicesPage() {
         extractionProvider,
       }
     })
-    setFiles((prev) => [...prev, ...entries])
+    setFiles((prev) => [...entries, ...prev])
 
     // Auto-upload valid files
     entries

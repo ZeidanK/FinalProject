@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -262,6 +262,26 @@ describe('InvoicesPage', () => {
     await waitFor(() => expect(screen.queryByText('first.pdf')).not.toBeInTheDocument())
     expect(screen.getByText('second.pdf')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /remove selected \(0\)/i })).toBeDisabled()
+  })
+
+  it('places newly uploaded invoices at the top of the upload queue', async () => {
+    renderPage()
+    const input = document.querySelector('input[type="file"]')
+
+    fireEvent.change(input, {
+      target: { files: [new File(['first'], 'first.pdf', { type: 'application/pdf' })] },
+    })
+    expect(await screen.findByText('first.pdf')).toBeInTheDocument()
+
+    fireEvent.change(input, {
+      target: { files: [new File(['second'], 'second.pdf', { type: 'application/pdf' })] },
+    })
+
+    const secondUpload = await screen.findByText('second.pdf')
+    const firstUpload = screen.getByText('first.pdf')
+    expect(
+      secondUpload.compareDocumentPosition(firstUpload) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('renders invoice record count in table header', async () => {
