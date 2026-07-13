@@ -33,6 +33,7 @@ import AnimatedBackground from '../components/AnimatedBackground'
 import SectionHeader from '../components/SectionHeader'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
+import { useRealtime } from '../context/useRealtime'
 import { useSearchParams } from 'react-router-dom'
 import { getUserById, updateUserVisibility } from '../services/users'
 import {
@@ -111,6 +112,8 @@ export default function AccountantWorkspace() {
     }
   }, [user?.id, token])
 
+  const { subscribe } = useRealtime()
+
   useEffect(() => {
     loadRequests()
   }, [loadRequests])
@@ -118,6 +121,18 @@ export default function AccountantWorkspace() {
   useEffect(() => {
     loadCompanies()
   }, [loadCompanies])
+
+  useEffect(() => {
+    const unsubscribe = subscribe('notificationCreated', (payload) => {
+      const eventType = String(
+        payload?.eventType ?? payload?.EventType ?? '',
+      ).toLowerCase()
+      if (eventType === 'accountant.request.sent') {
+        loadRequests()
+      }
+    })
+    return () => unsubscribe()
+  }, [subscribe, loadRequests])
 
   useEffect(() => {
     if (!user?.id || !token) return

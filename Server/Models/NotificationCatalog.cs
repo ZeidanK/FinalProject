@@ -38,6 +38,10 @@ namespace FinalProjectAuthAPI.Models
                     NotificationEventTypes.AccountantRequestDeclined,
                     new[] { NotificationScopes.Personal, NotificationScopes.Company },
                     new[] { NotificationTargetTypes.Accountant }),
+                [NotificationEventTypes.AccountantRequestCancelled] = Definition(
+                    NotificationEventTypes.AccountantRequestCancelled,
+                    new[] { NotificationScopes.Personal },
+                    new[] { NotificationTargetTypes.AccountantRequest }),
                 [NotificationEventTypes.AccountantDisconnected] = Definition(
                     NotificationEventTypes.AccountantDisconnected,
                     new[] { NotificationScopes.Personal, NotificationScopes.Company },

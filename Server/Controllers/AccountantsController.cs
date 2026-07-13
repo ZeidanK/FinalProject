@@ -162,6 +162,46 @@ namespace FinalProjectAuthAPI.Controllers
                 : BadRequest(new { message = "Request not found or already responded to." });
         }
 
+        // DELETE api/accountants/{accountantId}/request?companyId={companyId}
+        // Business owner cancels a pending work request before the accountant responds.
+        [HttpDelete("{accountantId:long}/request")]
+        [Authorize(Roles = "business_owner,accountant_business_owner,admin")]
+        public async Task<IActionResult> CancelRequest(long accountantId, [FromQuery] long companyId)
+        {
+            if (companyId <= 0)
+                return BadRequest(new { message = "CompanyId is required." });
+
+            var requestedByUserId = GetCurrentUserId();
+            var (success, error) = _svc.CancelRequest(accountantId, companyId, requestedByUserId);
+
+            if (success)
+            {
+                var payload = new
+                {
+                    accountantId,
+                    companyId,
+                    cancelledByUserId = requestedByUserId,
+                    message = "Work request cancelled by the sender."
+                };
+                var notificationOccurrence = DateTime.UtcNow.Ticks;
+
+                await _realtime.CreateUserNotificationAsync(accountantId, new NotificationMessage
+                {
+                    EventType = NotificationEventTypes.AccountantRequestCancelled,
+                    Title = "Work request cancelled",
+                    Body = "A business owner has cancelled their work request.",
+                    Severity = "info",
+                    TargetType = NotificationTargetTypes.AccountantRequest,
+                    TargetId = companyId.ToString(),
+                    DedupeKey = $"accountant-request:{accountantId}:{companyId}:cancelled:{notificationOccurrence}",
+                }, payload, companyId);
+            }
+
+            return success
+                ? Ok(new { message = "Request cancelled successfully." })
+                : BadRequest(new { message = error });
+        }
+
         // DELETE api/accountants/{accountantId}/connection?companyId={companyId}
         // Business owner/admin disconnects from an accountant, or accountant removes themselves.
         [HttpDelete("{accountantId:long}/connection")]

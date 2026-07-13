@@ -9,12 +9,18 @@ import {
   Chip,
   CircularProgress,
   Container,
+  FormControl,
   FormControlLabel,
   IconButton,
+  InputAdornment,
+  InputLabel,
   LinearProgress,
+  MenuItem,
+  Select,
   Skeleton,
   Stack,
   Switch,
+  TextField,
   Typography,
 } from '@mui/material'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
@@ -23,6 +29,7 @@ import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
@@ -175,6 +182,13 @@ function InvoicesPage() {
   const [bulkDeletingInvoices, setBulkDeletingInvoices] = useState(false)
   const [sortKey, setSortKey] = useState('date')
   const [sortDirection, setSortDirection] = useState('desc')
+
+  // --- Filter state ---
+  const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // ===================== Background-job polling =====================
 
@@ -461,6 +475,13 @@ function InvoicesPage() {
     }
   }, [])
 
+  // ===================== Debounced Search =====================
+
+  useEffect(() => {
+    const timeoutId = globalThis.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350)
+    return () => globalThis.clearTimeout(timeoutId)
+  }, [searchTerm])
+
   // ===================== Data Fetching =====================
   // Restore jobs from the server DB — runs on every login / company switch.
   // This is the persistent path (survives logout). sessionStorage only covers
@@ -629,30 +650,32 @@ function InvoicesPage() {
 
   // ===================== Data Fetching =====================
 
+  const filters = useMemo(() => ({
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  }), [statusFilter, startDate, endDate])
+
   const invoicesQuery = useInvoicesByCompanyQuery({
     companyId: activeCompanyId,
-    filters: {},
+    filters,
     token,
   })
   const uploadInvoiceMutation = useUploadInvoicePdfMutation({ token })
   const createInvoiceMutation = useCreateInvoiceMutation({
     companyId: activeCompanyId,
-    filters: {},
     token,
   })
   const updateInvoiceMutation = useUpdateInvoiceMutation({
     companyId: activeCompanyId,
-    filters: {},
     token,
   })
   const deleteInvoiceMutation = useDeleteInvoiceMutation({
     companyId: activeCompanyId,
-    filters: {},
     token,
   })
   const bulkDeleteInvoicesMutation = useBulkDeleteInvoicesMutation({
     companyId: activeCompanyId,
-    filters: {},
     token,
   })
 
@@ -675,6 +698,25 @@ function InvoicesPage() {
     setInvoices(Array.isArray(invoicesQuery.data) ? invoicesQuery.data : [])
     setSelectedInvoiceIds([])
   }, [invoicesQuery.data, invoicesQuery.error])
+
+  const allStatuses = useRef(new Set())
+  const [statusOptionsVersion, setStatusOptionsVersion] = useState(0)
+  useEffect(() => {
+    let changed = false
+    invoices.forEach((inv) => {
+      const s = (inv.status || '').toLowerCase()
+      if (s && !allStatuses.current.has(s)) {
+        allStatuses.current.add(s)
+        changed = true
+      }
+    })
+    if (changed) setStatusOptionsVersion((v) => v + 1)
+  }, [invoices])
+
+  const invoiceStatusOptions = useMemo(() => {
+    return ['all', ...[...allStatuses.current].sort()]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusOptionsVersion])
 
   // ===================== Upload Handlers =====================
 
@@ -1160,15 +1202,25 @@ function InvoicesPage() {
     }
   }, [])
 
+  const filteredInvoices = useMemo(() => {
+    const q = debouncedSearch.toLowerCase()
+    if (!q) return invoices
+    return invoices.filter((inv) => {
+      const vendor = (inv.vendor_name || inv.vendorName || '').toLowerCase()
+      const invNum = (inv.invoice_number || inv.invoiceNumber || '').toLowerCase()
+      return vendor.includes(q) || invNum.includes(q)
+    })
+  }, [invoices, debouncedSearch])
+
   const sortedInvoices = useMemo(() => {
-    return [...invoices].sort((a, b) => {
+    return [...filteredInvoices].sort((a, b) => {
       const valueA = getSortValue(a, sortKey)
       const valueB = getSortValue(b, sortKey)
       return compareNullableValues(valueA, valueB, sortDirection)
     })
-  }, [invoices, sortKey, sortDirection, getSortValue, compareNullableValues])
+  }, [filteredInvoices, sortKey, sortDirection, getSortValue, compareNullableValues])
 
-  const visibleInvoiceIds = invoices
+  const visibleInvoiceIds = sortedInvoices
     .map((inv) => inv.id)
     .filter((id) => typeof id === 'number' && id > 0)
 
@@ -1426,6 +1478,11 @@ function InvoicesPage() {
     </Stack>
   )
 
+  const hasAnyInvoices = invoices.length > 0
+  const emptyMessage = hasAnyInvoices
+    ? 'No invoices match your current filters.'
+    : 'No invoices yet. Upload a PDF above to get started.'
+
   const invoiceListContent = (
     <DataTable
       columns={invoiceColumns}
@@ -1440,7 +1497,7 @@ function InvoicesPage() {
       hasSelection={hasInvoiceSelection}
       loading={listLoading}
       loadingRows={4}
-      emptyMessage="No invoices yet. Upload a PDF above to get started."
+      emptyMessage={emptyMessage}
       emptyIcon={<DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />}
       getRowId={(row) => row.id}
       rowActions={invoiceRowActions}
@@ -1776,10 +1833,61 @@ function InvoicesPage() {
           >
             <CardContent>
               <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                Invoice Records {listLoading ? '' : `(${invoices.length})`}
+                Invoice Records {listLoading ? '' : `(${sortedInvoices.length})`}
               </Typography>
 
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ sm: 'center' }}
+                spacing={2}
+                sx={{ mb: 2 }}
+              >
+                <TextField
+                  size="small"
+                  placeholder="Search vendor or invoice number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRoundedIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ minWidth: 250 }}
+                />
+                <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={statusFilter}
+                    label="Status"
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    {invoiceStatusOptions.map((s) => (
+                      <MenuItem key={s} value={s}>
+                        {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  size="small"
+                  type="date"
+                  label="Start Date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 160 }}
+                />
+                <TextField
+                  size="small"
+                  type="date"
+                  label="End Date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 160 }}
+                />
                 <Button
                   size="small"
                   color="error"

@@ -31,6 +31,7 @@ namespace FinalProjectAuthAPI.DAL
         List<CompanyRow> GetActiveCompaniesByAccountant(long accountantId);
         bool RespondToAccessRequest(long requestId, long accountantUserId, bool accept);
         bool DisconnectAccountantFromCompany(long accountantUserId, long companyId, long requestedByUserId);
+        bool CancelPendingAccessRequest(long accountantUserId, long companyId, long requestedByUserId);
 
         bool AddAccountantSpecialty(long userId, string specialty);
         bool RemoveAccountantSpecialty(long userId, string specialty);

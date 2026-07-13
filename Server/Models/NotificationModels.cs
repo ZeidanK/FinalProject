@@ -31,6 +31,7 @@ namespace FinalProjectAuthAPI.Models
         public const string AccountantRequestAccepted = "accountant.request.accepted";
         public const string AccountantRequestDeclined = "accountant.request.declined";
         public const string AccountantDisconnected = "accountant.connection.disconnected";
+        public const string AccountantRequestCancelled = "accountant.request.cancelled";
         public const string AnomalyCreated = "anomaly.created";
         public const string AnomalyResolved = "anomaly.resolved";
         public const string AnomalyDuplicateDecided = "anomaly.duplicate_invoice.decided";

@@ -67,13 +67,13 @@ export function useUploadInvoicePdfMutation({ token }) {
  * @param {string} params.token - Authentication token for the request.
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for invoice creation.
  */
-export function useCreateInvoiceMutation({ companyId, filters, token }) {
+export function useCreateInvoiceMutation({ companyId, token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ payload, autoMatch }) => createInvoice(payload, autoMatch, token),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId, filters) })
+      await queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId) })
     },
   })
 }
@@ -83,18 +83,17 @@ export function useCreateInvoiceMutation({ companyId, filters, token }) {
  *
  * @param {Object} params - Mutation parameters.
  * @param {string|number} params.companyId - Company identifier used for cache invalidation.
- * @param {Object} [params.filters] - Invoice list filters used to refetch the list after update.
  * @param {string} params.token - Authentication token for the request.
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for invoice updates.
  */
-export function useUpdateInvoiceMutation({ companyId, filters, token }) {
+export function useUpdateInvoiceMutation({ companyId, token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ invoiceId, payload }) => updateInvoice(invoiceId, payload, token),
     onSuccess: async (_, variables) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId, filters) }),
+        queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.detail(variables.invoiceId) }),
       ])
     },
@@ -106,17 +105,16 @@ export function useUpdateInvoiceMutation({ companyId, filters, token }) {
  *
  * @param {Object} params - Mutation parameters.
  * @param {string|number} params.companyId - Company identifier used for cache invalidation.
- * @param {Object} [params.filters] - Invoice list filters used to refetch the list after deletion.
  * @param {string} params.token - Authentication token for the request.
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for invoice deletion.
  */
-export function useDeleteInvoiceMutation({ companyId, filters, token }) {
+export function useDeleteInvoiceMutation({ companyId, token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (invoiceId) => deleteInvoice(invoiceId, token),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId, filters) })
+      await queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId) })
     },
   })
 }
@@ -126,17 +124,16 @@ export function useDeleteInvoiceMutation({ companyId, filters, token }) {
  *
  * @param {Object} params - Mutation parameters.
  * @param {string|number} params.companyId - Company identifier used for cache invalidation.
- * @param {Object} [params.filters] - Invoice list filters used to refetch the list after bulk deletion.
  * @param {string} params.token - Authentication token for the request.
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for bulk invoice deletion.
  */
-export function useBulkDeleteInvoicesMutation({ companyId, filters, token }) {
+export function useBulkDeleteInvoicesMutation({ companyId, token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (ids) => bulkDeleteInvoices(ids, token),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId, filters) })
+      await queryClient.invalidateQueries({ queryKey: invoiceKeys.byCompany(companyId) })
     },
   })
 }

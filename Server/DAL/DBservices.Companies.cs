@@ -352,6 +352,29 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
+        public virtual bool CancelPendingAccessRequest(long accountantUserId, long companyId, long requestedByUserId)
+        {
+            if (accountantUserId <= 0 || companyId <= 0)
+                return false;
+
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Companies_CancelPendingRequest", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@AccountantUserId", accountantUserId },
+                        { "@CompanyId", companyId },
+                        { "@RequestedByUserId", requestedByUserId }
+                    });
+                var result = cmd.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
+            }
+            finally { con?.Close(); }
+        }
+
         public virtual bool DisconnectAccountantFromCompany(long accountantUserId, long companyId, long requestedByUserId)
         {
             if (accountantUserId <= 0 || companyId <= 0)

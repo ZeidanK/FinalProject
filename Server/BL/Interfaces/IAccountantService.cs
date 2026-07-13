@@ -11,6 +11,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         List<CompanyRow> GetActiveCompanies(long accountantId);
         bool RespondToRequest(long requestId, long accountantUserId, bool accept);
         bool DisconnectAccountant(long accountantId, long companyId, long requestedByUserId);
+        (bool Success, string Error) CancelRequest(long accountantId, long companyId, long requestedByUserId);
 
         List<string> GetSpecialties(long userId);
         bool AddSpecialty(long userId, string specialty);

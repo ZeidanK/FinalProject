@@ -37,6 +37,14 @@ namespace FinalProjectAuthAPI.BL
         public bool DisconnectAccountant(long accountantId, long companyId, long requestedByUserId) =>
             _db.DisconnectAccountantFromCompany(accountantId, companyId, requestedByUserId);
 
+        public (bool Success, string Error) CancelRequest(long accountantId, long companyId, long requestedByUserId)
+        {
+            var ok = _db.CancelPendingAccessRequest(accountantId, companyId, requestedByUserId);
+            return ok
+                ? (true, string.Empty)
+                : (false, "No pending request found or you are not the requester.");
+        }
+
         public List<string> GetSpecialties(long userId) =>
             _db.GetAccountantSpecialties(userId);
 

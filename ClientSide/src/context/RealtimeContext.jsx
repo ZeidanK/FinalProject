@@ -215,8 +215,6 @@ export function RealtimeProvider({ children }) {
         message: payload?.title || payload?.Title || 'You have a new notification.',
         severity: payload?.severity || payload?.Severity || 'info',
       })
-      // Reconcile after the immediate local update; the row is already committed server-side.
-      reconcileNotifications()
     }
     const onNotificationReadStateChanged = (payload) => {
       emit('notificationReadStateChanged', payload)

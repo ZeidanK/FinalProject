@@ -39,6 +39,7 @@ import {
   getAccountantReviews,
   sendAccountantRequest,
   disconnectAccountant,
+  cancelAccountantRequest,
   submitAccountantReview,
 } from '../services/accountants'
 import { APP_CONFIG } from '../scripts/config'
@@ -123,6 +124,18 @@ export default function FindAccountant() {
     },
     onError: (err) => {
       notify({ message: err.message || 'Failed to remove accountant.', severity: 'error' })
+    },
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: (accountantId) =>
+      cancelAccountantRequest(accountantId, activeCompanyId, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountantKeys.all })
+      notify({ message: 'Request cancelled successfully.', severity: 'success' })
+    },
+    onError: (err) => {
+      notify({ message: err.message || 'Failed to cancel request.', severity: 'error' })
     },
   })
 
@@ -216,6 +229,19 @@ export default function FindAccountant() {
       }
     },
     [activeCompanyId, confirm, disconnectMutation],
+  )
+
+  const handleCancelRequest = useCallback(
+    async (accountant) => {
+      const confirmed = await confirm(
+        `Are you sure you want to cancel the pending request to ${accountant.name}?`,
+        'Cancel request',
+      )
+      if (confirmed && activeCompanyId) {
+        cancelMutation.mutate(accountant.id)
+      }
+    },
+    [activeCompanyId, confirm, cancelMutation],
   )
 
   const openDetail = useCallback((accountant) => {
@@ -447,6 +473,8 @@ export default function FindAccountant() {
                             color="warning"
                             variant="outlined"
                             size="small"
+                            onDelete={() => handleCancelRequest(accountant)}
+                            deleteIcon={<CloseRoundedIcon />}
                             sx={{ fontWeight: 700 }}
                           />
                         ) : (

@@ -236,6 +236,15 @@ export async function submitAccountantReview(accountantId, companyId, rating, re
   return unwrapEnvelope(response)
 }
 
+export async function cancelAccountantRequest(accountantId, companyId, token) {
+  const url = `${URLS.accountants.base}/${accountantId}/request?companyId=${companyId}`
+  const response = await apiRequest(url, {
+    method: 'DELETE',
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
 export async function disconnectAccountant(accountantId, companyId, token) {
   const url = `${URLS.accountants.base}/${accountantId}/connection?companyId=${companyId}`
   const response = await apiRequest(url, {
