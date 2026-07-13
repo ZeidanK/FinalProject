@@ -229,6 +229,28 @@ namespace FinalProjectAuthAPI.BL
         {
             foreach (var connectionId in _registry.GetUserConnections(userId))
             {
+                try
+                {
+                    await _hubContext.Clients.Client(connectionId).SendAsync("accessRevoked", new
+                    {
+                        eventType = NotificationEventTypes.AdminUserBanned,
+                        userId,
+                        message = "Your account has been banned by an administrator. You have been signed out.",
+                        revokedAtUtc = DateTime.UtcNow
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to send realtime access revocation to user {UserId}",
+                        userId);
+                    LogRealtimeFailure(
+                        "Failed to send realtime user access revocation",
+                        ex.Message,
+                        "realtime.user_access.revoked",
+                        userId);
+                }
+
                 foreach (var companyId in _registry.GetConnectionCompanies(connectionId))
                     await RevokeCompanyAccessAsync(userId, companyId);
 

@@ -9,10 +9,54 @@ import { createRealtimeClient } from '../services/realtime'
 import { notificationKeys } from '../queries/queryKeys'
 import { applyNotificationCreatedToCache } from '../queries/notificationRealtimeCache'
 
+const ADMIN_USER_BANNED_EVENT = 'admin.user.banned'
+
+const getEventType = (payload) => String(
+  payload?.eventType ??
+  payload?.EventType ??
+  payload?.payload?.eventType ??
+  payload?.payload?.EventType ??
+  payload?.Payload?.eventType ??
+  payload?.Payload?.EventType ??
+  '',
+).toLowerCase()
+
+const getLogoutMessage = (payload) =>
+  payload?.title ||
+  payload?.Title ||
+  payload?.message ||
+  payload?.Message ||
+  payload?.body ||
+  payload?.Body ||
+  payload?.payload?.message ||
+  payload?.payload?.Message ||
+  payload?.Payload?.message ||
+  payload?.Payload?.Message ||
+  'Your account has been banned. You have been signed out.'
+
+const getTargetUserId = (payload) =>
+  payload?.userId ??
+  payload?.UserId ??
+  payload?.payload?.userId ??
+  payload?.payload?.UserId ??
+  payload?.payload?.id ??
+  payload?.payload?.Id ??
+  payload?.Payload?.userId ??
+  payload?.Payload?.UserId ??
+  payload?.Payload?.id ??
+  payload?.Payload?.Id
+
+const isForCurrentUser = (payload, userId) => {
+  const targetUserId = getTargetUserId(payload)
+  return targetUserId !== undefined &&
+    targetUserId !== null &&
+    String(targetUserId) === String(userId)
+}
+
 /** Provides the authenticated SignalR connection and live event subscriptions. */
 export function RealtimeProvider({ children }) {
   const queryClient = useQueryClient()
-  const { token, isAuthenticated, user } = useAuth()
+  const { token, isAuthenticated, user, logout } = useAuth()
   const { activeCompanyId } = useCompany()
   const { notify } = useNotification()
   const [connectionState, setConnectionState] = useState('disconnected')
@@ -22,6 +66,7 @@ export function RealtimeProvider({ children }) {
   const activeCompanyRef = useRef(null)
   const subscribersRef = useRef(new Map())
   const seenNotificationEventsRef = useRef(new Set())
+  const forcedLogoutRef = useRef(false)
 
   const emit = useCallback((eventName, payload) => {
     const handlers = subscribersRef.current.get(eventName)
@@ -57,6 +102,7 @@ export function RealtimeProvider({ children }) {
       return
     }
 
+    forcedLogoutRef.current = false
     let disposed = false
     let retryTimer = null
     let retryAttempt = 0
@@ -66,6 +112,25 @@ export function RealtimeProvider({ children }) {
 
     const reconcileNotifications = () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.user(user.id) })
+    }
+
+    const logoutIfAccountBanned = (payload) => {
+      if (
+        getEventType(payload) !== ADMIN_USER_BANNED_EVENT ||
+        forcedLogoutRef.current ||
+        !isForCurrentUser(payload, user.id)
+      ) {
+        return false
+      }
+
+      forcedLogoutRef.current = true
+      notify({
+        eventId: payload?.eventId || payload?.EventId,
+        message: getLogoutMessage(payload),
+        severity: 'error',
+      })
+      logout()
+      return true
     }
 
     const scheduleRetry = (connect) => {
@@ -127,7 +192,10 @@ export function RealtimeProvider({ children }) {
         }
       }
     }
-    const onNotificationEvent = (payload) => emit('notificationEvent', payload)
+    const onNotificationEvent = (payload) => {
+      emit('notificationEvent', payload)
+      logoutIfAccountBanned(payload)
+    }
     const onNotificationCreated = (payload) => {
       const eventKey = String(payload?.eventId || payload?.EventId || payload?.id || payload?.Id || '')
       if (eventKey && seenNotificationEventsRef.current.has(eventKey)) return
@@ -140,6 +208,8 @@ export function RealtimeProvider({ children }) {
       }
       applyNotificationCreatedToCache(queryClient, user.id, payload)
       emit('notificationCreated', payload)
+      if (logoutIfAccountBanned(payload)) return
+
       notify({
         eventId: payload?.eventId || payload?.EventId,
         message: payload?.title || payload?.Title || 'You have a new notification.',
@@ -152,8 +222,13 @@ export function RealtimeProvider({ children }) {
       emit('notificationReadStateChanged', payload)
       reconcileNotifications()
     }
+    const onAccessRevoked = (payload) => {
+      emit('accessRevoked', payload)
+      logoutIfAccountBanned(payload)
+    }
 
     client.on('uploadJobUpdated', onUploadJobUpdated)
+    client.on('accessRevoked', onAccessRevoked)
     client.on('notificationEvent', onNotificationEvent)
     client.on('notificationCreated', onNotificationCreated)
     client.on('notificationReadStateChanged', onNotificationReadStateChanged)
@@ -164,13 +239,14 @@ export function RealtimeProvider({ children }) {
       if (retryTimer) globalThis.clearTimeout(retryTimer)
       activeCompanyRef.current = null
       client.off('uploadJobUpdated', onUploadJobUpdated)
+      client.off('accessRevoked', onAccessRevoked)
       client.off('notificationEvent', onNotificationEvent)
       client.off('notificationCreated', onNotificationCreated)
       client.off('notificationReadStateChanged', onNotificationReadStateChanged)
       client.stop().catch(() => {})
       if (clientRef.current === client) clientRef.current = null
     }
-  }, [emit, isAuthenticated, notify, queryClient, token, user?.id])
+  }, [emit, isAuthenticated, logout, notify, queryClient, token, user?.id])
 
   useEffect(() => {
     const client = clientRef.current

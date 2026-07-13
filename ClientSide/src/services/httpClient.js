@@ -7,6 +7,21 @@
 const isSkippableValue = (value) =>
   value === undefined || value === null || value === ''
 
+const SESSION_REVOKED_EVENT = 'auth:session-revoked'
+
+const dispatchSessionRevoked = (error) => {
+  if (
+    typeof globalThis.dispatchEvent !== 'function' ||
+    typeof globalThis.CustomEvent !== 'function'
+  ) {
+    return
+  }
+
+  globalThis.dispatchEvent(new CustomEvent(SESSION_REVOKED_EVENT, {
+    detail: { error },
+  }))
+}
+
 /**
  * Build a URL query string from an object of query values.
  *
@@ -154,7 +169,11 @@ export async function apiRequest(url, options = {}) {
   const data = await parseResponseBody(response)
 
   if (!response.ok) {
-    throw createApiError({ response, data, url: requestUrl })
+    const error = createApiError({ response, data, url: requestUrl })
+    if (response.status === 401 && token) {
+      dispatchSessionRevoked(error)
+    }
+    throw error
   }
 
   return data

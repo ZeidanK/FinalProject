@@ -15,6 +15,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private readonly Mock<IHubContext<NotificationHub>> _mockHub;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
+        private readonly Mock<ISingleClientProxy> _mockSingleClientProxy;
         private readonly Mock<IGroupManager> _mockGroupManager;
         private readonly Mock<IDBservices> _mockDb;
         private readonly RealtimeConnectionRegistry _registry;
@@ -27,6 +28,7 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockHub = new Mock<IHubContext<NotificationHub>>();
             _mockClients = new Mock<IHubClients>();
             _mockClientProxy = new Mock<IClientProxy>();
+            _mockSingleClientProxy = new Mock<ISingleClientProxy>();
             _mockGroupManager = new Mock<IGroupManager>();
             _mockDb = new Mock<IDBservices>();
             _registry = new RealtimeConnectionRegistry();
@@ -36,6 +38,10 @@ namespace FinalProjectAuthAPI.Tests.BL
             _mockHub.Setup(x => x.Clients).Returns(_mockClients.Object);
             _mockHub.Setup(x => x.Groups).Returns(_mockGroupManager.Object);
             _mockClients.Setup(x => x.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
+            _mockClients.Setup(x => x.Client(It.IsAny<string>())).Returns(_mockSingleClientProxy.Object);
+            _mockClients.As<IHubClients<IClientProxy>>()
+                .Setup(x => x.Client(It.IsAny<string>()))
+                .Returns(_mockClientProxy.Object);
 
             _service = new RealtimeNotificationService(
                 _mockHub.Object, _mockDb.Object, _registry,
@@ -244,6 +250,10 @@ namespace FinalProjectAuthAPI.Tests.BL
 
             await _service.RevokeUserAccessAsync(10);
 
+            _mockClients.As<IHubClients<IClientProxy>>()
+                .Verify(x => x.Client("conn1"), Times.Once);
+            _mockClientProxy.Verify(x => x.SendCoreAsync("accessRevoked",
+                It.IsAny<object?[]?>(), default), Times.Once);
             _mockGroupManager.Verify(x => x.RemoveFromGroupAsync("conn1", "user_10"), Times.Once);
             _mockGroupManager.Verify(x => x.RemoveFromGroupAsync("conn1", "admins"), Times.Once);
             _mockGroupManager.Verify(x => x.RemoveFromGroupAsync("conn1", "company_5"), Times.Once);

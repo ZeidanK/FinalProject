@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinalProjectAuthAPI.Controllers
@@ -123,6 +124,7 @@ namespace FinalProjectAuthAPI.Controllers
         // POST api/auth/validate
         // Reads the JWT from the Authorization header and returns the decoded claims.
         // Does NOT re-validate the signature – use the [Authorize] attribute for that.
+        [Authorize]
         [HttpPost("validate")]
         public IActionResult Validate([FromHeader(Name = "Authorization")] string? authHeader)
         {

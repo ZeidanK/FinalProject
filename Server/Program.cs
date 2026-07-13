@@ -163,6 +163,30 @@ builder.Services.AddAuthentication(options =>
 
     options.Events = new JwtBearerEvents
     {
+        OnTokenValidated = context =>
+        {
+            var idClaim = context.Principal?.FindFirst("id")?.Value;
+            if (!long.TryParse(idClaim, out var userId) || userId <= 0)
+            {
+                context.Fail("Invalid token user.");
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<IDBservices>();
+                if (!db.IsUserActive(userId))
+                {
+                    context.Fail("User account is inactive or banned.");
+                }
+            }
+            catch
+            {
+                context.Fail("User account status could not be verified.");
+            }
+
+            return Task.CompletedTask;
+        },
         OnMessageReceived = context =>
         {
             var path = context.HttpContext.Request.Path;

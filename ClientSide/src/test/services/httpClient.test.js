@@ -110,6 +110,24 @@ describe('apiRequest', () => {
     expect(err.code).toBe('AUTH_FAILED')
   })
 
+  it('dispatches session revoked when an authenticated request returns 401', async () => {
+    const listener = vi.fn()
+    globalThis.addEventListener('auth:session-revoked', listener)
+    globalThis.fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve({ message: 'Unauthorized', code: 'AUTH_FAILED' }),
+    })
+
+    const err = await apiRequest('/api/test', { token: 'token123' }).catch(e => e)
+
+    expect(err.status).toBe(401)
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener.mock.calls[0][0].detail.error.status).toBe(401)
+    globalThis.removeEventListener('auth:session-revoked', listener)
+  })
+
   it('does not serialize FormData', async () => {
     globalThis.fetch.mockResolvedValueOnce({
       ok: true,

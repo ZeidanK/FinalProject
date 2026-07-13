@@ -68,6 +68,24 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             var result = await _controller.ToggleUserBan(5);
 
             Assert.IsType<OkObjectResult>(result);
+            _mockRealtime.Verify(x => x.RevokeUserAccessAsync(5), Times.Once);
+        }
+
+        [Fact]
+        public async Task ToggleUserBan_Unbanned_DoesNotRevokeAccess()
+        {
+            _mockSvc.Setup(x => x.ToggleUserBan(5)).Returns((5L, false));
+            _mockRealtime.Setup(x => x.CreateUserNotificationAsync(
+                It.IsAny<long>(), It.IsAny<NotificationMessage>(), It.IsAny<object>()))
+                .Returns(Task.CompletedTask);
+            _mockRealtime.Setup(x => x.NotifyAdminsEventAsync(
+                It.IsAny<string>(), It.IsAny<object>()))
+                .Returns(Task.CompletedTask);
+
+            var result = await _controller.ToggleUserBan(5);
+
+            Assert.IsType<OkObjectResult>(result);
+            _mockRealtime.Verify(x => x.RevokeUserAccessAsync(It.IsAny<long>()), Times.Never);
         }
 
         [Fact]

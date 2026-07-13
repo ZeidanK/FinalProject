@@ -95,6 +95,18 @@ describe('AuthContext', () => {
     expect(authService.clearAuthSession).toHaveBeenCalled()
   })
 
+  it('logout clears session when the session revoked event is received', async () => {
+    authService.getStoredAuthSession.mockReturnValue({ token: 't', user: { id: 1 } })
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider })
+
+    act(() => {
+      globalThis.dispatchEvent(new CustomEvent('auth:session-revoked'))
+    })
+
+    expect(result.current.isAuthenticated).toBe(false)
+    expect(authService.clearAuthSession).toHaveBeenCalled()
+  })
+
   it('updateUser merges fields', () => {
     authService.getStoredAuthSession.mockReturnValue({ token: 't', user: { id: 1, name: 'John' } })
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider })

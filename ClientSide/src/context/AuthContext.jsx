@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
 import {
   clearAuthSession,
@@ -29,6 +29,15 @@ export function AuthProvider({ children }) {
     queryClient.removeQueries({ queryKey: notificationKeys.all })
     setAuthSession(null)
   }, [])
+
+  useEffect(() => {
+    const handleSessionRevoked = () => logout()
+
+    globalThis.addEventListener?.('auth:session-revoked', handleSessionRevoked)
+    return () => {
+      globalThis.removeEventListener?.('auth:session-revoked', handleSessionRevoked)
+    }
+  }, [logout])
 
   /**
    * Persist and apply a new authentication session.
