@@ -17,13 +17,7 @@ export async function getTransactionsByCompany(companyId, filters, token) {
     token,
   })
 
-  const unwrapped = unwrapEnvelope(response)
-
-  if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped) && Array.isArray(unwrapped.items)) {
-    return unwrapped.items
-  }
-
-  return unwrapped
+  return unwrapEnvelope(response)
 }
 
 /**

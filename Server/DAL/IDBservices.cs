@@ -37,6 +37,7 @@ namespace FinalProjectAuthAPI.DAL
         bool AddAccountantCertification(long userId, string certification);
         bool RemoveAccountantCertification(long userId, string certification);
         bool UpsertAccountantReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId);
+        List<ReviewRow> GetAccountantReviews(long accountantUserId);
         List<string> GetAccountantSpecialties(long userId);
         List<string> GetAccountantCertifications(long userId);
 

@@ -112,7 +112,7 @@ NavItem.propTypes = {
   onNavigate: PropTypes.func,
 }
 
-export default function SidebarNav({ user, onLogout, onNavigate }) {
+export default function SidebarNav({ user, onLogout, onNavigate, onCloseMobile }) {
   const theme = useTheme()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
@@ -167,7 +167,7 @@ export default function SidebarNav({ user, onLogout, onNavigate }) {
             </Typography>
           </Stack>
         )}
-        <IconButton size="small" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)} sx={{ color: theme.palette.text.secondary }}>
+        <IconButton size="small" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => { if (onCloseMobile) onCloseMobile(); else setCollapsed(!collapsed) }} sx={{ color: theme.palette.text.secondary }}>
           {collapsed ? <KeyboardDoubleArrowRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
         </IconButton>
       </Stack>
@@ -262,4 +262,5 @@ SidebarNav.propTypes = {
   }),
   onLogout: PropTypes.func.isRequired,
   onNavigate: PropTypes.func,
+  onCloseMobile: PropTypes.func,
 }

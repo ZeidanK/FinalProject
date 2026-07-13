@@ -36,6 +36,7 @@ import { useConfirm } from '../components/ConfirmContext'
 import { useSearchParams } from 'react-router-dom'
 import {
   getPublicAccountantsPaginated,
+  getAccountantReviews,
   sendAccountantRequest,
   disconnectAccountant,
   submitAccountantReview,
@@ -137,6 +138,12 @@ export default function FindAccountant() {
     onError: (err) => {
       notify({ message: err.message || 'Failed to submit review.', severity: 'error' })
     },
+  })
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: accountantKeys.reviews(detailAccountant?.id),
+    queryFn: () => getAccountantReviews(detailAccountant.id, token),
+    enabled: Boolean(detailAccountant?.id && token),
   })
 
   const handleSubmitReview = useCallback(() => {
@@ -589,6 +596,53 @@ export default function FindAccountant() {
                   <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                     {certifications.map((c) => (
                       <Chip key={c} label={c} size="small" color="success" variant="outlined" />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* ── Reviews ──────────────────────────────────────────────── */}
+              {reviews.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                    Reviews ({reviews.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {reviews.map((review) => (
+                      <Box
+                        key={review.id}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: 'rgba(255,255,255,0.03)',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                          <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'primary.main', color: '#041229', fontWeight: 700 }}>
+                            {(review.createdByName || 'U')[0].toUpperCase()}
+                          </Avatar>
+                          <Typography variant="body2" fontWeight={600}>
+                            {review.createdByName}
+                          </Typography>
+                          <Rating
+                            value={review.rating}
+                            readOnly
+                            size="small"
+                            icon={<StarRoundedIcon sx={{ fontSize: 14 }} />}
+                            emptyIcon={<StarRoundedIcon sx={{ fontSize: 14, opacity: 0.3 }} />}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </Typography>
+                        </Stack>
+                        {review.review && (
+                          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                            {review.review}
+                          </Typography>
+                        )}
+                      </Box>
                     ))}
                   </Stack>
                 </Box>

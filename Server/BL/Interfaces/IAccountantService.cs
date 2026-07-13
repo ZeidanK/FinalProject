@@ -19,5 +19,6 @@ namespace FinalProjectAuthAPI.BL.Interfaces
         bool AddCertification(long userId, string certification);
         bool RemoveCertification(long userId, string certification);
         bool SubmitReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId);
+        List<ReviewRow> GetReviews(long accountantUserId);
     }
 }

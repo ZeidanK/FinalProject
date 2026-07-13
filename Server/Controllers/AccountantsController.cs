@@ -304,6 +304,12 @@ namespace FinalProjectAuthAPI.Controllers
                 : BadRequest(new { message = "Failed to remove certification." });
         }
 
+        // GET api/accountants/{id}/reviews
+        // Returns all reviews for a given accountant.
+        [HttpGet("{id:long}/reviews")]
+        public IActionResult GetReviews(long id) =>
+            Ok(_svc.GetReviews(id));
+
         // POST api/accountants/{id}/reviews
         // Submit or update a review for an accountant (by a business owner).
         [HttpPost("{id:long}/reviews")]

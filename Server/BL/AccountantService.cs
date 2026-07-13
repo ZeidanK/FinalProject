@@ -57,5 +57,8 @@ namespace FinalProjectAuthAPI.BL
 
         public bool SubmitReview(long accountantUserId, long companyId, byte rating, string? review, long createdByUserId) =>
             _db.UpsertAccountantReview(accountantUserId, companyId, rating, review, createdByUserId);
+
+        public List<ReviewRow> GetReviews(long accountantUserId) =>
+            _db.GetAccountantReviews(accountantUserId);
     }
 }

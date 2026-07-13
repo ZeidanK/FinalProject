@@ -206,6 +206,18 @@ export async function removeAccountantCertification(accountantId, certification,
 }
 
 /**
+ * Fetch all written reviews for an accountant.
+ *
+ * @param {string|number} accountantId
+ * @param {string} token
+ * @returns {Promise<Array>}
+ */
+export async function getAccountantReviews(accountantId, token) {
+  const response = await apiRequest(URLS.accountants.reviews(accountantId), { token })
+  return unwrapEnvelope(response)
+}
+
+/**
  * Submit or update a review for an accountant.
  *
  * @param {string|number} accountantId

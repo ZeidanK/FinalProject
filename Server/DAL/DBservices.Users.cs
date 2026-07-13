@@ -323,6 +323,37 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
+        public virtual List<ReviewRow> GetAccountantReviews(long accountantUserId)
+        {
+            SqlConnection? con = null;
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_AccountantReviews_GetByUser", con,
+                    new Dictionary<string, object?> { { "@AccountantUserId", accountantUserId } });
+                var result = new List<ReviewRow>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    result.Add(new ReviewRow
+                    {
+                        Id = Convert.ToInt64(reader["id"]),
+                        AccountantUserId = Convert.ToInt64(reader["accountant_user_id"]),
+                        CompanyId = Convert.ToInt64(reader["company_id"]),
+                        Rating = Convert.ToByte(reader["rating"]),
+                        Review = reader["review"] != DBNull.Value ? reader["review"]?.ToString() : null,
+                        CreatedByUserId = Convert.ToInt64(reader["created_by_user_id"]),
+                        CreatedByName = reader["created_by_name"]?.ToString() ?? "",
+                        CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                        UpdatedAt = Convert.ToDateTime(reader["updated_at"]),
+                    });
+                }
+                return result;
+            }
+            finally { con?.Close(); }
+        }
+
         // ── Fetch specialties/certifications for a user ────────────────────────
 
         public virtual List<string> GetAccountantSpecialties(long userId)

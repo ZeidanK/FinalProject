@@ -16,6 +16,7 @@ import {
   Divider,
   Grid,
   IconButton,
+  Rating,
   Skeleton,
   Stack,
   TextField,
@@ -32,6 +33,7 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import SectionHeader from '../components/SectionHeader'
@@ -56,6 +58,7 @@ import {
 } from '../hooks/queries/useProfileQueries'
 import {
   getAccountantSpecialties,
+  getAccountantReviews,
   addAccountantSpecialty,
   removeAccountantSpecialty,
   getAccountantCertifications,
@@ -137,6 +140,12 @@ export default function ProfilePage() {
   const [accountantProfileMsg, setAccountantProfileMsg] = useState(null)
   const [specialties, setSpecialties] = useState([])
   const [certifications, setCertifications] = useState([])
+  const [reviews, setReviews] = useState([])
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0)
+    return sum / reviews.length
+  }, [reviews])
   const [specialtyInput, setSpecialtyInput] = useState('')
   const [certInput, setCertInput] = useState('')
   const [addingSpecialty, setAddingSpecialty] = useState(false)
@@ -230,6 +239,9 @@ export default function ProfilePage() {
     }).catch(() => {})
     getAccountantCertifications(user.id, token).then((data) => {
       setCertifications(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+    getAccountantReviews(user.id, token).then((data) => {
+      setReviews(Array.isArray(data) ? data : [])
     }).catch(() => {})
   }, [user?.id, token, isAccountant])
 
@@ -1211,6 +1223,84 @@ export default function ProfilePage() {
                           ))}
                         </Stack>
                       </>
+                    )}
+
+                    <Divider sx={{ my: 2, borderColor: 'divider' }} />
+                    <Typography fontWeight={700} sx={{ mb: 1.5 }}>
+                      Reviews ({reviews.length})
+                    </Typography>
+                    {reviews.length > 0 ? (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            mb: 2,
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.03)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Rating
+                            value={averageRating}
+                            readOnly
+                            precision={0.1}
+                            icon={<StarRoundedIcon sx={{ fontSize: 28 }} />}
+                            emptyIcon={<StarRoundedIcon sx={{ fontSize: 28, opacity: 0.3 }} />}
+                          />
+                          <Typography variant="h6" fontWeight={700}>
+                            {averageRating.toFixed(1)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                          </Typography>
+                        </Box>
+                        <Stack spacing={1.5}>
+                          {reviews.map((review) => (
+                            <Box
+                              key={review.id}
+                              sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: 'rgba(255,255,255,0.03)',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                              }}
+                            >
+                              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                                <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'primary.main', color: '#041229', fontWeight: 700 }}>
+                                  {(review.createdByName || 'U')[0].toUpperCase()}
+                                </Avatar>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {review.createdByName}
+                                </Typography>
+                                <Rating
+                                  value={review.rating}
+                                  readOnly
+                                  size="small"
+                                  icon={<StarRoundedIcon sx={{ fontSize: 14 }} />}
+                                  emptyIcon={<StarRoundedIcon sx={{ fontSize: 14, opacity: 0.3 }} />}
+                                />
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                                  {new Date(review.createdAt).toLocaleDateString()}
+                                </Typography>
+                              </Stack>
+                              {review.review && (
+                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                                  {review.review}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        No reviews yet.
+                      </Typography>
                     )}
 
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
