@@ -58,7 +58,7 @@ export default function FindAccountant() {
   const { user, token } = useAuth()
   const { activeCompanyId } = useCompany()
   const { notify } = useNotification()
-  const confirm = useConfirm()
+  const { confirm } = useConfirm()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const searchInputRef = useRef(null)
