@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Alert, Box, Typography } from '@mui/material'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
@@ -29,6 +30,14 @@ const severityIconColor = {
 
 export default function GlobalNotifications() {
   const { queue, dismiss } = useNotification()
+
+  useEffect(() => {
+    if (queue.length === 0) return
+    const timers = queue.map((item) =>
+      setTimeout(() => dismiss(item.id), item.autoHideMs),
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [queue, dismiss])
 
   return (
     <Box
