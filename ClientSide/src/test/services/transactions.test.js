@@ -28,6 +28,15 @@ describe('transactions service', () => {
     expect(result).toEqual([{ id: 1 }])
   })
 
+  it('unwraps PagedResponse envelope from backend', async () => {
+    globalThis.fetch.mockResolvedValueOnce({
+      ok: true, headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve({ items: [{ id: 10 }, { id: 11 }], totalCount: 2, pageNumber: 1, pageSize: 10000 }),
+    })
+    const result = await getTransactionsByCompany(1, { isMatched: false }, 'token')
+    expect(result).toEqual([{ id: 10 }, { id: 11 }])
+  })
+
   it('getTransactionById fetches single', async () => {
     globalThis.fetch.mockResolvedValueOnce({
       ok: true, headers: new Headers({ 'content-type': 'application/json' }),

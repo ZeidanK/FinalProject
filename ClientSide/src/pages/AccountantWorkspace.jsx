@@ -28,25 +28,18 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import { motion } from 'framer-motion'
 import AnimatedBackground from '../components/AnimatedBackground'
 import SectionHeader from '../components/SectionHeader'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useSearchParams } from 'react-router-dom'
-import { getUserById, updateUser, updateUserVisibility } from '../services/users'
+import { getUserById, updateUserVisibility } from '../services/users'
 import {
   getAccountantRequests,
   getAccountantCompanies,
   respondToRequest,
   disconnectAccountant,
-  getAccountantSpecialties,
-  addAccountantSpecialty,
-  removeAccountantSpecialty,
-  getAccountantCertifications,
-  addAccountantCertification,
-  removeAccountantCertification,
 } from '../services/accountants'
 
 const cardSx = {
@@ -89,17 +82,6 @@ export default function AccountantWorkspace() {
   const [confirmDisconnectOpen, setConfirmDisconnectOpen] = useState(false)
   const [disconnectingCompanyId, setDisconnectingCompanyId] = useState(null)
 
-  // ── Profile state ──────────────────────────────────────────
-  const [profileData, setProfileData] = useState(null)
-  const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMsg, setProfileMsg] = useState(null)
-  const [specialties, setSpecialties] = useState([])
-  const [certifications, setCertifications] = useState([])
-  const [specialtyInput, setSpecialtyInput] = useState('')
-  const [certInput, setCertInput] = useState('')
-  const [addingSpecialty, setAddingSpecialty] = useState(false)
-  const [addingCert, setAddingCert] = useState(false)
-
   // ── Data loaders ───────────────────────────────────────────
   const loadRequests = useCallback(async () => {
     if (!user?.id || !token) return
@@ -130,30 +112,21 @@ export default function AccountantWorkspace() {
   }, [user?.id, token])
 
   useEffect(() => {
-    if (!user?.id || !token) return
-    setLoadingProfile(true)
-    Promise.all([
-      getUserById(user.id, token),
-      getAccountantSpecialties(user.id, token),
-      getAccountantCertifications(user.id, token),
-    ])
-      .then(([userData, specialtiesData, certsData]) => {
-        setProfileData(userData)
-        setIsPublic(Boolean(userData?.isPublic))
-        setSpecialties(Array.isArray(specialtiesData) ? specialtiesData : [])
-        setCertifications(Array.isArray(certsData) ? certsData : [])
-      })
-      .catch(() => {})
-      .finally(() => setLoadingProfile(false))
-  }, [user?.id, token])
-
-  useEffect(() => {
     loadRequests()
   }, [loadRequests])
 
   useEffect(() => {
     loadCompanies()
   }, [loadCompanies])
+
+  useEffect(() => {
+    if (!user?.id || !token) return
+    setLoadingProfile(true)
+    getUserById(user.id, token)
+      .then((userData) => setIsPublic(Boolean(userData?.isPublic)))
+      .catch(() => {})
+      .finally(() => setLoadingProfile(false))
+  }, [user?.id, token])
 
   useEffect(() => {
     const targetId = requestTargetId || companyTargetId
@@ -196,77 +169,6 @@ export default function AccountantWorkspace() {
       setVisibilityMsg({ type: 'error', text: err.message || 'Failed to update visibility.' })
     } finally {
       setTogglingVisibility(false)
-    }
-  }
-
-  // ── Profile handlers ────────────────────────────────────────
-  const handleSaveProfile = async () => {
-    if (!profileData || !token) return
-    setProfileSaving(true)
-    setProfileMsg(null)
-    try {
-      await updateUser(user.id, {
-        bio: profileData.bio,
-        yearsOfExperience: profileData.yearsOfExperience,
-        hourlyRate: profileData.hourlyRate,
-        location: profileData.location,
-        website: profileData.website,
-      }, token)
-      setProfileMsg({ type: 'success', text: 'Profile updated.' })
-    } catch (err) {
-      setProfileMsg({ type: 'error', text: err.message || 'Failed to update profile.' })
-    } finally {
-      setProfileSaving(false)
-    }
-  }
-
-  const handleAddSpecialty = async () => {
-    const s = specialtyInput.trim()
-    if (!s || !token) return
-    setAddingSpecialty(true)
-    try {
-      await addAccountantSpecialty(user.id, s, token)
-      setSpecialties((prev) => [...prev, s])
-      setSpecialtyInput('')
-    } catch (err) {
-      setProfileMsg({ type: 'error', text: err.message || 'Failed to add specialty.' })
-    } finally {
-      setAddingSpecialty(false)
-    }
-  }
-
-  const handleRemoveSpecialty = async (specialty) => {
-    if (!token) return
-    try {
-      await removeAccountantSpecialty(user.id, specialty, token)
-      setSpecialties((prev) => prev.filter((s) => s !== specialty))
-    } catch (err) {
-      setProfileMsg({ type: 'error', text: err.message || 'Failed to remove specialty.' })
-    }
-  }
-
-  const handleAddCertification = async () => {
-    const c = certInput.trim()
-    if (!c || !token) return
-    setAddingCert(true)
-    try {
-      await addAccountantCertification(user.id, c, token)
-      setCertifications((prev) => [...prev, c])
-      setCertInput('')
-    } catch (err) {
-      setProfileMsg({ type: 'error', text: err.message || 'Failed to add certification.' })
-    } finally {
-      setAddingCert(false)
-    }
-  }
-
-  const handleRemoveCertification = async (cert) => {
-    if (!token) return
-    try {
-      await removeAccountantCertification(user.id, cert, token)
-      setCertifications((prev) => prev.filter((c) => c !== cert))
-    } catch (err) {
-      setProfileMsg({ type: 'error', text: err.message || 'Failed to remove certification.' })
     }
   }
 
@@ -389,157 +291,6 @@ export default function AccountantWorkspace() {
                   : 'You are hidden from the directory. You can still manage companies you have already accepted.'}
               </Typography>
             </Stack>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════════
-          SECTION D — Profile (accountant bio, rate, etc.)
-         ══════════════════════════════════════════════════ */}
-      <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <SectionHeader
-            icon={<BusinessRoundedIcon sx={{ color: 'primary.main' }} />}
-            title="Profile"
-          />
-
-          <Collapse in={!!profileMsg}>
-            {profileMsg && (
-              <Alert
-                severity={profileMsg.type}
-                sx={{ mb: 2 }}
-                onClose={() => setProfileMsg(null)}
-              >
-                {profileMsg.text}
-              </Alert>
-            )}
-          </Collapse>
-
-          {loadingProfile ? (
-            <Stack spacing={2}>
-              <Skeleton variant="rounded" height={56} />
-              <Skeleton variant="rounded" height={56} />
-              <Skeleton variant="rounded" height={56} />
-            </Stack>
-          ) : (
-            <>
-              <Stack spacing={2} sx={{ mb: 3 }}>
-                <TextField
-                  label="Bio"
-                  multiline
-                  minRows={2}
-                  maxRows={5}
-                  value={profileData?.bio || ''}
-                  onChange={(e) => setProfileData((p) => ({ ...p, bio: e.target.value }))}
-                  size="small"
-                />
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Years of Experience"
-                    type="number"
-                    value={profileData?.yearsOfExperience ?? ''}
-                    onChange={(e) => setProfileData((p) => ({ ...p, yearsOfExperience: e.target.value ? Number(e.target.value) : null }))}
-                    size="small"
-                    sx={{ width: 200 }}
-                    inputProps={{ min: 0, max: 100 }}
-                  />
-                  <TextField
-                    label="Hourly Rate"
-                    type="number"
-                    value={profileData?.hourlyRate ?? ''}
-                    onChange={(e) => setProfileData((p) => ({ ...p, hourlyRate: e.target.value ? Number(e.target.value) : null }))}
-                    size="small"
-                    sx={{ width: 200 }}
-                    inputProps={{ min: 0, step: 0.01 }}
-                  />
-                  <TextField
-                    label="Location"
-                    value={profileData?.location || ''}
-                    onChange={(e) => setProfileData((p) => ({ ...p, location: e.target.value }))}
-                    size="small"
-                    sx={{ flex: 1 }}
-                  />
-                </Stack>
-                <TextField
-                  label="Website"
-                  value={profileData?.website || ''}
-                  onChange={(e) => setProfileData((p) => ({ ...p, website: e.target.value }))}
-                  size="small"
-                />
-                <Box>
-                  <Button
-                    variant="contained"
-                    onClick={handleSaveProfile}
-                    disabled={profileSaving}
-                    startIcon={profileSaving ? <CircularProgress size={16} /> : undefined}
-                  >
-                    {profileSaving ? 'Saving...' : 'Save Profile'}
-                  </Button>
-                </Box>
-              </Stack>
-
-              {/* Specialties */}
-              <Typography fontWeight={700} sx={{ mb: 1 }}>Specialties</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-                {specialties.map((s) => (
-                  <Chip
-                    key={s}
-                    label={s}
-                    onDelete={() => handleRemoveSpecialty(s)}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <TextField
-                  placeholder="Add a specialty"
-                  value={specialtyInput}
-                  onChange={(e) => setSpecialtyInput(e.target.value)}
-                  size="small"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSpecialty(); } }}
-                />
-                <IconButton
-                  color="primary"
-                  onClick={handleAddSpecialty}
-                  disabled={addingSpecialty || !specialtyInput.trim()}
-                >
-                  {addingSpecialty ? <CircularProgress size={20} /> : <AddRoundedIcon />}
-                </IconButton>
-              </Stack>
-
-              {/* Certifications */}
-              <Typography fontWeight={700} sx={{ mt: 3, mb: 1 }}>Certifications</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-                {certifications.map((c) => (
-                  <Chip
-                    key={c}
-                    label={c}
-                    onDelete={() => handleRemoveCertification(c)}
-                    size="small"
-                    color="secondary"
-                    variant="outlined"
-                  />
-                ))}
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <TextField
-                  placeholder="Add a certification"
-                  value={certInput}
-                  onChange={(e) => setCertInput(e.target.value)}
-                  size="small"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCertification(); } }}
-                />
-                <IconButton
-                  color="secondary"
-                  onClick={handleAddCertification}
-                  disabled={addingCert || !certInput.trim()}
-                >
-                  {addingCert ? <CircularProgress size={20} /> : <AddRoundedIcon />}
-                </IconButton>
-              </Stack>
-            </>
           )}
         </CardContent>
       </Card>

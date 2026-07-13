@@ -27,6 +27,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
@@ -43,6 +44,7 @@ import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useConfirm } from '../components/ConfirmContext'
 import {
+  useAccountantProfileMutation,
   useChangePasswordMutation,
   useCreateCompanyMutation,
   useDeleteAccountMutation,
@@ -52,7 +54,15 @@ import {
   useUploadProfilePictureMutation,
   useUserProfileQuery,
 } from '../hooks/queries/useProfileQueries'
-import { companySchema, passwordChangeSchema, profileUpdateSchema } from '../schemas/profile'
+import {
+  getAccountantSpecialties,
+  addAccountantSpecialty,
+  removeAccountantSpecialty,
+  getAccountantCertifications,
+  addAccountantCertification,
+  removeAccountantCertification,
+} from '../services/accountants'
+import { companySchema, passwordChangeSchema, profileUpdateSchema, accountantProfileSchema } from '../schemas/profile'
 
 const getProfilePictureUrl = (path) => {
   if (!path) return undefined
@@ -108,6 +118,29 @@ export default function ProfilePage() {
   const [profilePicPreview, setProfilePicPreview] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMsg, setProfileMsg] = useState(null)
+
+  const isAccountant = useMemo(
+    () => user?.role === 'accountant' || user?.role === 'accountant_business_owner',
+    [user?.role],
+  )
+
+  // ── Accountant profile state ──────────────────────────────
+  const [editingAccountantProfile, setEditingAccountantProfile] = useState(false)
+  const [accountantProfileForm, setAccountantProfileForm] = useState({
+    bio: '',
+    yearsOfExperience: null,
+    hourlyRate: null,
+    location: '',
+    website: '',
+  })
+  const [savingAccountantProfile, setSavingAccountantProfile] = useState(false)
+  const [accountantProfileMsg, setAccountantProfileMsg] = useState(null)
+  const [specialties, setSpecialties] = useState([])
+  const [certifications, setCertifications] = useState([])
+  const [specialtyInput, setSpecialtyInput] = useState('')
+  const [certInput, setCertInput] = useState('')
+  const [addingSpecialty, setAddingSpecialty] = useState(false)
+  const [addingCert, setAddingCert] = useState(false)
 
   // ── Password state ─────────────────────────────────────────
   const [passwordForm, setPasswordForm] = useState({
@@ -165,6 +198,7 @@ export default function ProfilePage() {
   const updateCompanyMutation = useUpdateCompanyMutation({ userId: user?.id, token })
   const deleteCompanyMutation = useDeleteCompanyMutation({ userId: user?.id, token })
   const deleteAccountMutation = useDeleteAccountMutation({ token })
+  const accountantProfileMutation = useAccountantProfileMutation({ userId: user?.id, token })
 
   const navigate = useNavigate()
 
@@ -178,7 +212,26 @@ export default function ProfilePage() {
       name: profileQuery.data.name || '',
       phone: profileQuery.data.phone || '',
     })
-  }, [profileQuery.data])
+    if (isAccountant) {
+      setAccountantProfileForm({
+        bio: profileQuery.data.bio || '',
+        yearsOfExperience: profileQuery.data.yearsOfExperience ?? null,
+        hourlyRate: profileQuery.data.hourlyRate ?? null,
+        location: profileQuery.data.location || '',
+        website: profileQuery.data.website || '',
+      })
+    }
+  }, [profileQuery.data, isAccountant])
+
+  useEffect(() => {
+    if (!user?.id || !token || !isAccountant) return
+    getAccountantSpecialties(user.id, token).then((data) => {
+      setSpecialties(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+    getAccountantCertifications(user.id, token).then((data) => {
+      setCertifications(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+  }, [user?.id, token, isAccountant])
 
   // ── Profile picture helpers ────────────────────────────────
   /**
@@ -246,6 +299,87 @@ export default function ProfilePage() {
       setProfileMsg({ type: 'error', text: err.message || 'Failed to update profile.' })
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  // ── Accountant profile handlers ────────────────────────────
+  const handleSaveAccountantProfile = async () => {
+    const parsed = accountantProfileSchema.safeParse(accountantProfileForm)
+    if (!parsed.success) {
+      setAccountantProfileMsg({
+        type: 'error',
+        text: parsed.error.issues[0]?.message || 'Profile data is invalid.',
+      })
+      return
+    }
+
+    setSavingAccountantProfile(true)
+    setAccountantProfileMsg(null)
+
+    try {
+      await accountantProfileMutation.mutateAsync({
+        bio: parsed.data.bio || null,
+        yearsOfExperience: parsed.data.yearsOfExperience ?? null,
+        hourlyRate: parsed.data.hourlyRate ?? null,
+        location: parsed.data.location || null,
+        website: parsed.data.website || null,
+      })
+      setEditingAccountantProfile(false)
+      setAccountantProfileMsg({ type: 'success', text: 'Accountant profile updated.' })
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to update profile.' })
+    } finally {
+      setSavingAccountantProfile(false)
+    }
+  }
+
+  const handleAddSpecialty = async () => {
+    const s = specialtyInput.trim()
+    if (!s || !token) return
+    setAddingSpecialty(true)
+    try {
+      await addAccountantSpecialty(user.id, s, token)
+      setSpecialties((prev) => [...prev, s])
+      setSpecialtyInput('')
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to add specialty.' })
+    } finally {
+      setAddingSpecialty(false)
+    }
+  }
+
+  const handleRemoveSpecialty = async (specialty) => {
+    if (!token) return
+    try {
+      await removeAccountantSpecialty(user.id, specialty, token)
+      setSpecialties((prev) => prev.filter((s) => s !== specialty))
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to remove specialty.' })
+    }
+  }
+
+  const handleAddCertification = async () => {
+    const c = certInput.trim()
+    if (!c || !token) return
+    setAddingCert(true)
+    try {
+      await addAccountantCertification(user.id, c, token)
+      setCertifications((prev) => [...prev, c])
+      setCertInput('')
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to add certification.' })
+    } finally {
+      setAddingCert(false)
+    }
+  }
+
+  const handleRemoveCertification = async (cert) => {
+    if (!token) return
+    try {
+      await removeAccountantCertification(user.id, cert, token)
+      setCertifications((prev) => prev.filter((c) => c !== cert))
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to remove certification.' })
     }
   }
 
@@ -837,7 +971,267 @@ export default function ProfilePage() {
         </Grid>
 
         {/* ══════════════════════════════════════════════════
-            SECTION C — Business Info (business_owner roles)
+            SECTION C — Accountant Profile (accountant roles)
+           ══════════════════════════════════════════════════ */}
+        {isAccountant && (
+          <Box sx={{ mb: 3 }}>
+            <GlassCard role="region" aria-label="Accountant Profile">
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                <SectionHeader
+                  icon={<BusinessRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="Accountant Profile"
+                />
+
+                <Collapse in={!!accountantProfileMsg}>
+                  {accountantProfileMsg && (
+                    <Alert
+                      severity={accountantProfileMsg.type}
+                      sx={{ mb: 2.5, borderRadius: 2 }}
+                      onClose={() => setAccountantProfileMsg(null)}
+                    >
+                      {accountantProfileMsg.text}
+                    </Alert>
+                  )}
+                </Collapse>
+
+                {loadingProfile ? (
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Skeleton variant="rounded" height={56} />
+                    <Skeleton variant="rounded" height={56} />
+                  </Stack>
+                ) : editingAccountantProfile ? (
+                  <Stack spacing={2.5} sx={{ mt: 1 }}>
+                    <TextField
+                      label="Bio"
+                      multiline
+                      minRows={2}
+                      maxRows={5}
+                      fullWidth
+                      value={accountantProfileForm.bio}
+                      onChange={(e) =>
+                        setAccountantProfileForm((p) => ({ ...p, bio: e.target.value }))
+                      }
+                      sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                    />
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        label="Years of Experience"
+                        type="number"
+                        value={accountantProfileForm.yearsOfExperience ?? ''}
+                        onChange={(e) =>
+                          setAccountantProfileForm((p) => ({
+                            ...p,
+                            yearsOfExperience: e.target.value ? Number(e.target.value) : null,
+                          }))
+                        }
+                        sx={{ width: 200, '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        inputProps={{ min: 0, max: 100 }}
+                      />
+                      <TextField
+                        label="Hourly Rate"
+                        type="number"
+                        value={accountantProfileForm.hourlyRate ?? ''}
+                        onChange={(e) =>
+                          setAccountantProfileForm((p) => ({
+                            ...p,
+                            hourlyRate: e.target.value ? Number(e.target.value) : null,
+                          }))
+                        }
+                        sx={{ width: 200, '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        inputProps={{ min: 0, step: 0.01 }}
+                      />
+                      <TextField
+                        label="Location"
+                        fullWidth
+                        value={accountantProfileForm.location}
+                        onChange={(e) =>
+                          setAccountantProfileForm((p) => ({ ...p, location: e.target.value }))
+                        }
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                    </Stack>
+                    <TextField
+                      label="Website"
+                      fullWidth
+                      value={accountantProfileForm.website}
+                      onChange={(e) =>
+                        setAccountantProfileForm((p) => ({ ...p, website: e.target.value }))
+                      }
+                      sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                    />
+
+                    <Divider sx={{ borderColor: 'divider' }} />
+
+                    {/* Specialties */}
+                    <Typography fontWeight={700}>Specialties</Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {specialties.map((s) => (
+                        <Chip
+                          key={s}
+                          label={s}
+                          onDelete={() => handleRemoveSpecialty(s)}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        placeholder="Add a specialty"
+                        value={specialtyInput}
+                        onChange={(e) => setSpecialtyInput(e.target.value)}
+                        size="small"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSpecialty(); } }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                      <IconButton
+                        color="primary"
+                        onClick={handleAddSpecialty}
+                        disabled={addingSpecialty || !specialtyInput.trim()}
+                      >
+                        {addingSpecialty ? <CircularProgress size={20} /> : <AddRoundedIcon />}
+                      </IconButton>
+                    </Stack>
+
+                    {/* Certifications */}
+                    <Typography fontWeight={700} sx={{ mt: 1 }}>Certifications</Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {certifications.map((c) => (
+                        <Chip
+                          key={c}
+                          label={c}
+                          onDelete={() => handleRemoveCertification(c)}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        placeholder="Add a certification"
+                        value={certInput}
+                        onChange={(e) => setCertInput(e.target.value)}
+                        size="small"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCertification(); } }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                      <IconButton
+                        color="secondary"
+                        onClick={handleAddCertification}
+                        disabled={addingCert || !certInput.trim()}
+                      >
+                        {addingCert ? <CircularProgress size={20} /> : <AddRoundedIcon />}
+                      </IconButton>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 1 }}>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        startIcon={<CloseRoundedIcon />}
+                        onClick={() => {
+                          setEditingAccountantProfile(false)
+                          setAccountantProfileForm({
+                            bio: profile?.bio || '',
+                            yearsOfExperience: profile?.yearsOfExperience ?? null,
+                            hourlyRate: profile?.hourlyRate ?? null,
+                            location: profile?.location || '',
+                            website: profile?.website || '',
+                          })
+                        }}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        startIcon={
+                          savingAccountantProfile ? (
+                            <CircularProgress size={18} color="inherit" />
+                          ) : (
+                            <SaveRoundedIcon />
+                          )
+                        }
+                        disabled={savingAccountantProfile}
+                        onClick={handleSaveAccountantProfile}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Save Changes
+                      </Button>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                      <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>Bio</Typography>
+                      <Typography fontWeight={700} textAlign="right" sx={{ maxWidth: 500, wordBreak: 'break-word' }}>
+                        {profile?.bio || '—'}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={2}>
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Experience</Typography>
+                        <Typography fontWeight={700}>{profile?.yearsOfExperience ?? '—'}</Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Hourly Rate</Typography>
+                        <Typography fontWeight={700}>
+                          {profile?.hourlyRate != null ? `$${Number(profile.hourlyRate).toFixed(2)}` : '—'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Location</Typography>
+                        <Typography fontWeight={700}>{profile?.location || '—'}</Typography>
+                      </Box>
+                    </Stack>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                      <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>Website</Typography>
+                      <Typography fontWeight={700}>{profile?.website || '—'}</Typography>
+                    </Box>
+
+                    {specialties.length > 0 && (
+                      <>
+                        <Typography fontWeight={700} sx={{ mt: 1 }}>Specialties</Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          {specialties.map((s) => (
+                            <Chip key={s} label={s} size="small" color="primary" variant="outlined" />
+                          ))}
+                        </Stack>
+                      </>
+                    )}
+
+                    {certifications.length > 0 && (
+                      <>
+                        <Typography fontWeight={700} sx={{ mt: 1 }}>Certifications</Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          {certifications.map((c) => (
+                            <Chip key={c} label={c} size="small" color="secondary" variant="outlined" />
+                          ))}
+                        </Stack>
+                      </>
+                    )}
+
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<EditRoundedIcon />}
+                        onClick={() => setEditingAccountantProfile(true)}
+                        sx={{ borderRadius: 2, px: 4, py: 1.2, fontWeight: 700 }}
+                      >
+                        Edit Profile
+                      </Button>
+                    </Box>
+                  </Stack>
+                )}
+              </CardContent>
+            </GlassCard>
+          </Box>
+        )}
+
+        {/* ══════════════════════════════════════════════════
+            SECTION D — Business Info (business_owner roles)
            ══════════════════════════════════════════════════ */}
         {isBusinessOwner && (
           <Box>

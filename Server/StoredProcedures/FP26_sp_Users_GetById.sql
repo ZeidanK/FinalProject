@@ -24,7 +24,12 @@ BEGIN
         is_public,
         email_verified,
         last_login_at,
-        created_at
+        created_at,
+        bio,
+        years_of_experience,
+        hourly_rate,
+        location,
+        website
     FROM dbo.FP26_users
     WHERE id = @Id;
 END

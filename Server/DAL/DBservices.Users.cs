@@ -403,15 +403,20 @@ namespace FinalProjectAuthAPI.DAL
 
         private static User MapUser(SqlDataReader r) => new()
         {
-            Id             = Convert.ToInt64(r["id"]),
-            Email          = r["email"]?.ToString()!,
-            Name           = r["name"]?.ToString()!,
-            Role           = r["role"]?.ToString() ?? "business_owner",
-            Phone          = r["phone"] != DBNull.Value ? r["phone"]?.ToString() : null,
-            ProfilePicture = r["profile_picture"] != DBNull.Value ? r["profile_picture"]?.ToString() : null,
-            IsActive       = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"]),
-            IsBanned       = r["is_banned"] != DBNull.Value && Convert.ToBoolean(r["is_banned"]),
-            IsPublic       = r.HasColumn("is_public") && r["is_public"] != DBNull.Value && Convert.ToBoolean(r["is_public"]),
+            Id                = Convert.ToInt64(r["id"]),
+            Email             = r["email"]?.ToString()!,
+            Name              = r["name"]?.ToString()!,
+            Role              = r["role"]?.ToString() ?? "business_owner",
+            Phone             = r["phone"] != DBNull.Value ? r["phone"]?.ToString() : null,
+            ProfilePicture    = r["profile_picture"] != DBNull.Value ? r["profile_picture"]?.ToString() : null,
+            IsActive          = r["is_active"] != DBNull.Value && Convert.ToBoolean(r["is_active"]),
+            IsBanned          = r["is_banned"] != DBNull.Value && Convert.ToBoolean(r["is_banned"]),
+            IsPublic          = r.HasColumn("is_public") && r["is_public"] != DBNull.Value && Convert.ToBoolean(r["is_public"]),
+            Bio               = r["bio"] != DBNull.Value ? r["bio"]?.ToString() : null,
+            YearsOfExperience = r["years_of_experience"] != DBNull.Value ? Convert.ToInt32(r["years_of_experience"]) : null,
+            HourlyRate        = r["hourly_rate"] != DBNull.Value ? Convert.ToDecimal(r["hourly_rate"]) : null,
+            Location          = r["location"] != DBNull.Value ? r["location"]?.ToString() : null,
+            Website           = r["website"] != DBNull.Value ? r["website"]?.ToString() : null,
         };
     }
 }
