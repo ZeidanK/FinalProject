@@ -12,6 +12,7 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         private readonly Mock<IFileStorageService> _mockFileSvc;
         private readonly Mock<IPdfExtractionService> _mockPdfSvc;
         private readonly Mock<IInvoiceService> _mockInvoiceSvc;
+        private readonly Mock<IInvoiceVerificationService> _mockInvoiceVerificationSvc;
         private readonly Mock<IAnomalyService> _mockAnomalySvc;
         private readonly Mock<IUploadJobNotificationService> _mockNotifSvc;
         private readonly InvoiceJobProcessor _processor;
@@ -22,6 +23,7 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
             _mockFileSvc = new Mock<IFileStorageService>();
             _mockPdfSvc = new Mock<IPdfExtractionService>();
             _mockInvoiceSvc = new Mock<IInvoiceService>();
+            _mockInvoiceVerificationSvc = new Mock<IInvoiceVerificationService>();
             _mockAnomalySvc = new Mock<IAnomalyService>();
             var realtimeMock = new Mock<IRealtimeNotificationService>();
             var activityLogMock = new Mock<IActivityLogService>();
@@ -32,8 +34,8 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
 
             _processor = new InvoiceJobProcessor(
                 _mockJobSvc.Object, _mockFileSvc.Object, _mockPdfSvc.Object,
-                _mockInvoiceSvc.Object, _mockAnomalySvc.Object, _mockNotifSvc.Object,
-                mockEnv.Object);
+                _mockInvoiceSvc.Object, _mockInvoiceVerificationSvc.Object, _mockAnomalySvc.Object,
+                _mockNotifSvc.Object, mockEnv.Object);
         }
 
         private static string CreateTempPdf(string fullPath)
@@ -200,6 +202,48 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
             _mockPdfSvc.Verify(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf", "localmodel"), Times.Once);
             _mockPdfSvc.Verify(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"), Times.Never);
             _mockJobSvc.Verify(x => x.MarkCompleted(1, It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessAsync_ExtractOnly_WithAutoVerify_VerifiesCompletedJob()
+        {
+            var job = MakeJob(jobType: "invoice_upload_pdf");
+            job.PayloadJson = "{\"autoVerify\":true}";
+            _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
+            _mockJobSvc.Setup(x => x.MarkProcessing(1));
+            _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
+            var fullPath = CreateTempPdfPath();
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(fullPath);
+            _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"))
+                .ReturnsAsync(Outcome(new PdfExtractionResult
+                {
+                    VendorName = "Acme",
+                    InvoiceNumber = "INV-001",
+                    InvoiceDate = new DateTime(2026, 6, 1),
+                    TotalAmount = 1000m,
+                    Subtotal = 900m,
+                    VatAmount = 100m,
+                    Currency = "USD",
+                    VendorTaxId = "123456789",
+                    LastFourDigitsCard = "1234",
+                    ExtractionConfidence = 0.95m
+                }));
+            _mockJobSvc.Setup(x => x.MarkCompleted(1, It.IsAny<string>()));
+            _mockInvoiceVerificationSvc.Setup(x => x.VerifyJobAsync(
+                    1,
+                    10,
+                    null,
+                    true))
+                .ReturnsAsync(new InvoiceJobVerificationResult
+                {
+                    JobId = 1,
+                    Outcome = InvoiceJobVerificationOutcomes.Verified,
+                    InvoiceId = 42
+                });
+
+            await _processor.ProcessAsync(1);
+
+            _mockInvoiceVerificationSvc.Verify(x => x.VerifyJobAsync(1, 10, null, true), Times.Once);
         }
 
         [Fact]

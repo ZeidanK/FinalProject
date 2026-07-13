@@ -51,7 +51,7 @@ import {
 } from '../services/uploadJobs'
 import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
-import { mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
+import { confidenceColor, confidenceLabel, invoiceFullConfidence, mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import {
   useBulkDeleteInvoicesMutation,
   useCreateInvoiceMutation,
@@ -78,14 +78,13 @@ const normalizeInvoiceExtractionProvider = (provider) =>
     : INVOICE_EXTRACTION_PROVIDERS.GEMINI
 
 const getUploadEntryConfidence = (entry) => {
-  const value = entry?.serverResponse?.extractedData?.extractionConfidence
-  const confidence = Number(value)
-  return value == null || Number.isNaN(confidence) ? null : confidence
+  const confidence = invoiceFullConfidence(entry?.extractedData)
+  return confidence == null || Number.isNaN(confidence) ? null : confidence
 }
 
 const getDisplayedExtractionResult = (result) => {
   if (!result || typeof result !== 'object') return null
-  return result.geminiResult || result.extractedData || null
+  return result.extractedData || result.mergedResult || result.geminiResult || null
 }
 
 const buildDisplayedUploadJobData = ({
@@ -932,7 +931,7 @@ function InvoicesPage() {
           modal.file?.file?.size ||
           null
         const aiConfidence =
-          formData?.confidence?.value ??
+          invoiceFullConfidence(formData) ??
           sourceInvoice.aiExtractionConfidence ??
           sourceInvoice.ai_extraction_confidence ??
           serverResponse?.extractedData?.extractionConfidence ??
@@ -1151,6 +1150,10 @@ function InvoicesPage() {
         const status = invoice.status || ''
         return status.trim() || null
       }
+      case 'confidence': {
+        const confidence = Number(invoice.ai_extraction_confidence ?? invoice.aiExtractionConfidence)
+        return Number.isFinite(confidence) ? confidence : null
+      }
       default:
         return null
     }
@@ -1357,6 +1360,19 @@ function InvoicesPage() {
     { key: 'total', label: 'Total', align: 'right', sortable: true, getValue: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     { key: 'currency', label: 'Currency', align: 'center', sortable: true, getValue: (row) => row.currency || 'USD' },
     { key: 'status', label: 'Status', align: 'center', sortable: true, render: (val, row) => <Chip label={row.status || 'uploaded'} size="small" color={statusColors[row.status] || 'default'} variant="outlined" /> },
+    {
+      key: 'confidence',
+      label: 'Confidence',
+      align: 'center',
+      sortable: true,
+      getValue: (row) => {
+        const confidence = Number(row.ai_extraction_confidence ?? row.aiExtractionConfidence)
+        return Number.isFinite(confidence) ? confidence : null
+      },
+      render: (value) => value == null
+        ? <Typography variant="body2" color="text.secondary">—</Typography>
+        : <Chip label={confidenceLabel(value)} size="small" color={confidenceColor(value)} variant="outlined" />,
+    },
   ]
 
   const invoiceRowActions = (inv) => (

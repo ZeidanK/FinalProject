@@ -30,7 +30,7 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
-import { confidenceColor, confidenceLabel, confidenceBorderColor, lowConfidenceFields } from '../utils/invoiceExtraction'
+import { confidenceColor, confidenceLabel, confidenceBorderColor, invoiceFullConfidence, lowConfidenceFields } from '../utils/invoiceExtraction'
 import ConfidenceFieldRow from './ConfidenceFieldRow'
 import InvoicePdfPreview from './InvoicePdfPreview'
 import ModalShell from './ModalShell'
@@ -233,14 +233,7 @@ export default function InvoiceVerificationModal(props) {
   }, [form, onSave, readOnly])
 
   const overallConfidence = useMemo(function () {
-    if (!initialData) return 0
-    const fields = ['vendorName', 'invoiceNumber', 'invoiceDate', 'totalAmount', 'subtotal', 'vatAmount', 'currency', 'vendorTaxId', 'lastFourDigitsCard']
-    let total = 0
-    for (const element of fields) {
-      const f = initialData[element]
-      total += (f?.confidence == null) ? 0 : f.confidence
-    }
-    return total / fields.length
+    return invoiceFullConfidence(initialData) ?? 0
   }, [initialData])
 
   const flaggedFields = useMemo(function () {

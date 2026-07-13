@@ -97,7 +97,10 @@ namespace FinalProjectAuthAPI.BL
                 return _serializer.Result(jobId, InvoiceJobVerificationOutcomes.Unavailable, "Only extracted invoice upload jobs can be verified.");
 
             var storedPayload = _serializer.ReadStoredPayload(job.ResultJson);
-            var confidence = storedPayload.ExtractedData?.ExtractionConfidence;
+            var confidence =
+                reviewedInvoice?.AiExtractionConfidence
+                ?? InvoiceConfidenceScorer.CalculateFullConfidence(storedPayload.ExtractedData)
+                ?? storedPayload.ExtractedData?.ExtractionConfidence;
 
             if (string.Equals(job.Status, UploadJobStatuses.Verified, StringComparison.OrdinalIgnoreCase))
             {
@@ -171,7 +174,8 @@ namespace FinalProjectAuthAPI.BL
                             InvoiceId = currentPayload.InvoiceId,
                             Outcome = InvoiceJobVerificationOutcomes.AlreadyVerified,
                             Message = "Invoice was already verified.",
-                            Confidence = currentPayload.ExtractedData?.ExtractionConfidence,
+                            Confidence = InvoiceConfidenceScorer.CalculateFullConfidence(currentPayload.ExtractedData)
+                                ?? currentPayload.ExtractedData?.ExtractionConfidence,
                             IsDuplicate = currentPayload.IsDuplicate
                         };
                     }

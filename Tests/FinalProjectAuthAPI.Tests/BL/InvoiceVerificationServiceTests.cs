@@ -35,7 +35,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private static string BuildStoredPayloadJson(long? invoiceId = null, bool isDuplicate = false, decimal? confidence = 0.95m)
         {
             var data = confidence.HasValue
-                ? $@",""extractedData"":{{""vendorName"":""Acme"",""invoiceNumber"":""INV-001"",""totalAmount"":1000,""invoiceDate"":""2026-06-01"",""currency"":""USD"",""extractionConfidence"":{confidence}}}"
+                ? $@",""extractedData"":{{""vendorName"":""Acme"",""invoiceNumber"":""INV-001"",""totalAmount"":1000,""subtotal"":900,""vatAmount"":100,""invoiceDate"":""2026-06-01"",""currency"":""USD"",""vendorTaxId"":""123456789"",""lastFourDigitsCard"":""1234"",""extractionConfidence"":{confidence}}}"
                 : @",""extractedData"":null";
             return $@"{{""invoiceId"":{invoiceId?.ToString() ?? "null"},""isDuplicate"":{isDuplicate.ToString().ToLower()}{data}}}";
         }
@@ -116,6 +116,17 @@ namespace FinalProjectAuthAPI.Tests.BL
         public async Task VerifyJobAsync_AutomaticLowConfidence_RequiresReview()
         {
             var json = BuildStoredPayloadJson(confidence: 0.5m);
+            _mockJobSvc.Setup(x => x.GetById(1)).Returns(MakeJob(resultJson: json));
+
+            var result = await _service.VerifyJobAsync(1, 10, automatic: true);
+
+            Assert.Equal(InvoiceJobVerificationOutcomes.RequiresReview, result.Outcome);
+        }
+
+        [Fact]
+        public async Task VerifyJobAsync_AutomaticHighRawButLowFullConfidence_RequiresReview()
+        {
+            var json = @"{""invoiceId"":null,""isDuplicate"":false,""extractedData"":{""vendorName"":""Acme"",""invoiceNumber"":""INV-001"",""totalAmount"":1000,""invoiceDate"":""2026-06-01"",""currency"":""USD"",""extractionConfidence"":0.95}}";
             _mockJobSvc.Setup(x => x.GetById(1)).Returns(MakeJob(resultJson: json));
 
             var result = await _service.VerifyJobAsync(1, 10, automatic: true);
@@ -247,7 +258,11 @@ namespace FinalProjectAuthAPI.Tests.BL
                 InvoiceNumber = "INV-001",
                 InvoiceDate = new DateTime(2026, 6, 1),
                 TotalAmount = 1000m,
+                Subtotal = 900m,
+                VatAmount = 100m,
                 Currency = "USD",
+                VendorTaxId = "123456789",
+                LastFourDigitsCard = "1234",
                 ExtractionConfidence = 0.95m,
                 ExtractionSource = "hybrid",
                 RawText = "invoice text"
@@ -316,7 +331,11 @@ namespace FinalProjectAuthAPI.Tests.BL
                 InvoiceNumber = "INV-001",
                 InvoiceDate = new DateTime(2026, 6, 1),
                 TotalAmount = 1000m,
+                Subtotal = 900m,
+                VatAmount = 100m,
                 Currency = "USD",
+                VendorTaxId = "123456789",
+                LastFourDigitsCard = "1234",
                 ExtractionConfidence = 0.95m,
                 ExtractionSource = "hybrid",
                 RawText = "invoice text"

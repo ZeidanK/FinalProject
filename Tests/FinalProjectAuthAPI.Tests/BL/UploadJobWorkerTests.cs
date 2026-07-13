@@ -15,7 +15,7 @@ namespace FinalProjectAuthAPI.Tests.BL
         private static InvoiceJobProcessor MakeInvoiceProcessor() =>
             new(Mock.Of<IUploadJobService>(), Mock.Of<IFileStorageService>(),
                 Mock.Of<IPdfExtractionService>(), Mock.Of<IInvoiceService>(),
-                Mock.Of<IAnomalyService>(), MakeNotifSvc(),
+                Mock.Of<IInvoiceVerificationService>(), Mock.Of<IAnomalyService>(), MakeNotifSvc(),
                 Mock.Of<IWebHostEnvironment>());
 
         private static TransactionJobProcessor MakeTransactionProcessor() =>
@@ -32,6 +32,7 @@ namespace FinalProjectAuthAPI.Tests.BL
                 Mock.Of<IFileStorageService>(),
                 Mock.Of<IPdfExtractionService>(),
                 Mock.Of<IInvoiceService>(),
+                Mock.Of<IInvoiceVerificationService>(),
                 Mock.Of<IAnomalyService>(),
                 MakeNotifSvc(),
                 Mock.Of<IWebHostEnvironment>());

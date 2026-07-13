@@ -37,6 +37,18 @@ const TRACKED_FIELDS = [
   'vatRate', 'vendorTaxId', 'lastFourDigitsCard',
 ]
 
+const FULL_CONFIDENCE_FIELDS = [
+  'vendorName',
+  'invoiceNumber',
+  'invoiceDate',
+  'totalAmount',
+  'subtotal',
+  'vatAmount',
+  'currency',
+  'vendorTaxId',
+  'lastFourDigitsCard',
+]
+
 /**
  * Find fields in the form data whose confidence is below a threshold.
  *
@@ -70,6 +82,24 @@ export function lowConfidenceFields(formData, threshold) {
 export function confidenceLabel(score) {
   if (score == null) return '-'
   return Math.round(score * 100) + '%'
+}
+
+/**
+ * Calculate the full invoice confidence shown in the verification modal header.
+ *
+ * @param {object|null|undefined} formData - Invoice form data with { value, confidence } fields.
+ * @returns {number|null} Average confidence across the modal summary fields.
+ */
+export function invoiceFullConfidence(formData) {
+  if (!formData) return null
+
+  let total = 0
+  for (const key of FULL_CONFIDENCE_FIELDS) {
+    const confidence = Number(formData[key]?.confidence)
+    total += Number.isFinite(confidence) ? confidence : 0
+  }
+
+  return total / FULL_CONFIDENCE_FIELDS.length
 }
 
 /**

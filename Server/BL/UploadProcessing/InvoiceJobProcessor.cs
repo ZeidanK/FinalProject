@@ -12,6 +12,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
         private readonly IFileStorageService _fileSvc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IInvoiceService _invoiceSvc;
+        private readonly IInvoiceVerificationService _invoiceVerificationSvc;
         private readonly IAnomalyService _anomalySvc;
         private readonly IUploadJobNotificationService _notification;
         private readonly InvoiceJobPayloadSerializer _resultSerializer;
@@ -22,6 +23,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             IFileStorageService fileSvc,
             IPdfExtractionService pdfSvc,
             IInvoiceService invoiceSvc,
+            IInvoiceVerificationService invoiceVerificationSvc,
             IAnomalyService anomalySvc,
             IUploadJobNotificationService notification,
             IWebHostEnvironment env)
@@ -30,6 +32,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             _fileSvc = fileSvc;
             _pdfSvc = pdfSvc;
             _invoiceSvc = invoiceSvc;
+            _invoiceVerificationSvc = invoiceVerificationSvc;
             _anomalySvc = anomalySvc;
             _notification = notification;
             _resultSerializer = new InvoiceJobPayloadSerializer();
@@ -57,7 +60,8 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             var effectiveCompanyId = companyId ?? job.CompanyId;
             var effectiveUserId = userId ?? job.UserId;
             var effectiveJobType = string.IsNullOrWhiteSpace(jobType) ? job.JobType : jobType;
-            var extractionProvider = GetExtractionProvider(job.PayloadJson);
+            var jobOptions = GetJobOptions(job.PayloadJson);
+            var extractionProvider = jobOptions.ExtractionProvider;
 
             _jobSvc.MarkProcessing(jobId);
             _jobSvc.UpdateProgress(jobId, 10);
@@ -132,6 +136,9 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
 
                 _jobSvc.MarkCompleted(jobId, extractOnlyResult);
                 await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
+
+                if (jobOptions.AutoVerify)
+                    await TryAutoVerifyAsync(jobId, effectiveUserId, extractOnlyResult);
             }
             catch (FileNotFoundException ex)
             {
@@ -149,32 +156,71 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             }
         }
 
-        private static string? GetExtractionProvider(string? payloadJson)
+        private async Task TryAutoVerifyAsync(long jobId, long userId, string completedResultJson)
+        {
+            InvoiceJobVerificationResult result;
+            try
+            {
+                result = await _invoiceVerificationSvc.VerifyJobAsync(
+                    jobId,
+                    userId,
+                    reviewedInvoice: null,
+                    automatic: true);
+            }
+            catch (Exception ex)
+            {
+                _jobSvc.RestoreCompleted(jobId, completedResultJson, ex.Message);
+                await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
+                return;
+            }
+
+            if (result.Outcome != InvoiceJobVerificationOutcomes.RequiresReview)
+                return;
+
+            _jobSvc.RestoreCompleted(jobId, completedResultJson, result.Message);
+            await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
+        }
+
+        private static InvoiceUploadJobOptions GetJobOptions(string? payloadJson)
         {
             if (string.IsNullOrWhiteSpace(payloadJson))
-                return null;
+                return new InvoiceUploadJobOptions();
+
+            var options = new InvoiceUploadJobOptions();
 
             try
             {
                 using var document = JsonDocument.Parse(payloadJson);
                 if (document.RootElement.ValueKind != JsonValueKind.Object)
-                    return null;
+                    return options;
 
                 foreach (var property in document.RootElement.EnumerateObject())
                 {
-                    if (!property.Name.Equals("extractionProvider", StringComparison.OrdinalIgnoreCase)
-                        || property.Value.ValueKind != JsonValueKind.String)
-                        continue;
-
-                    return InvoiceExtractionProviders.NormalizeOrNull(property.Value.GetString());
+                    if (property.Name.Equals("autoVerify", StringComparison.OrdinalIgnoreCase)
+                        && (property.Value.ValueKind == JsonValueKind.True
+                            || property.Value.ValueKind == JsonValueKind.False))
+                    {
+                        options.AutoVerify = property.Value.GetBoolean();
+                    }
+                    else if (property.Name.Equals("extractionProvider", StringComparison.OrdinalIgnoreCase)
+                        && property.Value.ValueKind == JsonValueKind.String)
+                    {
+                        options.ExtractionProvider = InvoiceExtractionProviders.NormalizeOrNull(property.Value.GetString());
+                    }
                 }
             }
             catch
             {
-                return null;
+                return options;
             }
 
-            return null;
+            return options;
+        }
+
+        private sealed class InvoiceUploadJobOptions
+        {
+            public bool AutoVerify { get; set; }
+            public string? ExtractionProvider { get; set; }
         }
 
         private async Task<string> ResolveFilePathAsync(string relativePath)

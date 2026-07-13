@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   confidenceColor,
   confidenceLabel,
+  invoiceFullConfidence,
   toDateInput,
   mapExtractedToForm,
   mapSavedInvoiceToForm,
@@ -34,6 +35,25 @@ describe('confidenceLabel', () => {
   it('returns "-" for null/undefined', () => {
     expect(confidenceLabel(null)).toBe('-')
     expect(confidenceLabel(undefined)).toBe('-')
+  })
+})
+
+describe('invoiceFullConfidence', () => {
+  it('averages the same fields shown in the verification header', () => {
+    const form = mapExtractedToForm({
+      vendorName: 'Acme Corp',
+      invoiceNumber: 'INV-001',
+      invoiceDate: '2025-04-27T00:00:00',
+      totalAmount: 1500.50,
+      currency: 'USD',
+      extractionConfidence: 0.9,
+    })
+
+    expect(invoiceFullConfidence(form)).toBeCloseTo(0.5)
+  })
+
+  it('returns null when no form data is available', () => {
+    expect(invoiceFullConfidence(null)).toBeNull()
   })
 })
 
