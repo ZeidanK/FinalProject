@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.Models;
@@ -56,6 +57,7 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
             var effectiveCompanyId = companyId ?? job.CompanyId;
             var effectiveUserId = userId ?? job.UserId;
             var effectiveJobType = string.IsNullOrWhiteSpace(jobType) ? job.JobType : jobType;
+            var extractionProvider = GetExtractionProvider(job.PayloadJson);
 
             _jobSvc.MarkProcessing(jobId);
             _jobSvc.UpdateProgress(jobId, 10);
@@ -71,7 +73,9 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
                 PdfExtractionOutcome outcome;
                 using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    outcome = await _pdfSvc.ExtractAsync(stream, fileName);
+                    outcome = string.IsNullOrWhiteSpace(extractionProvider)
+                        ? await _pdfSvc.ExtractAsync(stream, fileName)
+                        : await _pdfSvc.ExtractAsync(stream, fileName, extractionProvider);
                 }
                 var extracted = outcome.ExtractedData;
 
@@ -143,6 +147,34 @@ namespace FinalProjectAuthAPI.BL.UploadProcessing
                 _notification.LogUploadJobFailure(job, "Invoice upload job crashed", ex.Message, "ERROR");
                 await _notification.NotifyUploadJobUpdatedAsync(_jobSvc, jobId);
             }
+        }
+
+        private static string? GetExtractionProvider(string? payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson))
+                return null;
+
+            try
+            {
+                using var document = JsonDocument.Parse(payloadJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                    return null;
+
+                foreach (var property in document.RootElement.EnumerateObject())
+                {
+                    if (!property.Name.Equals("extractionProvider", StringComparison.OrdinalIgnoreCase)
+                        || property.Value.ValueKind != JsonValueKind.String)
+                        continue;
+
+                    return InvoiceExtractionProviders.NormalizeOrNull(property.Value.GetString());
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return null;
         }
 
         private async Task<string> ResolveFilePathAsync(string relativePath)

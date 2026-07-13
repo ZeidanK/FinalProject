@@ -53,8 +53,8 @@ export function useInvoiceByIdQuery({ invoiceId, token, enabled = true }) {
  */
 export function useUploadInvoicePdfMutation({ token }) {
   return useMutation({
-    mutationFn: ({ file, companyId, autoVerify }) =>
-      uploadInvoicePdf(file, companyId, autoVerify, token),
+    mutationFn: ({ file, companyId, autoVerify, extractionProvider }) =>
+      uploadInvoicePdf(file, companyId, autoVerify, extractionProvider, token),
   })
 }
 

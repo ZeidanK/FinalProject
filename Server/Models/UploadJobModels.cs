@@ -21,11 +21,37 @@ namespace FinalProjectAuthAPI.Models
         public const string Verified = "verified"; // user confirmed the extracted data
     }
 
+    public static class InvoiceExtractionProviders
+    {
+        public const string Gemini = "gemini";
+        public const string LocalModel = "localmodel";
+        public const string Local = "local";
+
+        public static string? NormalizeOrNull(string? provider)
+        {
+            if (string.IsNullOrWhiteSpace(provider))
+                return null;
+
+            if (provider.Equals(LocalModel, StringComparison.OrdinalIgnoreCase)
+                || provider.Equals(Local, StringComparison.OrdinalIgnoreCase))
+                return LocalModel;
+
+            if (provider.Equals(Gemini, StringComparison.OrdinalIgnoreCase))
+                return Gemini;
+
+            return null;
+        }
+
+        public static string NormalizeOrDefault(string? provider) =>
+            NormalizeOrNull(provider) ?? Gemini;
+    }
+
     public class UploadJobPayload
     {
         public long? BankAccountId { get; set; }
         public string? Source { get; set; }
         public bool AutoVerify { get; set; }
+        public string ExtractionProvider { get; set; } = InvoiceExtractionProviders.Gemini;
     }
 
     public class UploadJobRow

@@ -7,7 +7,9 @@ namespace FinalProjectAuthAPI.BL
 {
     public class PdfExtractionService : IPdfExtractionService
     {
-        private readonly IGeminiExtractionService _geminiService;
+        private readonly IGeminiExtractionService _primaryExtractionService;
+        private readonly IGeminiExtractionService? _geminiProvider;
+        private readonly IGeminiExtractionService? _localModelProvider;
         private readonly IGeminiExtractionService? _geminiFallback;
         private readonly ILogger<PdfExtractionService> _logger;
         private readonly PdfTextExtractor _textExtractor;
@@ -24,15 +26,10 @@ namespace FinalProjectAuthAPI.BL
             ILogger<PdfExtractionService> logger,
             HybridExtractionSettings hybridSettings)
         {
-            _geminiService = geminiService;
-            try
-            {
-                _geminiFallback = serviceProvider.GetKeyedService<IGeminiExtractionService>("gemini-fallback");
-            }
-            catch (InvalidOperationException)
-            {
-                _geminiFallback = null;
-            }
+            _primaryExtractionService = geminiService;
+            _geminiProvider = TryGetKeyedService(serviceProvider, InvoiceExtractionProviders.Gemini);
+            _localModelProvider = TryGetKeyedService(serviceProvider, InvoiceExtractionProviders.LocalModel);
+            _geminiFallback = TryGetKeyedService(serviceProvider, "gemini-fallback");
             _logger = logger;
             _hybridSettings = hybridSettings;
             _hybridMerger = new HybridExtractionMerger(hybridSettings);
@@ -41,7 +38,10 @@ namespace FinalProjectAuthAPI.BL
             _regexParser = new RegexInvoiceParser();
         }
 
-        public async Task<PdfExtractionOutcome> ExtractAsync(Stream pdfStream, string fileName)
+        public Task<PdfExtractionOutcome> ExtractAsync(Stream pdfStream, string fileName) =>
+            ExtractAsync(pdfStream, fileName, null);
+
+        public async Task<PdfExtractionOutcome> ExtractAsync(Stream pdfStream, string fileName, string? extractionProvider)
         {
             Console.WriteLine("\n================ INVOICE UPLOAD PIPELINE ================");
             Console.WriteLine($"File: {fileName}");
@@ -72,8 +72,14 @@ namespace FinalProjectAuthAPI.BL
 
             PdfExtractionResult? result;
             HybridExtractionAudit? hybridAudit = null;
+            var requestedProvider = InvoiceExtractionProviders.NormalizeOrNull(extractionProvider);
 
-            if (ShouldUseHybrid())
+            if (requestedProvider != null)
+            {
+                Console.WriteLine($"\n[STEP 2] Running requested {requestedProvider} extraction...");
+                result = await RunRequestedProviderExtractionAsync(extractedText, fileName, requestedProvider);
+            }
+            else if (ShouldUseHybrid())
             {
                 Console.WriteLine(_hybridSettings.AlwaysCallGemini
                     ? "\n[STEP 2] Running hybrid extraction (local + Gemini)..."
@@ -85,7 +91,7 @@ namespace FinalProjectAuthAPI.BL
             else
             {
                 Console.WriteLine("\n[STEP 2] Running primary AI extraction...");
-                result = await TryExtractAsync(_geminiService, extractedText, fileName, "Primary AI");
+                result = await TryExtractAsync(_primaryExtractionService, extractedText, fileName, "Primary AI");
             }
 
             // Prevent regex fallback if any AI path (e.g., hybrid merge) returned core fields.
@@ -133,6 +139,41 @@ namespace FinalProjectAuthAPI.BL
             _hybridSettings.Enabled
             && _geminiFallback != null;
 
+        private async Task<PdfExtractionResult?> RunRequestedProviderExtractionAsync(
+            string rawText,
+            string fileName,
+            string provider)
+        {
+            var service = GetRequestedProviderService(provider);
+            if (service == null)
+            {
+                var message = $"Requested extraction provider '{provider}' is not configured.";
+                Console.WriteLine($"         {message}");
+                _logger.LogWarning("{Message}", message);
+                return null;
+            }
+
+            var providerName = provider == InvoiceExtractionProviders.LocalModel
+                ? "Local model"
+                : "Gemini";
+
+            return await TryExtractAsync(service, rawText, fileName, providerName);
+        }
+
+        private IGeminiExtractionService? GetRequestedProviderService(string provider)
+        {
+            if (provider == InvoiceExtractionProviders.LocalModel)
+            {
+                return _localModelProvider
+                    ?? (_primaryExtractionService is LocalModelExtractionService ? _primaryExtractionService : null);
+            }
+
+            if (provider == InvoiceExtractionProviders.Gemini)
+                return _geminiProvider ?? _geminiFallback ?? _primaryExtractionService;
+
+            return null;
+        }
+
         private async Task<(PdfExtractionResult? Result, HybridExtractionAudit? Audit)> RunHybridExtractionAsync(
             string rawText,
             string fileName)
@@ -141,7 +182,7 @@ namespace FinalProjectAuthAPI.BL
             {
                 Console.WriteLine("         Hybrid always-call mode enabled; requesting local model and Gemini in parallel.");
 
-                var localTask = TryExtractAsync(_geminiService, rawText, fileName, "Local model");
+                var localTask = TryExtractAsync(_primaryExtractionService, rawText, fileName, "Local model");
                 var geminiTask = TryExtractAsync(
                     _geminiFallback!,
                     rawText,
@@ -170,7 +211,7 @@ namespace FinalProjectAuthAPI.BL
                     });
             }
 
-            var localResult = await TryExtractAsync(_geminiService, rawText, fileName, "Local model");
+            var localResult = await TryExtractAsync(_primaryExtractionService, rawText, fileName, "Local model");
 
             if (!HasNoCoreFields(localResult))
             {
@@ -297,6 +338,18 @@ namespace FinalProjectAuthAPI.BL
                 ExtractionMethod = result.ExtractionMethod,
                 ExtractionSource = result.ExtractionSource
             };
+        }
+
+        private static IGeminiExtractionService? TryGetKeyedService(IServiceProvider serviceProvider, string key)
+        {
+            try
+            {
+                return serviceProvider.GetKeyedService<IGeminiExtractionService>(key);
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
         }
     }
 }

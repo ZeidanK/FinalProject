@@ -182,6 +182,27 @@ namespace FinalProjectAuthAPI.Tests.BL.UploadProcessing
         }
 
         [Fact]
+        public async Task ProcessAsync_ExtractOnly_WithProvider_UsesProviderAwareExtraction()
+        {
+            var job = MakeJob(jobType: "invoice_upload_pdf");
+            job.PayloadJson = "{\"extractionProvider\":\"localmodel\"}";
+            _mockJobSvc.Setup(x => x.GetById(1)).Returns(job);
+            _mockJobSvc.Setup(x => x.MarkProcessing(1));
+            _mockJobSvc.Setup(x => x.UpdateProgress(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<string?>()));
+            var fullPath = CreateTempPdfPath();
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath(job.FilePath)).Returns(fullPath);
+            _mockPdfSvc.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf", "localmodel"))
+                .ReturnsAsync(Outcome(new PdfExtractionResult { VendorName = "Local Vendor" }));
+            _mockJobSvc.Setup(x => x.MarkCompleted(1, It.IsAny<string>()));
+
+            await _processor.ProcessAsync(1);
+
+            _mockPdfSvc.Verify(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf", "localmodel"), Times.Once);
+            _mockPdfSvc.Verify(x => x.ExtractAsync(It.IsAny<Stream>(), "test.pdf"), Times.Never);
+            _mockJobSvc.Verify(x => x.MarkCompleted(1, It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
         public async Task ProcessAsync_ExtractOnly_StoresHybridAuditInResultJson()
         {
             var job = MakeJob(jobType: "invoice_upload_pdf");

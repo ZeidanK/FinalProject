@@ -67,6 +67,15 @@ import {
  */
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const AUTO_VERIFY_CONFIDENCE_THRESHOLD = 0.9
+const INVOICE_EXTRACTION_PROVIDERS = {
+  GEMINI: 'gemini',
+  LOCAL_MODEL: 'localmodel',
+}
+
+const normalizeInvoiceExtractionProvider = (provider) =>
+  provider === INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
+    ? INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
+    : INVOICE_EXTRACTION_PROVIDERS.GEMINI
 
 const getUploadEntryConfidence = (entry) => {
   const value = entry?.serverResponse?.extractedData?.extractionConfidence
@@ -144,6 +153,7 @@ function InvoicesPage() {
 
   // --- Upload state ---
   const [files, setFiles] = useState([])
+  const [extractionProvider, setExtractionProvider] = useState(INVOICE_EXTRACTION_PROVIDERS.GEMINI)
   const [autoVerifyEnabled, setAutoVerifyEnabled] = useState(false)
   const [selectedUploadJobIds, setSelectedUploadJobIds] = useState([])
   const [bulkVerifying, setBulkVerifying] = useState(false)
@@ -172,9 +182,41 @@ function InvoicesPage() {
   const POLL_INTERVAL_MS = 4000
 
   const sessionKey = activeCompanyId ? `invoice_upload_jobs_${activeCompanyId}` : null
+  const extractionProviderPreferenceKey = user?.id && activeCompanyId
+    ? `invoice_extraction_provider_${user.id}_${activeCompanyId}`
+    : null
   const autoVerifyPreferenceKey = user?.id && activeCompanyId
     ? `invoice_auto_verify_${user.id}_${activeCompanyId}`
     : null
+
+  useEffect(() => {
+    if (!extractionProviderPreferenceKey) {
+      setExtractionProvider(INVOICE_EXTRACTION_PROVIDERS.GEMINI)
+      return
+    }
+
+    try {
+      setExtractionProvider(normalizeInvoiceExtractionProvider(
+        localStorage.getItem(extractionProviderPreferenceKey),
+      ))
+    } catch {
+      setExtractionProvider(INVOICE_EXTRACTION_PROVIDERS.GEMINI)
+    }
+  }, [extractionProviderPreferenceKey])
+
+  const handleExtractionProviderChange = useCallback((event) => {
+    const provider = event.target.checked
+      ? INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
+      : INVOICE_EXTRACTION_PROVIDERS.GEMINI
+    setExtractionProvider(provider)
+    if (!extractionProviderPreferenceKey) return
+
+    try {
+      localStorage.setItem(extractionProviderPreferenceKey, provider)
+    } catch {
+      // The preference remains active for this page if browser storage is unavailable.
+    }
+  }, [extractionProviderPreferenceKey])
 
   useEffect(() => {
     if (!autoVerifyPreferenceKey) {
@@ -662,6 +704,7 @@ function InvoicesPage() {
           file: entry.file,
           companyId: activeCompanyId,
           autoVerify: entry.autoVerify,
+          extractionProvider: entry.extractionProvider,
         })
 
         // Async path: server returned a background job id — poll until Gemini finishes
@@ -738,6 +781,7 @@ function InvoicesPage() {
         serverResponse: null,
         jobId: null,
         autoVerify: autoVerifyEnabled,
+        extractionProvider,
       }
     })
     setFiles((prev) => [...prev, ...entries])
@@ -746,7 +790,7 @@ function InvoicesPage() {
     entries
       .filter((e) => e.status === 'pending')
       .forEach((entry) => processFile(entry))
-  }, [activeCompanyId, autoVerifyEnabled, processFile])
+  }, [activeCompanyId, autoVerifyEnabled, extractionProvider, processFile])
 
   const removeFile = useCallback(async (id) => {
     const entry = files.find((f) => f.id === id)
@@ -1303,6 +1347,7 @@ function InvoicesPage() {
 
   // ===================== Render =====================
 
+  const usingLocalExtractionProvider = extractionProvider === INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
   const pendingFiles = files.filter((f) => f.status !== 'verified')
 
   const invoiceColumns = [
@@ -1380,6 +1425,36 @@ function InvoicesPage() {
               disabled={!activeCompanyId}
             />
           </motion.div>
+
+          <Stack spacing={1}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              spacing={{ xs: 0, sm: 1.5 }}
+            >
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={usingLocalExtractionProvider}
+                    onChange={handleExtractionProviderChange}
+                    disabled={!activeCompanyId}
+                    color="success"
+                  />
+                )}
+                label="Use local model instead of Gemini"
+              />
+              <Typography variant="caption" color="text.secondary">
+                {usingLocalExtractionProvider
+                  ? 'Applies only to files added while local model is enabled.'
+                  : 'Gemini is used for files added while this switch is off.'}
+              </Typography>
+            </Stack>
+            {usingLocalExtractionProvider && (
+              <Alert severity="warning" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+                Local model is less accurate than Gemini and may miss or misread invoice fields.
+              </Alert>
+            )}
+          </Stack>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}

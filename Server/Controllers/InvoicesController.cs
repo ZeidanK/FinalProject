@@ -269,7 +269,8 @@ namespace FinalProjectAuthAPI.Controllers
         public async Task<IActionResult> UploadPdf(
             IFormFile file,
             [FromForm] long companyId,
-            [FromForm] bool autoVerify = false)
+            [FromForm] bool autoVerify = false,
+            [FromForm] string? extractionProvider = null)
         {
             var userId = GetCurrentUserId();
             if (!_db.UserHasActiveCompanyAccess(userId, companyId))
@@ -290,7 +291,8 @@ namespace FinalProjectAuthAPI.Controllers
                     UserId = userId,
                     PayloadJson = JsonSerializer.Serialize(new UploadJobPayload
                     {
-                        AutoVerify = autoVerify
+                        AutoVerify = autoVerify,
+                        ExtractionProvider = InvoiceExtractionProviders.NormalizeOrDefault(extractionProvider)
                     }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
                 });
 

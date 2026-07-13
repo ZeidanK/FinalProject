@@ -78,8 +78,11 @@ describe('invoices service', () => {
       json: () => Promise.resolve({ success: true, data: { id: 1 } }),
     })
     const file = new File(['pdf content'], 'invoice.pdf', { type: 'application/pdf' })
-    const result = await uploadInvoicePdf(file, 1, true, 'token')
+    const result = await uploadInvoicePdf(file, 1, true, 'localmodel', 'token')
     expect(result).toEqual({ id: 1 })
+    const [, options] = globalThis.fetch.mock.calls[0]
+    expect(options.body.get('autoVerify')).toBe('true')
+    expect(options.body.get('extractionProvider')).toBe('localmodel')
   })
 
   it('downloadInvoicePdf returns blob metadata', async () => {

@@ -95,7 +95,7 @@ describe('useInvoiceByIdQuery', () => {
 describe('useUploadInvoicePdfMutation', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('calls uploadInvoicePdf with file, companyId, autoVerify, and token', async () => {
+  it('calls uploadInvoicePdf with file, companyId, autoVerify, provider, and token', async () => {
     mockUploadInvoicePdf.mockResolvedValue({ id: 1, url: 'http://example.com/invoice.pdf' })
 
     const { result } = renderHook(
@@ -107,12 +107,14 @@ describe('useUploadInvoicePdfMutation', () => {
       file: new File([''], 'invoice.pdf'),
       companyId: 5,
       autoVerify: true,
+      extractionProvider: 'localmodel',
     })
 
     expect(mockUploadInvoicePdf).toHaveBeenCalledWith(
       expect.any(File),
       5,
       true,
+      'localmodel',
       'tok'
     )
     expect(data).toEqual({ id: 1, url: 'http://example.com/invoice.pdf' })

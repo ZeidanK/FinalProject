@@ -195,6 +195,18 @@ describe('InvoicesPage', () => {
     expect(screen.getByText(/Auto-verify invoices with 90% confidence or higher/)).toBeInTheDocument()
   })
 
+  it('shows local model warning when extraction toggle is enabled', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(screen.getByText(/Use local model instead of Gemini/)).toBeInTheDocument()
+    expect(screen.queryByText(/less accurate than Gemini/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('switch', { name: /Use local model instead of Gemini/i }))
+
+    expect(screen.getByText(/Local model is less accurate than Gemini/)).toBeInTheDocument()
+  })
+
   it('renders invoice record count in table header', async () => {
     mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleInvoices }
     renderPage()
