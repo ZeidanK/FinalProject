@@ -111,6 +111,20 @@ describe('AdminPortalPage', () => {
 
   it('Stats tab shows stat cards when data loads', () => {
     renderPage()
+    const statLabels = [
+      'Total users',
+      'Active users',
+      'Total companies',
+      'Active companies',
+      'Total invoices',
+      'Total transactions',
+      'Total matches',
+      'Open anomalies',
+    ]
+
+    statLabels.forEach((label) => {
+      expect(screen.getByText(label)).toBeInTheDocument()
+    })
     expect(screen.getByText('100')).toBeInTheDocument()
     expect(screen.getByText('75')).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument()
