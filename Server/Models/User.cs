@@ -22,6 +22,13 @@ namespace FinalProjectAuthAPI.Models
         public bool IsBanned { get; set; } = false;
         public bool IsPublic { get; set; } = false;
 
+        // -- Accountant profile fields ----------------------------------------
+        public string? Bio { get; set; }
+        public int? YearsOfExperience { get; set; }
+        public decimal? HourlyRate { get; set; }
+        public string? Location { get; set; }
+        public string? Website { get; set; }
+
         // -- JWT --------------------------------------------------------------
 
         public string GenerateJwtToken(IConfiguration config)
