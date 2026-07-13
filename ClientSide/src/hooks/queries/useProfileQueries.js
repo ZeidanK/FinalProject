@@ -57,6 +57,26 @@ export function useUpdateProfileMutation({ userId, token }) {
 }
 
 /**
+ * Updates accountant-specific profile fields (bio, experience, rate, etc.)
+ * and invalidates the cached profile query.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier.
+ * @param {string} params.token - Authentication token.
+ * @returns {import('@tanstack/react-query').UseMutationResult}
+ */
+export function useAccountantProfileMutation({ userId, token }) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload) => updateUser(userId, payload, token),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: profileKeys.user(userId) })
+    },
+  })
+}
+
+/**
  * Uploads a profile picture and refreshes the cached user profile.
  *
  * @param {Object} params - Mutation parameters.

@@ -31,6 +31,17 @@ export const passwordChangeSchema = z
   })
 
 /**
+ * Schema for accountant-specific profile fields.
+ */
+export const accountantProfileSchema = z.object({
+  bio: z.string().optional(),
+  yearsOfExperience: z.coerce.number().int().min(0).max(100).optional().nullable(),
+  hourlyRate: z.coerce.number().min(0).optional().nullable(),
+  location: z.string().max(255).optional(),
+  website: z.string().max(500).optional(),
+})
+
+/**
  * Schema for validating company details.
  *
  * Ensures the company name and email are present with proper format.
