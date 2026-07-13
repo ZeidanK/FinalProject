@@ -16,6 +16,7 @@ import {
   Divider,
   Grid,
   IconButton,
+  Rating,
   Skeleton,
   Stack,
   TextField,
@@ -32,6 +33,7 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import SectionHeader from '../components/SectionHeader'
@@ -139,6 +141,11 @@ export default function ProfilePage() {
   const [specialties, setSpecialties] = useState([])
   const [certifications, setCertifications] = useState([])
   const [reviews, setReviews] = useState([])
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0)
+    return sum / reviews.length
+  }, [reviews])
   const [specialtyInput, setSpecialtyInput] = useState('')
   const [certInput, setCertInput] = useState('')
   const [addingSpecialty, setAddingSpecialty] = useState(false)
@@ -1218,12 +1225,39 @@ export default function ProfilePage() {
                       </>
                     )}
 
-                    {reviews.length > 0 && (
+                    <Divider sx={{ my: 2, borderColor: 'divider' }} />
+                    <Typography fontWeight={700} sx={{ mb: 1.5 }}>
+                      Reviews ({reviews.length})
+                    </Typography>
+                    {reviews.length > 0 ? (
                       <>
-                        <Divider sx={{ my: 2, borderColor: 'divider' }} />
-                        <Typography fontWeight={700} sx={{ mb: 1.5 }}>
-                          Reviews ({reviews.length})
-                        </Typography>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            mb: 2,
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.03)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Rating
+                            value={averageRating}
+                            readOnly
+                            precision={0.1}
+                            icon={<StarRoundedIcon sx={{ fontSize: 28 }} />}
+                            emptyIcon={<StarRoundedIcon sx={{ fontSize: 28, opacity: 0.3 }} />}
+                          />
+                          <Typography variant="h6" fontWeight={700}>
+                            {averageRating.toFixed(1)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                          </Typography>
+                        </Box>
                         <Stack spacing={1.5}>
                           {reviews.map((review) => (
                             <Box
@@ -1263,6 +1297,10 @@ export default function ProfilePage() {
                           ))}
                         </Stack>
                       </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        No reviews yet.
+                      </Typography>
                     )}
 
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>

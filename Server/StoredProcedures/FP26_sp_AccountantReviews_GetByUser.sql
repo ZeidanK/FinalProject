@@ -19,7 +19,7 @@ BEGIN
         r.created_at,
         r.updated_at
     FROM dbo.FP26_accountant_reviews r
-    INNER JOIN dbo.Users u ON u.id = r.created_by_user_id
+    INNER JOIN dbo.FP26_users u ON u.id = r.created_by_user_id
     WHERE r.accountant_user_id = @AccountantUserId
     ORDER BY r.created_at DESC;
 END

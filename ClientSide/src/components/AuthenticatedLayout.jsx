@@ -88,6 +88,7 @@ function AuthenticatedLayout() {
       user={user}
       onLogout={logout}
       onNavigate={isMobile ? handleClose : undefined}
+      onCloseMobile={isMobile ? handleClose : undefined}
     />
   )
 
