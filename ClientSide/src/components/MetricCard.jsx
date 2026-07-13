@@ -20,12 +20,14 @@ export default function MetricCard({ icon, title, value, subtitle, color }) {
     <Card elevation={0} sx={cardSx}>
       <CardContent>
         <Stack spacing={1.1}>
-          {icon && (
+          {(icon || title) && (
             <Stack direction="row" alignItems="center" spacing={0.5}>
               {icon}
-              <Typography variant="caption" sx={{ color: color || 'text.secondary', fontWeight: 600 }}>
-                {title}
-              </Typography>
+              {title && (
+                <Typography variant="caption" sx={{ color: color || 'text.secondary', fontWeight: 600 }}>
+                  {title}
+                </Typography>
+              )}
             </Stack>
           )}
           <Typography variant="h4" sx={{ color: color || 'text.primary', fontWeight: 700 }}>
