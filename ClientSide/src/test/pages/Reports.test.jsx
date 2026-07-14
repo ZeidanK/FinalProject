@@ -63,6 +63,65 @@ const mockAgingData = {
   totalsByCurrency: [{ currency: 'USD', amount: 1500 }],
 }
 
+const multiRowReconciliationData = {
+  ...mockReconciliationData,
+  rows: [
+    ...mockReconciliationData.rows,
+    {
+      matchId: 2,
+      reconciliationStatus: 'ledger_only',
+      invoiceId: 102,
+      invoiceNumber: 'INV-OMEGA',
+      vendorName: 'Omega Supplies',
+      invoiceDate: '2025-02-03',
+      invoiceAmount: 750,
+      invoiceCurrency: 'USD',
+      invoiceStatus: 'unmatched',
+      transactionId: null,
+      transactionDescription: null,
+      transactionDate: null,
+      transactionAmount: null,
+      matchMethod: null,
+      matchConfidence: null,
+    },
+  ],
+  summary: {
+    ledgerEntryCount: 2,
+    fullyMatchedLedgerCount: 1,
+    partiallyMatchedLedgerCount: 0,
+    unmatchedLedgerCount: 1,
+    unmatchedBankTransactionCount: 0,
+  },
+}
+
+const multiRowAgingData = {
+  ...mockAgingData,
+  rows: [
+    ...mockAgingData.rows,
+    {
+      invoiceId: 202,
+      invoiceNumber: 'AGING-OMEGA',
+      vendorName: 'Omega Services',
+      invoiceDate: '2025-02-01',
+      dueDate: '2025-03-01',
+      effectiveDueDate: '2025-03-01',
+      daysPastDue: 45,
+      bucketLabel: '31-60 days',
+      originalAmount: 3000,
+      matchedAmount: 0,
+      outstandingAmount: 3000,
+      currency: 'USD',
+      paymentStatus: 'unpaid',
+    },
+  ],
+  buckets: [
+    ...mockAgingData.buckets,
+    { key: '31-60', label: '31-60 days', invoiceCount: 1, amountsByCurrency: [{ currency: 'USD', amount: 3000 }] },
+  ],
+  totalInvoiceCount: 2,
+  totalsByCurrency: [{ currency: 'USD', amount: 4500 }],
+}
+
 const mockGetReconciliationReport = vi.fn()
 const mockGetPayablesAgingReport = vi.fn()
 
@@ -132,6 +191,94 @@ describe('ReportsPage', () => {
     renderPage()
     fireEvent.click(await screen.findByRole('tab', { name: /Payables Aging/i }))
     expect(await screen.findByText('Partially paid')).toBeInTheDocument()
+  })
+
+  it('filters reconciliation rows by search text', async () => {
+    mockGetReconciliationReport.mockResolvedValue(multiRowReconciliationData)
+    mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
+    renderPage()
+    expect(await screen.findByText('Vendor A')).toBeInTheDocument()
+    expect(screen.getByText('Omega Supplies')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Search reconciliation'), { target: { value: 'omega' } })
+
+    expect(screen.getByText('Omega Supplies')).toBeInTheDocument()
+    expect(screen.queryByText('Vendor A')).not.toBeInTheDocument()
+    expect(screen.getByText('1 of 2 rows shown')).toBeInTheDocument()
+  })
+
+  it('filters aging rows by search text', async () => {
+    mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
+    mockGetPayablesAgingReport.mockResolvedValue(multiRowAgingData)
+    renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: /Payables Aging/i }))
+    expect(await screen.findByText('AGING-001')).toBeInTheDocument()
+    expect(screen.getByText('AGING-OMEGA')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Search payables aging'), { target: { value: 'omega' } })
+
+    expect(screen.getByText('AGING-OMEGA')).toBeInTheDocument()
+    expect(screen.queryByText('AGING-001')).not.toBeInTheDocument()
+    expect(screen.getByText('1 of 2 rows shown')).toBeInTheDocument()
+  })
+
+  it('shows a search-specific empty state when reconciliation search has no matches', async () => {
+    mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
+    mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
+    renderPage()
+    expect(await screen.findByText('Vendor A')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Search reconciliation'), { target: { value: 'not-found' } })
+
+    expect(screen.getByText('No reconciliation rows match your search')).toBeInTheDocument()
+    expect(screen.getByText('0 of 1 rows shown')).toBeInTheDocument()
+    expect(screen.queryByText('Vendor A')).not.toBeInTheDocument()
+  })
+
+  it('exports only visible reconciliation rows when search is active', async () => {
+    const originalCreateObjectURL = globalThis.URL.createObjectURL
+    const originalRevokeObjectURL = globalThis.URL.revokeObjectURL
+    const createObjectURL = vi.fn(() => 'blob:report')
+    const revokeObjectURL = vi.fn()
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    globalThis.URL.createObjectURL = createObjectURL
+    globalThis.URL.revokeObjectURL = revokeObjectURL
+
+    try {
+      mockGetReconciliationReport.mockResolvedValue(multiRowReconciliationData)
+      mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
+      renderPage()
+      expect(await screen.findByText('Omega Supplies')).toBeInTheDocument()
+
+      fireEvent.change(screen.getByLabelText('Search reconciliation'), { target: { value: 'omega' } })
+      expect(screen.queryByText('Vendor A')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /Export CSV/i }))
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1)
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:report')
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+
+      const exportedText = await createObjectURL.mock.calls[0][0].text()
+      expect(exportedText).toContain('Omega Supplies')
+      expect(exportedText).toContain('INV-OMEGA')
+      expect(exportedText).not.toContain('Vendor A')
+      expect(exportedText).not.toContain('INV-001')
+    } finally {
+      if (originalCreateObjectURL) {
+        globalThis.URL.createObjectURL = originalCreateObjectURL
+      } else {
+        delete globalThis.URL.createObjectURL
+      }
+
+      if (originalRevokeObjectURL) {
+        globalThis.URL.revokeObjectURL = originalRevokeObjectURL
+      } else {
+        delete globalThis.URL.revokeObjectURL
+      }
+
+      clickSpy.mockRestore()
+    }
   })
 
   it('shows error alert on reconciliation failure', async () => {

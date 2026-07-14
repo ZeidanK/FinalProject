@@ -2,6 +2,7 @@ import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded
 import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 import {
   Alert,
@@ -12,6 +13,7 @@ import {
   Chip,
   Container,
   Grid,
+  InputAdornment,
   Skeleton,
   Stack,
   Tab,
@@ -204,6 +206,85 @@ const formatConfidence = (value) => {
   return `${(numeric <= 1 ? numeric * 100 : numeric).toFixed(1)}%`
 }
 
+const normalizeSearchText = (value) => String(value ?? '').trim().toLowerCase()
+
+const searchableMoney = (value, currency) => (
+  value === null || value === undefined ? '' : formatMoney(value, currency)
+)
+
+const paymentStatusLabel = (status) => (status === 'partially_paid' ? 'Partially paid' : 'Unpaid')
+
+const rowMatchesSearch = (query, fields) => {
+  const normalizedQuery = normalizeSearchText(query)
+  if (!normalizedQuery) return true
+  return fields.some((field) => normalizeSearchText(field).includes(normalizedQuery))
+}
+
+const reconciliationSearchFields = (row, companyCurrency) => {
+  const status = statusPresentation[row.reconciliationStatus]?.label || row.reconciliationStatus
+  const transactionCurrency = row.transactionCurrency || companyCurrency
+
+  return [
+    status,
+    row.reconciliationStatus,
+    row.invoiceId,
+    row.invoiceNumber,
+    row.vendorName,
+    formatDate(row.invoiceDate),
+    formatIsoDate(row.invoiceDate),
+    formatDate(row.dueDate),
+    formatIsoDate(row.dueDate),
+    row.invoiceAmount,
+    searchableMoney(row.invoiceAmount, row.invoiceCurrency),
+    row.invoiceCurrency,
+    row.invoiceStatus,
+    row.invoiceMatchedAmount,
+    searchableMoney(row.invoiceMatchedAmount, row.invoiceCurrency),
+    row.outstandingAmount,
+    searchableMoney(row.outstandingAmount, row.invoiceCurrency),
+    row.matchId,
+    row.matchedAmount,
+    searchableMoney(row.matchedAmount, row.invoiceCurrency),
+    row.matchMethod,
+    row.matchConfidence,
+    formatConfidence(row.matchConfidence),
+    row.transactionId,
+    row.transactionDescription,
+    formatDate(row.transactionDate),
+    formatIsoDate(row.transactionDate),
+    row.transactionAmount,
+    searchableMoney(row.transactionAmount, transactionCurrency),
+    transactionCurrency,
+    row.originalTransactionAmount,
+    searchableMoney(row.originalTransactionAmount, row.originalTransactionCurrency),
+    row.originalTransactionCurrency,
+    row.transactionType,
+  ]
+}
+
+const agingSearchFields = (row) => [
+  row.invoiceId,
+  row.invoiceNumber,
+  row.vendorName,
+  formatDate(row.invoiceDate),
+  formatIsoDate(row.invoiceDate),
+  formatDate(row.dueDate),
+  formatIsoDate(row.dueDate),
+  formatDate(row.effectiveDueDate),
+  formatIsoDate(row.effectiveDueDate),
+  Math.max(Number(row.daysPastDue) || 0, 0),
+  row.bucketLabel,
+  row.originalAmount,
+  searchableMoney(row.originalAmount, row.currency),
+  row.matchedAmount,
+  searchableMoney(row.matchedAmount, row.currency),
+  row.outstandingAmount,
+  searchableMoney(row.outstandingAmount, row.currency),
+  row.currency,
+  row.paymentStatus,
+  paymentStatusLabel(row.paymentStatus),
+]
+
 const makeSpreadsheetSafe = (value) => {
   const text = value === null || value === undefined ? '' : String(value)
   return typeof value === 'string' && /^[=+\-@]/.test(text) ? `'${text}` : text
@@ -366,19 +447,24 @@ function ReconciliationReportSection({
   error,
   range,
   rangeIsInvalid,
+  filteredRows,
+  search,
+  onSearchChange,
   onRangeChange,
   onReload,
   onExport,
 }) {
   const rows = report?.rows || EMPTY_REPORT_ROWS
+  const visibleRows = filteredRows ?? rows
   const summary = report?.summary || {}
   const [sortKey, setSortKey] = useState(null)
   const [sortDirection, setSortDirection] = useState('asc')
+  const hasSearch = normalizeSearchText(search).length > 0
 
   const sortedRows = useMemo(() => {
-    if (!sortKey) return rows
-    return [...rows].sort((left, right) => compareReconciliationRows(left, right, sortKey, sortDirection))
-  }, [rows, sortDirection, sortKey])
+    if (!sortKey) return visibleRows
+    return [...visibleRows].sort((left, right) => compareReconciliationRows(left, right, sortKey, sortDirection))
+  }, [sortDirection, sortKey, visibleRows])
 
   const handleSort = (key) => {
     const nextDirection = sortKey === key && sortDirection === 'asc' ? 'desc' : 'asc'
@@ -396,6 +482,13 @@ function ReconciliationReportSection({
         description="No eligible invoices or bank transactions were found in this inclusive date range."
         actionLabel="Reload reconciliation"
         onAction={onReload}
+      />
+    )
+  } else if (visibleRows.length === 0) {
+    content = (
+      <EmptyState
+        title="No reconciliation rows match your search"
+        description="Try a different status, vendor, invoice, transaction, amount, or date."
       />
     )
   } else {
@@ -510,14 +603,14 @@ function ReconciliationReportSection({
               <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={onReload} disabled={loading || rangeIsInvalid}>
                 Reload
               </Button>
-              <Button variant="outlined" startIcon={<DownloadRoundedIcon />} onClick={onExport} disabled={loading || rows.length === 0}>
+              <Button variant="outlined" startIcon={<DownloadRoundedIcon />} onClick={onExport} disabled={loading || visibleRows.length === 0}>
                 Export CSV
               </Button>
             </Stack>
           </Stack>
 
           <Grid container spacing={1.5}>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 fullWidth
                 label="Start date"
@@ -527,7 +620,7 @@ function ReconciliationReportSection({
                 slotProps={{ inputLabel: { shrink: true } }}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 fullWidth
                 label="End date"
@@ -535,6 +628,25 @@ function ReconciliationReportSection({
                 value={range.endDate}
                 onChange={(event) => onRangeChange('endDate', event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                fullWidth
+                label="Search reconciliation"
+                placeholder="Search status, vendor, invoice, transaction..."
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                helperText={hasSearch ? `${formatNumber(visibleRows.length)} of ${formatNumber(rows.length)} rows shown` : ' '}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRoundedIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
               />
             </Grid>
           </Grid>
@@ -563,9 +675,22 @@ function ReconciliationReportSection({
   )
 }
 
-function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange, onReload, onExport }) {
+function AgingReportSection({
+  report,
+  loading,
+  error,
+  asOfDate,
+  filteredRows,
+  search,
+  onSearchChange,
+  onAsOfDateChange,
+  onReload,
+  onExport,
+}) {
   const rows = report?.rows || []
+  const visibleRows = filteredRows ?? rows
   const buckets = report?.buckets || []
+  const hasSearch = normalizeSearchText(search).length > 0
 
   let content
   if (loading) {
@@ -577,6 +702,13 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
         description="No eligible vendor invoices have an outstanding balance on this date."
         actionLabel="Reload aging"
         onAction={onReload}
+      />
+    )
+  } else if (visibleRows.length === 0) {
+    content = (
+      <EmptyState
+        title="No aging rows match your search"
+        description="Try a different invoice, vendor, bucket, status, amount, or date."
       />
     )
   } else {
@@ -598,7 +730,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row) => (
+            {visibleRows.map((row) => (
               <TableRow key={row.invoiceId} hover>
                 <TableCell sx={{ fontWeight: 700, width: 120, wordBreak: 'break-all', whiteSpace: 'normal' }}>{row.invoiceNumber || `#${row.invoiceId}`}</TableCell>
                 <TableCell>{row.vendorName || 'Unknown vendor'}</TableCell>
@@ -618,7 +750,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
                   <Chip
                     size="small"
                     color={row.paymentStatus === 'partially_paid' ? 'info' : 'warning'}
-                    label={row.paymentStatus === 'partially_paid' ? 'Partially paid' : 'Unpaid'}
+                    label={paymentStatusLabel(row.paymentStatus)}
                     sx={{ minWidth: 120 }}
                   />
                 </TableCell>
@@ -648,14 +780,14 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
               <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={onReload} disabled={loading}>
                 Reload
               </Button>
-              <Button variant="outlined" startIcon={<DownloadRoundedIcon />} onClick={onExport} disabled={loading || rows.length === 0}>
+              <Button variant="outlined" startIcon={<DownloadRoundedIcon />} onClick={onExport} disabled={loading || visibleRows.length === 0}>
                 Export CSV
               </Button>
             </Stack>
           </Stack>
 
           <Grid container spacing={1.5} alignItems="stretch">
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 fullWidth
                 label="As of date"
@@ -665,7 +797,26 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
                 slotProps={{ inputLabel: { shrink: true } }}
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 8 }}>
+            <Grid size={{ xs: 12, md: 5 }}>
+              <TextField
+                fullWidth
+                label="Search payables aging"
+                placeholder="Search invoice, vendor, bucket, amount..."
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                helperText={hasSearch ? `${formatNumber(visibleRows.length)} of ${formatNumber(rows.length)} rows shown` : ' '}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRoundedIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
                 <CardContent sx={{ py: 1.2, '&:last-child': { pb: 1.2 } }}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
@@ -722,6 +873,8 @@ function ReportsPage() {
   const [agingLoading, setAgingLoading] = useState(false)
   const [reconciliationError, setReconciliationError] = useState('')
   const [agingError, setAgingError] = useState('')
+  const [reconciliationSearch, setReconciliationSearch] = useState('')
+  const [agingSearch, setAgingSearch] = useState('')
 
   const rangeIsInvalid = Boolean(
     reconciliationRange.startDate
@@ -783,12 +936,26 @@ function ReportsPage() {
     loadAging()
   }, [loadAging])
 
+  const reconciliationRows = reconciliation?.rows || EMPTY_REPORT_ROWS
+  const filteredReconciliationRows = useMemo(
+    () => reconciliationRows.filter((row) => (
+      rowMatchesSearch(reconciliationSearch, reconciliationSearchFields(row, reconciliation?.companyCurrency))
+    )),
+    [reconciliation?.companyCurrency, reconciliationRows, reconciliationSearch],
+  )
+
+  const agingRows = aging?.rows || EMPTY_REPORT_ROWS
+  const filteredAgingRows = useMemo(
+    () => agingRows.filter((row) => rowMatchesSearch(agingSearch, agingSearchFields(row))),
+    [agingRows, agingSearch],
+  )
+
   const handleRangeChange = (field, value) => {
     setReconciliationRange((current) => ({ ...current, [field]: value }))
   }
 
   const exportReconciliation = () => {
-    const rows = reconciliation?.rows || []
+    const rows = filteredReconciliationRows
     downloadCsv(
       `reconciliation-${reconciliationRange.startDate || 'all'}-${reconciliationRange.endDate || 'all'}.csv`,
       [
@@ -821,7 +988,7 @@ function ReportsPage() {
   }
 
   const exportAging = () => {
-    const rows = aging?.rows || []
+    const rows = filteredAgingRows
     downloadCsv(
       `payables-aging-${asOfDate || 'current'}.csv`,
       [
@@ -890,6 +1057,9 @@ function ReportsPage() {
               error={reconciliationError}
               range={reconciliationRange}
               rangeIsInvalid={rangeIsInvalid}
+              filteredRows={filteredReconciliationRows}
+              search={reconciliationSearch}
+              onSearchChange={setReconciliationSearch}
               onRangeChange={handleRangeChange}
               onReload={loadReconciliation}
               onExport={exportReconciliation}
@@ -902,6 +1072,9 @@ function ReportsPage() {
               loading={agingLoading}
               error={agingError}
               asOfDate={asOfDate}
+              filteredRows={filteredAgingRows}
+              search={agingSearch}
+              onSearchChange={setAgingSearch}
               onAsOfDateChange={setAsOfDate}
               onReload={loadAging}
               onExport={exportAging}
