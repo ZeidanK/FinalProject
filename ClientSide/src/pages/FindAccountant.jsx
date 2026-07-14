@@ -68,8 +68,8 @@ export default function FindAccountant() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [sortBy, setSortBy] = useState('name')
-  const [sortDirection, setSortDirection] = useState('ASC')
+  const [sort, setSort] = useState({ sortBy: 'name', sortDirection: 'ASC' })
+  const { sortBy, sortDirection } = sort
   const [detailAccountant, setDetailAccountant] = useState(null)
 
   const [reviewRating, setReviewRating] = useState(0)
@@ -199,14 +199,12 @@ export default function FindAccountant() {
   }, [])
 
   const toggleSort = useCallback((field) => {
-    setSortBy((prev) => {
-      if (prev === field) {
-        setSortDirection((d) => (d === 'ASC' ? 'DESC' : 'ASC'))
-        return prev
-      }
-      setSortDirection('ASC')
-      return field
-    })
+    setSort((prev) => ({
+      sortBy: field,
+      sortDirection: prev.sortBy === field
+        ? (prev.sortDirection === 'ASC' ? 'DESC' : 'ASC')
+        : 'ASC'
+    }))
     setPage(0)
   }, [])
 
