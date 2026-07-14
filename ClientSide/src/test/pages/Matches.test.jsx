@@ -43,10 +43,15 @@ vi.mock('../../hooks/queries/useMatchesQueries', () => ({
 
 const mockGetInvoiceById = vi.fn()
 const mockUpdateInvoice = vi.fn()
+const mockGetTransactionById = vi.fn()
 
 vi.mock('../../services/invoices', () => ({
   getInvoiceById: (...args) => mockGetInvoiceById(...args),
   updateInvoice: (...args) => mockUpdateInvoice(...args),
+}))
+
+vi.mock('../../services/transactions', () => ({
+  getTransactionById: (...args) => mockGetTransactionById(...args),
 }))
 
 vi.mock('react-pdf', () => ({
@@ -68,7 +73,27 @@ vi.mock('pdfjs-dist', () => {
 })
 
 const sampleMatches = [
-  { id: 1, invoice_id: 10, invoice_number: 'INV-001', transaction_id: 20, transaction_vendor_name: 'Vendor A', matched_amount: 1500.50, match_method: 'manual', match_confidence: 1 },
+  {
+    id: 1,
+    invoice_id: 10,
+    invoice_number: 'INV-001',
+    vendor_name: 'Invoice Vendor A',
+    invoice_amount: 1500.50,
+    invoice_date: '2025-07-01T10:00:00Z',
+    transaction_id: 20,
+    transaction_vendor_name: 'Vendor A',
+    transaction_description: 'Card payment to Vendor A',
+    transaction_date: '2025-07-03T10:00:00Z',
+    transaction_amount: 1500.50,
+    transaction_type: 'debit',
+    matched_amount: 1500.50,
+    match_type: 'full',
+    match_method: 'manual',
+    match_confidence: 1,
+    match_reason: 'Confirmed by user',
+    matched_by_name: 'Alice',
+    created_at: '2025-07-04T10:00:00Z',
+  },
   { id: 2, invoice_id: 11, invoice_number: 'INV-002', transaction_id: 21, transaction_vendor_name: 'Vendor B', matched_amount: 2500.00, match_method: 'auto', match_confidence: 0.85 },
 ]
 
@@ -124,6 +149,8 @@ describe('MatchesPage', () => {
     mockSuggestionsQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     mockSimpleSuggestionsQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     mockInstallmentSuggestionsQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+    mockGetInvoiceById.mockResolvedValue({})
+    mockGetTransactionById.mockResolvedValue({})
   })
 
   it('renders PageHeaderCard with "Matches" title', () => {
@@ -143,13 +170,85 @@ describe('MatchesPage', () => {
   it('renders existing matches when data loads', async () => {
     mockMatchesQuery = { ...mockMatchesQuery, data: sampleMatches }
     renderPage()
+    await userEvent.click(screen.getByRole('button', { name: /expand matched items/i }))
     expect(await screen.findByText(/INV-001/)).toBeInTheDocument()
     expect(screen.getByText(/INV-002/)).toBeInTheDocument()
   })
 
-  it('shows empty state when no matches exist', () => {
+  it('opens match details from matched items view button', async () => {
+    mockMatchesQuery = {
+      ...mockMatchesQuery,
+      data: [
+        {
+          ...sampleMatches[0],
+          vendor_name: null,
+          invoice_date: null,
+          transaction_description: null,
+          transaction_type: null,
+        },
+      ],
+    }
+    mockGetInvoiceById.mockResolvedValue({
+      id: 10,
+      invoiceNumber: 'INV-001-FULL',
+      vendorName: 'Fetched Invoice Vendor',
+      invoiceDate: '2025-07-05T10:00:00Z',
+      dueDate: '2025-08-05T10:00:00Z',
+      totalAmount: 1500.50,
+      status: 'verified',
+      currency: 'ILS',
+      lastFourDigitsCard: '1234',
+    })
+    mockGetTransactionById.mockResolvedValue({
+      id: 20,
+      vendorName: 'Fetched Transaction Vendor',
+      description: 'Fetched transaction description',
+      transactionDate: '2025-07-06T10:00:00Z',
+      postedDate: '2025-07-07T10:00:00Z',
+      amount: 1500.50,
+      transactionType: 'debit',
+      chargeAmount: 1500.50,
+      referenceNumber: 'REF-20',
+      category: 'Travel',
+      cardLast4: '9876',
+    })
+
     renderPage()
+    await userEvent.click(screen.getByRole('button', { name: /expand matched items/i }))
+    await screen.findByText(/INV-001/)
+
+    await userEvent.click(screen.getAllByRole('button', { name: /view match details/i })[0])
+
+    expect(await screen.findByRole('heading', { name: 'Match Details' })).toBeInTheDocument()
+    await waitFor(() => expect(mockGetInvoiceById).toHaveBeenCalledWith(10, 'test-token'))
+    await waitFor(() => expect(mockGetTransactionById).toHaveBeenCalledWith(20, 'test-token'))
+    expect(screen.getByText('Match')).toBeInTheDocument()
+    expect(screen.getByText('Invoice')).toBeInTheDocument()
+    expect(screen.getByText('Transaction')).toBeInTheDocument()
+    expect(await screen.findByText('INV-001-FULL')).toBeInTheDocument()
+    expect(screen.getByText('Fetched Invoice Vendor')).toBeInTheDocument()
+    expect(screen.getByText('Fetched Transaction Vendor')).toBeInTheDocument()
+    expect(screen.getByText('Fetched transaction description')).toBeInTheDocument()
+    expect(screen.getByText('REF-20')).toBeInTheDocument()
+    expect(screen.getByText('Confirmed by user')).toBeInTheDocument()
+  })
+
+  it('shows empty state when no matches exist', async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole('button', { name: /expand matched items/i }))
     expect(screen.getByText(/No matches yet/)).toBeInTheDocument()
+  })
+
+  it('renders matched items collapsed at the bottom of the page', async () => {
+    mockMatchesQuery = { ...mockMatchesQuery, data: sampleMatches }
+    mockInstallmentSuggestionsQuery = { ...mockInstallmentSuggestionsQuery, data: sampleInstallmentSuggestions }
+    renderPage()
+
+    const installmentHeading = await screen.findByText('Installment Plan Suggestions')
+    const matchedHeading = screen.getByText(/Matched Items \(2\)/)
+
+    expect(screen.queryByText(/Vendor A/)).not.toBeInTheDocument()
+    expect(installmentHeading.compareDocumentPosition(matchedHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('renders unmatched invoices section', async () => {
@@ -259,6 +358,7 @@ describe('MatchesPage', () => {
   it('renders confidence chips for matches when available', async () => {
     mockMatchesQuery = { ...mockMatchesQuery, data: sampleMatches }
     renderPage()
+    await userEvent.click(screen.getByRole('button', { name: /expand matched items/i }))
     expect(await screen.findByText('100%')).toBeInTheDocument()
   })
 
