@@ -48,6 +48,7 @@ import SuggestionPanel from '../components/SuggestionPanel'
 import QuickMatchSuggestions from '../components/QuickMatchSuggestions'
 import InstallmentMatchGroups from '../components/InstallmentMatchGroups'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
+import MatchDetailsModal from '../components/MatchDetailsModal'
 import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -303,8 +304,6 @@ SelectionPanel.defaultProps = {
   renderActions: null,
 }
 
-const dash = '\u2014'
-
 const readFields = (source, keys) => {
   if (!source) return null
   for (const key of keys) {
@@ -317,253 +316,8 @@ const readFields = (source, keys) => {
 const readField = (source, snakeKey, camelKey) =>
   readFields(source, [snakeKey, camelKey])
 
-const displayText = (value) => {
-  if (value === 0) return '0'
-  return value == null || value === '' ? dash : String(value)
-}
 
-const formatMatchConfidence = (value) => {
-  if (value == null || value === '') return dash
-  const number = Number(value)
-  if (Number.isNaN(number)) return dash
-  return `${Math.round(number <= 1 ? number * 100 : number)}%`
-}
 
-const formatOptionalAmount = (value) =>
-  value == null || value === '' ? dash : fmtAmount(value)
-
-function DetailField({ label, value }) {
-  return (
-    <Box
-      sx={{
-        px: 1,
-        py: 0.7,
-        borderRadius: 1,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'rgba(255,255,255,0.02)',
-        minHeight: 0,
-        display: 'flex',
-        alignItems: 'baseline',
-        gap: 1,
-      }}
-    >
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ textTransform: 'uppercase', fontSize: 10, minWidth: 86, flexShrink: 0, lineHeight: 1.25 }}
-      >
-        {label}
-      </Typography>
-      <Typography variant="body2" fontWeight={600} sx={{ wordBreak: 'break-word', lineHeight: 1.35 }}>
-        {value}
-      </Typography>
-    </Box>
-  )
-}
-
-DetailField.propTypes = {
-  label: PropTypes.string.isRequired,
-  value: PropTypes.node,
-}
-
-function DetailSection({ title, children }) {
-  return (
-    <Card elevation={0} sx={{ bgcolor: 'rgba(255,255,255,0.025)', border: '1px solid', borderColor: 'divider' }}>
-      <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.9 }}>
-          {title}
-        </Typography>
-        <Grid container spacing={0.75}>
-          {children}
-        </Grid>
-      </CardContent>
-    </Card>
-  )
-}
-
-DetailSection.propTypes = {
-  title: PropTypes.string.isRequired,
-  children: PropTypes.node.isRequired,
-}
-
-function MatchDetailsDialog({ open, match, invoice, transaction, loading, error, onClose }) {
-  const invoiceId = readField(invoice, 'id', 'id') ?? readField(match, 'invoice_id', 'invoiceId')
-  const invoiceNumber = readField(invoice, 'invoice_number', 'invoiceNumber') ?? readField(match, 'invoice_number', 'invoiceNumber')
-  const invoiceVendor = readField(invoice, 'vendor_name', 'vendorName') ?? readField(match, 'vendor_name', 'vendorName')
-  const invoiceAmount =
-    readFields(invoice, ['total_amount', 'totalAmount', 'invoice_amount', 'invoiceAmount']) ??
-    readField(match, 'invoice_amount', 'invoiceAmount')
-  const invoiceDate = readField(invoice, 'invoice_date', 'invoiceDate') ?? readField(match, 'invoice_date', 'invoiceDate')
-  const invoiceDueDate = readField(invoice, 'due_date', 'dueDate')
-  const invoiceStatus = readField(invoice, 'status', 'status')
-  const invoiceCurrency = readField(invoice, 'currency', 'currency')
-  const invoiceCardLast4 = readField(invoice, 'last_four_digits_card', 'lastFourDigitsCard')
-  const transactionId = readField(transaction, 'id', 'id') ?? readField(match, 'transaction_id', 'transactionId')
-  const transactionVendor =
-    readField(transaction, 'vendor_name', 'vendorName') ??
-    readField(match, 'transaction_vendor_name', 'transactionVendorName')
-  const transactionDescription =
-    readField(transaction, 'description', 'description') ??
-    readField(match, 'transaction_description', 'transactionDescription')
-  const transactionDate =
-    readField(transaction, 'transaction_date', 'transactionDate') ??
-    readField(match, 'transaction_date', 'transactionDate')
-  const transactionAmount =
-    readField(transaction, 'amount', 'amount') ??
-    readField(match, 'transaction_amount', 'transactionAmount')
-  const transactionType =
-    readField(transaction, 'transaction_type', 'transactionType') ??
-    readField(match, 'transaction_type', 'transactionType')
-  const transactionPostedDate = readField(transaction, 'posted_date', 'postedDate')
-  const transactionChargeAmount = readField(transaction, 'charge_amount', 'chargeAmount')
-  const transactionReference = readField(transaction, 'reference_number', 'referenceNumber')
-  const transactionCategory = readField(transaction, 'category', 'category')
-  const transactionCardLast4 = readField(transaction, 'card_last4', 'cardLast4')
-  const matchedAmount = readField(match, 'matched_amount', 'matchedAmount')
-  const matchType = readField(match, 'match_type', 'matchType')
-  const matchMethod = readField(match, 'match_method', 'matchMethod')
-  const matchConfidence = readField(match, 'match_confidence', 'matchConfidence')
-  const matchReason = readField(match, 'match_reason', 'matchReason')
-  const matchedBy = readField(match, 'matched_by_name', 'matchedByName')
-  const matchedByUserId = readField(match, 'matched_by_user_id', 'matchedByUserId')
-  const installmentNumber = readField(match, 'installment_number', 'installmentNumber')
-  const installmentNote = readField(match, 'installment_note', 'installmentNote')
-  const createdAt = readField(match, 'created_at', 'createdAt')
-  const updatedAt = readField(match, 'updated_at', 'updatedAt')
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Match Details</DialogTitle>
-      <DialogContent dividers sx={{ py: 1.5 }}>
-        {!match ? (
-          <Typography color="text.secondary">No match selected.</Typography>
-        ) : (
-          <Stack spacing={1.25}>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Chip label={displayText(matchMethod)} size="small" variant="outlined" />
-              <Chip label={displayText(matchType)} size="small" variant="outlined" />
-              <Chip label={formatMatchConfidence(matchConfidence)} size="small" color="success" variant="outlined" />
-              {loading ? <Chip label="Loading details..." size="small" color="info" variant="outlined" /> : null}
-            </Stack>
-            {error ? <Alert severity="warning" sx={{ py: 0 }}>{error}</Alert> : null}
-
-            <DetailSection title="Match">
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Match ID" value={displayText(match.id)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Matched Amount" value={formatOptionalAmount(matchedAmount)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Matched By" value={matchedBy || (matchedByUserId ? `User #${matchedByUserId}` : dash)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Created" value={fmtDate(createdAt)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Updated" value={fmtDate(updatedAt)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField
-                  label="Installment"
-                  value={installmentNumber ? `${installmentNumber}${installmentNote ? ` - ${installmentNote}` : ''}` : dash}
-                />
-              </Grid>
-            </DetailSection>
-
-            <DetailSection title="Invoice">
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Invoice ID" value={displayText(invoiceId)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Invoice Number" value={displayText(invoiceNumber)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Vendor" value={displayText(invoiceVendor)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Invoice Date" value={fmtDate(invoiceDate)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Invoice Amount" value={formatOptionalAmount(invoiceAmount)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Due Date" value={fmtDate(invoiceDueDate)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Status" value={displayText(invoiceStatus)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Currency" value={displayText(invoiceCurrency)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Card" value={invoiceCardLast4 ? `**** ${invoiceCardLast4}` : dash} />
-              </Grid>
-            </DetailSection>
-
-            <DetailSection title="Transaction">
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Transaction ID" value={displayText(transactionId)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Vendor" value={displayText(transactionVendor)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Type" value={displayText(transactionType)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Transaction Date" value={fmtDate(transactionDate)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Transaction Amount" value={formatOptionalAmount(transactionAmount)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Posted Date" value={fmtDate(transactionPostedDate)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Charge Amount" value={formatOptionalAmount(transactionChargeAmount)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Reference" value={displayText(transactionReference)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Category" value={displayText(transactionCategory)} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <DetailField label="Card" value={transactionCardLast4 ? `**** ${transactionCardLast4}` : dash} />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <DetailField label="Description" value={displayText(transactionDescription)} />
-              </Grid>
-            </DetailSection>
-
-            {matchReason ? (
-              <DetailSection title="Reason">
-                <Grid size={{ xs: 12 }}>
-                  <DetailField label="Match Reason" value={matchReason} />
-                </Grid>
-              </DetailSection>
-            ) : null}
-          </Stack>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
-
-MatchDetailsDialog.propTypes = {
-  open: PropTypes.bool.isRequired,
-  match: PropTypes.object,
-  invoice: PropTypes.object,
-  transaction: PropTypes.object,
-  loading: PropTypes.bool,
-  error: PropTypes.string,
-  onClose: PropTypes.func.isRequired,
-}
 
 function MatchesPage() {
   const { token } = useAuth()
@@ -1033,7 +787,7 @@ function MatchesPage() {
                   <CheckCircleRoundedIcon sx={{ color: 'success.main' }} />
                   <Box>
                     <Typography variant="body2" fontWeight={600}>
-                      {invLabel} \u2194 {trxLabel}
+                      {invLabel} ↔ {trxLabel}
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
                       <Typography variant="caption" color="text.secondary">
@@ -1351,7 +1105,7 @@ function MatchesPage() {
         </Container>
       </Box>
 
-      <MatchDetailsDialog
+      <MatchDetailsModal
         open={matchDetailsDialog.open}
         match={matchDetailsDialog.match}
         invoice={matchDetailsDialog.invoice}
