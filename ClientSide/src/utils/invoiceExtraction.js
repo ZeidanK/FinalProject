@@ -234,10 +234,12 @@ export function mapExtractedToForm(ext, overallConfidence) {
  * @returns {Object} Normalized form data for invoice verification and viewing.
  */
 export function mapSavedInvoiceToForm(invoice) {
-  const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
+  const rawConfidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
+  const parsedConfidence = rawConfidence == null ? null : Number(rawConfidence)
+  const confidence = Number.isFinite(parsedConfidence) ? parsedConfidence : null
   const lineItems = invoice?.lineItems || invoice?.line_items || []
 
-  return mapExtractedToForm(
+  const form = mapExtractedToForm(
     {
       vendorName: invoice?.vendor_name ?? invoice?.vendorName ?? '',
       invoiceNumber: invoice?.invoice_number ?? invoice?.invoiceNumber ?? '',
@@ -272,4 +274,34 @@ export function mapSavedInvoiceToForm(invoice) {
     },
     confidence,
   )
+
+  if (confidence != null) {
+    for (const key of TRACKED_FIELDS) {
+      if (form[key]) {
+        form[key] = { ...form[key], confidence }
+      }
+    }
+
+    if (form.paymentPlan) {
+      form.paymentPlan = Object.fromEntries(
+        Object.entries(form.paymentPlan).map(([key, field]) => [
+          key,
+          field ? { ...field, confidence } : field,
+        ]),
+      )
+    }
+  }
+
+  form.lineItems = form.lineItems.map((item, idx) => {
+    const rawLineConfidence =
+      lineItems[idx]?.ai_confidence_score ??
+      lineItems[idx]?.aiConfidenceScore ??
+      confidence
+    const parsedLineConfidence = rawLineConfidence == null ? null : Number(rawLineConfidence)
+    const lineConfidence = Number.isFinite(parsedLineConfidence) ? parsedLineConfidence : null
+
+    return { ...item, confidence: lineConfidence }
+  })
+
+  return form
 }

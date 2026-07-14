@@ -85,6 +85,21 @@ const normalizeInvoiceExtractionProvider = (provider) =>
     ? INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
     : INVOICE_EXTRACTION_PROVIDERS.GEMINI
 
+const parseOptionalNumber = (value, parser) => {
+  if (value === '' || value == null) return null
+  const parsed = parser(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const parseOptionalInteger = (value) => parseOptionalNumber(value, (nextValue) => Number.parseInt(nextValue, 10))
+const parseOptionalFloat = (value) => parseOptionalNumber(value, Number.parseFloat)
+
+const normalizeOptionalString = (value) => {
+  if (value == null) return null
+  const trimmed = String(value).trim()
+  return trimmed === '' ? null : trimmed
+}
+
 const getUploadEntryConfidence = (entry) => {
   const confidence = invoiceFullConfidence(entry?.extractedData)
   return confidence == null || Number.isNaN(confidence) ? null : confidence
@@ -974,37 +989,33 @@ function InvoicesPage() {
           sourceInvoice.file_size ||
           modal.file?.file?.size ||
           null
-        const aiConfidence =
+        const extractionConfidence =
           invoiceFullConfidence(formData) ??
           sourceInvoice.aiExtractionConfidence ??
           sourceInvoice.ai_extraction_confidence ??
           serverResponse?.extractedData?.extractionConfidence ??
           serverResponse?.ExtractedData?.ExtractionConfidence ??
           null
+        const aiConfidence = editingInvoiceId ? 1 : extractionConfidence
+        const paymentPlanEnabled = Boolean(formData.paymentPlanEnabled)
         const paymentPlanTotalInstallmentsInput = formData.paymentPlan?.totalInstallments?.value
         const paymentPlanInstallmentAmountInput = formData.paymentPlan?.installmentAmount?.value
         const paymentPlanCurrentInstallmentInput = formData.paymentPlan?.currentInstallment?.value
-
-        const paymentPlanTotalInstallments =
-          paymentPlanTotalInstallmentsInput === '' || paymentPlanTotalInstallmentsInput == null
-            ? sourceInvoice.paymentPlanTotalInstallments ??
-              sourceInvoice.payment_plan_total_installments ??
-              null
-            : Number.parseInt(paymentPlanTotalInstallmentsInput, 10) || 0
-
-        const paymentPlanInstallmentAmount =
-          paymentPlanInstallmentAmountInput === '' || paymentPlanInstallmentAmountInput == null
-            ? sourceInvoice.paymentPlanInstallmentAmount ??
-              sourceInvoice.payment_plan_installment_amount ??
-              null
-            : Number.parseFloat(paymentPlanInstallmentAmountInput) || 0
-
-        const paymentPlanCurrentInstallment =
-          paymentPlanCurrentInstallmentInput === '' || paymentPlanCurrentInstallmentInput == null
-            ? sourceInvoice.paymentPlanCurrentInstallment ??
-              sourceInvoice.payment_plan_current_installment ??
-              null
-            : Number.parseInt(paymentPlanCurrentInstallmentInput, 10) || 0
+        const paymentPlanTotalInstallments = paymentPlanEnabled
+          ? parseOptionalInteger(paymentPlanTotalInstallmentsInput)
+          : null
+        const paymentPlanInstallmentAmount = paymentPlanEnabled
+          ? parseOptionalFloat(paymentPlanInstallmentAmountInput)
+          : null
+        const paymentPlanCurrentInstallment = paymentPlanEnabled
+          ? parseOptionalInteger(paymentPlanCurrentInstallmentInput)
+          : null
+        const paymentPlanFrequency = paymentPlanEnabled
+          ? normalizeOptionalString(formData.paymentPlan?.frequency?.value)
+          : null
+        const paymentPlanDescription = paymentPlanEnabled
+          ? normalizeOptionalString(formData.paymentPlan?.description?.value)
+          : null
 
         const payload = {
           companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
@@ -1023,17 +1034,9 @@ function InvoicesPage() {
           itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
           paymentPlanTotalInstallments,
           paymentPlanInstallmentAmount,
-          paymentPlanFrequency:
-            formData.paymentPlan?.frequency?.value ||
-            sourceInvoice.paymentPlanFrequency ||
-            sourceInvoice.payment_plan_frequency ||
-            null,
+          paymentPlanFrequency,
           paymentPlanCurrentInstallment,
-          paymentPlanDescription:
-            formData.paymentPlan?.description?.value ||
-            sourceInvoice.paymentPlanDescription ||
-            sourceInvoice.payment_plan_description ||
-            null,
+          paymentPlanDescription,
           fileOriginalName,
           filePath,
           fileType,
@@ -1046,7 +1049,7 @@ function InvoicesPage() {
             lineNumber: idx + 1,
             quantity: Number.parseFloat(li.quantity) || 1,
             vatRate: Number.parseFloat(formData.vatRate?.value) || null,
-            aiConfidenceScore: li.confidence ?? null,
+            aiConfidenceScore: editingInvoiceId ? 1 : (li.confidence ?? null),
           })),
         }
 
@@ -1931,6 +1934,7 @@ function InvoicesPage() {
         localFile={modal.file?.file || null}
         extractionMethod={modal.file?.serverResponse?.extractedData?.extractionMethod}
         saving={saving}
+        readOnly={Boolean(modal.file?.isReadOnly)}
       />
 
     </>

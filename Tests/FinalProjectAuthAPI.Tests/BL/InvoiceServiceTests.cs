@@ -5,6 +5,7 @@ using FinalProjectAuthAPI.Models;
 using Moq;
 using System.Data.SqlClient;
 using System.Reflection;
+using System.Text.Json;
 using Xunit;
 
 namespace FinalProjectAuthAPI.Tests.BL
@@ -199,6 +200,85 @@ namespace FinalProjectAuthAPI.Tests.BL
             Assert.True(success);
             Assert.Empty(error);
             Assert.False(notFound);
+        }
+
+        [Fact]
+        public void Update_Valid_SetsInvoiceAndLineItemConfidenceToOne()
+        {
+            var existing = new InvoiceRow { Id = 1 };
+            var firstLineItem = MakeLineItem();
+            firstLineItem.Description = "";
+            firstLineItem.AiConfidenceScore = 0.2m;
+            var secondLineItem = MakeLineItem(2);
+            secondLineItem.Description = null!;
+            var req = MakeReq();
+            req.AiExtractionConfidence = 0.42m;
+            req.LineItems = new List<CreateLineItemRequest> { firstLineItem, secondLineItem };
+
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(existing);
+            _mockDb.Setup(x => x.UpdateInvoice(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<decimal>(),
+                It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<decimal>(), It.IsAny<decimal?>(), It.IsAny<decimal?>(),
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<long?>(), It.IsAny<decimal?>(),
+                It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(),
+                It.IsAny<decimal?>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<long?>(), It.IsAny<List<CreateLineItemRequest>>()))
+                .Returns(true);
+
+            var (success, error, notFound) = _service.Update(1, req, 5);
+
+            Assert.True(success);
+            Assert.Empty(error);
+            Assert.False(notFound);
+            _mockDb.Verify(x => x.UpdateInvoice(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<decimal>(),
+                It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<decimal>(), It.IsAny<decimal?>(), It.IsAny<decimal?>(),
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<long?>(), It.Is<decimal?>(score => score == 1m),
+                It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(),
+                It.IsAny<decimal?>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<long?>(),
+                It.Is<List<CreateLineItemRequest>>(items =>
+                    items.Count == 2 &&
+                    items.TrueForAll(item => item.AiConfidenceScore == 1m) &&
+                    items.TrueForAll(item => item.Description == "Item"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public void UpdateLineItemSerialization_UsesCamelCasePropertyNames()
+        {
+            var serializeMethod = typeof(DBservices).GetMethod(
+                "SerializeInvoiceLineItemsForUpdate",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.NotNull(serializeMethod);
+
+            var json = (string)serializeMethod!.Invoke(null, new object[]
+            {
+                new List<CreateLineItemRequest>
+                {
+                    new()
+                    {
+                        LineNumber = 1,
+                        Description = "Widget",
+                        Quantity = 2,
+                        UnitPrice = 10,
+                        TotalAmount = 20,
+                        AiConfidenceScore = 1m
+                    }
+                }
+            })!;
+
+            using var document = JsonDocument.Parse(json);
+            var item = document.RootElement[0];
+            Assert.Equal("Widget", item.GetProperty("description").GetString());
+            Assert.Equal(1, item.GetProperty("lineNumber").GetInt32());
+            Assert.False(item.TryGetProperty("Description", out _));
         }
 
         [Fact]

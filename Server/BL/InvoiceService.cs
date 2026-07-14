@@ -136,6 +136,20 @@ namespace FinalProjectAuthAPI.BL
             if (string.IsNullOrWhiteSpace(req.VendorName))
                 return (false, "Vendor name is required.", false);
 
+            var verifiedLineItems = (req.LineItems ?? new List<CreateLineItemRequest>())
+                .Select(li => new CreateLineItemRequest
+                {
+                    Description = string.IsNullOrWhiteSpace(li.Description) ? "Item" : li.Description,
+                    UnitPrice = li.UnitPrice,
+                    TotalAmount = li.TotalAmount,
+                    LineNumber = li.LineNumber,
+                    Category = li.Category,
+                    Quantity = li.Quantity,
+                    VatRate = li.VatRate,
+                    AiConfidenceScore = 1m
+                })
+                .ToList();
+
             var ok = _db.UpdateInvoice(
                 id,
                 req.CompanyId,
@@ -154,7 +168,7 @@ namespace FinalProjectAuthAPI.BL
                 req.FilePath,
                 req.FileType,
                 req.FileSize,
-                req.AiExtractionConfidence,
+                1m,
                 req.LastFourDigitsCard,
                 req.ItemCount,
                 req.PaymentPlanTotalInstallments,
@@ -163,7 +177,7 @@ namespace FinalProjectAuthAPI.BL
                 req.PaymentPlanDescription,
                 req.PaymentPlanCurrentInstallment,
                 verifiedByUserId,
-                req.LineItems ?? new List<CreateLineItemRequest>());
+                verifiedLineItems);
 
             if (!ok)
                 return (false, "Failed to update invoice.", false);

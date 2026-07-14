@@ -1,11 +1,32 @@
 using System.Data;
 using System.Data.SqlClient;
+using System.Text.Json;
 using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.DAL
 {
     public partial class DBservices
     {
+        private static readonly JsonSerializerOptions InvoiceLineItemJsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        private static string SerializeInvoiceLineItemsForUpdate(IEnumerable<CreateLineItemRequest> lineItems) =>
+            JsonSerializer.Serialize(
+                lineItems.Select(li => new
+                {
+                    li.LineNumber,
+                    li.Description,
+                    li.Category,
+                    li.Quantity,
+                    li.UnitPrice,
+                    li.VatRate,
+                    li.TotalAmount,
+                    li.AiConfidenceScore
+                }),
+                InvoiceLineItemJsonOptions);
+
         // ── Invoices ──────────────────────────────────────────────────────────
 
         public virtual List<InvoiceRow> GetInvoicesByCompany(
@@ -267,18 +288,7 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var lineItemsJson = System.Text.Json.JsonSerializer.Serialize(
-                    lineItems.Select(li => new
-                    {
-                        li.LineNumber,
-                        li.Description,
-                        li.Category,
-                        li.Quantity,
-                        li.UnitPrice,
-                        li.VatRate,
-                        li.TotalAmount,
-                        li.AiConfidenceScore
-                    }));
+                var lineItemsJson = SerializeInvoiceLineItemsForUpdate(lineItems);
 
                 var cmd = CreateCommandWithStoredProcedure(
                     "FP26_sp_Invoices_UpdateWithLineItems", con,

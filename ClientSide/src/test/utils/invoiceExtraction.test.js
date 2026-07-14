@@ -182,4 +182,34 @@ describe('mapSavedInvoiceToForm', () => {
     expect(result.lineItems[0].description).toBe('Item A')
     expect(result.lineItems[0].confidence).toBe(0.95)
   })
+
+  it('uses saved invoice confidence for blank optional fields', () => {
+    const invoice = {
+      vendor_name: 'Acme Corp',
+      invoice_number: 'INV-003',
+      invoice_date: '2025-04-27',
+      total_amount: 1000,
+      currency: 'USD',
+      vendor_tax_id: '',
+      last_four_digits_card: '',
+      ai_extraction_confidence: 0.9,
+    }
+
+    const result = mapSavedInvoiceToForm(invoice)
+
+    expect(invoiceFullConfidence(result)).toBeCloseTo(0.9)
+    expect(result.vendorTaxId.confidence).toBe(0.9)
+    expect(result.lastFourDigitsCard.confidence).toBe(0.9)
+  })
+
+  it('falls back to saved invoice confidence for line items without scores', () => {
+    const invoice = {
+      line_items: [{ description: 'Item B', quantity: 2, unit_price: 25, total_amount: 50 }],
+      ai_extraction_confidence: 0.82,
+    }
+
+    const result = mapSavedInvoiceToForm(invoice)
+
+    expect(result.lineItems[0].confidence).toBe(0.82)
+  })
 })

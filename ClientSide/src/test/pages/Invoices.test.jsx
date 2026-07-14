@@ -300,7 +300,7 @@ describe('InvoicesPage', () => {
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Currency')).toBeInTheDocument()
-    expect(screen.getByText('Status')).toBeInTheDocument()
+    expect(screen.getAllByText('Status').length).toBeGreaterThan(0)
     expect(screen.getByText('Confidence')).toBeInTheDocument()
     expect(screen.getByText('Actions')).toBeInTheDocument()
   })
@@ -310,5 +310,90 @@ describe('InvoicesPage', () => {
     renderPage()
     expect(await screen.findByText('95%')).toBeInTheDocument()
     expect(screen.getByText('88%')).toBeInTheDocument()
+  })
+
+  it('sends 100% confidence when editing a saved invoice', async () => {
+    const user = userEvent.setup()
+    mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleInvoices }
+    mockGetInvoiceById.mockResolvedValue({
+      id: 1,
+      company_id: 1,
+      invoice_number: 'INV-001',
+      vendor_name: 'Vendor A',
+      invoice_date: '2025-06-01T10:00:00Z',
+      total_amount: 1500.50,
+      subtotal: 1400,
+      vat_amount: 100.50,
+      currency: 'USD',
+      ai_extraction_confidence: 0.64,
+      line_items: [
+        {
+          description: 'Consulting',
+          quantity: 1,
+          unit_price: 1500.50,
+          total_amount: 1500.50,
+          ai_confidence_score: 0.33,
+        },
+      ],
+    })
+
+    renderPage()
+    await screen.findByText('INV-001')
+
+    await user.click(screen.getAllByRole('button', { name: /edit invoice/i })[0])
+    expect(await screen.findByText('Verify Extracted Data')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(mockUpdateMutation.mutateAsync).toHaveBeenCalledTimes(1))
+    const updateRequest = mockUpdateMutation.mutateAsync.mock.calls[0][0]
+    expect(updateRequest.invoiceId).toBe(1)
+    expect(updateRequest.payload.aiExtractionConfidence).toBe(1)
+    expect(updateRequest.payload.lineItems).toEqual([
+      expect.objectContaining({
+        description: 'Consulting',
+        aiConfidenceScore: 1,
+      }),
+    ])
+  })
+
+  it('clears payment plan fields when editing toggle is turned off', async () => {
+    const user = userEvent.setup()
+    mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleInvoices }
+    mockGetInvoiceById.mockResolvedValue({
+      id: 1,
+      company_id: 1,
+      invoice_number: 'INV-001',
+      vendor_name: 'Vendor A',
+      invoice_date: '2025-06-01T10:00:00Z',
+      total_amount: 1500.50,
+      subtotal: 1400,
+      vat_amount: 100.50,
+      currency: 'USD',
+      ai_extraction_confidence: 0.95,
+      payment_plan_total_installments: 6,
+      payment_plan_installment_amount: 250.08,
+      payment_plan_frequency: 'monthly',
+      payment_plan_current_installment: 2,
+      payment_plan_description: 'Monthly plan',
+      line_items: [],
+    })
+
+    renderPage()
+    await screen.findByText('INV-001')
+
+    await user.click(screen.getAllByRole('button', { name: /edit invoice/i })[0])
+    expect(await screen.findByText('Total Installments')).toBeInTheDocument()
+    await user.click(screen.getByRole('switch', { name: /payment plan/i }))
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(mockUpdateMutation.mutateAsync).toHaveBeenCalledTimes(1))
+    const updateRequest = mockUpdateMutation.mutateAsync.mock.calls[0][0]
+    expect(updateRequest.payload).toEqual(expect.objectContaining({
+      paymentPlanTotalInstallments: null,
+      paymentPlanInstallmentAmount: null,
+      paymentPlanFrequency: null,
+      paymentPlanCurrentInstallment: null,
+      paymentPlanDescription: null,
+    }))
   })
 })
