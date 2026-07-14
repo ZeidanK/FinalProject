@@ -14,8 +14,7 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded'
 import { AnimatePresence, motion } from 'framer-motion'
-import { cardBaseSx } from '../utils/sharedStyles'
-import { fmtAmount, fmtCurrency, fmtDate } from '../utils/formatters'
+import { fmtCurrency, fmtDate } from '../utils/formatters'
 import { itemVariants } from '../utils/motionVariants'
 
 export default function QuickMatchSuggestions({
