@@ -46,6 +46,10 @@ namespace FinalProjectAuthAPI.Models
                     NotificationEventTypes.AccountantDisconnected,
                     new[] { NotificationScopes.Personal, NotificationScopes.Company },
                     new[] { NotificationTargetTypes.Accountant, NotificationTargetTypes.Company }),
+                [NotificationEventTypes.AccountantVisibilityChanged] = Definition(
+                    NotificationEventTypes.AccountantVisibilityChanged,
+                    new[] { NotificationScopes.Personal, NotificationScopes.Company },
+                    new[] { NotificationTargetTypes.Accountant }),
                 [NotificationEventTypes.AnomalyCreated] = Definition(
                     NotificationEventTypes.AnomalyCreated,
                     new[] { NotificationScopes.Company },

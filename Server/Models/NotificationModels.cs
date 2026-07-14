@@ -38,6 +38,7 @@ namespace FinalProjectAuthAPI.Models
         public const string AdminUserActiveToggled = "admin.user.active_toggled";
         public const string AdminUserBanned = "admin.user.banned";
         public const string AdminUserUnbanned = "admin.user.unbanned";
+        public const string AccountantVisibilityChanged = "accountant.visibility.changed";
         public const string UploadCompleted = "uploadjob.completed";
         public const string UploadFailed = "uploadjob.failed";
     }

@@ -32,6 +32,7 @@ import ModalShell from '../components/ModalShell'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useNotification } from '../context/useNotification'
+import { useRealtime } from '../context/useRealtime'
 import { useConfirm } from '../components/ConfirmContext'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -58,6 +59,7 @@ export default function FindAccountant() {
   const { user, token } = useAuth()
   const { activeCompanyId } = useCompany()
   const { notify } = useNotification()
+  const { subscribe } = useRealtime()
   const { confirm } = useConfirm()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
@@ -99,6 +101,7 @@ export default function FindAccountant() {
     queryFn: () => getPublicAccountantsPaginated(queryKey, token),
     enabled: Boolean(token),
     placeholderData: (prev) => prev,
+    refetchInterval: 30000,
   })
 
   const { items = [], totalCount = 0 } = data || {}
@@ -188,6 +191,24 @@ export default function FindAccountant() {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    const eventTypes = new Set([
+      'accountant.request.accepted',
+      'accountant.request.declined',
+      'accountant.connection.disconnected',
+      'accountant.visibility.changed',
+    ])
+    const unsubscribe = subscribe('notificationCreated', (payload) => {
+      const eventType = String(
+        payload?.eventType ?? payload?.EventType ?? '',
+      ).toLowerCase()
+      if (eventTypes.has(eventType)) {
+        queryClient.invalidateQueries({ queryKey: accountantKeys.all })
+      }
+    })
+    return () => unsubscribe()
+  }, [subscribe, queryClient])
 
   const handleChangePage = useCallback((_event, newPage) => {
     setPage(newPage)

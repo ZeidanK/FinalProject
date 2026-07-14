@@ -123,16 +123,23 @@ export default function AccountantWorkspace() {
   }, [loadCompanies])
 
   useEffect(() => {
+    const eventTypes = new Set([
+      'accountant.request.sent',
+      'accountant.request.cancelled',
+      'accountant.request.accepted',
+      'accountant.request.declined',
+    ])
     const unsubscribe = subscribe('notificationCreated', (payload) => {
       const eventType = String(
         payload?.eventType ?? payload?.EventType ?? '',
       ).toLowerCase()
-      if (eventType === 'accountant.request.sent') {
+      if (eventTypes.has(eventType)) {
         loadRequests()
+        loadCompanies()
       }
     })
     return () => unsubscribe()
-  }, [subscribe, loadRequests])
+  }, [subscribe, loadRequests, loadCompanies])
 
   useEffect(() => {
     if (!user?.id || !token) return
