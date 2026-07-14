@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ReportsPage from '../../pages/Reports'
 
 vi.mock('../../context/useAuth', () => ({
@@ -99,12 +100,13 @@ describe('ReportsPage', () => {
     expect(headings.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders Payables Aging at least once', async () => {
+  it('selects reconciliation by default', async () => {
     mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
     mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
     renderPage()
-    const items = await screen.findAllByText('Payables Aging')
-    expect(items.length).toBeGreaterThanOrEqual(1)
+    expect(await screen.findByLabelText('Start date')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Reconciliation Report/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByLabelText('As of date')).not.toBeInTheDocument()
   })
 
   it('renders reconciliation Start date input', async () => {
@@ -114,10 +116,11 @@ describe('ReportsPage', () => {
     expect(await screen.findByLabelText('Start date')).toBeInTheDocument()
   })
 
-  it('renders aging As of date input', async () => {
+  it('renders aging As of date input after clicking the aging tab', async () => {
     mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
     mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: /Payables Aging/i }))
     expect(await screen.findByLabelText('As of date')).toBeInTheDocument()
   })
 
@@ -126,19 +129,22 @@ describe('ReportsPage', () => {
     mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
     renderPage()
     expect(await screen.findByText('Vendor A')).toBeInTheDocument()
+    expect(screen.queryByText('AGING-001')).not.toBeInTheDocument()
   })
 
-  it('shows aging invoice number when data loads', async () => {
+  it('shows aging invoice number when the aging tab is selected', async () => {
     mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
     mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: /Payables Aging/i }))
     expect(await screen.findByText('AGING-001')).toBeInTheDocument()
   })
 
-  it('shows Partially paid chip in aging table', async () => {
+  it('shows Partially paid chip in aging table when the aging tab is selected', async () => {
     mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
     mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: /Payables Aging/i }))
     expect(await screen.findByText('Partially paid')).toBeInTheDocument()
   })
 
@@ -153,6 +159,7 @@ describe('ReportsPage', () => {
     mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
     mockGetPayablesAgingReport.mockRejectedValue(new Error('Aging API error'))
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: /Payables Aging/i }))
     expect(await screen.findByText(/Aging API error/)).toBeInTheDocument()
   })
 
@@ -170,6 +177,19 @@ describe('ReportsPage', () => {
     renderPage()
     expect(await screen.findByText('View reconciliation')).toBeInTheDocument()
     expect(screen.getByText('View aging')).toBeInTheDocument()
+  })
+
+  it('switches tabs from the overview buttons', async () => {
+    mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
+    mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)
+    renderPage()
+    fireEvent.click(await screen.findByText('View aging'))
+    expect(await screen.findByLabelText('As of date')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Payables Aging/i })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(screen.getByText('View reconciliation'))
+    expect(await screen.findByLabelText('Start date')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Reconciliation Report/i })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('renders 1 fully matched chip', async () => {

@@ -14,6 +14,7 @@ import {
   Grid,
   Skeleton,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
@@ -21,6 +22,7 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material'
@@ -51,6 +53,16 @@ const itemVariants = {
 }
 
 const EMPTY_REPORT_ROWS = []
+
+const REPORT_TAB_KEYS = {
+  reconciliation: 'reconciliation',
+  aging: 'aging',
+}
+
+const reportTabs = [
+  { value: REPORT_TAB_KEYS.reconciliation, label: 'Reconciliation Report', icon: <CompareArrowsRoundedIcon fontSize="small" /> },
+  { value: REPORT_TAB_KEYS.aging, label: 'Payables Aging', icon: <ScheduleRoundedIcon fontSize="small" /> },
+]
 
 const reportCardSx = {
   borderRadius: 3,
@@ -244,7 +256,12 @@ function LoadingRows() {
   )
 }
 
-function ReportCatalog({ reconciliation, aging }) {
+function TabPanel({ activeTab, tabValue, children }) {
+  if (activeTab !== tabValue) return null
+  return <Box>{children}</Box>
+}
+
+function ReportCatalog({ reconciliation, aging, onSelectReport }) {
   const summary = reconciliation?.summary || {}
   const totalExceptions = Number(summary.unmatchedLedgerCount || 0) + Number(summary.unmatchedBankTransactionCount || 0)
   const theme = useTheme()
@@ -290,7 +307,11 @@ function ReportCatalog({ reconciliation, aging }) {
                 <Chip size="small" label={`${formatNumber(summary.fullyMatchedLedgerCount)} fully matched`} />
                 <Chip size="small" color={totalExceptions > 0 ? 'warning' : 'success'} label={`${formatNumber(totalExceptions)} exceptions`} />
               </Stack>
-              <Button component="a" href="#reconciliation-report" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+              <Button
+                variant="outlined"
+                onClick={() => onSelectReport(REPORT_TAB_KEYS.reconciliation)}
+                sx={{ alignSelf: 'flex-start' }}
+              >
                 View reconciliation
               </Button>
             </Stack>
@@ -324,7 +345,11 @@ function ReportCatalog({ reconciliation, aging }) {
                 <Chip size="small" label={`${formatNumber(aging?.totalInvoiceCount)} unpaid invoices`} />
                 <Chip size="small" label={`${aging?.totalsByCurrency?.length || 0} currencies`} />
               </Stack>
-              <Button component="a" href="#aging-report" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+              <Button
+                variant="outlined"
+                onClick={() => onSelectReport(REPORT_TAB_KEYS.aging)}
+                sx={{ alignSelf: 'flex-start' }}
+              >
                 View aging
               </Button>
             </Stack>
@@ -688,6 +713,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
 function ReportsPage() {
   const { token } = useAuth()
   const { companies, activeCompanyId } = useCompany()
+  const [activeReportTab, setActiveReportTab] = useState(REPORT_TAB_KEYS.reconciliation)
   const [reconciliationRange, setReconciliationRange] = useState(getInitialReconciliationRange)
   const [asOfDate, setAsOfDate] = useState(() => toDateInputValue(new Date()))
   const [reconciliation, setReconciliation] = useState(null)
@@ -850,28 +876,65 @@ function ReportsPage() {
             </CardContent>
           </Card>
 
-          <ReportCatalog reconciliation={reconciliation} aging={aging} />
-
-          <ReconciliationReportSection
-            report={reconciliation}
-            loading={reconciliationLoading}
-            error={reconciliationError}
-            range={reconciliationRange}
-            rangeIsInvalid={rangeIsInvalid}
-            onRangeChange={handleRangeChange}
-            onReload={loadReconciliation}
-            onExport={exportReconciliation}
+          <ReportCatalog
+            reconciliation={reconciliation}
+            aging={aging}
+            onSelectReport={setActiveReportTab}
           />
 
-          <AgingReportSection
-            report={aging}
-            loading={agingLoading}
-            error={agingError}
-            asOfDate={asOfDate}
-            onAsOfDateChange={setAsOfDate}
-            onReload={loadAging}
-            onExport={exportAging}
-          />
+          <Box
+            component={motion.div}
+            variants={itemVariants}
+            sx={{
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              overflowX: 'auto',
+            }}
+          >
+            <Tabs
+              value={activeReportTab}
+              onChange={(_, value) => setActiveReportTab(value)}
+              variant="scrollable"
+              allowScrollButtonsMobile
+              aria-label="Financial report tabs"
+            >
+              {reportTabs.map((tab) => (
+                <Tab
+                  key={tab.value}
+                  value={tab.value}
+                  icon={tab.icon}
+                  iconPosition="start"
+                  label={tab.label}
+                  sx={{ textTransform: 'none', alignItems: 'center' }}
+                />
+              ))}
+            </Tabs>
+          </Box>
+
+          <TabPanel activeTab={activeReportTab} tabValue={REPORT_TAB_KEYS.reconciliation}>
+            <ReconciliationReportSection
+              report={reconciliation}
+              loading={reconciliationLoading}
+              error={reconciliationError}
+              range={reconciliationRange}
+              rangeIsInvalid={rangeIsInvalid}
+              onRangeChange={handleRangeChange}
+              onReload={loadReconciliation}
+              onExport={exportReconciliation}
+            />
+          </TabPanel>
+
+          <TabPanel activeTab={activeReportTab} tabValue={REPORT_TAB_KEYS.aging}>
+            <AgingReportSection
+              report={aging}
+              loading={agingLoading}
+              error={agingError}
+              asOfDate={asOfDate}
+              onAsOfDateChange={setAsOfDate}
+              onReload={loadAging}
+              onExport={exportAging}
+            />
+          </TabPanel>
         </Stack>
       </Container>
     </Box>
