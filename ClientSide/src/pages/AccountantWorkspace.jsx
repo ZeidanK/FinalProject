@@ -128,6 +128,7 @@ export default function AccountantWorkspace() {
       'accountant.request.cancelled',
       'accountant.request.accepted',
       'accountant.request.declined',
+      'accountant.connection.disconnected',
     ])
     const unsubscribe = subscribe('notificationCreated', (payload) => {
       const eventType = String(
