@@ -31,4 +31,28 @@ describe('InstallmentMatchGroups', () => {
     render(<InstallmentMatchGroups {...baseProps} query={{ isLoading: false, data: groups }} />)
     expect(screen.getByText(/Waiting for next installment/)).toBeInTheDocument()
   })
+
+  it('displays the normalized suggested installment amount', () => {
+    const groups = [{
+      invoiceId: 110,
+      invoiceNumber: 'INV-TGT-2025-0825',
+      totalAmount: 2100,
+      alreadyMatchedAmount: 0,
+      alreadyMatchedCount: 0,
+      expectedInstallments: 4,
+      existingMatches: [],
+      suggestedTransactions: [{
+        transactionId: 1184,
+        description: 'Payment 1 of 4',
+        vendorName: 'TRAVELGO TICKETS',
+        postedDate: '2025-09-02T00:00:00Z',
+        amount: 525,
+        chargeAmount: -525,
+      }],
+    }]
+
+    render(<InstallmentMatchGroups {...baseProps} query={{ isLoading: false, data: groups }} />)
+
+    expect(screen.getByText('525.00')).toBeInTheDocument()
+  })
 })

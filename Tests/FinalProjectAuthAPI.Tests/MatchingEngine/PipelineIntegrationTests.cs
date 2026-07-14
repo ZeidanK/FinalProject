@@ -144,6 +144,38 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
         }
 
         [Fact]
+        public void Company8_TravelGoInstallmentInvoice_UsesChargeAmountNotPlanAmount()
+        {
+            var invoices = LoadInvoicesForCompany(8);
+            var transactions = LoadTransactionsForCompany(8);
+            var result = _engine.Execute(invoices, transactions);
+
+            var travelGoInvoice = invoices.FirstOrDefault(i => i.Id == 110);
+            Assert.NotNull(travelGoInvoice);
+            Assert.Equal("INV-TGT-2025-0825", travelGoInvoice.InvoiceNumber);
+            Assert.True(travelGoInvoice.PaymentPlanTotalInstallments > 1);
+
+            var travelGoMatches = result.AutoMatches
+                .Where(m => m.InvoiceId == 110)
+                .OrderBy(m => m.TransactionId)
+                .ToList();
+
+            Assert.Equal(4, travelGoMatches.Count);
+            Assert.All(travelGoMatches, match =>
+            {
+                Assert.Equal(525m, match.MatchedAmount);
+                Assert.NotEqual(2100m, match.MatchedAmount);
+                Assert.NotNull(match.InstallmentNumber);
+                Assert.DoesNotContain("Trinity", match.RuleName);
+
+                var txn = transactions.First(t => t.Id == match.TransactionId);
+                Assert.Equal(2100m, Math.Abs(txn.Amount));
+                Assert.Equal(525m, txn.ChargeAmount.GetValueOrDefault());
+                Assert.True(TxPoolClassifier.IsInstallmentTxn(txn));
+            });
+        }
+
+        [Fact]
         public void Company8_NoCrossTypeMatching()
         {
             var invoices = LoadInvoicesForCompany(8);

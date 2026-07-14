@@ -1,11 +1,22 @@
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.MatchingEngine;
 using FinalProjectAuthAPI.Models;
+using System.Text.RegularExpressions;
 
 namespace FinalProjectAuthAPI.BL.Matching
 {
     public class MatchSuggestionService
     {
+        private const decimal InstallmentAmountTolerance = 2.00m;
+
+        private static readonly Regex InstallmentNumberPattern = new(
+            "(?<number>\\d+)\\s*(?:of|\u05de\u05ea\u05d5\u05da)\\s*\\d+",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex InstallmentPrefixPattern = new(
+            "(?:payment|\u05ea\u05e9\u05dc\u05d5\u05dd)\\s*(?<number>\\d+)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         private readonly IDBservices _db;
         private readonly IRulePipelineEngine _pipelineEngine;
 
@@ -13,6 +24,90 @@ namespace FinalProjectAuthAPI.BL.Matching
         {
             _db = db;
             _pipelineEngine = pipelineEngine;
+        }
+
+        private static bool IsWithinInstallmentAmountTolerance(decimal actual, decimal expected)
+        {
+            return Math.Abs(actual - expected) < InstallmentAmountTolerance;
+        }
+
+        private static int? TryParseInstallmentNumber(string? description)
+        {
+            if (string.IsNullOrWhiteSpace(description))
+                return null;
+
+            var match = InstallmentNumberPattern.Match(description);
+            if (!match.Success)
+                match = InstallmentPrefixPattern.Match(description);
+
+            if (!match.Success)
+                return null;
+
+            return int.TryParse(match.Groups["number"].Value, out var installmentNumber) && installmentNumber > 0
+                ? installmentNumber
+                : null;
+        }
+
+        private static decimal? GetFirstInstallmentResidualAmount(InvoiceRow invoice, decimal regularInstallmentAmount)
+        {
+            if (!invoice.PaymentPlanTotalInstallments.HasValue ||
+                invoice.PaymentPlanTotalInstallments.Value <= 1 ||
+                regularInstallmentAmount <= 0)
+                return null;
+
+            var residual = invoice.TotalAmount -
+                           regularInstallmentAmount * (invoice.PaymentPlanTotalInstallments.Value - 1);
+
+            return residual > 0
+                ? Math.Round(residual, 2, MidpointRounding.AwayFromZero)
+                : null;
+        }
+
+        private static decimal? GetObservedRegularInstallmentAmount(
+            IEnumerable<TransactionCandidate> candidates,
+            decimal expectedInstallmentAmount)
+        {
+            return candidates
+                .Select(t => new
+                {
+                    InstallmentNumber = TryParseInstallmentNumber(t.Description),
+                    Amount = TransactionAmountHelper.GetInstallmentReconciliationAmount(t),
+                })
+                .Where(t =>
+                    t.Amount > 0 &&
+                    t.InstallmentNumber.HasValue &&
+                    t.InstallmentNumber.Value > 1 &&
+                    IsWithinInstallmentAmountTolerance(t.Amount, expectedInstallmentAmount))
+                .GroupBy(t => Math.Round(t.Amount, 2, MidpointRounding.AwayFromZero))
+                .OrderByDescending(g => g.Count())
+                .ThenBy(g => Math.Abs(g.Key - expectedInstallmentAmount))
+                .Select(g => (decimal?)g.Key)
+                .FirstOrDefault();
+        }
+
+        private static bool MatchesExpectedInstallmentAmount(
+            InvoiceRow invoice,
+            TransactionCandidate txn,
+            decimal effectiveAmount,
+            decimal expectedInstallmentAmount,
+            decimal? observedRegularInstallmentAmount)
+        {
+            if (IsWithinInstallmentAmountTolerance(effectiveAmount, expectedInstallmentAmount))
+                return true;
+
+            if (TryParseInstallmentNumber(txn.Description) != 1)
+                return false;
+
+            var regularAmounts = new List<decimal> { expectedInstallmentAmount };
+            if (observedRegularInstallmentAmount.HasValue && observedRegularInstallmentAmount.Value > 0)
+                regularAmounts.Add(observedRegularInstallmentAmount.Value);
+
+            return regularAmounts
+                .Distinct()
+                .Select(regularAmount => GetFirstInstallmentResidualAmount(invoice, regularAmount))
+                .Any(residualAmount =>
+                    residualAmount.HasValue &&
+                    IsWithinInstallmentAmountTolerance(effectiveAmount, residualAmount.Value));
         }
 
         public virtual List<SimpleMatchSuggestion> GetSimpleSuggestions(long companyId)
@@ -29,7 +124,7 @@ namespace FinalProjectAuthAPI.BL.Matching
 
                 foreach (var txn in transactions)
                 {
-                    if (string.Equals(txn.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase))
+                    if (TxPoolClassifier.IsInstallmentTxn(txn))
                         continue;
 
                     if (!txn.RequiresInvoice)
@@ -64,7 +159,7 @@ namespace FinalProjectAuthAPI.BL.Matching
             var allCandidates = _db.GetCandidateTransactions(companyId);
 
             var installmentTxns = allCandidates
-                .Where(t => string.Equals(t.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase) &&
+                .Where(t => TxPoolClassifier.IsInstallmentTxn(t) &&
                             t.RequiresInvoice)
                 .ToList();
 
@@ -78,13 +173,6 @@ namespace FinalProjectAuthAPI.BL.Matching
                 m.InstallmentNumber.HasValue ||
                 !string.IsNullOrWhiteSpace(m.InstallmentNote) ||
                 string.Equals(m.MatchMethod, "installment_simple", StringComparison.OrdinalIgnoreCase);
-
-            static decimal GetEffectiveInstallmentAmount(TransactionCandidate t)
-            {
-                if (t.ChargeAmount.HasValue && t.ChargeAmount.Value > 0)
-                    return Math.Abs(t.ChargeAmount.Value);
-                return Math.Abs(t.Amount);
-            }
 
             foreach (var invoice in invoices)
             {
@@ -114,20 +202,32 @@ namespace FinalProjectAuthAPI.BL.Matching
                         ? invoice.PaymentPlanInstallmentAmount.Value
                         : (decimal?)null;
 
+                var observedRegularInstallmentAmount = expectedInstallmentAmount.HasValue
+                    ? GetObservedRegularInstallmentAmount(dateCandidates, expectedInstallmentAmount.Value)
+                    : null;
+
                 var amountCandidates = dateCandidates
                     .Where(t =>
                     {
-                        var effectiveAmount = GetEffectiveInstallmentAmount(t);
+                        var effectiveAmount = TransactionAmountHelper.GetInstallmentReconciliationAmount(t);
                         if (effectiveAmount <= 0)
                             return false;
 
                         if (expectedInstallmentAmount.HasValue)
-                            return Math.Abs(effectiveAmount - expectedInstallmentAmount.Value) < 2.00m;
+                            return MatchesExpectedInstallmentAmount(
+                                invoice,
+                                t,
+                                effectiveAmount,
+                                expectedInstallmentAmount.Value,
+                                observedRegularInstallmentAmount);
 
-                        return Math.Abs(effectiveAmount - remaining) < 2.00m ||
-                               Math.Abs(Math.Abs(t.Amount) - remaining) < 2.00m ||
+                        return IsWithinInstallmentAmountTolerance(effectiveAmount, remaining) ||
+                               IsWithinInstallmentAmountTolerance(Math.Abs(t.Amount), remaining) ||
                                effectiveAmount < remaining;
                     })
+                    .OrderBy(t => TryParseInstallmentNumber(t.Description) ?? int.MaxValue)
+                    .ThenBy(t => t.PostedDate ?? t.TransactionDate)
+                    .ThenBy(t => t.Id)
                     .ToList();
 
                 Console.WriteLine($"[DEBUG][תשלומים]   → {amountCandidates.Count} passed amount filter (invoiceTotal={invoice.TotalAmount})");
@@ -153,7 +253,7 @@ namespace FinalProjectAuthAPI.BL.Matching
                         TransactionDate = t.TransactionDate,
                         PostedDate      = t.PostedDate,
                         Description     = t.Description,
-                        Amount          = GetEffectiveInstallmentAmount(t),
+                        Amount          = TransactionAmountHelper.GetInstallmentReconciliationAmount(t),
                         ChargeAmount    = t.ChargeAmount,
                         VendorName      = t.VendorName,
                     }).ToList(),

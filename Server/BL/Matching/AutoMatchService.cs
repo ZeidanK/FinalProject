@@ -133,6 +133,9 @@ namespace FinalProjectAuthAPI.BL.Matching
             }
 
             var matchedInvoiceIds = new HashSet<long>(pipelineResult.AutoMatches.Select(m => m.InvoiceId));
+            foreach (var invoiceId in AutoConfirmAvailableInstallmentSuggestions(companyId, userId, result))
+                matchedInvoiceIds.Add(invoiceId);
+
             foreach (var invoice in invoices)
             {
                 if (matchedInvoiceIds.Contains(invoice.Id)) continue;
@@ -163,6 +166,92 @@ namespace FinalProjectAuthAPI.BL.Matching
             }
 
             return result;
+        }
+
+        private HashSet<long> AutoConfirmAvailableInstallmentSuggestions(
+            long companyId,
+            long userId,
+            AutoMatchBatchResult result)
+        {
+            var confirmedInvoiceIds = new HashSet<long>();
+            var confirmedTransactionIds = new HashSet<long>();
+            var groups = _suggestions.GetInstallmentSuggestions(companyId) ?? new List<InstallmentGroupSuggestion>();
+
+            foreach (var group in groups)
+            {
+                var remainingAmount = group.RemainingAmount > 0
+                    ? group.RemainingAmount
+                    : Math.Max(group.TotalAmount - group.AlreadyMatchedAmount, 0);
+
+                if (remainingAmount <= 0)
+                    continue;
+
+                var installmentNumber = group.AlreadyMatchedCount + 1;
+                var expectedInstallments = group.ExpectedInstallments;
+
+                foreach (var txn in group.SuggestedTransactions ?? new List<SuggestedInstallmentTransaction>())
+                {
+                    if (expectedInstallments.HasValue && installmentNumber > expectedInstallments.Value)
+                        break;
+
+                    if (!confirmedTransactionIds.Add(txn.TransactionId))
+                        continue;
+
+                    var suggestedAmount = Math.Abs(txn.Amount);
+                    if (suggestedAmount <= 0 && txn.ChargeAmount.HasValue)
+                        suggestedAmount = Math.Abs(txn.ChargeAmount.Value);
+
+                    var matchedAmount = Math.Min(suggestedAmount, remainingAmount);
+                    if (matchedAmount <= 0)
+                        break;
+
+                    var matchReq = new CreateMatchRequest
+                    {
+                        InvoiceId = group.InvoiceId,
+                        TransactionId = txn.TransactionId,
+                        MatchedAmount = matchedAmount,
+                        MatchMethod = "automatic",
+                        MatchType = "installment",
+                        MatchConfidence = 0.90m,
+                        MatchReason = "Auto-confirmed available installment suggestion.",
+                        MatchedByUserId = userId,
+                        InstallmentNumber = installmentNumber,
+                        InstallmentNote = expectedInstallments.HasValue
+                            ? $"Installment {installmentNumber} of {expectedInstallments.Value}"
+                            : $"Installment {installmentNumber}"
+                    };
+
+                    var createResult = _crud.Create(matchReq, userId);
+                    if (!createResult.Success)
+                    {
+                        result.MatchDetails.Add(new MatchDetail
+                        {
+                            InvoiceId = group.InvoiceId,
+                            InvoiceNumber = group.InvoiceNumber,
+                            Success = false,
+                            MatchScore = 90m,
+                            Message = createResult.Error
+                        });
+                        continue;
+                    }
+
+                    result.SuccessfulMatches++;
+                    confirmedInvoiceIds.Add(group.InvoiceId);
+                    remainingAmount -= matchedAmount;
+                    result.MatchDetails.Add(new MatchDetail
+                    {
+                        InvoiceId = group.InvoiceId,
+                        InvoiceNumber = group.InvoiceNumber,
+                        Success = true,
+                        MatchScore = 90m,
+                        Message = $"Auto-confirmed installment {installmentNumber}{(expectedInstallments.HasValue ? $"/{expectedInstallments.Value}" : string.Empty)}"
+                    });
+
+                    installmentNumber++;
+                }
+            }
+
+            return confirmedInvoiceIds;
         }
 
         private static string DetermineMatchType(InvoiceRow invoice, decimal transactionAmount)

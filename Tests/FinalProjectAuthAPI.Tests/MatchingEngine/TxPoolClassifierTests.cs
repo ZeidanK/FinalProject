@@ -98,7 +98,7 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
         [Fact]
         public void IsInstallmentTxn_NullTxn_ReturnsFalse()
         {
-            Assert.False(TxPoolClassifier.IsInstallmentTxn(null!));
+            Assert.False(TxPoolClassifier.IsInstallmentTxn((TransactionRow)null!));
         }
 
         [Fact]
@@ -108,6 +108,17 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
             {
                 Id = 1,
                 TransactionType = "תשלומים"
+            };
+            Assert.True(TxPoolClassifier.IsInstallmentTxn(txn));
+        }
+
+        [Fact]
+        public void IsInstallmentTxn_InstallmentTypeLegacyMojibake_ReturnsTrue()
+        {
+            var txn = new TransactionRow
+            {
+                Id = 1,
+                TransactionType = "×ª×©×œ×•×ž×™×"
             };
             Assert.True(TxPoolClassifier.IsInstallmentTxn(txn));
         }

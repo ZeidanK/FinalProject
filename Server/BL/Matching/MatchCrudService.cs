@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.MatchingEngine;
 using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL.Matching
@@ -38,13 +39,14 @@ namespace FinalProjectAuthAPI.BL.Matching
             if (remaining <= 0)
                 return (false, 0, "Invoice is already fully matched.");
 
-            var isInstallmentMatch = req.InstallmentNumber.HasValue;
-            var installmentOverageTolerance = 2.00m;
-            var normalOverageTolerance = 0.01m;
-            var allowedOverage = isInstallmentMatch ? installmentOverageTolerance : normalOverageTolerance;
+            var allowedOverage = GetAllowedOverage(req, remaining);
 
             if (req.MatchedAmount - remaining > allowedOverage)
                 return (false, 0, $"Matched amount exceeds remaining balance ({remaining:F2}). AllowedOverage={allowedOverage:F2}");
+
+            var installmentValidation = ValidateInstallmentMatchedAmount(req);
+            if (!installmentValidation.Success)
+                return (false, 0, installmentValidation.Error);
 
             var id = _db.CreateMatch(
                 req.InvoiceId, req.TransactionId, req.MatchedAmount,
@@ -54,6 +56,8 @@ namespace FinalProjectAuthAPI.BL.Matching
 
             if (id <= 0)
                 return (false, 0, "Failed to create match.");
+
+            TryCreateAmountMismatchAnomaly(req, invoice, id, remaining);
 
             if (string.Equals(req.MatchMethod, "manual", StringComparison.OrdinalIgnoreCase))
             {
@@ -75,6 +79,104 @@ namespace FinalProjectAuthAPI.BL.Matching
             }
 
             return (true, id, string.Empty);
+        }
+
+        private (bool Success, string Error) ValidateInstallmentMatchedAmount(CreateMatchRequest req)
+        {
+            if (!IsInstallmentMatchRequest(req))
+                return (true, string.Empty);
+
+            var txn = _db.GetTransactionById(req.TransactionId);
+            if (txn == null)
+                return (false, "Transaction not found.");
+
+            if (!TxPoolClassifier.IsInstallmentTxn(txn))
+                return (false, "Installment matches require an installment transaction.");
+
+            var effectiveAmount = TransactionAmountHelper.GetInstallmentReconciliationAmount(txn);
+            if (effectiveAmount <= 0)
+                return (false, "Installment transaction amount is missing.");
+
+            const decimal tolerance = 2.00m;
+            if (req.MatchedAmount - effectiveAmount > tolerance)
+                return (false, $"Matched amount exceeds transaction installment amount ({effectiveAmount:F2}). AllowedOverage={tolerance:F2}");
+
+            return (true, string.Empty);
+        }
+
+        private static bool IsInstallmentMatchRequest(CreateMatchRequest req)
+        {
+            return req.InstallmentNumber.HasValue ||
+                   string.Equals(req.MatchType, "installment", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(req.MatchMethod, "installment_simple", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private decimal GetAllowedOverage(CreateMatchRequest req, decimal remaining)
+        {
+            if (req.InstallmentNumber.HasValue)
+                return 2.00m;
+
+            if (IsAutomaticAmountVarianceMatch(req))
+                return Math.Max(2.00m, Math.Round(remaining * 0.01m, 2, MidpointRounding.AwayFromZero));
+
+            return 0.01m;
+        }
+
+        private static bool IsAutomaticAmountVarianceMatch(CreateMatchRequest req)
+        {
+            if (!string.Equals(req.MatchMethod, "automatic", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var reason = req.MatchReason ?? string.Empty;
+            return reason.Contains("Small Variance", StringComparison.OrdinalIgnoreCase)
+                || reason.Contains("Amount variance", StringComparison.OrdinalIgnoreCase)
+                || reason.Contains("Variance:", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void TryCreateAmountMismatchAnomaly(
+            CreateMatchRequest req,
+            InvoiceRow invoice,
+            long matchId,
+            decimal expectedAmount)
+        {
+            if (!string.Equals(req.MatchMethod, "automatic", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (req.InstallmentNumber.HasValue)
+                return;
+
+            var amountDifference = Math.Abs(req.MatchedAmount - expectedAmount);
+            if (amountDifference <= 0.01m)
+                return;
+
+            var variancePercent = expectedAmount > 0
+                ? amountDifference / expectedAmount * 100m
+                : 0m;
+
+            try
+            {
+                var invoiceLabel = !string.IsNullOrWhiteSpace(invoice.InvoiceNumber)
+                    ? $"#{invoice.InvoiceNumber}"
+                    : $"ID {invoice.Id}";
+
+                _db.CreateAnomaly(
+                    invoice.CompanyId,
+                    "amount_mismatch",
+                    $"Amount mismatch on invoice {invoiceLabel}",
+                    $"Automatic matching accepted transaction {req.TransactionId} for invoice {invoiceLabel} with an amount variance. Expected amount: {expectedAmount:F2}; matched amount: {req.MatchedAmount:F2}; difference: {amountDifference:F2} ({variancePercent:F2}%).",
+                    "medium",
+                    "Review the matched transaction amount and resolve or dismiss this anomaly if the tolerated variance is acceptable.",
+                    req.InvoiceId,
+                    req.TransactionId,
+                    matchId,
+                    amountDifference,
+                    "matching",
+                    req.MatchConfidence);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] Failed to create amount mismatch anomaly for match #{matchId}: {ex.Message}");
+            }
         }
 
         public virtual bool Delete(long id)

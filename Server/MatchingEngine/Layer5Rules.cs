@@ -17,6 +17,26 @@ namespace FinalProjectAuthAPI.MatchingEngine
                 return Math.Abs(chargeAmount.Value);
             return Math.Abs(amount);
         }
+
+        public static decimal GetInstallmentReconciliationAmount(TransactionRow txn)
+        {
+            if (TxPoolClassifier.IsInstallmentTxn(txn) &&
+                txn.ChargeAmount.HasValue &&
+                txn.ChargeAmount.Value > 0)
+                return Math.Abs(txn.ChargeAmount.Value);
+
+            return Math.Abs(txn.Amount);
+        }
+
+        public static decimal GetInstallmentReconciliationAmount(TransactionCandidate txn)
+        {
+            if (TxPoolClassifier.IsInstallmentTxn(txn) &&
+                txn.ChargeAmount.HasValue &&
+                txn.ChargeAmount.Value > 0)
+                return Math.Abs(txn.ChargeAmount.Value);
+
+            return Math.Abs(txn.Amount);
+        }
     }
 
     public class Rule5_1_BatchInvoicePayment : BaseRule
@@ -66,7 +86,17 @@ namespace FinalProjectAuthAPI.MatchingEngine
             if (!TxPoolClassifier.IsInstallmentTxn(transaction))
                 return new RuleEvalResult { Matched = false };
 
-            var effectiveAmount = TransactionAmountHelper.GetEffectiveAmount(transaction);
+            if (transaction.TransactionDate.Date != invoice.InvoiceDate.Date)
+                return new RuleEvalResult { Matched = false };
+
+            var cardMatches = !string.IsNullOrWhiteSpace(invoice.LastFourDigitsCard) &&
+                              !string.IsNullOrWhiteSpace(transaction.CardLast4) &&
+                              string.Equals(invoice.LastFourDigitsCard, transaction.CardLast4, StringComparison.OrdinalIgnoreCase);
+
+            if (fuzzyScore <= 0.80 && !cardMatches)
+                return new RuleEvalResult { Matched = false };
+
+            var effectiveAmount = TransactionAmountHelper.GetInstallmentReconciliationAmount(transaction);
 
             // Determine expected installment amount:
             // 1. Use PaymentPlanInstallmentAmount if available
@@ -122,7 +152,7 @@ namespace FinalProjectAuthAPI.MatchingEngine
                 for (int end = start; end < sorted.Count; end++)
                 {
                     var txn = sorted[end];
-                    var effectiveAmt = TransactionAmountHelper.GetEffectiveAmount(txn);
+                    var effectiveAmt = TransactionAmountHelper.GetInstallmentReconciliationAmount(txn);
                     window.Add(txn);
                     runningSum += effectiveAmt;
 
@@ -133,7 +163,7 @@ namespace FinalProjectAuthAPI.MatchingEngine
                     {
                         for (int remove = 0; remove < window.Count - 1 && runningSum > target; remove++)
                         {
-                            var removedAmt = TransactionAmountHelper.GetEffectiveAmount(window[remove]);
+                            var removedAmt = TransactionAmountHelper.GetInstallmentReconciliationAmount(window[remove]);
                             runningSum -= removedAmt;
 
                             if (Math.Abs(runningSum - target) < 0.01m)

@@ -54,6 +54,7 @@ import { getInvoiceById, updateInvoice } from '../services/invoices'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
 import { cardBaseSx } from '../utils/sharedStyles'
 import { fmtAmount, fmtDate, toDateInput } from '../utils/formatters'
+import { getInstallmentSuggestionAmount } from '../utils/matchAmounts'
 import { containerVariants, itemVariants } from '../utils/motionVariants'
 import { invoiceKeys, matchKeys, transactionKeys } from '../queries/queryKeys'
 import {
@@ -974,12 +975,12 @@ function MatchesPage() {
                   const totalAmount = Number(group.totalAmount) || 0
                   const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
                   const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
-                  const suggestedAmount =
-                    Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
-                  const effectiveAmount = Math.min(
-                    suggestedAmount > 0 ? suggestedAmount : remainingAmount,
-                    remainingAmount,
-                  )
+                  const suggestedAmount = getInstallmentSuggestionAmount(txn)
+                  const effectiveAmount = Math.min(suggestedAmount, remainingAmount)
+
+                  if (suggestedAmount <= 0) {
+                    throw new Error('Installment amount is missing for this suggestion.')
+                  }
 
                   if (effectiveAmount <= 0) {
                     throw new Error('No remaining balance to match for this invoice.')

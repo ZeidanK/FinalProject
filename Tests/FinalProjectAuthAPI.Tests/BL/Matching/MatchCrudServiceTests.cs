@@ -113,7 +113,14 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
                 It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<string>(), It.IsAny<decimal?>(),
                 It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<string?>())).Returns(42);
             _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
-            _mockDb.Setup(x => x.GetTransactionById(1)).Returns(new TransactionRow { Id = 1, Description = "Test" });
+            _mockDb.Setup(x => x.GetTransactionById(1)).Returns(new TransactionRow
+            {
+                Id = 1,
+                Amount = 101.50m,
+                ChargeAmount = 101.50m,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd",
+                Description = "Test"
+            });
 
             var req = new CreateMatchRequest
             {
@@ -124,6 +131,180 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
             };
             var (success, id, error) = _service.Create(req, 10);
             Assert.True(success);
+            _mockDb.Verify(x => x.CreateAnomaly(
+                It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<long?>(),
+                It.IsAny<long?>(), It.IsAny<long?>(), It.IsAny<decimal?>(),
+                It.IsAny<string>(), It.IsAny<decimal?>()), Times.Never);
+        }
+
+        [Fact]
+        public void Create_InstallmentAmountAboveTransactionEffectiveAmount_ReturnsFailure()
+        {
+            var invoice = new InvoiceRow
+            {
+                Id = 1,
+                CompanyId = 8,
+                InvoiceNumber = "INV-TGT-2025-0825",
+                TotalAmount = 2100,
+                MatchedAmount = 0
+            };
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
+            _mockDb.Setup(x => x.GetTransactionById(2)).Returns(new TransactionRow
+            {
+                Id = 2,
+                Amount = 2100,
+                ChargeAmount = 525,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd"
+            });
+
+            var req = new CreateMatchRequest
+            {
+                InvoiceId = 1,
+                TransactionId = 2,
+                MatchedAmount = 2100,
+                MatchMethod = "installment_simple",
+                MatchType = "partial",
+                InstallmentNumber = 1
+            };
+
+            var (success, id, error) = _service.Create(req, 10);
+
+            Assert.False(success);
+            Assert.Equal(0, id);
+            Assert.Contains("transaction installment amount", error, StringComparison.OrdinalIgnoreCase);
+            _mockDb.Verify(x => x.CreateMatch(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(),
+                It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<string>(),
+                It.IsAny<decimal?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<string?>()), Times.Never);
+        }
+
+        [Fact]
+        public void Create_AutomaticAmountMismatch_CreatesAnomaly()
+        {
+            var invoice = new InvoiceRow
+            {
+                Id = 1,
+                CompanyId = 5,
+                InvoiceNumber = "INV-001",
+                TotalAmount = 100,
+                MatchedAmount = 0
+            };
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
+            _mockDb.Setup(x => x.CreateMatch(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(),
+                "automatic", 10, "partial", It.IsAny<decimal?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<string?>())).Returns(42);
+
+            var req = new CreateMatchRequest
+            {
+                InvoiceId = 1,
+                TransactionId = 2,
+                MatchedAmount = 99,
+                MatchMethod = "automatic",
+                MatchType = "partial",
+                MatchConfidence = 0.80m,
+                MatchReason = "[Layer 3] Small Variance Tolerance (F3): Amount variance of 1.00"
+            };
+
+            var (success, id, error) = _service.Create(req, 10);
+
+            Assert.True(success);
+            Assert.Equal(42, id);
+            Assert.Empty(error);
+            _mockDb.Verify(x => x.CreateAnomaly(
+                5,
+                "amount_mismatch",
+                It.Is<string>(title => title.Contains("INV-001")),
+                It.Is<string>(description => description.Contains("Expected amount: 100.00") &&
+                                             description.Contains("matched amount: 99.00")),
+                "medium",
+                It.IsAny<string?>(),
+                1,
+                2,
+                42,
+                1,
+                "matching",
+                0.80m), Times.Once);
+        }
+
+        [Fact]
+        public void Create_AutomaticSmallVarianceOverage_AllowsMatchAndCreatesAnomaly()
+        {
+            var invoice = new InvoiceRow
+            {
+                Id = 1,
+                CompanyId = 5,
+                InvoiceNumber = "INV-001",
+                TotalAmount = 100,
+                MatchedAmount = 0
+            };
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
+            _mockDb.Setup(x => x.CreateMatch(It.IsAny<long>(), It.IsAny<long>(), 101m,
+                "automatic", 10, "full", It.IsAny<decimal?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<string?>())).Returns(42);
+
+            var req = new CreateMatchRequest
+            {
+                InvoiceId = 1,
+                TransactionId = 2,
+                MatchedAmount = 101,
+                MatchMethod = "automatic",
+                MatchType = "full",
+                MatchConfidence = 0.80m,
+                MatchReason = "[Layer 3] Small Variance Tolerance (F3): Amount variance of 1.00"
+            };
+
+            var (success, id, error) = _service.Create(req, 10);
+
+            Assert.True(success);
+            Assert.Equal(42, id);
+            Assert.Empty(error);
+            _mockDb.Verify(x => x.CreateAnomaly(
+                5,
+                "amount_mismatch",
+                It.IsAny<string>(),
+                It.Is<string>(description => description.Contains("matched amount: 101.00")),
+                "medium",
+                It.IsAny<string?>(),
+                1,
+                2,
+                42,
+                1,
+                "matching",
+                0.80m), Times.Once);
+        }
+
+        [Fact]
+        public void Create_AutomaticExactMatch_DoesNotCreateAnomaly()
+        {
+            var invoice = new InvoiceRow { Id = 1, CompanyId = 5, TotalAmount = 100, MatchedAmount = 0 };
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
+            _mockDb.Setup(x => x.CreateMatch(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(),
+                "automatic", 10, "full", It.IsAny<decimal?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<string?>())).Returns(42);
+
+            var req = new CreateMatchRequest
+            {
+                InvoiceId = 1,
+                TransactionId = 2,
+                MatchedAmount = 100,
+                MatchMethod = "automatic",
+                MatchType = "full",
+                MatchConfidence = 0.95m,
+                MatchReason = "Exact amount match"
+            };
+
+            var (success, id, error) = _service.Create(req, 10);
+
+            Assert.True(success);
+            Assert.Equal(42, id);
+            Assert.Empty(error);
+            _mockDb.Verify(x => x.CreateAnomaly(
+                It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<long?>(),
+                It.IsAny<long?>(), It.IsAny<long?>(), It.IsAny<decimal?>(),
+                It.IsAny<string>(), It.IsAny<decimal?>()), Times.Never);
         }
 
         [Fact]
