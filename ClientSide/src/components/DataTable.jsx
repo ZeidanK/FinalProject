@@ -1,9 +1,14 @@
+import { useState } from 'react'
 import PropTypes from 'prop-types'
 import {
   Box,
-  Checkbox,
+  Card,
+  CardContent,
   Chip,
-  Skeleton,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  Pagination,
   Stack,
   Table,
   TableBody,
@@ -12,168 +17,259 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
+  TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
-import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
+import { motion } from 'framer-motion'
+import { itemVariants } from '../utils/motionVariants'
+import { cardBaseSx } from '../utils/sharedStyles'
 
-const tableShellSx = {
-  borderRadius: 2,
-  border: '1px solid',
-  borderColor: 'divider',
-  overflowX: 'auto',
-}
-
-const rowSx = {
-  bgcolor: 'rgba(255,255,255,0.02)',
-  '&:last-child td': { borderBottom: 0 },
-}
+const ROWS_OPTIONS = [10, 25, 50, 100]
 
 export default function DataTable({
+  title,
+  icon: Icon,
+  color,
+  count,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  loading,
+  emptyMessage,
   columns,
   rows,
-  sortKey,
-  sortDirection,
+  selectedId,
+  onSelect,
   onSort,
-  selectedIds,
-  onToggleSelect,
-  onToggleSelectAll,
-  allSelected,
-  hasSelection,
-  loading,
-  loadingRows = 5,
-  emptyMessage = 'No data available.',
-  emptyIcon,
-  getRowId,
-  rowActions,
-  sx,
+  sortColumn,
+  sortDirection,
+  onEdit,
+  onEditLabel,
+  editingId,
+  renderActions,
+  defaultPageSize = 25,
+  getRowStyle,
 }) {
-  if (loading) {
-    return (
-      <Stack spacing={1} sx={{ mt: 1 }}>
-        {Array.from({ length: loadingRows }, (_, i) => (
-          <Skeleton key={i} variant="rectangular" height={36} sx={{ borderRadius: 1 }} />
-        ))}
-      </Stack>
-    )
-  }
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(defaultPageSize)
 
-  if (!rows || rows.length === 0) {
-    return (
-      <Box sx={{ py: 6, textAlign: 'center' }}>
-        {emptyIcon || <InboxRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />}
-        <Typography color="text.secondary">{emptyMessage}</Typography>
-      </Box>
-    )
+  const totalRows = rows.length
+  const pageCount = Math.max(1, Math.ceil(totalRows / rowsPerPage))
+  const paginatedRows = rows.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
+
+  const handleRowsPerPageChange = (e) => {
+    const val = Number(e.target.value)
+    setRowsPerPage(val)
+    setPage(0)
   }
 
   return (
-    <TableContainer sx={{ ...tableShellSx, ...sx }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
-            {onToggleSelect && onToggleSelectAll && (
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={hasSelection && !allSelected}
-                  onChange={onToggleSelectAll}
-                />
-              </TableCell>
-            )}
-            {columns.map((col) => (
-              <TableCell
-                key={col.key}
-                align={col.align || 'left'}
-                sortDirection={sortKey === col.key ? sortDirection : false}
-                sx={{ whiteSpace: 'nowrap', ...(col.sx || {}) }}
-              >
-                {col.sortable !== false && onSort ? (
-                  <TableSortLabel
-                    active={sortKey === col.key}
-                    direction={sortKey === col.key ? sortDirection : 'asc'}
-                    onClick={() => onSort(col.key)}
-                  >
-                    {col.label}
-                  </TableSortLabel>
-                ) : (
-                  col.label
-                )}
-              </TableCell>
-            ))}
-            {rowActions && <TableCell align="center">Actions</TableCell>}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row, idx) => {
-            const rowId = getRowId ? getRowId(row) : row.id ?? idx
-            const isSelected = selectedIds ? selectedIds.includes(rowId) : false
+    <Card component={motion.div} variants={itemVariants} elevation={0} sx={cardBaseSx}>
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            {Icon && <Icon sx={{ color, fontSize: 20 }} />}
+            <Typography variant="subtitle2" fontWeight={700}>
+              {title}
+            </Typography>
+            <Chip label={count} size="small" sx={{ bgcolor: `${color}1A`, color, fontWeight: 600 }} />
+          </Stack>
+          {totalRows > 0 && (
+            <IconButton size="small" onClick={() => setPage(0)} aria-label="Reset pagination" sx={{ color: 'text.secondary' }}>
+              <RestartAltRoundedIcon fontSize="small" />
+            </IconButton>
+          )}
+        </Stack>
 
-            return (
-              <TableRow
-                key={rowId}
-                hover
-                selected={isSelected}
-                sx={rowSx}
-              >
-                {onToggleSelect && (
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={isSelected}
-                      onChange={() => onToggleSelect(rowId)}
-                    />
+        {onSearchChange && (
+          <TextField
+            placeholder={searchPlaceholder || `Search ${title.toLowerCase()}...`}
+            size="small"
+            fullWidth
+            value={searchValue || ''}
+            onChange={(e) => { onSearchChange(e.target.value); setPage(0) }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRoundedIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                sx: { fontSize: '0.85rem' },
+              },
+            }}
+            sx={{ mb: 1.5 }}
+          />
+        )}
+
+        <TableContainer sx={{ maxHeight: 480, borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    sx={{
+                      bgcolor: 'rgba(14,24,45,0.9)',
+                      borderBottom: '1px solid rgba(129,191,255,0.08)',
+                      color: 'text.secondary',
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      letterSpacing: 0.3,
+                      whiteSpace: 'nowrap',
+                      minWidth: col.minWidth || 80,
+                      width: col.width,
+                    }}
+                  >
+                    {col.sortable ? (
+                      <TableSortLabel
+                        active={sortColumn === col.key}
+                        direction={sortColumn === col.key ? sortDirection : 'asc'}
+                        onClick={() => onSort?.(col.key)}
+                        sx={{ '&.Mui-active': { color: 'primary.main' } }}
+                      >
+                        {col.label}
+                      </TableSortLabel>
+                    ) : (
+                      col.label
+                    )}
                   </TableCell>
-                )}
-                {columns.map((col) => {
-                  const value = col.getValue ? col.getValue(row) : row[col.key]
-                  return (
-                    <TableCell key={col.key} align={col.align || 'left'} sx={{ ...(col.cellSx || {}) }}>
-                      {col.render ? col.render(value, row) : value ?? '—'}
-                    </TableCell>
-                  )
-                })}
-                {rowActions && (
-                  <TableCell align="center">
-                    {typeof rowActions === 'function' ? rowActions(row) : rowActions}
-                  </TableCell>
-                )}
+                ))}
               </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-    </TableContainer>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={`skel-${i}`}>
+                    {columns.map((col) => (
+                      <TableCell key={col.key} sx={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <Box sx={{ height: 20, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.05)' }} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : paginatedRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} sx={{ textAlign: 'center', py: 4, borderBottom: 'none' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {emptyMessage || 'No items.'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedRows.map((row) => {
+                  const id = row.id ?? row._id
+                  const isSelected = selectedId === id
+                  return (
+                    <TableRow
+                      key={id}
+                      hover
+                      selected={isSelected}
+                      onClick={() => onSelect?.(id)}
+                      sx={{
+                        cursor: onSelect ? 'pointer' : 'default',
+                        bgcolor: isSelected ? `${color}12` : 'transparent',
+                        '&:hover': { bgcolor: isSelected ? `${color}18` : 'rgba(255,255,255,0.03)' },
+                        '&.Mui-selected': { bgcolor: `${color}12` },
+                        '& td': { borderBottom: '1px solid rgba(255,255,255,0.03)' },
+                        ...(getRowStyle?.(row) || {}),
+                      }}
+                    >
+                      {columns.map((col) => (
+                        <TableCell
+                          key={col.key}
+                          sx={{
+                            color: isSelected ? '#fff' : 'inherit',
+                            fontSize: '0.8rem',
+                            whiteSpace: 'nowrap',
+                            maxWidth: col.maxWidth || 200,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {col.render ? col.render(row) : (row[col.key] ?? '\u2014')}
+                        </TableCell>
+                      ))}
+                      {renderActions && (
+                        <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                          {renderActions(row)}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {totalRows > 0 && (
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1.5 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="caption" color="text.secondary">Rows:</Typography>
+              <TextField
+                select
+                size="small"
+                value={rowsPerPage}
+                onChange={handleRowsPerPageChange}
+                sx={{ width: 70 }}
+                slotProps={{ select: { sx: { fontSize: '0.8rem', py: 0.5 } } }}
+              >
+                {ROWS_OPTIONS.map((opt) => (
+                  <MenuItem key={opt} value={opt} sx={{ fontSize: '0.8rem' }}>{opt}</MenuItem>
+                ))}
+              </TextField>
+              <Typography variant="caption" color="text.secondary">
+                {page * rowsPerPage + 1}–{Math.min((page + 1) * rowsPerPage, totalRows)} of {totalRows}
+              </Typography>
+            </Stack>
+            <Pagination
+              count={pageCount}
+              page={page + 1}
+              onChange={(_, p) => setPage(p - 1)}
+              size="small"
+              siblingCount={0}
+              boundaryCount={1}
+            />
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
-const columnShape = PropTypes.shape({
-  key: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  align: PropTypes.string,
-  sortable: PropTypes.bool,
-  sx: PropTypes.object,
-  cellSx: PropTypes.object,
-  getValue: PropTypes.func,
-  render: PropTypes.func,
-})
-
 DataTable.propTypes = {
-  columns: PropTypes.arrayOf(columnShape).isRequired,
-  rows: PropTypes.array,
-  sortKey: PropTypes.string,
-  sortDirection: PropTypes.oneOf(['asc', 'desc']),
-  onSort: PropTypes.func,
-  selectedIds: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])),
-  onToggleSelect: PropTypes.func,
-  onToggleSelectAll: PropTypes.func,
-  allSelected: PropTypes.bool,
-  hasSelection: PropTypes.bool,
+  title: PropTypes.string.isRequired,
+  icon: PropTypes.elementType,
+  color: PropTypes.string,
+  count: PropTypes.number.isRequired,
+  searchValue: PropTypes.string,
+  onSearchChange: PropTypes.func,
+  searchPlaceholder: PropTypes.string,
   loading: PropTypes.bool,
-  loadingRows: PropTypes.number,
   emptyMessage: PropTypes.string,
-  emptyIcon: PropTypes.node,
-  getRowId: PropTypes.func,
-  rowActions: PropTypes.oneOfType([PropTypes.node, PropTypes.func]),
-  sx: PropTypes.object,
+  columns: PropTypes.arrayOf(PropTypes.shape({
+    key: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    sortable: PropTypes.bool,
+    render: PropTypes.func,
+    minWidth: PropTypes.number,
+    maxWidth: PropTypes.number,
+    width: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  })).isRequired,
+  rows: PropTypes.array.isRequired,
+  selectedId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onSelect: PropTypes.func,
+  onSort: PropTypes.func,
+  sortColumn: PropTypes.string,
+  sortDirection: PropTypes.oneOf(['asc', 'desc']),
+  onEdit: PropTypes.func,
+  onEditLabel: PropTypes.string,
+  editingId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  renderActions: PropTypes.func,
+  defaultPageSize: PropTypes.number,
+  getRowStyle: PropTypes.func,
 }

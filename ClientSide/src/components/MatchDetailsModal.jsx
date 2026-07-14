@@ -20,8 +20,11 @@ import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import ModalShell from './ModalShell'
+import MatchComparisonPanel from './MatchComparisonPanel'
 import { fmtAmount, fmtDate } from '../utils/formatters'
+import { exportMatchesCSV } from '../utils/csvExport'
 
 const dash = '\u2014'
 
@@ -255,6 +258,23 @@ function MatchDetailsContent({ data }) {
     <Stack spacing={3} sx={{ mt: 2 }}>
       <MatchHero data={data} />
 
+      {data.invoiceVendor || data.transactionVendor ? (
+        <MatchComparisonPanel
+          invoice={{
+            vendor_name: data.invoiceVendor,
+            total_amount: data.invoiceAmount,
+            invoice_date: data.invoiceDate,
+            last_four_digits_card: data.invoiceCardLast4,
+          }}
+          transaction={{
+            vendor_name: data.transactionVendor,
+            charge_amount: data.transactionChargeAmount ?? data.transactionAmount,
+            transaction_date: data.transactionDate,
+            card_last4: data.transactionCardLast4,
+          }}
+        />
+      ) : null}
+
       <SectionDivider label="Match" />
 
       <Grid container spacing={2}>
@@ -391,6 +411,28 @@ MatchDetailsContent.propTypes = {
 export default function MatchDetailsModal({ open, match, invoice, transaction, loading, error, onClose }) {
   const data = normalizeMatchData(match, invoice, transaction)
 
+  const handleExportSingle = useCallback(() => {
+    if (!data) return
+    exportMatchesCSV([{
+      id: data.matchId,
+      invoice_id: data.invoiceId,
+      invoice_number: data.invoiceNumber,
+      vendor_name: data.invoiceVendor,
+      transaction_id: data.transactionId,
+      transaction_vendor_name: data.transactionVendor,
+      transaction_description: data.transactionDescription,
+      matched_amount: data.matchedAmount,
+      match_method: data.matchMethod,
+      match_type: data.matchType,
+      match_confidence: data.matchConfidence,
+      installment_number: data.installmentNumber,
+      installment_note: data.installmentNote,
+      matched_by_name: data.matchedBy,
+      created_at: data.createdAt,
+      updated_at: data.updatedAt,
+    }], `match-${data.matchId}.csv`)
+  }, [data])
+
   return (
     <ModalShell
       open={open}
@@ -407,9 +449,18 @@ export default function MatchDetailsModal({ open, match, invoice, transaction, l
         </Stack>
       )}
       headerAction={(
-        <Button onClick={onClose} color="inherit" startIcon={<CloseRoundedIcon />}>
-          Close
-        </Button>
+        <Stack direction="row" spacing={1}>
+          {data && !loading && (
+            <Tooltip title="Export this match as CSV">
+              <IconButton size="small" onClick={handleExportSingle} sx={{ color: 'text.secondary' }} aria-label="Export match">
+                <FileDownloadRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Button onClick={onClose} color="inherit" startIcon={<CloseRoundedIcon />}>
+            Close
+          </Button>
+        </Stack>
       )}
       contentSx={{ py: 1.5 }}
     >
