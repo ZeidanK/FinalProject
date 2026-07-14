@@ -210,6 +210,15 @@ export function RealtimeProvider({ children }) {
       emit('notificationCreated', payload)
       if (logoutIfAccountBanned(payload)) return
 
+      if (getEventType(payload) === 'accountant.connection.disconnected') {
+        const role = user?.role?.toLowerCase()
+        if (role === 'accountant' || role === 'accountant_business_owner') {
+          localStorage.removeItem('activeCompanyId')
+          localStorage.removeItem('activeCompanyName')
+          window.location.hash = '#/accountant-workspace'
+        }
+      }
+
       notify({
         eventId: payload?.eventId || payload?.EventId,
         message: payload?.title || payload?.Title || 'You have a new notification.',
