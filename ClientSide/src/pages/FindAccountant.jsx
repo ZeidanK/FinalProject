@@ -660,7 +660,7 @@ export default function FindAccountant() {
                             emptyIcon={<StarRoundedIcon sx={{ fontSize: 14, opacity: 0.3 }} />}
                           />
                           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                            {new Date(review.createdAt).toLocaleDateString()}
+                            {new Date(review.createdAt).toLocaleDateString('en-GB')}
                           </Typography>
                         </Stack>
                         {review.review && (

@@ -360,7 +360,7 @@ export default function AccountantWorkspace() {
                         Requested by {req.requestedByName}
                       </Typography>
                       <Typography variant="caption" color="text.disabled">
-                        {new Date(req.createdAt).toLocaleDateString()}
+                        {new Date(req.createdAt).toLocaleDateString('en-GB')}
                       </Typography>
                     </Stack>
                     <Stack direction="row" spacing={1}>
