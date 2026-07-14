@@ -20,13 +20,22 @@ import {
   Skeleton,
   Stack,
   Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
-import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
@@ -36,7 +45,6 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import AnimatedBackground from '../components/AnimatedBackground'
-import DataTable from '../components/DataTable'
 import FileUploadZone from '../components/FileUploadZone'
 import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
@@ -58,7 +66,6 @@ import {
 import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { confidenceColor, confidenceLabel, invoiceFullConfidence, mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
-import { fmtDate } from '../utils/formatters'
 import {
   useBulkDeleteInvoicesMutation,
   useCreateInvoiceMutation,
@@ -252,6 +259,8 @@ function InvoicesPage() {
   const [bulkDeletingInvoices, setBulkDeletingInvoices] = useState(false)
   const [sortKey, setSortKey] = useState('date')
   const [sortDirection, setSortDirection] = useState('desc')
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   // --- Filter state ---
   const [searchTerm, setSearchTerm] = useState('')
@@ -1284,6 +1293,19 @@ function InvoicesPage() {
     })
   }, [filteredInvoices, sortKey, sortDirection, getSortValue, compareNullableValues])
 
+  const handlePageChange = useCallback((newPage) => {
+    setPage(newPage)
+  }, [])
+
+  const handleRowsPerPageChange = useCallback((event) => {
+    setRowsPerPage(Number(event.target.value))
+    setPage(0)
+  }, [])
+
+  const paginatedInvoices = useMemo(() => {
+    return sortedInvoices.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
+  }, [sortedInvoices, page, rowsPerPage])
+
   const visibleInvoiceIds = sortedInvoices
     .map((inv) => inv.id)
     .filter((id) => typeof id === 'number' && id > 0)
@@ -1506,67 +1528,8 @@ function InvoicesPage() {
   const usingLocalExtractionProvider = extractionProvider === INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
   const pendingFiles = files.filter((f) => f.status !== 'verified')
 
-  const invoiceColumns = [
-    { key: 'invoiceNumber', label: 'Invoice #', sortable: true, render: (r) => <Typography variant="body2" fontWeight={600}>{r.invoice_number || r.invoiceNumber || '—'}</Typography> },
-    { key: 'vendor', label: 'Vendor', sortable: true, render: (row) => row.vendor_name || row.vendorName || '—' },
-    { key: 'date', label: 'Date', sortable: true,     render: (row) => fmtDate(row.invoice_date || row.invoiceDate) },
-    { key: 'total', label: 'Total', align: 'right', sortable: true, render: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    { key: 'currency', label: 'Currency', align: 'center', sortable: true, render: (row) => row.currency || 'USD' },
-    { key: 'status', label: 'Status', align: 'center', sortable: true, render: (r) => <Chip label={r.status || 'uploaded'} size="small" color={statusColors[r.status] || 'default'} variant="outlined" /> },
-    {
-      key: 'confidence',
-      label: 'Confidence',
-      align: 'center',
-      sortable: true,
-      render: (r) => {
-        const confidence = Number(r.ai_extraction_confidence ?? r.aiExtractionConfidence)
-        const value = Number.isFinite(confidence) ? confidence : null
-        return value == null
-          ? <Typography variant="body2" color="text.secondary">—</Typography>
-          : <Chip label={confidenceLabel(value)} size="small" color={confidenceColor(value)} variant="outlined" />
-      },
-    },
-  ]
-
-  const invoiceRowActions = (inv) => (
-    <Stack direction="row" spacing={0.5} justifyContent="center">
-      <IconButton size="small" onClick={() => handleOpenInvoice(inv)} disabled={openingInvoiceId === inv.id || bulkDeletingInvoices} aria-label="Download invoice" title="Download invoice">
-        {openingInvoiceId === inv.id ? <CircularProgress size={16} /> : <DownloadRoundedIcon fontSize="small" />}
-      </IconButton>
-      <IconButton size="small" color={inv.status === 'matched' ? 'default' : 'secondary'} onClick={() => openSavedInvoiceVerification(inv.id, inv.status === 'matched')} disabled={reopeningInvoiceId === inv.id || bulkDeletingInvoices} aria-label={inv.status === 'matched' ? 'View invoice (read-only)' : 'Edit invoice'} title={inv.status === 'matched' ? 'View invoice — editing disabled for matched invoices' : 'Edit invoice'}>
-        {reopeningInvoiceId === inv.id ? <CircularProgress size={16} color="inherit" /> : inv.status === 'matched' ? <VisibilityRoundedIcon fontSize="small" /> : <EditRoundedIcon fontSize="small" />}
-      </IconButton>
-      <IconButton size="small" color="error" onClick={() => handleDeleteInvoice(inv)} disabled={deletingInvoiceIds.includes(inv.id) || bulkDeletingInvoices} aria-label="Delete invoice" title="Delete invoice">
-        {deletingInvoiceIds.includes(inv.id) ? <CircularProgress size={16} color="error" /> : <DeleteOutlineRoundedIcon fontSize="small" />}
-      </IconButton>
-    </Stack>
-  )
-
-  const hasAnyInvoices = invoices.length > 0
-  const emptyMessage = hasAnyInvoices
-    ? 'No invoices match your current filters.'
-    : 'No invoices yet. Upload a PDF above to get started.'
-
-  const invoiceListContent = (
-    <DataTable
-      columns={invoiceColumns}
-      rows={sortedInvoices}
-      sortKey={sortKey}
-      sortDirection={sortDirection}
-      onSort={handleSort}
-      selectedIds={selectedInvoiceIds}
-      onToggleSelect={toggleInvoiceSelection}
-      onToggleSelectAll={toggleSelectAllInvoices}
-      allSelected={allInvoicesSelected}
-      hasSelection={hasInvoiceSelection}
-      loading={listLoading}
-      loadingRows={4}
-      emptyMessage={emptyMessage}
-      emptyIcon={<DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />}
-      getRowId={(row) => row.id}
-      rowActions={invoiceRowActions}
-    />
-  )
+  // Use paginatedInvoices for the table rows
+  const displayedInvoices = paginatedInvoices
 
   return (
     <>
@@ -1958,7 +1921,213 @@ function InvoicesPage() {
                 </Button>
               </Stack>
 
-              {invoiceListContent}
+              {listLoading ? (
+                <Stack spacing={1}>
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <Skeleton key={`inv-loading-${index + 1}`} variant="rectangular" height={40} sx={{ borderRadius: 1 }} />
+                  ))}
+                </Stack>
+              ) : displayedInvoices.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: 'center' }}>
+                  <DescriptionRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                  <Typography color="text.secondary">
+                    {sortedInvoices.length === 0
+                      ? 'No invoices yet. Upload a PDF above to get started.'
+                      : 'No invoices match your search criteria.'}
+                  </Typography>
+                </Box>
+              ) : (
+                <>
+                  <TableContainer sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+                    <Table size="small" sx={{ minWidth: 1100 }}>
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              size="small"
+                              checked={allInvoicesSelected}
+                              indeterminate={hasInvoiceSelection && !allInvoicesSelected}
+                              onChange={toggleSelectAllInvoices}
+                            />
+                          </TableCell>
+                          <TableCell align="left" sortDirection={sortKey === 'invoiceNumber' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'invoiceNumber'}
+                              direction={sortKey === 'invoiceNumber' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('invoiceNumber')}
+                            >
+                              Invoice #
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="left" sortDirection={sortKey === 'vendor' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'vendor'}
+                              direction={sortKey === 'vendor' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('vendor')}
+                            >
+                              Vendor
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="left" sortDirection={sortKey === 'date' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'date'}
+                              direction={sortKey === 'date' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('date')}
+                            >
+                              Date
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="right" sortDirection={sortKey === 'total' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'total'}
+                              direction={sortKey === 'total' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('total')}
+                            >
+                              Total
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="center" sortDirection={sortKey === 'currency' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'currency'}
+                              direction={sortKey === 'currency' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('currency')}
+                            >
+                              Currency
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="center" sortDirection={sortKey === 'status' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'status'}
+                              direction={sortKey === 'status' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('status')}
+                            >
+                              Status
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="center" sortDirection={sortKey === 'confidence' ? sortDirection : false}>
+                            <TableSortLabel
+                              active={sortKey === 'confidence'}
+                              direction={sortKey === 'confidence' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('confidence')}
+                            >
+                              Confidence
+                            </TableSortLabel>
+                          </TableCell>
+                          <TableCell align="center">Action</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {displayedInvoices.map((inv) => {
+                          const confidence = Number(inv.ai_extraction_confidence ?? inv.aiExtractionConfidence)
+                          const confidenceValue = Number.isFinite(confidence) ? confidence : null
+                          const isSelected = selectedInvoiceIds.includes(inv.id)
+                          const isDeleting = deletingInvoiceIds.includes(inv.id)
+                          const isOpening = openingInvoiceId === inv.id
+                          const isReopening = reopeningInvoiceId === inv.id
+
+                          return (
+                            <TableRow key={inv.id} hover selected={isSelected}>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  size="small"
+                                  checked={isSelected}
+                                  onChange={() => toggleInvoiceSelection(inv.id)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {inv.invoice_number || inv.invoiceNumber || '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                                  {inv.vendor_name || inv.vendorName || '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {inv.invoice_date || inv.invoiceDate ? new Date(inv.invoice_date || inv.invoiceDate).toLocaleDateString('en-GB') : '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="body2" fontWeight={600}>
+                                  {(inv.total_amount ?? inv.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" color="text.secondary">
+                                  {inv.currency || 'USD'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={inv.status || 'uploaded'}
+                                  size="small"
+                                  color={statusColors[inv.status] || 'default'}
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                {confidenceValue == null ? (
+                                  <Typography variant="body2" color="text.secondary">—</Typography>
+                                ) : (
+                                  <Chip
+                                    label={confidenceLabel(confidenceValue)}
+                                    size="small"
+                                    color={confidenceColor(confidenceValue)}
+                                    variant="outlined"
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                <Stack direction="row" justifyContent="center" spacing={0.5}>
+                                  <Tooltip title="Download invoice">
+                                    <IconButton size="small" onClick={() => handleOpenInvoice(inv)} disabled={isOpening || bulkDeletingInvoices} aria-label="Download invoice">
+                                      {isOpening ? <CircularProgress size={16} /> : <DownloadRoundedIcon fontSize="small" />}
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title={inv.status === 'matched' ? 'View invoice (read-only)' : 'Edit invoice'}>
+                                    <IconButton
+                                      size="small"
+                                      color={inv.status === 'matched' ? 'default' : 'secondary'}
+                                      onClick={() => openSavedInvoiceVerification(inv.id, inv.status === 'matched')}
+                                      disabled={isReopening || bulkDeletingInvoices}
+                                      aria-label={inv.status === 'matched' ? 'View invoice (read-only)' : 'Edit invoice'}
+                                    >
+                                      {isReopening ? <CircularProgress size={16} color="inherit" /> : inv.status === 'matched' ? <VisibilityRoundedIcon fontSize="small" /> : <EditRoundedIcon fontSize="small" />}
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete invoice">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleDeleteInvoice(inv)}
+                                      disabled={isDeleting || bulkDeletingInvoices}
+                                      aria-label="Delete invoice"
+                                    >
+                                      {isDeleting ? <CircularProgress size={16} color="error" /> : <DeleteOutlineRoundedIcon fontSize="small" />}
+                                    </IconButton>
+                                  </Tooltip>
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  <TablePagination
+                    component="div"
+                    count={sortedInvoices.length}
+                    page={page}
+                    onPageChange={(_, newPage) => handlePageChange(newPage)}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={(event) => handleRowsPerPageChange(event)}
+                    rowsPerPageOptions={[10, 25, 50, 100]}
+                  />
+                </>
+              )}
             </CardContent>
           </Card>
           </Stack>
