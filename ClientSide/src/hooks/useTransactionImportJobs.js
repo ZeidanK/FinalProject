@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getUploadJobStatus } from '../services/uploadJobs'
 import { useRealtime } from '../context/useRealtime'
 import { useNotification } from '../context/useNotification'
-import { transactionKeys } from '../queries/queryKeys'
+
 
 const POLL_INTERVAL_MS = 4000
 
@@ -80,7 +80,7 @@ export function useTransactionImportJobs({ activeCompanyId, token }) {
 
             const count = result?.count ?? 0
             notify({ message: `Successfully imported ${count} transaction(s) from ${fileName}.`, severity: 'success' })
-            queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
+            queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
             return
           }
 
@@ -115,7 +115,7 @@ export function useTransactionImportJobs({ activeCompanyId, token }) {
         if (jStatus === 'completed' || jStatus === 'failed' || jStatus === 'canceled') {
           removeTxJobFromSession(jobId)
           if (jStatus === 'completed' && activeCompanyId) {
-            queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
+            queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
           }
         } else {
           upsertImportingJob(jobId, { status: jStatus || 'processing', progress: Math.min(90, job?.progressPercent ?? job?.ProgressPercent ?? 50), fileName })
