@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form'
 import {
   Alert,
   Button,
-  Divider,
   IconButton,
   InputAdornment,
   Stack,
@@ -18,8 +17,6 @@ import { loginSchema } from '../schemas/auth'
 import { useLoginWithSessionMutation } from '../hooks/queries/useAuthQueries'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
-import GoogleIcon from '@mui/icons-material/Google'
-import MicrosoftIcon from '@mui/icons-material/Microsoft'
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -164,37 +161,6 @@ function Login() {
         </motion.div>
 
         <motion.div custom={6} variants={itemVariants} initial="hidden" animate="visible">
-          <Divider sx={{ my: 0 }}>
-            <Typography variant="caption" color="text.disabled">
-              or continue with
-            </Typography>
-          </Divider>
-        </motion.div>
-
-        <motion.div custom={7} variants={itemVariants} initial="hidden" animate="visible">
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<GoogleIcon />}
-              disabled={disabled}
-              sx={{ textTransform: 'none', fontWeight: 500 }}
-            >
-              Google
-            </Button>
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<MicrosoftIcon />}
-              disabled={disabled}
-              sx={{ textTransform: 'none', fontWeight: 500 }}
-            >
-              Microsoft
-            </Button>
-          </Stack>
-        </motion.div>
-
-        <motion.div custom={8} variants={itemVariants} initial="hidden" animate="visible">
           <Typography variant="body2" color="text.secondary" textAlign="center">
             Need an account?{' '}
             <Button
