@@ -32,6 +32,7 @@ import ModalShell from '../components/ModalShell'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { useNotification } from '../context/useNotification'
+import { useRealtime } from '../context/useRealtime'
 import { useConfirm } from '../components/ConfirmContext'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -58,6 +59,7 @@ export default function FindAccountant() {
   const { user, token } = useAuth()
   const { activeCompanyId } = useCompany()
   const { notify } = useNotification()
+  const { subscribe } = useRealtime()
   const { confirm } = useConfirm()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
@@ -68,8 +70,8 @@ export default function FindAccountant() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [sortBy, setSortBy] = useState('name')
-  const [sortDirection, setSortDirection] = useState('ASC')
+  const [sort, setSort] = useState({ sortBy: 'name', sortDirection: 'ASC' })
+  const { sortBy, sortDirection } = sort
   const [detailAccountant, setDetailAccountant] = useState(null)
 
   const [reviewRating, setReviewRating] = useState(0)
@@ -99,6 +101,7 @@ export default function FindAccountant() {
     queryFn: () => getPublicAccountantsPaginated(queryKey, token),
     enabled: Boolean(token),
     placeholderData: (prev) => prev,
+    refetchInterval: 30000,
   })
 
   const { items = [], totalCount = 0 } = data || {}
@@ -189,6 +192,24 @@ export default function FindAccountant() {
     }
   }, [])
 
+  useEffect(() => {
+    const eventTypes = new Set([
+      'accountant.request.accepted',
+      'accountant.request.declined',
+      'accountant.connection.disconnected',
+      'accountant.visibility.changed',
+    ])
+    const unsubscribe = subscribe('notificationCreated', (payload) => {
+      const eventType = String(
+        payload?.eventType ?? payload?.EventType ?? '',
+      ).toLowerCase()
+      if (eventTypes.has(eventType)) {
+        queryClient.invalidateQueries({ queryKey: accountantKeys.all })
+      }
+    })
+    return () => unsubscribe()
+  }, [subscribe, queryClient])
+
   const handleChangePage = useCallback((_event, newPage) => {
     setPage(newPage)
   }, [])
@@ -199,14 +220,12 @@ export default function FindAccountant() {
   }, [])
 
   const toggleSort = useCallback((field) => {
-    setSortBy((prev) => {
-      if (prev === field) {
-        setSortDirection((d) => (d === 'ASC' ? 'DESC' : 'ASC'))
-        return prev
-      }
-      setSortDirection('ASC')
-      return field
-    })
+    setSort((prev) => ({
+      sortBy: field,
+      sortDirection: prev.sortBy === field
+        ? (prev.sortDirection === 'ASC' ? 'DESC' : 'ASC')
+        : 'ASC'
+    }))
     setPage(0)
   }, [])
 
@@ -662,7 +681,7 @@ export default function FindAccountant() {
                             emptyIcon={<StarRoundedIcon sx={{ fontSize: 14, opacity: 0.3 }} />}
                           />
                           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                            {new Date(review.createdAt).toLocaleDateString()}
+                            {new Date(review.createdAt).toLocaleDateString('en-GB')}
                           </Typography>
                         </Stack>
                         {review.review && (

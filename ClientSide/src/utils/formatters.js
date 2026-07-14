@@ -19,7 +19,7 @@ export const fmtCurrency = (v, currency = 'USD') => {
 
 export const fmtDate = (d) => {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString()
+  return new Date(d).toLocaleDateString('en-GB')
 }
 
 export const toDateInput = (value) => {

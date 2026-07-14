@@ -1,5 +1,6 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
+using FinalProjectAuthAPI.Realtime;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,11 +13,19 @@ namespace FinalProjectAuthAPI.Controllers
     {
         private readonly IUserService _svc;
         private readonly IFileStorageService _fileStorage;
+        private readonly IRealtimeNotificationService _realtime;
+        private readonly IAccountantService _accountantSvc;
 
-        public UsersController(IUserService svc, IFileStorageService fileStorage)
+        public UsersController(
+            IUserService svc,
+            IFileStorageService fileStorage,
+            IRealtimeNotificationService realtime,
+            IAccountantService accountantSvc)
         {
             _svc = svc;
             _fileStorage = fileStorage;
+            _realtime = realtime;
+            _accountantSvc = accountantSvc;
         }
 
         // GET api/users
@@ -82,7 +91,7 @@ namespace FinalProjectAuthAPI.Controllers
 
         // PATCH api/users/{id}/visibility
         [HttpPatch("{id:long}/visibility")]
-        public IActionResult UpdateVisibility(long id, [FromBody] UpdateVisibilityRequest request)
+        public async Task<IActionResult> UpdateVisibility(long id, [FromBody] UpdateVisibilityRequest request)
         {
             var currentUserId = GetCurrentUserId();
             var currentRole = GetCurrentUserRole();
@@ -90,9 +99,27 @@ namespace FinalProjectAuthAPI.Controllers
                 return Forbid();
 
             var ok = _svc.UpdateVisibility(id, request.IsPublic);
-            return ok
-                ? Ok(new { message = "Visibility updated." })
-                : BadRequest(new { message = "Update failed." });
+            if (!ok)
+                return BadRequest(new { message = "Update failed." });
+
+            var payload = new
+            {
+                userId = id,
+                isPublic = request.IsPublic,
+                message = $"Accountant visibility changed to {(request.IsPublic ? "public" : "private")}."
+            };
+
+            await _realtime.NotifyUserEventAsync(id,
+                NotificationEventTypes.AccountantVisibilityChanged, payload);
+
+            var activeCompanies = _accountantSvc.GetActiveCompanies(id);
+            foreach (var company in activeCompanies)
+            {
+                await _realtime.NotifyCompanyEventAsync(company.Id,
+                    NotificationEventTypes.AccountantVisibilityChanged, payload);
+            }
+
+            return Ok(new { message = "Visibility updated." });
         }
 
         // POST api/users/verify-password

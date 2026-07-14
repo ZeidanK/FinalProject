@@ -59,6 +59,7 @@ import {
 import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 import { confidenceColor, confidenceLabel, invoiceFullConfidence, mapExtractedToForm, mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
+import { fmtDate } from '../utils/formatters'
 import {
   useBulkDeleteInvoicesMutation,
   useCreateInvoiceMutation,
@@ -1445,7 +1446,7 @@ function InvoicesPage() {
   const invoiceColumns = [
     { key: 'invoiceNumber', label: 'Invoice #', sortable: true, getValue: (row) => row.invoice_number || row.invoiceNumber || '—', render: (val) => <Typography variant="body2" fontWeight={600}>{val}</Typography> },
     { key: 'vendor', label: 'Vendor', sortable: true, getValue: (row) => row.vendor_name || row.vendorName || '—' },
-    { key: 'date', label: 'Date', sortable: true, getValue: (row) => (row.invoice_date || row.invoiceDate) ? new Date(row.invoice_date || row.invoiceDate).toLocaleDateString() : '—' },
+    { key: 'date', label: 'Date', sortable: true,     getValue: (row) => fmtDate(row.invoice_date || row.invoiceDate) },
     { key: 'total', label: 'Total', align: 'right', sortable: true, getValue: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     { key: 'currency', label: 'Currency', align: 'center', sortable: true, getValue: (row) => row.currency || 'USD' },
     { key: 'status', label: 'Status', align: 'center', sortable: true, render: (val, row) => <Chip label={row.status || 'uploaded'} size="small" color={statusColors[row.status] || 'default'} variant="outlined" /> },

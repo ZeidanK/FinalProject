@@ -128,7 +128,7 @@ export default function TransactionTable({
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {date ? new Date(date).toLocaleDateString() : '—'}
+                      {date ? new Date(date).toLocaleDateString('en-GB') : '—'}
                     </Typography>
                   </TableCell>
                   <TableCell>

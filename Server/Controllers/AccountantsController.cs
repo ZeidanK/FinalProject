@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using FinalProjectAuthAPI.Realtime;
 using Microsoft.AspNetCore.Authorization;
@@ -13,11 +14,13 @@ namespace FinalProjectAuthAPI.Controllers
     {
         private readonly IAccountantService _svc;
         private readonly IRealtimeNotificationService _realtime;
+        private readonly IDBservices _db;
 
-        public AccountantsController(IAccountantService svc, IRealtimeNotificationService realtime)
+        public AccountantsController(IAccountantService svc, IRealtimeNotificationService realtime, IDBservices db)
         {
             _svc = svc;
             _realtime = realtime;
+            _db = db;
         }
 
         // GET api/accountants?companyId={id}
@@ -51,6 +54,9 @@ namespace FinalProjectAuthAPI.Controllers
         [Authorize(Roles = "business_owner,accountant_business_owner,admin")]
         public async Task<IActionResult> SendRequest(long accountantId, [FromBody] SendWorkRequestRequest request)
         {
+            if (!CanAccessCompany(request.CompanyId, _db))
+                return Forbid();
+
             var requestedByUserId = GetCurrentUserId();
             var (success, error) = _svc.SendRequest(accountantId, request.CompanyId, requestedByUserId);
 
@@ -171,6 +177,9 @@ namespace FinalProjectAuthAPI.Controllers
             if (companyId <= 0)
                 return BadRequest(new { message = "CompanyId is required." });
 
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
             var requestedByUserId = GetCurrentUserId();
             var (success, error) = _svc.CancelRequest(accountantId, companyId, requestedByUserId);
 
@@ -216,6 +225,9 @@ namespace FinalProjectAuthAPI.Controllers
 
             // Accountants can only remove themselves; others (business_owner, admin) can remove any accountant
             if (currentRole == "accountant" && accountantId != currentUserId)
+                return Forbid();
+
+            if (!string.Equals(currentRole, "admin", StringComparison.OrdinalIgnoreCase) && !CanAccessCompany(companyId, _db))
                 return Forbid();
 
             var ok = _svc.DisconnectAccountant(accountantId, companyId, currentUserId);
@@ -358,6 +370,9 @@ namespace FinalProjectAuthAPI.Controllers
         {
             if (request.Rating < 1 || request.Rating > 5)
                 return BadRequest(new { message = "Rating must be between 1 and 5." });
+
+            if (!CanAccessCompany(request.CompanyId, _db))
+                return Forbid();
 
             var currentUserId = GetCurrentUserId();
             var ok = _svc.SubmitReview(id, request.CompanyId, request.Rating, request.Review, currentUserId);
