@@ -712,7 +712,7 @@ function AgingReportSection({ report, loading, error, asOfDate, onAsOfDateChange
 
 function ReportsPage() {
   const { token } = useAuth()
-  const { companies, activeCompanyId } = useCompany()
+  const { activeCompanyId } = useCompany()
   const [activeReportTab, setActiveReportTab] = useState(REPORT_TAB_KEYS.reconciliation)
   const [reconciliationRange, setReconciliationRange] = useState(getInitialReconciliationRange)
   const [asOfDate, setAsOfDate] = useState(() => toDateInputValue(new Date()))
@@ -722,11 +722,6 @@ function ReportsPage() {
   const [agingLoading, setAgingLoading] = useState(false)
   const [reconciliationError, setReconciliationError] = useState('')
   const [agingError, setAgingError] = useState('')
-
-  const activeCompany = useMemo(
-    () => companies.find((company) => Number(company.id ?? company.companyId) === Number(activeCompanyId)) || null,
-    [activeCompanyId, companies],
-  )
 
   const rangeIsInvalid = Boolean(
     reconciliationRange.startDate
@@ -792,8 +787,6 @@ function ReportsPage() {
     setReconciliationRange((current) => ({ ...current, [field]: value }))
   }
 
-  const refreshAll = () => Promise.allSettled([loadReconciliation(), loadAging()])
-
   const exportReconciliation = () => {
     const rows = reconciliation?.rows || []
     downloadCsv(
@@ -855,27 +848,6 @@ function ReportsPage() {
       <AnimatedBackground density="low" />
       <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-          <Card component={motion.div} variants={itemVariants} elevation={0} sx={{ ...reportCardSx, borderRadius: 4 }}>
-            <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" spacing={2}>
-                <Stack spacing={0.6}>
-                  <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '1.9rem' } }}>Financial Integrity Reports</Typography>
-                  <Typography color="text.secondary">
-                    Reconciliation and payables aging for {activeCompany?.name || activeCompany?.companyName || `company #${activeCompanyId || '—'}`}.
-                  </Typography>
-                </Stack>
-                <Button
-                  variant="outlined"
-                  startIcon={<RefreshRoundedIcon />}
-                  onClick={refreshAll}
-                  disabled={reconciliationLoading && agingLoading}
-                >
-                  {reconciliationLoading || agingLoading ? 'Refreshing…' : 'Refresh both reports'}
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-
           <ReportCatalog
             reconciliation={reconciliation}
             aging={aging}

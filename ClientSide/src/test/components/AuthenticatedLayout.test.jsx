@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 
@@ -29,6 +29,9 @@ describe('AuthenticatedLayout', () => {
           <Route element={<AuthenticatedLayout />}>
             <Route path="/" element={<div />} />
             <Route path="/dashboard" element={<div>Dashboard Content</div>} />
+            <Route path="/reports" element={<div>Reports Content</div>} />
+            <Route path="/profile" element={<div>Profile Content</div>} />
+            <Route path="/find-accountant" element={<div>Find Accountant Content</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -73,5 +76,15 @@ describe('AuthenticatedLayout', () => {
   it('renders Logout button', () => {
     renderLayout()
     expect(screen.getAllByText('Logout').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it.each([
+    ['/dashboard', 'Dashboard'],
+    ['/reports', 'Financial Integrity Reports'],
+    ['/profile', 'Profile & Settings'],
+    ['/find-accountant', 'Find an Accountant'],
+  ])('renders shared header title for %s', (path, title) => {
+    renderLayout(path)
+    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
   })
 })

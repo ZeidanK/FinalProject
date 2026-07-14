@@ -153,11 +153,6 @@ describe('MatchesPage', () => {
     mockGetTransactionById.mockResolvedValue({})
   })
 
-  it('renders PageHeaderCard with "Matches" title', () => {
-    renderPage()
-    expect(screen.getByText('Matches')).toBeInTheDocument()
-  })
-
   it('shows loading skeleton when queries are loading', () => {
     mockMatchesQuery = { ...mockMatchesQuery, isLoading: true }
     mockInvoicesQuery = { ...mockInvoicesQuery, isLoading: true }
@@ -226,7 +221,7 @@ describe('MatchesPage', () => {
     expect(screen.getByText('Invoice')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(await screen.findByText('INV-001-FULL')).toBeInTheDocument()
-    expect(screen.getByText('Fetched Invoice Vendor')).toBeInTheDocument()
+    expect(screen.getAllByText('Fetched Invoice Vendor').length).toBeGreaterThan(0)
     expect(screen.getByText('Fetched Transaction Vendor')).toBeInTheDocument()
     expect(screen.getByText('Fetched transaction description')).toBeInTheDocument()
     expect(screen.getByText('REF-20')).toBeInTheDocument()

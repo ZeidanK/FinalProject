@@ -46,7 +46,6 @@ import EmptyState from '../components/EmptyState'
 import MetricCard from '../components/MetricCard'
 import GlassCard from '../components/GlassCard'
 import AnimatedBackground from '../components/AnimatedBackground'
-import PageHeaderCard from '../components/PageHeaderCard'
 import PageSectionLayout from '../components/PageSectionLayout'
 import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
@@ -663,32 +662,6 @@ function AdminPortalPage() {
   const auditLoading = auditResult.isLoading || auditResult.isFetching
   const auditError = auditResult.error?.message || ''
 
-  const handleRefresh = useCallback(() => {
-    if (activeTab === TAB_KEYS.stats) {
-      statsQuery.refetch()
-      return
-    }
-
-    if (activeTab === TAB_KEYS.users) {
-      usersResult.refetch()
-      return
-    }
-
-    if (activeTab === TAB_KEYS.logs) {
-      logsResult.refetch()
-      return
-    }
-
-    auditResult.refetch()
-  }, [activeTab, auditResult, logsResult, statsQuery, usersResult])
-
-  const activeTabLoading = useMemo(() => {
-    if (activeTab === TAB_KEYS.stats) return statsLoading
-    if (activeTab === TAB_KEYS.users) return usersLoading
-    if (activeTab === TAB_KEYS.logs) return logsLoading
-    return auditLoading
-  }, [activeTab, statsLoading, usersLoading, logsLoading, auditLoading])
-
   const activeTabError = useMemo(() => {
     if (activeTab === TAB_KEYS.stats) return statsError
     if (activeTab === TAB_KEYS.users) return usersError
@@ -875,14 +848,6 @@ function AdminPortalPage() {
 
   return (
     <PageSectionLayout>
-      <PageHeaderCard
-        title="Admin Portal"
-        description="Monitor platform activity and manage system-level operations."
-        onRefresh={handleRefresh}
-        refreshDisabled={activeTabLoading}
-        variants={itemVariants}
-      />
-
       {activeTabError && (
         <Alert component={motion.div} variants={itemVariants} severity="error">
           {activeTabError}

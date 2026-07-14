@@ -96,11 +96,6 @@ describe('AdminPortalPage', () => {
 
   const renderPage = () => render(<AdminPortalPage />)
 
-  it('renders PageHeaderCard with "Admin Portal" title', () => {
-    renderPage()
-    expect(screen.getByText('Admin Portal')).toBeInTheDocument()
-  })
-
   it('renders 4 tabs (Stats, Users, System Logs, Audit Logs)', () => {
     renderPage()
     expect(screen.getByText('Stats')).toBeInTheDocument()

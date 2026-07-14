@@ -38,7 +38,7 @@ describe('useAnomaliesListQuery', () => {
       relatedInvoiceId: 10,
       relatedItems: [],
     }
-    mockGetAnomaliesByCompany.mockResolvedValue([anomaly])
+    mockGetAnomaliesByCompany.mockResolvedValue({ items: [anomaly], totalCount: 1, pageNumber: 1, pageSize: 50, totalPages: 1 })
 
     const { result } = renderHook(
       () => useAnomaliesListQuery({ companyId: 1, token: 'tok', filters: { status: 'open' } }),
@@ -46,13 +46,21 @@ describe('useAnomaliesListQuery', () => {
     )
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual([
-      { ...anomaly, relatedItems: [], relatedItemsCount: 0 },
-    ])
-    expect(mockGetAnomaliesByCompany).toHaveBeenCalledWith(1, { status: 'open' }, 'tok')
+    expect(result.current.data).toEqual({
+      items: [{ ...anomaly, relatedItems: [], relatedItemsCount: 0 }],
+      totalCount: 1,
+      pageNumber: 1,
+      pageSize: 50,
+      totalPages: 1,
+    })
+    expect(mockGetAnomaliesByCompany).toHaveBeenCalledWith(
+      1,
+      { status: 'open', page: 1, pageSize: 50, searchTerm: undefined },
+      'tok',
+    )
   })
 
-  it('returns empty array when data is not an array', async () => {
+  it('returns empty page when data is not paged', async () => {
     mockGetAnomaliesByCompany.mockResolvedValue(null)
 
     const { result } = renderHook(
@@ -61,7 +69,13 @@ describe('useAnomaliesListQuery', () => {
     )
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual([])
+    expect(result.current.data).toEqual({
+      items: [],
+      totalCount: 0,
+      pageNumber: 1,
+      pageSize: 50,
+      totalPages: 0,
+    })
   })
 
   it('is not enabled when companyId is missing', () => {

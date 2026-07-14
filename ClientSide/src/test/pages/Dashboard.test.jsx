@@ -55,20 +55,6 @@ describe('DashboardPage', () => {
     vi.clearAllMocks()
   })
 
-  it('renders welcome heading with user name', async () => {
-    mockGetDashboardStats.mockResolvedValue(mockStats)
-    mockGetRecentActivity.mockResolvedValue(mockActivity)
-    renderPage()
-    expect(await screen.findByText(/Welcome back, Alice/)).toBeInTheDocument()
-  })
-
-  it('shows refreshing text on button while loading', () => {
-    mockGetDashboardStats.mockReturnValue(new Promise(() => {}))
-    mockGetRecentActivity.mockReturnValue(new Promise(() => {}))
-    renderPage()
-    expect(screen.getByText('Refreshing...')).toBeInTheDocument()
-  })
-
   it('renders KPI cards when data loads', async () => {
     mockGetDashboardStats.mockResolvedValue(mockStats)
     mockGetRecentActivity.mockResolvedValue(mockActivity)
@@ -127,10 +113,4 @@ describe('DashboardPage', () => {
     expect(await screen.findByText(/All caught up/)).toBeInTheDocument()
   })
 
-  it('renders Refresh KPIs button', async () => {
-    mockGetDashboardStats.mockResolvedValue(mockStats)
-    mockGetRecentActivity.mockResolvedValue(mockActivity)
-    renderPage()
-    expect(await screen.findByText('Refresh KPIs')).toBeInTheDocument()
-  })
 })

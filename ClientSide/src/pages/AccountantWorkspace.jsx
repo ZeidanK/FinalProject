@@ -33,7 +33,6 @@ import EmailRoundedIcon from '@mui/icons-material/EmailRounded'
 import PhoneRoundedIcon from '@mui/icons-material/PhoneRounded'
 import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded'
 import LanguageRoundedIcon from '@mui/icons-material/LanguageRounded'
-import { motion } from 'framer-motion'
 import AnimatedBackground from '../components/AnimatedBackground'
 import SectionHeader from '../components/SectionHeader'
 import { useAuth } from '../context/useAuth'
@@ -262,12 +261,6 @@ export default function AccountantWorkspace() {
         disableGutters
         sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%', position: 'relative', zIndex: 1 }}
       >
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
-            My Workspace
-          </Typography>
-        </motion.div>
-
       {deepLinkMessage && <Alert severity="info" sx={{ mb: 2 }}>{deepLinkMessage}</Alert>}
 
       {/* ══════════════════════════════════════════════════

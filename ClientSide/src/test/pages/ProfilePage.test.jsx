@@ -39,10 +39,21 @@ vi.mock('../../components/ConfirmContext', () => ({
   useConfirm: () => ({ confirm: mockConfirm }),
 }))
 
+vi.mock('../../services/accountants', () => ({
+  getAccountantSpecialties: vi.fn().mockResolvedValue([]),
+  getAccountantReviews: vi.fn().mockResolvedValue([]),
+  addAccountantSpecialty: vi.fn().mockResolvedValue({}),
+  removeAccountantSpecialty: vi.fn().mockResolvedValue({}),
+  getAccountantCertifications: vi.fn().mockResolvedValue([]),
+  addAccountantCertification: vi.fn().mockResolvedValue({}),
+  removeAccountantCertification: vi.fn().mockResolvedValue({}),
+}))
+
 let mockProfileQuery = { data: null, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
 let mockUpdateProfileMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockChangePasswordMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockUploadProfilePictureMutation = { mutateAsync: vi.fn(), isPending: false }
+let mockAccountantProfileMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockCreateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockUpdateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
 let mockDeleteCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
@@ -53,6 +64,7 @@ vi.mock('../../hooks/queries/useProfileQueries', () => ({
   useUpdateProfileMutation: () => mockUpdateProfileMutation,
   useChangePasswordMutation: () => mockChangePasswordMutation,
   useUploadProfilePictureMutation: () => mockUploadProfilePictureMutation,
+  useAccountantProfileMutation: () => mockAccountantProfileMutation,
   useCreateCompanyMutation: () => mockCreateCompanyMutation,
   useUpdateCompanyMutation: () => mockUpdateCompanyMutation,
   useDeleteCompanyMutation: () => mockDeleteCompanyMutation,
@@ -88,6 +100,7 @@ describe('ProfilePage', () => {
     mockUpdateProfileMutation = { mutateAsync: vi.fn(), isPending: false }
     mockChangePasswordMutation = { mutateAsync: vi.fn(), isPending: false }
     mockUploadProfilePictureMutation = { mutateAsync: vi.fn(), isPending: false }
+    mockAccountantProfileMutation = { mutateAsync: vi.fn(), isPending: false }
     mockCreateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
     mockUpdateCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
     mockDeleteCompanyMutation = { mutateAsync: vi.fn(), isPending: false }
@@ -96,10 +109,10 @@ describe('ProfilePage', () => {
 
   // ── Basic rendering ──────────────────────────────────────────
 
-  it('renders profile section heading', () => {
+  it('renders personal information section heading', () => {
     mockProfileQuery = { ...mockProfileQuery, data: sampleProfile }
     renderPage()
-    expect(screen.getByText('Profile & Settings')).toBeInTheDocument()
+    expect(screen.getByText('Personal Information')).toBeInTheDocument()
   })
 
   it('renders user name/email from profile data', () => {

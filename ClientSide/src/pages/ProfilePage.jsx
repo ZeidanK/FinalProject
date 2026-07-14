@@ -592,26 +592,6 @@ export default function ProfilePage() {
           </Alert>
         )}
 
-        {/* ── Page title ─────────────────────────────────── */}
-        <Box sx={{ mb: 4, textAlign: 'center' }}>
-          <Typography
-            variant="h4"
-            component="h1"
-            fontWeight={800}
-            sx={{
-              background: 'linear-gradient(135deg, #cde7ff 0%, #58a6ff 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            Profile & Settings
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Manage your personal information, security, and business settings
-          </Typography>
-        </Box>
-
         {/* ══════════════════════════════════════════════════
             SECTION A — Profile Info  |  SECTION B — Change Password (side-by-side)
            ══════════════════════════════════════════════════ */}

@@ -111,11 +111,6 @@ describe('TransactionsPage', () => {
     </QueryClientProvider>,
   )
 
-  it('renders page heading', () => {
-    renderPage()
-    expect(screen.getByText('Transactions')).toBeInTheDocument()
-  })
-
   it('shows loading skeleton while fetching', () => {
     mockTransactionsQuery = { data: { items: [], totalCount: 0 }, isLoading: true, isFetching: true, error: null, refetch: vi.fn() }
     renderPage()

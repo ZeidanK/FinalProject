@@ -9,6 +9,7 @@ vi.mock('../../context/useAuth', () => ({
 
 const mockSetActiveCompanyId = vi.fn()
 const mockRefreshCompanies = vi.fn()
+const mockSubscribe = vi.fn(() => vi.fn())
 
 vi.mock('../../context/useCompany', () => ({
   useCompany: () => ({
@@ -16,6 +17,10 @@ vi.mock('../../context/useCompany', () => ({
     activeCompanyId: 2,
     refreshCompanies: mockRefreshCompanies,
   }),
+}))
+
+vi.mock('../../context/useRealtime', () => ({
+  useRealtime: () => ({ subscribe: mockSubscribe }),
 }))
 
 const mockRequests = [
@@ -72,11 +77,6 @@ describe('AccountantWorkspace', () => {
     mockGetAccountantSpecialties.mockResolvedValue([])
     mockGetAccountantCertifications.mockResolvedValue([])
     mockUpdateUser.mockResolvedValue({})
-  })
-
-  it('renders the page heading', async () => {
-    renderPage()
-    expect(await screen.findByText('My Workspace')).toBeInTheDocument()
   })
 
   it('renders Availability section', async () => {

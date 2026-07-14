@@ -15,7 +15,6 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
@@ -25,7 +24,6 @@ import SchoolRoundedIcon from '@mui/icons-material/SchoolRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import AnimatedBackground from '../components/AnimatedBackground'
-import SectionHeader from '../components/SectionHeader'
 import GlassCard from '../components/GlassCard'
 import EmptyState from '../components/EmptyState'
 import ModalShell from '../components/ModalShell'
@@ -309,14 +307,6 @@ export default function FindAccountant() {
         disableGutters
         sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%', position: 'relative', zIndex: 1 }}
       >
-        <SectionHeader
-          icon={<PersonSearchRoundedIcon sx={{ fontSize: 32, color: 'primary.main' }} />}
-          title="Find an Accountant"
-          subtitle={
-            !isLoading && data ? `${totalCount} accountant${totalCount !== 1 ? 's' : ''} found` : undefined
-          }
-        />
-
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
           <TextField
             inputRef={searchInputRef}
@@ -327,6 +317,11 @@ export default function FindAccountant() {
             sx={{ maxWidth: 360 }}
             fullWidth
           />
+          {!isLoading && data ? (
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+              {totalCount} accountant{totalCount !== 1 ? 's' : ''} found
+            </Typography>
+          ) : null}
           <Stack direction="row" spacing={0.5} alignItems="center">
             <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
               Sort:

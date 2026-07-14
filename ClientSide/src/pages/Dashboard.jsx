@@ -1,8 +1,6 @@
 import {
   Alert,
-  Avatar,
   Box,
-  Button,
   Card,
   CardContent,
   Container,
@@ -16,7 +14,6 @@ import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded
 import HubRoundedIcon from '@mui/icons-material/HubRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded'
 import { motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -88,7 +85,7 @@ function AnimatedKPIValue({ value, color }) {
 }
 
 function DashboardPage() {
-  const { user, token } = useAuth()
+  const { token } = useAuth()
   const { activeCompanyId } = useCompany()
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
@@ -136,36 +133,6 @@ function DashboardPage() {
         sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}
       >
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-          <GlassCard variant="elevated" motionProps={{ variants: itemVariants }}>
-            <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.5}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main', color: '#041229', fontWeight: 800 }}>
-                    {(user?.name || 'U').slice(0, 1).toUpperCase()}
-                  </Avatar>
-                  <Stack spacing={0.3}>
-                    <Typography variant="h5" sx={{ fontSize: { xs: '1.4rem', md: '1.7rem' } }}>
-                      Welcome back, {user?.name || 'User'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Here's your reconciliation overview.
-                    </Typography>
-                  </Stack>
-                </Stack>
-                <Box sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1 }} />
-                <Button
-                  variant="outlined"
-                  startIcon={<RefreshRoundedIcon fontSize="small" />}
-                  onClick={loadDashboard}
-                  disabled={loading}
-                  sx={{ textTransform: 'none', borderColor: 'rgba(129,191,255,0.25)', '&:hover': { borderColor: 'rgba(129,191,255,0.5)' } }}
-                >
-                  {loading ? 'Refreshing...' : 'Refresh KPIs'}
-                </Button>
-              </Stack>
-            </CardContent>
-          </GlassCard>
-
           {errorMessage && (
             <Alert severity="warning" component={motion.div} variants={itemVariants} sx={{ borderRadius: 2.5 }}>
               {errorMessage}

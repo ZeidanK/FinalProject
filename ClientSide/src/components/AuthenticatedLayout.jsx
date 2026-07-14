@@ -23,6 +23,19 @@ import NotificationBell from './NotificationBell'
 import CommandPalette from './CommandPalette'
 import PageTransitionWrapper from './PageTransitionWrapper'
 
+const AUTH_ROUTE_TITLES = {
+  '/dashboard': 'Dashboard',
+  '/invoices': 'Invoices',
+  '/transactions': 'Transactions',
+  '/matches': 'Matches',
+  '/anomalies': 'Anomalies',
+  '/reports': 'Financial Integrity Reports',
+  '/profile': 'Profile & Settings',
+  '/admin': 'Admin Portal',
+  '/accountant-workspace': 'My Workspace',
+  '/find-accountant': 'Find an Accountant',
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
@@ -55,6 +68,7 @@ function ScrollToTopFab() {
 }
 
 function AuthenticatedLayout() {
+  const { pathname } = useLocation()
   const { user, logout } = useAuth()
   const { companies, activeCompanyId, activeCompanyName } = useCompany()
   const theme = useTheme()
@@ -82,6 +96,7 @@ function AuthenticatedLayout() {
     ? companies.find((c) => String(c.id ?? c.companyId) === String(activeCompanyId))
     : null
   const displayedCompanyName = activeCompany?.name || activeCompany?.companyName || activeCompanyName
+  const pageTitle = AUTH_ROUTE_TITLES[pathname] || ''
 
   const sidebar = (
     <SidebarNav
@@ -152,27 +167,58 @@ function AuthenticatedLayout() {
               borderColor: 'divider',
             }}
           >
-            <Toolbar sx={{ minHeight: { xs: 48, md: 56 } }}>
-              {isMobile && (
-                <IconButton edge="start" color="inherit" onClick={handleOpen} aria-label="Open menu" sx={{ mr: 0.5 }}>
-                  <MenuRoundedIcon />
-                </IconButton>
-              )}
-              {isMobile && (
-                <Stack direction="row" alignItems="center" spacing={0.8} sx={{ mr: 1 }}>
-                  <LogoMark sx={{ width: 24, height: 24 }} />
-                  <Typography fontWeight={700} fontSize="0.95rem">ReconFlow</Typography>
-                </Stack>
-              )}
+            <Toolbar
+              sx={{
+                minHeight: { xs: 48, md: 56 },
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+                columnGap: { xs: 0.75, sm: 1.5 },
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
+                {isMobile && (
+                  <IconButton edge="start" color="inherit" onClick={handleOpen} aria-label="Open menu">
+                    <MenuRoundedIcon />
+                  </IconButton>
+                )}
+                {isMobile && (
+                  <Stack direction="row" alignItems="center" spacing={0.8} sx={{ minWidth: 0 }}>
+                    <LogoMark sx={{ width: 24, height: 24, flexShrink: 0 }} />
+                    <Typography fontWeight={700} fontSize="0.95rem" noWrap>ReconFlow</Typography>
+                  </Stack>
+                )}
 
-              {isAccountant && displayedCompanyName && (
-                <Typography variant="body2" sx={{ color: 'text.secondary', ml: 2, display: { xs: 'none', sm: 'block' } }}>
-                  Working with: <span style={{ color: theme.palette.primary.light, fontWeight: 700 }}>{displayedCompanyName}</span>
+                {isAccountant && displayedCompanyName && (
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' }, minWidth: 0 }}
+                  >
+                    Working with: <span style={{ color: theme.palette.primary.light, fontWeight: 700 }}>{displayedCompanyName}</span>
+                  </Typography>
+                )}
+              </Stack>
+
+              {pageTitle && (
+                <Typography
+                  component="h1"
+                  variant="subtitle1"
+                  noWrap
+                  sx={{
+                    maxWidth: { xs: 150, sm: 280, md: 440, lg: 560 },
+                    textAlign: 'center',
+                    fontSize: { xs: '0.95rem', md: '1.05rem' },
+                    fontWeight: 800,
+                    color: 'text.primary',
+                  }}
+                >
+                  {pageTitle}
                 </Typography>
               )}
 
-              <Box sx={{ flexGrow: 1 }} />
-              <NotificationBell />
+              <Stack direction="row" justifyContent="flex-end" alignItems="center" sx={{ minWidth: 0 }}>
+                <NotificationBell />
+              </Stack>
             </Toolbar>
           </AppBar>
 

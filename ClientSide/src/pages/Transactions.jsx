@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import AnimatedBackground from '../components/AnimatedBackground'
 import ErrorBoundary from '../components/ErrorBoundary'
-import PageHeaderCard from '../components/PageHeaderCard'
 import GlassCard from '../components/GlassCard'
 import TransactionUploadZone from '../components/TransactionUploadZone'
 import TransactionImportPreview from '../components/TransactionImportPreview'
@@ -29,7 +28,7 @@ import { transactionKeys } from '../queries/queryKeys'
 import {
   exportTransactionsToCSV, filterTransactionsByType, getTransactionTypes, normalizeTransactionType,
 } from '../utils/transactionHelpers'
-import { containerVariants, itemVariants } from '../utils/motionVariants'
+import { containerVariants } from '../utils/motionVariants'
 
 function TransactionsPage() {
   const { token } = useAuth()
@@ -352,14 +351,6 @@ function TransactionsPage() {
                     : `Import "${deepLinkedJob.job?.fileOriginalName || `#${deepLinkedJobId}`}" is ${deepLinkedJob.job?.status || 'unavailable'}.`)}
                 </Alert>
               )}
-
-              <PageHeaderCard
-                title="Transactions"
-                description="Import bank & credit card statements, review transactions, and prepare for reconciliation."
-                onRefresh={() => transactionsQuery.refetch()}
-                refreshDisabled={listLoading}
-                variants={itemVariants}
-              />
 
               <TransactionUploadZone
                 activeCompanyId={activeCompanyId}

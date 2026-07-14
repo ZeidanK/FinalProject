@@ -30,7 +30,6 @@ import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import PageHeaderCard from '../components/PageHeaderCard'
 import AnimatedBackground from '../components/AnimatedBackground'
 import GlassCard from '../components/GlassCard'
 import AnomalyDetailsModal from '../components/AnomalyDetailsModal'
@@ -481,11 +480,6 @@ function AnomaliesPage() {
       <AnimatedBackground density="low" />
       <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-          <PageHeaderCard
-            title="Anomalies"
-            description="Monitor data quality issues and resolve exception cases quickly."
-          />
-
           <Grid container spacing={2}>
             {statsLoading
               ? [0, 1, 2, 3].map((i) => (

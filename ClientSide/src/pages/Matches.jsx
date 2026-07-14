@@ -40,7 +40,6 @@ import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownR
 import { AnimatePresence, motion } from 'framer-motion'
 import AnimatedBackground from '../components/AnimatedBackground'
 import RevealOnScroll from '../components/RevealOnScroll'
-import PageHeaderCard from '../components/PageHeaderCard'
 import StatsCards from '../components/StatsCards'
 import CollapsibleSection from '../components/CollapsibleSection'
 import MatchActionBar from '../components/MatchActionBar'
@@ -841,14 +840,6 @@ function MatchesPage() {
         <AnimatedBackground density="low" />
         <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
           <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-            <PageHeaderCard
-              title="Matches"
-              description="Match invoices to bank transactions for reconciliation."
-              onRefresh={loadData}
-              refreshDisabled={loading}
-              variants={itemVariants}
-            />
-
             <StatsCards
               unmatchedInvoices={invoices.length}
               unmatchedTransactions={invoiceTransactions.length}

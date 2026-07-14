@@ -7,6 +7,7 @@ import { vi } from 'vitest'
 
 const mockNotify = vi.fn()
 const mockConfirm = vi.fn()
+const mockSubscribe = vi.fn(() => vi.fn())
 
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({ token: 'test-token' }),
@@ -20,18 +21,28 @@ vi.mock('../../context/useNotification', () => ({
   useNotification: () => ({ notify: mockNotify }),
 }))
 
+vi.mock('../../context/useRealtime', () => ({
+  useRealtime: () => ({ subscribe: mockSubscribe }),
+}))
+
 vi.mock('../../components/ConfirmContext', () => ({
-  useConfirm: () => mockConfirm,
+  useConfirm: () => ({ confirm: mockConfirm }),
 }))
 
 const mockGetPaginated = vi.fn()
+const mockGetReviews = vi.fn()
 const mockSendRequest = vi.fn()
 const mockDisconnect = vi.fn()
+const mockCancelRequest = vi.fn()
+const mockSubmitReview = vi.fn()
 
 vi.mock('../../services/accountants', () => ({
   getPublicAccountantsPaginated: (...args) => mockGetPaginated(...args),
+  getAccountantReviews: (...args) => mockGetReviews(...args),
   sendAccountantRequest: (...args) => mockSendRequest(...args),
   disconnectAccountant: (...args) => mockDisconnect(...args),
+  cancelAccountantRequest: (...args) => mockCancelRequest(...args),
+  submitAccountantReview: (...args) => mockSubmitReview(...args),
 }))
 
 const mockItems = [
@@ -104,12 +115,9 @@ describe('FindAccountant', () => {
     vi.clearAllMocks()
     queryClient.clear()
     mockConfirm.mockResolvedValue(true)
-  })
-
-  it('renders the page heading', async () => {
-    mockGetPaginated.mockResolvedValue({ items: [], totalCount: 0, page: 1, limit: 10 })
-    renderPage()
-    expect(await screen.findByText('Find an Accountant')).toBeInTheDocument()
+    mockGetReviews.mockResolvedValue([])
+    mockCancelRequest.mockResolvedValue({})
+    mockSubmitReview.mockResolvedValue({})
   })
 
   it('shows loading skeletons while fetching', () => {
@@ -127,7 +135,7 @@ describe('FindAccountant', () => {
     expect(screen.getByText('Dave Books')).toBeInTheDocument()
   })
 
-  it('shows total count in subtitle', async () => {
+  it('shows total count near filters', async () => {
     mockGetPaginated.mockResolvedValue({ items: mockItems, totalCount: 3, page: 1, limit: 10 })
     renderPage()
     expect(await screen.findByText(/3 accountants found/)).toBeInTheDocument()
@@ -231,9 +239,12 @@ describe('FindAccountant', () => {
     mockDisconnect.mockResolvedValue(undefined)
     renderPage()
     await screen.findByText('Dave Books')
-    const deleteIcon = document.querySelector('.MuiChip-deleteIcon')
+    const card = screen.getByText('Dave Books').closest('.MuiCard-root')
+    const deleteIcon = card.querySelector('.MuiChip-deleteIcon')
     await userEvent.click(deleteIcon)
-    expect(mockDisconnect).toHaveBeenCalledWith(3, 1, 'test-token')
+    await waitFor(() => {
+      expect(mockDisconnect).toHaveBeenCalledWith(3, 1, 'test-token')
+    })
   })
 
   it('opens detail dialog on card click', async () => {

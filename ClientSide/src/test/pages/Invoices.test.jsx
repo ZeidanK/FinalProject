@@ -53,6 +53,7 @@ vi.mock('../../services/invoices', () => ({
 
 const mockDeleteUploadJob = vi.fn()
 const mockDeleteUploadJobsByCompany = vi.fn()
+const mockDownloadUploadJobPdf = vi.fn()
 const mockGetMyUploadJobs = vi.fn()
 const mockGetUploadJobStatus = vi.fn()
 const mockVerifyInvoiceUploadJob = vi.fn()
@@ -61,6 +62,7 @@ const mockVerifyInvoiceUploadJobs = vi.fn()
 vi.mock('../../services/uploadJobs', () => ({
   deleteUploadJob: (...args) => mockDeleteUploadJob(...args),
   deleteUploadJobsByCompany: (...args) => mockDeleteUploadJobsByCompany(...args),
+  downloadUploadJobPdf: (...args) => mockDownloadUploadJobPdf(...args),
   getMyUploadJobs: (...args) => mockGetMyUploadJobs(...args),
   getUploadJobStatus: (...args) => mockGetUploadJobStatus(...args),
   verifyInvoiceUploadJob: (...args) => mockVerifyInvoiceUploadJob(...args),
@@ -146,7 +148,11 @@ const buildCompletedUploadJob = (id, fileOriginalName) => ({
 })
 
 describe('InvoicesPage', () => {
-  const renderPage = () => render(<MemoryRouter><InvoicesPage /></MemoryRouter>)
+  const renderPage = (initialEntries = ['/']) => render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <InvoicesPage />
+    </MemoryRouter>,
+  )
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -158,13 +164,10 @@ describe('InvoicesPage', () => {
     mockDeleteMutation = { mutateAsync: vi.fn(), isPending: false }
     mockBulkDeleteMutation = { mutateAsync: vi.fn(), isPending: false }
     mockDeleteUploadJob.mockResolvedValue({})
+    mockDownloadInvoicePdf.mockRejectedValue(new Error('Preview unavailable in test.'))
+    mockDownloadUploadJobPdf.mockRejectedValue(new Error('Preview unavailable in test.'))
     mockGetMyUploadJobs.mockResolvedValue([])
     sessionStorage.clear()
-  })
-
-  it('renders PageHeaderCard with "Invoices" title', () => {
-    renderPage()
-    expect(screen.getByText('Invoices')).toBeInTheDocument()
   })
 
   it('shows loading skeleton while fetching invoices', () => {
@@ -238,6 +241,58 @@ describe('InvoicesPage', () => {
     await user.click(screen.getByRole('switch', { name: /Use local model instead of Gemini/i }))
 
     expect(screen.getByText(/Local model is less accurate than Gemini/)).toBeInTheDocument()
+  })
+
+  it('opens a completed upload job deep link in the verification modal and saves through job verification', async () => {
+    const user = userEvent.setup()
+    mockGetUploadJobStatus.mockResolvedValue(buildCompletedUploadJob(101, 'notification-invoice.pdf'))
+    mockVerifyInvoiceUploadJob.mockResolvedValue({ outcome: 'verified' })
+
+    renderPage(['/invoices?jobId=101'])
+
+    expect(await screen.findByText('Verify Extracted Data')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Vendor 101')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('INV-101')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(mockVerifyInvoiceUploadJob).toHaveBeenCalledTimes(1))
+    expect(mockVerifyInvoiceUploadJob).toHaveBeenCalledWith(
+      101,
+      expect.objectContaining({
+        companyId: 1,
+        vendorName: 'Vendor 101',
+        invoiceNumber: 'INV-101',
+      }),
+      'test-token',
+    )
+  })
+
+  it('opens a saved invoice when an upload job deep link already has an invoice id', async () => {
+    mockGetUploadJobStatus.mockResolvedValue({
+      ...buildCompletedUploadJob(202, 'saved-invoice.pdf'),
+      resultJson: JSON.stringify({ invoiceId: 55 }),
+    })
+    mockGetInvoiceById.mockResolvedValue({
+      id: 55,
+      company_id: 1,
+      invoice_number: 'SAVED-55',
+      vendor_name: 'Saved Vendor',
+      invoice_date: '2025-06-01T10:00:00Z',
+      total_amount: 1500.50,
+      subtotal: 1400,
+      vat_amount: 100.50,
+      currency: 'USD',
+      ai_extraction_confidence: 0.95,
+      line_items: [],
+    })
+
+    renderPage(['/invoices?jobId=202'])
+
+    await waitFor(() => expect(mockGetInvoiceById).toHaveBeenCalledWith(55, 'test-token'))
+    expect(await screen.findByDisplayValue('Saved Vendor')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('SAVED-55')).toBeInTheDocument()
+    expect(mockVerifyInvoiceUploadJob).not.toHaveBeenCalled()
   })
 
   it('removes selected ready uploads without clearing the rest when delete reports an error', async () => {

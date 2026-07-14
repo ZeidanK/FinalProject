@@ -78,20 +78,6 @@ describe('ReportsPage', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the main heading', async () => {
-    mockGetReconciliationReport.mockResolvedValue(null)
-    mockGetPayablesAgingReport.mockResolvedValue(null)
-    renderPage()
-    expect(await screen.findByText('Financial Integrity Reports')).toBeInTheDocument()
-  })
-
-  it('shows company name in subtitle', async () => {
-    mockGetReconciliationReport.mockResolvedValue(null)
-    mockGetPayablesAgingReport.mockResolvedValue(null)
-    renderPage()
-    expect(await screen.findByText(/Acme Corp/)).toBeInTheDocument()
-  })
-
   it('renders ReportCatalog with Reconciliation Report header', async () => {
     mockGetReconciliationReport.mockResolvedValue(mockReconciliationData)
     mockGetPayablesAgingReport.mockResolvedValue(mockAgingData)

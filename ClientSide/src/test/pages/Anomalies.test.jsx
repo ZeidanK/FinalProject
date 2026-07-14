@@ -154,11 +154,6 @@ describe('AnomaliesPage', () => {
     mockResolveMutation = { mutateAsync: vi.fn(), isPending: false, reset: vi.fn() }
   })
 
-  it('renders PageHeaderCard with "Anomalies" title', () => {
-    renderPage()
-    expect(screen.getByText('Anomalies')).toBeInTheDocument()
-  })
-
   it('shows stats skeleton while loading', () => {
     mockStatsQuery = { ...mockStatsQuery, isLoading: true }
     renderPage()

@@ -35,7 +35,6 @@ import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
-import PageHeaderCard from '../components/PageHeaderCard'
 import AnimatedBackground from '../components/AnimatedBackground'
 import DataTable from '../components/DataTable'
 import FileUploadZone from '../components/FileUploadZone'
@@ -79,6 +78,8 @@ const INVOICE_EXTRACTION_PROVIDERS = {
   GEMINI: 'gemini',
   LOCAL_MODEL: 'localmodel',
 }
+const INVOICE_UPLOAD_JOB_TYPES = new Set(['invoice_upload_pdf', 'invoice_upload_and_create'])
+const RECOVERABLE_UPLOAD_STATUSES = new Set(['completed', 'verifying'])
 
 const normalizeInvoiceExtractionProvider = (provider) =>
   provider === INVOICE_EXTRACTION_PROVIDERS.LOCAL_MODEL
@@ -138,6 +139,59 @@ const buildDisplayedUploadJobData = ({
       displayedResult,
       displayedResult?.extractionConfidence,
     ),
+  }
+}
+
+const parseUploadJobResult = (job) => {
+  const resultJson = job?.resultJson ?? job?.ResultJson
+  if (!resultJson) return null
+  try {
+    return JSON.parse(resultJson)
+  } catch {
+    return null
+  }
+}
+
+const getResultInvoiceId = (result) => {
+  const invoiceId = Number(result?.invoiceId ?? result?.InvoiceId)
+  return Number.isFinite(invoiceId) && invoiceId > 0 ? invoiceId : null
+}
+
+const buildVerificationEntryFromUploadJob = (job, result) => {
+  const jobId = job?.id ?? job?.Id
+  const jobType = String(job?.jobType ?? job?.JobType ?? '').toLowerCase()
+  const status = String(job?.status ?? job?.Status ?? '').toLowerCase()
+  if (!jobId || !INVOICE_UPLOAD_JOB_TYPES.has(jobType) || !RECOVERABLE_UPLOAD_STATUSES.has(status)) {
+    return null
+  }
+
+  const filePath = job?.filePath ?? job?.FilePath
+  const fileOriginalName = job?.fileOriginalName ?? job?.FileOriginalName
+  const fileType = job?.fileType ?? job?.FileType
+  const fileSize = job?.fileSize ?? job?.FileSize
+  const errorMessage = job?.errorMessage ?? job?.ErrorMessage
+  const displayData = buildDisplayedUploadJobData({
+    result,
+    filePath,
+    fileOriginalName,
+    fileType,
+    fileSize,
+  })
+
+  if (!displayData.extractedData) return null
+
+  return {
+    id: `restored-${jobId}`,
+    file: null,
+    name: fileOriginalName || String(filePath || '').split(/[\\/]/).pop() || `Job ${jobId}`,
+    size: fileSize || 0,
+    status: 'completed',
+    error: null,
+    progress: 100,
+    extractedData: displayData.extractedData,
+    serverResponse: displayData.serverResponse,
+    jobId,
+    verificationError: errorMessage || null,
   }
 }
 
@@ -922,24 +976,30 @@ function InvoicesPage() {
 
       try {
         const job = await getUploadJobStatus(deepLinkedJobId, token)
-        let invoiceId = null
-        if (job?.resultJson) {
-          try {
-            invoiceId = JSON.parse(job.resultJson)?.invoiceId || null
-          } catch {
-            invoiceId = null
-          }
-        }
+        const result = parseUploadJobResult(job)
+        const invoiceId = getResultInvoiceId(result)
         if (invoiceId) {
           await openSavedInvoiceVerification(invoiceId)
           return
         }
+
+        const verificationEntry = buildVerificationEntryFromUploadJob(job, result)
+        if (verificationEntry) {
+          setFiles((prev) => [
+            verificationEntry,
+            ...prev.filter((entry) => entry.jobId !== verificationEntry.jobId),
+          ])
+          openVerification(verificationEntry)
+          return
+        }
+
+        const status = String(job?.status ?? job?.Status ?? '').toLowerCase()
         setSnack({
           open: true,
-          severity: job?.status === 'failed' ? 'error' : 'info',
-          message: job?.status === 'failed'
+          severity: status === 'failed' ? 'error' : 'info',
+          message: status === 'failed'
             ? 'This upload failed. You can upload the file again from this page.'
-            : `Upload status: ${job?.status || 'unknown'}.`,
+            : `Upload status: ${status || 'unknown'}.`,
         })
       } catch (err) {
         setSnack({
@@ -951,7 +1011,7 @@ function InvoicesPage() {
     }
 
     openTarget()
-  }, [deepLinkedInvoiceId, deepLinkedJobId, openSavedInvoiceVerification, token])
+  }, [deepLinkedInvoiceId, deepLinkedJobId, openSavedInvoiceVerification, openVerification, setSnack, token])
 
   const handleSaveVerification = useCallback(
     async (formData) => {
@@ -1514,14 +1574,6 @@ function InvoicesPage() {
         <AnimatedBackground density="low" />
         <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
           <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-          <PageHeaderCard
-            title="Invoices"
-            description="Upload PDF invoices for AI extraction, review, and reconciliation."
-            onRefresh={() => invoicesQuery.refetch()}
-            refreshDisabled={listLoading}
-            variants={itemVariants}
-          />
-
           {/* ---- Upload Drop Zone ---- */}
           {!activeCompanyId && (
             <Alert severity="warning" variant="outlined">
