@@ -1508,10 +1508,10 @@ function InvoicesPage() {
 
   const invoiceColumns = [
     { key: 'invoiceNumber', label: 'Invoice #', sortable: true, render: (r) => <Typography variant="body2" fontWeight={600}>{r.invoice_number || r.invoiceNumber || '—'}</Typography> },
-    { key: 'vendor', label: 'Vendor', sortable: true, getValue: (row) => row.vendor_name || row.vendorName || '—' },
-    { key: 'date', label: 'Date', sortable: true,     getValue: (row) => fmtDate(row.invoice_date || row.invoiceDate) },
-    { key: 'total', label: 'Total', align: 'right', sortable: true, getValue: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    { key: 'currency', label: 'Currency', align: 'center', sortable: true, getValue: (row) => row.currency || 'USD' },
+    { key: 'vendor', label: 'Vendor', sortable: true, render: (row) => row.vendor_name || row.vendorName || '—' },
+    { key: 'date', label: 'Date', sortable: true,     render: (row) => fmtDate(row.invoice_date || row.invoiceDate) },
+    { key: 'total', label: 'Total', align: 'right', sortable: true, render: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    { key: 'currency', label: 'Currency', align: 'center', sortable: true, render: (row) => row.currency || 'USD' },
     { key: 'status', label: 'Status', align: 'center', sortable: true, render: (r) => <Chip label={r.status || 'uploaded'} size="small" color={statusColors[r.status] || 'default'} variant="outlined" /> },
     {
       key: 'confidence',
