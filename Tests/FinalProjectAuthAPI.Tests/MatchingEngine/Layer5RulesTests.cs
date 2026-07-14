@@ -21,11 +21,34 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
         }
 
         [Fact]
+        public void TransactionAmountHelper_GetInstallmentReconciliationAmount_UsesChargeAmountForInstallments()
+        {
+            var txn = new TransactionRow
+            {
+                Amount = 2100,
+                ChargeAmount = 525,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd"
+            };
+
+            Assert.Equal(525, TransactionAmountHelper.GetInstallmentReconciliationAmount(txn));
+        }
+
+        [Fact]
+        public void TransactionAmountHelper_GetInstallmentReconciliationAmount_FallsBackToAmountForNonInstallments()
+        {
+            var txn = new TransactionRow { Amount = 2100, ChargeAmount = 525, TransactionType = "debit" };
+
+            Assert.Equal(2100, TransactionAmountHelper.GetInstallmentReconciliationAmount(txn));
+        }
+
+        [Fact]
         public void Rule5_2_InstallmentPlan_MatchesInstallmentAmount()
         {
             var rule = new Rule5_2_InstallmentPlan();
             var invoice = new InvoiceRow
             {
+                VendorName = "TravelGo Tickets",
+                InvoiceDate = new DateTime(2025, 8, 25),
                 PaymentPlanInstallmentAmount = 250,
                 PaymentPlanTotalInstallments = 12,
                 TotalAmount = 3000
@@ -34,10 +57,12 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
             {
                 Amount = -255,
                 ChargeAmount = 250,
+                VendorName = "TravelGo Tickets",
+                TransactionDate = new DateTime(2025, 8, 25),
                 TransactionType = "תשלומים"
             };
 
-            var result = rule.Evaluate(invoice, txn, 0.60);
+            var result = rule.Evaluate(invoice, txn, 0.90);
 
             Assert.True(result.Matched);
             Assert.Equal(250, result.MatchedAmount);

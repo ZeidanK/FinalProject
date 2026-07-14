@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import MatchesPage from '../../pages/Matches'
@@ -162,7 +162,7 @@ describe('MatchesPage', () => {
   })
 
   it('renders unmatched transactions section', async () => {
-    mockTransactionsQuery = { ...mockTransactionsQuery, data: sampleUnmatchedTransactions }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: { items: sampleUnmatchedTransactions } }
     renderPage()
     const txnLabels = await screen.findAllByText('Unmatched Transactions')
     expect(txnLabels.length).toBeGreaterThanOrEqual(1)
@@ -185,10 +185,55 @@ describe('MatchesPage', () => {
     expect(screen.getByText(/INV-001/)).toBeInTheDocument()
   })
 
+  it('confirms installment suggestions with the normalized suggestion amount', async () => {
+    mockInstallmentSuggestionsQuery = {
+      ...mockInstallmentSuggestionsQuery,
+      data: [
+        {
+          invoiceId: 110,
+          invoiceNumber: 'INV-TGT-2025-0825',
+          vendorName: 'TravelGo Tickets',
+          totalAmount: 2100,
+          alreadyMatchedAmount: 0,
+          alreadyMatchedCount: 0,
+          expectedInstallments: 4,
+          existingMatches: [],
+          suggestedTransactions: [
+            {
+              transactionId: 1184,
+              transactionDate: '2025-08-25T00:00:00Z',
+              postedDate: '2025-09-02T00:00:00Z',
+              description: 'Payment 1 of 4 | PLAN-TGT-2025-0825',
+              vendorName: 'TRAVELGO TICKETS',
+              amount: 525,
+              chargeAmount: -525,
+            },
+          ],
+        },
+      ],
+    }
+
+    renderPage()
+    expect(await screen.findByText('TRAVELGO TICKETS')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
+
+    await waitFor(() => {
+      expect(mockCreateMatchMutation.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+        invoiceId: 110,
+        transactionId: 1184,
+        matchedAmount: 525,
+        matchMethod: 'installment_simple',
+        matchType: 'partial',
+        installmentNumber: 1,
+      }))
+    })
+  })
+
   it('renders stats cards with counts', async () => {
     mockMatchesQuery = { ...mockMatchesQuery, data: sampleMatches }
     mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
-    mockTransactionsQuery = { ...mockTransactionsQuery, data: sampleUnmatchedTransactions }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: { items: sampleUnmatchedTransactions } }
     renderPage()
     const invoiceLabels = await screen.findAllByText('Unmatched Invoices')
     expect(invoiceLabels.length).toBeGreaterThanOrEqual(1)
@@ -252,7 +297,7 @@ describe('MatchesPage', () => {
 
   it('shows match action bar when invoice and transaction selected', async () => {
     mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
-    mockTransactionsQuery = { ...mockTransactionsQuery, data: sampleUnmatchedTransactions }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: { items: sampleUnmatchedTransactions } }
     renderPage()
     await screen.findByText('INV-010')
     const invoiceItem = screen.getByRole('button', { name: /INV-010/ })
@@ -265,7 +310,7 @@ describe('MatchesPage', () => {
 
   it('clears selection when clear button clicked', async () => {
     mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleUnmatchedInvoices }
-    mockTransactionsQuery = { ...mockTransactionsQuery, data: sampleUnmatchedTransactions }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: { items: sampleUnmatchedTransactions } }
     renderPage()
     await screen.findByText('INV-010')
     const invoiceItem = screen.getByRole('button', { name: /INV-010/ })
@@ -280,7 +325,7 @@ describe('MatchesPage', () => {
     const noInvoiceTxns = [
       { id: 30, vendor_name: 'Internal Transfer', transaction_date: '2025-07-01T10:00:00Z', amount: 1000, requiresInvoice: false },
     ]
-    mockTransactionsQuery = { ...mockTransactionsQuery, data: noInvoiceTxns }
+    mockTransactionsQuery = { ...mockTransactionsQuery, data: { items: noInvoiceTxns } }
     renderPage()
     expect(await screen.findByText(/No Invoice Expected/i)).toBeInTheDocument()
   })

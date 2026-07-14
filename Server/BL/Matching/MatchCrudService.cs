@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.DAL;
+using FinalProjectAuthAPI.MatchingEngine;
 using FinalProjectAuthAPI.Models;
 
 namespace FinalProjectAuthAPI.BL.Matching
@@ -43,6 +44,10 @@ namespace FinalProjectAuthAPI.BL.Matching
             if (req.MatchedAmount - remaining > allowedOverage)
                 return (false, 0, $"Matched amount exceeds remaining balance ({remaining:F2}). AllowedOverage={allowedOverage:F2}");
 
+            var installmentValidation = ValidateInstallmentMatchedAmount(req);
+            if (!installmentValidation.Success)
+                return (false, 0, installmentValidation.Error);
+
             var id = _db.CreateMatch(
                 req.InvoiceId, req.TransactionId, req.MatchedAmount,
                 req.MatchMethod ?? "manual", matchedByUserId,
@@ -74,6 +79,36 @@ namespace FinalProjectAuthAPI.BL.Matching
             }
 
             return (true, id, string.Empty);
+        }
+
+        private (bool Success, string Error) ValidateInstallmentMatchedAmount(CreateMatchRequest req)
+        {
+            if (!IsInstallmentMatchRequest(req))
+                return (true, string.Empty);
+
+            var txn = _db.GetTransactionById(req.TransactionId);
+            if (txn == null)
+                return (false, "Transaction not found.");
+
+            if (!TxPoolClassifier.IsInstallmentTxn(txn))
+                return (false, "Installment matches require an installment transaction.");
+
+            var effectiveAmount = TransactionAmountHelper.GetInstallmentReconciliationAmount(txn);
+            if (effectiveAmount <= 0)
+                return (false, "Installment transaction amount is missing.");
+
+            const decimal tolerance = 2.00m;
+            if (req.MatchedAmount - effectiveAmount > tolerance)
+                return (false, $"Matched amount exceeds transaction installment amount ({effectiveAmount:F2}). AllowedOverage={tolerance:F2}");
+
+            return (true, string.Empty);
+        }
+
+        private static bool IsInstallmentMatchRequest(CreateMatchRequest req)
+        {
+            return req.InstallmentNumber.HasValue ||
+                   string.Equals(req.MatchType, "installment", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(req.MatchMethod, "installment_simple", StringComparison.OrdinalIgnoreCase);
         }
 
         private decimal GetAllowedOverage(CreateMatchRequest req, decimal remaining)

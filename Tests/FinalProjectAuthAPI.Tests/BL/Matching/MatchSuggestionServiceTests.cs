@@ -20,6 +20,42 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
             _service = new MatchSuggestionService(_mockDb.Object, _mockPipeline.Object);
         }
 
+        private static InvoiceRow CreateKspInstallmentInvoice(decimal installmentAmount = 255m)
+        {
+            return new InvoiceRow
+            {
+                Id = 80,
+                CompanyId = 8,
+                InvoiceNumber = "2866377",
+                VendorName = "KSP",
+                InvoiceDate = new System.DateTime(2025, 4, 6),
+                TotalAmount = 2555m,
+                MatchedAmount = 0m,
+                PaymentPlanTotalInstallments = 10,
+                PaymentPlanInstallmentAmount = installmentAmount,
+            };
+        }
+
+        private static TransactionCandidate CreateKspInstallmentCandidate(
+            long id,
+            int installmentNumber,
+            decimal chargeAmount,
+            System.DateTime? postedDate = null)
+        {
+            return new TransactionCandidate
+            {
+                Id = id,
+                TransactionDate = new System.DateTime(2025, 4, 6),
+                PostedDate = postedDate ?? new System.DateTime(2025, 5, 2),
+                Description = $"\u05ea\u05e9\u05dc\u05d5\u05dd {installmentNumber} \u05de\u05ea\u05d5\u05da 10",
+                Amount = 2555m,
+                ChargeAmount = chargeAmount,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd",
+                VendorName = "KSP",
+                RequiresInvoice = true,
+            };
+        }
+
         [Fact]
         public void GetSimpleSuggestions_NoInvoices_ReturnsEmpty()
         {
@@ -82,6 +118,70 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
                 });
             var result = _service.GetSimpleSuggestions(5);
             Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetInstallmentSuggestions_IncludesFirstInstallmentResidualAmount()
+        {
+            var invoice = CreateKspInstallmentInvoice(255.50m);
+            _mockDb.Setup(x => x.GetInvoicesByCompany(8, null, null, null, (bool?)null))
+                .Returns(new List<InvoiceRow> { invoice });
+            _mockDb.Setup(x => x.GetCandidateTransactions(8))
+                .Returns(new List<TransactionCandidate>
+                {
+                    CreateKspInstallmentCandidate(1006, 1, 260m),
+                    CreateKspInstallmentCandidate(986, 2, 255m, new System.DateTime(2025, 6, 3)),
+                });
+            _mockDb.Setup(x => x.GetMatchesByInvoice(80))
+                .Returns(new List<MatchRow>());
+
+            var result = _service.GetInstallmentSuggestions(8);
+
+            var group = Assert.Single(result);
+            Assert.Equal(new long[] { 1006, 986 }, group.SuggestedTransactions.Select(t => t.TransactionId));
+            Assert.Equal(260m, group.SuggestedTransactions[0].Amount);
+        }
+
+        [Fact]
+        public void GetInstallmentSuggestions_DoesNotUseFirstResidualForNonFirstInstallment()
+        {
+            var invoice = CreateKspInstallmentInvoice();
+            _mockDb.Setup(x => x.GetInvoicesByCompany(8, null, null, null, (bool?)null))
+                .Returns(new List<InvoiceRow> { invoice });
+            _mockDb.Setup(x => x.GetCandidateTransactions(8))
+                .Returns(new List<TransactionCandidate>
+                {
+                    CreateKspInstallmentCandidate(986, 2, 260m, new System.DateTime(2025, 6, 3)),
+                });
+            _mockDb.Setup(x => x.GetMatchesByInvoice(80))
+                .Returns(new List<MatchRow>());
+
+            var result = _service.GetInstallmentSuggestions(8);
+
+            var group = Assert.Single(result);
+            Assert.Empty(group.SuggestedTransactions);
+        }
+
+        [Fact]
+        public void GetInstallmentSuggestions_OrdersSuggestionsByInstallmentNumber()
+        {
+            var invoice = CreateKspInstallmentInvoice();
+            _mockDb.Setup(x => x.GetInvoicesByCompany(8, null, null, null, (bool?)null))
+                .Returns(new List<InvoiceRow> { invoice });
+            _mockDb.Setup(x => x.GetCandidateTransactions(8))
+                .Returns(new List<TransactionCandidate>
+                {
+                    CreateKspInstallmentCandidate(3, 3, 255m, new System.DateTime(2025, 7, 2)),
+                    CreateKspInstallmentCandidate(1, 1, 260m, new System.DateTime(2025, 5, 2)),
+                    CreateKspInstallmentCandidate(2, 2, 255m, new System.DateTime(2025, 6, 3)),
+                });
+            _mockDb.Setup(x => x.GetMatchesByInvoice(80))
+                .Returns(new List<MatchRow>());
+
+            var result = _service.GetInstallmentSuggestions(8);
+
+            var group = Assert.Single(result);
+            Assert.Equal(new long[] { 1, 2, 3 }, group.SuggestedTransactions.Select(t => t.TransactionId));
         }
 
         [Fact]

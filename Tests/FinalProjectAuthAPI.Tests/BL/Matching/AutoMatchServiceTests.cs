@@ -164,5 +164,82 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
             var result = await _service.AutoMatchBatchAsync(5, 10);
             Assert.Equal(1, result.SuccessfulMatches);
         }
+
+        [Fact]
+        public async Task AutoMatchBatchAsync_ConfirmsAvailableInstallmentsBeforeFullPlanExists()
+        {
+            var invoices = new List<InvoiceRow>
+            {
+                new()
+                {
+                    Id = 1,
+                    CompanyId = 5,
+                    InvoiceNumber = "INV-INSTALL-001",
+                    TotalAmount = 2100,
+                    MatchedAmount = 0,
+                    PaymentPlanTotalInstallments = 4,
+                    PaymentPlanInstallmentAmount = 525,
+                }
+            };
+            var transactions = new List<TransactionRow>
+            {
+                new()
+                {
+                    Id = 10,
+                    Amount = 2100,
+                    ChargeAmount = 525,
+                    TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd",
+                    RequiresInvoice = true,
+                },
+                new()
+                {
+                    Id = 11,
+                    Amount = 2100,
+                    ChargeAmount = 525,
+                    TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd",
+                    RequiresInvoice = true,
+                }
+            };
+            var installmentSuggestions = new List<InstallmentGroupSuggestion>
+            {
+                new()
+                {
+                    InvoiceId = 1,
+                    InvoiceNumber = "INV-INSTALL-001",
+                    TotalAmount = 2100,
+                    RemainingAmount = 2100,
+                    AlreadyMatchedAmount = 0,
+                    AlreadyMatchedCount = 0,
+                    ExpectedInstallments = 4,
+                    SuggestedTransactions = new List<SuggestedInstallmentTransaction>
+                    {
+                        new() { TransactionId = 10, Amount = 525, ChargeAmount = 525 },
+                        new() { TransactionId = 11, Amount = 525, ChargeAmount = 525 },
+                    }
+                }
+            };
+            var createdRequests = new List<CreateMatchRequest>();
+
+            _mockDb.Setup(x => x.GetUnmatchedInvoicesByCompany(5)).Returns(invoices);
+            _mockDb.Setup(x => x.GetTransactionsByCompany(It.IsAny<long>(), It.IsAny<TransactionFilterRequest>()))
+                .Returns(new PagedResponse<TransactionRow> { Items = transactions, TotalCount = transactions.Count });
+            _mockPipeline.Setup(x => x.Execute(invoices, transactions)).Returns(new PipelineResult());
+            _mockSuggestions.Setup(x => x.GetInstallmentSuggestions(5)).Returns(installmentSuggestions);
+            _mockCrud.Setup(x => x.Create(It.IsAny<CreateMatchRequest>(), 10))
+                .Callback<CreateMatchRequest, long>((req, _) => createdRequests.Add(req))
+                .Returns((true, 42L, ""));
+
+            var result = await _service.AutoMatchBatchAsync(5, 10);
+
+            Assert.Equal(2, result.SuccessfulMatches);
+            Assert.Equal(new[] { 10L, 11L }, createdRequests.Select(r => r.TransactionId));
+            Assert.Equal(new[] { 1, 2 }, createdRequests.Select(r => r.InstallmentNumber.GetValueOrDefault()));
+            Assert.All(createdRequests, req =>
+            {
+                Assert.Equal(525m, req.MatchedAmount);
+                Assert.Equal("automatic", req.MatchMethod);
+                Assert.Equal("installment", req.MatchType);
+            });
+        }
     }
 }

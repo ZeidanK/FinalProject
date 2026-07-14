@@ -113,7 +113,14 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
                 It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<string>(), It.IsAny<decimal?>(),
                 It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<string?>())).Returns(42);
             _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
-            _mockDb.Setup(x => x.GetTransactionById(1)).Returns(new TransactionRow { Id = 1, Description = "Test" });
+            _mockDb.Setup(x => x.GetTransactionById(1)).Returns(new TransactionRow
+            {
+                Id = 1,
+                Amount = 101.50m,
+                ChargeAmount = 101.50m,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd",
+                Description = "Test"
+            });
 
             var req = new CreateMatchRequest
             {
@@ -129,6 +136,48 @@ namespace FinalProjectAuthAPI.Tests.BL.Matching
                 It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<long?>(),
                 It.IsAny<long?>(), It.IsAny<long?>(), It.IsAny<decimal?>(),
                 It.IsAny<string>(), It.IsAny<decimal?>()), Times.Never);
+        }
+
+        [Fact]
+        public void Create_InstallmentAmountAboveTransactionEffectiveAmount_ReturnsFailure()
+        {
+            var invoice = new InvoiceRow
+            {
+                Id = 1,
+                CompanyId = 8,
+                InvoiceNumber = "INV-TGT-2025-0825",
+                TotalAmount = 2100,
+                MatchedAmount = 0
+            };
+            _mockDb.Setup(x => x.GetInvoiceById(1)).Returns(invoice);
+            _mockDb.Setup(x => x.GetTransactionById(2)).Returns(new TransactionRow
+            {
+                Id = 2,
+                Amount = 2100,
+                ChargeAmount = 525,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd"
+            });
+
+            var req = new CreateMatchRequest
+            {
+                InvoiceId = 1,
+                TransactionId = 2,
+                MatchedAmount = 2100,
+                MatchMethod = "installment_simple",
+                MatchType = "partial",
+                InstallmentNumber = 1
+            };
+
+            var (success, id, error) = _service.Create(req, 10);
+
+            Assert.False(success);
+            Assert.Equal(0, id);
+            Assert.Contains("transaction installment amount", error, StringComparison.OrdinalIgnoreCase);
+            _mockDb.Verify(x => x.CreateMatch(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(),
+                It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<string>(),
+                It.IsAny<decimal?>(), It.IsAny<string?>(),
+                It.IsAny<int?>(), It.IsAny<string?>()), Times.Never);
         }
 
         [Fact]

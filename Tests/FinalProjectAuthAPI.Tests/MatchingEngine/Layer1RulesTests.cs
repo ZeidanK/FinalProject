@@ -69,6 +69,26 @@ namespace FinalProjectAuthAPI.Tests.MatchingEngine
         }
 
         [Fact]
+        public void Rule1_2_TrinityMatch_SkipsInstallmentTransactions()
+        {
+            var rule = new Rule1_2_TrinityMatch();
+            var date = new DateTime(2025, 8, 25);
+            var invoice = new InvoiceRow { TotalAmount = 2100, VendorName = "TravelGo Tickets", InvoiceDate = date };
+            var txn = new TransactionRow
+            {
+                Amount = 2100,
+                ChargeAmount = 525,
+                VendorName = "TravelGo Tickets",
+                TransactionDate = date,
+                TransactionType = "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd"
+            };
+
+            var result = rule.Evaluate(invoice, txn, 0);
+
+            Assert.False(result.Matched);
+        }
+
+        [Fact]
         public void Rule1_2_TrinityMatch_Fails_DifferentAmount()
         {
             var rule = new Rule1_2_TrinityMatch();

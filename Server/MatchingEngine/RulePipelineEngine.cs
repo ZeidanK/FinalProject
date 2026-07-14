@@ -53,18 +53,18 @@ namespace FinalProjectAuthAPI.MatchingEngine
             var matchedInvoiceIds = new HashSet<long>();
             var matchedTransactionIds = new HashSet<long>();
 
-            // Phase 1: Priority exact matches (auto-match, no cross-type)
+            // Phase 1: Installment matches. Payment-plan invoices stay out of normal full-invoice rules.
+            RunInstallmentPhase(
+                remainingInvoices, remainingTransactions,
+                matchedInvoiceIds, matchedTransactionIds,
+                result);
+
+            // Phase 2: Priority exact matches (auto-match, no cross-type)
             RunPhase(
                 remainingInvoices, remainingTransactions,
                 _priorityRules,
                 matchedInvoiceIds, matchedTransactionIds,
                 result, allowCrossType: false);
-
-            // Phase 2: Installment matches (must run after priority to capture remaining installment txns)
-            RunInstallmentPhase(
-                remainingInvoices, remainingTransactions,
-                matchedInvoiceIds, matchedTransactionIds,
-                result);
 
             // Phase 3: Fuzzy matches (lower confidence, auto-match if threshold met, no cross-type)
             RunPhase(
@@ -108,6 +108,8 @@ namespace FinalProjectAuthAPI.MatchingEngine
             foreach (var invoice in activeInvoices)
             {
                 var isInstallmentInvoice = TxPoolClassifier.IsPaymentPlanInvoice(invoice);
+                if (!allowCrossType && isInstallmentInvoice)
+                    continue;
 
                 foreach (var txn in activeTransactions)
                 {
@@ -130,8 +132,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
                         var evalResult = rule.Evaluate(invoice, txn, fuzzyScore);
                         if (evalResult.Matched)
                         {
-                            var isInstallmentTxn = TxPoolClassifier.IsInstallmentTxn(txn);
-
                             result.AutoMatches.Add(new MatchResult
                             {
                                 InvoiceId = invoice.Id,
@@ -141,10 +141,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
                                 RuleName = rule.Name,
                                 Confidence = rule.Confidence,
                                 MatchReason = evalResult.MatchReason,
-                                InstallmentNumber = isInstallmentTxn ? 1 : null,
-                                InstallmentNote = isInstallmentTxn
-                                    ? $"Installment match via {rule.Name}"
-                                    : null
                             });
 
                             matchedInvoiceIds.Add(invoice.Id);
@@ -183,7 +179,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
                     if (matchedTransactionIds.Contains(txn.Id))
                         continue;
 
-                    var effectiveAmt = TransactionAmountHelper.GetEffectiveAmount(txn);
                     var fuzzyScore = ComputeFuzzyScore(invoice, txn);
 
                     var evalResult = new Rule5_2_InstallmentPlan().Evaluate(invoice, txn, fuzzyScore);
@@ -231,7 +226,7 @@ namespace FinalProjectAuthAPI.MatchingEngine
                     foreach (var txn in installmentTxns)
                     {
                         installmentCounter++;
-                        var effectiveAmt = TransactionAmountHelper.GetEffectiveAmount(txn);
+                        var effectiveAmt = TransactionAmountHelper.GetInstallmentReconciliationAmount(txn);
                         result.AutoMatches.Add(new MatchResult
                         {
                             InvoiceId = invoice.Id,
@@ -263,13 +258,11 @@ namespace FinalProjectAuthAPI.MatchingEngine
             PipelineResult result)
         {
             var activeInvoices = remainingInvoices
-                .Where(i => !matchedInvoiceIds.Contains(i.Id)).ToList();
+                .Where(i => !matchedInvoiceIds.Contains(i.Id) &&
+                            !TxPoolClassifier.IsPaymentPlanInvoice(i)).ToList();
             var activeTransactions = remainingTransactions
-                .Where(t => !matchedTransactionIds.Contains(t.Id)).ToList();
-
-            var hasPaymentPlanInvoices = activeInvoices.Any(TxPoolClassifier.IsPaymentPlanInvoice);
-            if (hasPaymentPlanInvoices)
-                return;
+                .Where(t => !matchedTransactionIds.Contains(t.Id) &&
+                            !TxPoolClassifier.IsInstallmentTxn(t)).ToList();
 
             foreach (var txn in activeTransactions)
             {
@@ -371,6 +364,8 @@ namespace FinalProjectAuthAPI.MatchingEngine
             foreach (var invoice in activeInvoices)
             {
                 var isInstallmentInvoice = TxPoolClassifier.IsPaymentPlanInvoice(invoice);
+                if (isInstallmentInvoice)
+                    continue;
 
                 foreach (var txn in activeTransactions)
                 {
@@ -378,8 +373,6 @@ namespace FinalProjectAuthAPI.MatchingEngine
                         matchedTransactionIds.Contains(txn.Id))
                         continue;
 
-                    if (isInstallmentInvoice && !TxPoolClassifier.IsInstallmentTxn(txn))
-                        continue;
                     if (!isInstallmentInvoice && TxPoolClassifier.IsInstallmentTxn(txn))
                         continue;
 

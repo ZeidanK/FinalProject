@@ -10,9 +10,20 @@ namespace FinalProjectAuthAPI.MatchingEngine
             return invoice.PaymentPlanTotalInstallments.HasValue && invoice.PaymentPlanTotalInstallments.Value > 1;
         }
 
+        public static bool IsInstallmentType(string? transactionType)
+        {
+            return string.Equals(transactionType, "תשלומים", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(transactionType, "×ª×©×œ×•×ž×™×", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static bool IsInstallmentTxn(TransactionRow txn)
         {
-            return txn != null && string.Equals(txn.TransactionType, "תשלומים", StringComparison.OrdinalIgnoreCase);
+            return txn != null && IsInstallmentType(txn.TransactionType);
+        }
+
+        public static bool IsInstallmentTxn(TransactionCandidate txn)
+        {
+            return txn != null && IsInstallmentType(txn.TransactionType);
         }
 
         public static bool IsMonthlyChargeTxn(TransactionRow txn)

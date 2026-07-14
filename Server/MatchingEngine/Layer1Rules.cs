@@ -10,6 +10,9 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
+            if (TxPoolClassifier.IsInstallmentTxn(transaction))
+                return new RuleEvalResult { Matched = false };
+
             if (string.IsNullOrWhiteSpace(invoice.InvoiceNumber) || invoice.InvoiceNumber.Length <= 3)
                 return new RuleEvalResult { Matched = false };
 
@@ -49,6 +52,9 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
+            if (TxPoolClassifier.IsInstallmentTxn(transaction))
+                return new RuleEvalResult { Matched = false };
+
             if (Math.Abs(Math.Abs(transaction.Amount) - invoice.TotalAmount) > 0.001m)
                 return new RuleEvalResult { Matched = false };
 
@@ -79,6 +85,9 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
+            if (TxPoolClassifier.IsInstallmentTxn(transaction))
+                return new RuleEvalResult { Matched = false };
+
             if (string.IsNullOrWhiteSpace(transaction.CardLast4))
                 return new RuleEvalResult { Matched = false };
 
@@ -109,6 +118,9 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
+            if (TxPoolClassifier.IsInstallmentTxn(transaction))
+                return new RuleEvalResult { Matched = false };
+
             if (string.IsNullOrWhiteSpace(transaction.CardLast4) || string.IsNullOrWhiteSpace(invoice.LastFourDigitsCard))
                 return new RuleEvalResult { Matched = false };
 
@@ -136,6 +148,9 @@ namespace FinalProjectAuthAPI.MatchingEngine
 
         public override RuleEvalResult Evaluate(InvoiceRow invoice, TransactionRow transaction, double fuzzyScore)
         {
+            if (TxPoolClassifier.IsInstallmentTxn(transaction))
+                return new RuleEvalResult { Matched = false };
+
             var effectiveAmount = TransactionAmountHelper.GetEffectiveAmount(transaction);
             if (Math.Abs(effectiveAmount - invoice.TotalAmount) > 0.001m)
                 return new RuleEvalResult { Matched = false };
