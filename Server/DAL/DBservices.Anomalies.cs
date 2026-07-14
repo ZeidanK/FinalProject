@@ -9,7 +9,8 @@ namespace FinalProjectAuthAPI.DAL
         // ── Anomalies ─────────────────────────────────────────────────────────
 
         public List<AnomalyRow> GetAnomaliesByCompany(
-            long companyId, string? status, string? severity, string? type)
+            long companyId, string? status, string? severity, string? type,
+            string? searchTerm = null)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -21,10 +22,11 @@ namespace FinalProjectAuthAPI.DAL
                     "FP26_sp_Anomalies_GetByCompany", con,
                     new Dictionary<string, object?>
                     {
-                        { "@CompanyId", companyId },
-                        { "@Status",    status    },
-                        { "@Severity",  severity  },
-                        { "@Type",      type      }
+                        { "@CompanyId",  companyId  },
+                        { "@Status",     status     },
+                        { "@Severity",   severity   },
+                        { "@Type",       type       },
+                        { "@SearchTerm", searchTerm }
                     });
 
                 reader = cmd.ExecuteReader();

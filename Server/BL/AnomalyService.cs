@@ -25,9 +25,10 @@ namespace FinalProjectAuthAPI.BL
 
         public List<AnomalyRow> GetByCompany(
             long companyId, string? status = null,
-            string? severity = null, string? type = null)
+            string? severity = null, string? type = null,
+            string? searchTerm = null)
         {
-            var rows = _crud.GetByCompany(companyId, status, severity, type);
+            var rows = _crud.GetByCompany(companyId, status, severity, type, searchTerm);
             return BuildGroupedRows(rows, status);
         }
 

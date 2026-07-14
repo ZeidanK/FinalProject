@@ -41,9 +41,9 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         [Fact]
         public void GetByCompany_ReturnsOk()
         {
-            _mockSvc.Setup(x => x.GetByCompany(5, null, null, null)).Returns(new List<AnomalyRow>());
+            _mockSvc.Setup(x => x.GetByCompany(5, null, null, null, null)).Returns(new List<AnomalyRow>());
 
-            var result = _controller.GetByCompany(5, null, null, null);
+            var result = _controller.GetByCompany(5, null, null, null, null);
 
             Assert.IsType<OkObjectResult>(result);
         }

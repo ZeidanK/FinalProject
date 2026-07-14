@@ -4,8 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   Container,
   Grid,
@@ -17,6 +15,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -33,6 +32,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
 import AnimatedBackground from '../components/AnimatedBackground'
+import GlassCard from '../components/GlassCard'
 import AnomalyDetailsModal from '../components/AnomalyDetailsModal'
 import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
@@ -78,6 +78,8 @@ const typeOptions = [
   { value: 'missing_link', label: 'Missing Link' },
 ]
 
+const ROWS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+
 const fmtDate = (value) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -99,33 +101,33 @@ const toStatusLabel = (value) => statusLabels[value] || toLabel(value)
 const toAnomalyTypeLabel = (value) =>
   value === 'duplicate_transaction_file' ? 'Duplicate' : toLabel(value)
 
-function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
-  if (listLoading) {
-    return (
-      <Stack spacing={1}>
-        {['rows-1', 'rows-2', 'rows-3', 'rows-4', 'rows-5'].map((key) => (
-          <Skeleton key={key} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
-        ))}
-      </Stack>
-    )
-  }
+function AnomalyTableSkeleton() {
+  return (
+    <Stack spacing={1}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} variant="rectangular" height={52} sx={{ borderRadius: 2 }} />
+      ))}
+    </Stack>
+  )
+}
 
-  if (listError) {
-    return <Alert severity="error">{listError}</Alert>
-  }
+function AnomalyTableEmpty() {
+  return (
+    <Stack alignItems="center" spacing={1} sx={{ py: 6 }}>
+      <InboxRoundedIcon sx={{ fontSize: 42, color: 'text.secondary' }} />
+      <Typography variant="h6">No anomalies found</Typography>
+      <Typography variant="body2" color="text.secondary" align="center">
+        Try adjusting your filters or search query.
+      </Typography>
+    </Stack>
+  )
+}
 
-  if (anomalies.length === 0) {
-    return (
-      <Stack alignItems="center" spacing={1} sx={{ py: 6 }}>
-        <InboxRoundedIcon sx={{ fontSize: 42, color: 'text.secondary' }} />
-        <Typography variant="h6">No anomalies found</Typography>
-        <Typography variant="body2" color="text.secondary" align="center">
-          Try adjusting your filters or search query.
-        </Typography>
-      </Stack>
-    )
-  }
+function AnomalyTableError({ message }) {
+  return <Alert severity="error">{message}</Alert>
+}
 
+function AnomalyTableBody({ anomalies, onOpenDetails }) {
   return (
     <TableContainer>
       <Table>
@@ -175,35 +177,27 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
   )
 }
 
+AnomalyTableBody.propTypes = {
+  anomalies: PropTypes.array.isRequired,
+  onOpenDetails: PropTypes.func.isRequired,
+}
+
 function StatsCard({ title, value, hint, icon, color }) {
   return (
-    <Card
-      component={motion.div}
-      variants={itemVariants}
-      elevation={0}
-      sx={{
-        borderRadius: 3.5,
-        border: '1px solid rgba(129, 191, 255, 0.12)',
-        background: 'rgba(14, 24, 45, 0.65)',
-        backdropFilter: 'blur(16px)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
-      }}
-    >
-      <CardContent>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {title}
-          </Typography>
-          <Box sx={{ color }}>{icon}</Box>
-        </Stack>
-        <Typography variant="h5" fontWeight={700}>
-          {value}
+    <GlassCard variant="default" motionProps={{ variants: itemVariants }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1, px: 2, pt: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          {title}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {hint}
-        </Typography>
-      </CardContent>
-    </Card>
+        <Box sx={{ color }}>{icon}</Box>
+      </Stack>
+      <Typography variant="h5" fontWeight={700} sx={{ px: 2 }}>
+        {value}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 2, pb: 2 }}>
+        {hint}
+      </Typography>
+    </GlassCard>
   )
 }
 
@@ -225,7 +219,9 @@ function AnomaliesPage() {
   const [status, setStatus] = useState('open')
   const [type, setType] = useState('')
   const [queryInput, setQueryInput] = useState('')
-  const [query, setQuery] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(50)
 
   const [selectedAnomalyId, setSelectedAnomalyId] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -249,6 +245,9 @@ function AnomaliesPage() {
     companyId: activeCompanyId,
     token,
     filters,
+    page: page + 1,
+    pageSize: rowsPerPage,
+    searchTerm: searchTerm || undefined,
   })
 
   const statsQuery = useAnomalyStatsQuery({
@@ -268,14 +267,23 @@ function AnomaliesPage() {
   })
 
   useEffect(() => {
-    const timeoutId = globalThis.setTimeout(() => setQuery(queryInput.trim()), 350)
+    const timeoutId = globalThis.setTimeout(() => setSearchTerm(queryInput.trim()), 350)
     return () => globalThis.clearTimeout(timeoutId)
   }, [queryInput])
 
-  const anomalies = useMemo(
-    () => (Array.isArray(anomaliesQuery.data) ? anomaliesQuery.data : []),
-    [anomaliesQuery.data],
-  )
+  useEffect(() => {
+    if (page !== 0) setPage(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, type, searchTerm])
+
+  useEffect(() => {
+    if (!deepLinkedAnomalyId) return
+    handleOpenDetails(deepLinkedAnomalyId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkedAnomalyId])
+
+  const anomalies = anomaliesQuery.data?.items ?? []
+  const totalCount = anomaliesQuery.data?.totalCount ?? 0
 
   const stats = useMemo(
     () => ({
@@ -283,21 +291,6 @@ function AnomaliesPage() {
     }),
     [statsQuery.data],
   )
-
-  const filteredAnomalies = useMemo(() => {
-    const q = query.toLowerCase()
-    return anomalies.filter((item) => {
-      const matchesType =
-        !type ||
-        (type === 'duplicate'
-          ? ['duplicate', 'duplicate_transaction_file'].includes(item?.anomalyType)
-          : item?.anomalyType === type)
-      const titleText = item?.title?.toLowerCase() || ''
-      const descriptionText = item?.description?.toLowerCase() || ''
-      const matchesSearch = !q || titleText.includes(q) || descriptionText.includes(q)
-      return matchesType && matchesSearch
-    })
-  }, [anomalies, query, type])
 
   const totalAnomalies = useMemo(
     () => Object.values(stats.byStatus || {}).reduce((sum, entry) => sum + Number(entry || 0), 0),
@@ -315,11 +308,6 @@ function AnomaliesPage() {
     },
     [],
   )
-
-  useEffect(() => {
-    if (!deepLinkedAnomalyId) return
-    handleOpenDetails(deepLinkedAnomalyId)
-  }, [deepLinkedAnomalyId, handleOpenDetails])
 
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)
@@ -398,7 +386,7 @@ function AnomaliesPage() {
     } finally {
       setCleanupTarget(null)
     }
-  }, [anomaliesQuery, detailsQuery, queryClient, statsQuery, token])
+  }, [anomaliesQuery, confirm, detailsQuery, notify, queryClient, statsQuery, token])
 
   const handleViewInvoiceItem = useCallback(async (item) => {
     const invoiceId = item?.entityId
@@ -425,7 +413,16 @@ function AnomaliesPage() {
     } finally {
       setViewingInvoiceId(null)
     }
-  }, [token])
+  }, [notify, token])
+
+  const handleChangePage = useCallback((_event, newPage) => {
+    setPage(newPage)
+  }, [])
+
+  const handleChangeRowsPerPage = useCallback((event) => {
+    setRowsPerPage(Number(event.target.value))
+    setPage(0)
+  }, [])
 
   const listLoading = anomaliesQuery.isLoading || anomaliesQuery.isFetching
   const listError = anomaliesQuery.error?.message || ''
@@ -437,12 +434,16 @@ function AnomaliesPage() {
   const resolveBusy = resolveMutation.isPending
   const cleanupBusy = Boolean(cleanupTarget)
 
-  const listContent = getListContent({
-    listLoading,
-    listError,
-    anomalies: filteredAnomalies,
-    onOpenDetails: handleOpenDetails,
-  })
+  let tableContent
+  if (listLoading) {
+    tableContent = <AnomalyTableSkeleton />
+  } else if (listError) {
+    tableContent = <AnomalyTableError message={listError} />
+  } else if (anomalies.length === 0) {
+    tableContent = <AnomalyTableEmpty />
+  } else {
+    tableContent = <AnomalyTableBody anomalies={anomalies} onOpenDetails={handleOpenDetails} />
+  }
 
   const statsCards = [
     {
@@ -480,131 +481,130 @@ function AnomaliesPage() {
       <AnimatedBackground density="low" />
       <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-      <PageHeaderCard
-        title="Anomalies"
-        description="Monitor data quality issues and resolve exception cases quickly."
-      />
+          <PageHeaderCard
+            title="Anomalies"
+            description="Monitor data quality issues and resolve exception cases quickly."
+          />
 
-      <Grid container spacing={2}>
-        {statsLoading
-          ? ['stats-skeleton-1', 'stats-skeleton-2', 'stats-skeleton-3', 'stats-skeleton-4'].map((key) => (
-              <Grid key={key} size={{ xs: 12, sm: 6, md: 3 }}>
-                <Skeleton variant="rectangular" height={130} sx={{ borderRadius: 3 }} />
-              </Grid>
-            ))
-          : statsCards.map((card) => (
-              <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
-                <StatsCard
-                  title={card.title}
-                  value={card.value}
-                  hint={card.hint}
-                  color={card.color}
-                  icon={card.icon}
-                />
-              </Grid>
-            ))}
-      </Grid>
+          <Grid container spacing={2}>
+            {statsLoading
+              ? [0, 1, 2, 3].map((i) => (
+                  <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Skeleton variant="rectangular" height={130} sx={{ borderRadius: 3 }} />
+                  </Grid>
+                ))
+              : statsCards.map((card) => (
+                  <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <StatsCard
+                      title={card.title}
+                      value={card.value}
+                      hint={card.hint}
+                      color={card.color}
+                      icon={card.icon}
+                    />
+                  </Grid>
+                ))}
+          </Grid>
 
-      {statsError ? <Alert severity="warning">{statsError}</Alert> : null}
+          {statsError ? <Alert severity="warning">{statsError}</Alert> : null}
 
-      <Card
-        component={motion.div}
-        variants={itemVariants}
-        elevation={0}
-        sx={{
-          borderRadius: 3.5,
-          border: '1px solid rgba(129, 191, 255, 0.12)',
-          background: 'rgba(14, 24, 45, 0.65)',
-          backdropFilter: 'blur(16px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
-        }}
-      >
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Search title or description"
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              fullWidth
-              slotProps={{
-                input: {
-                  startAdornment: <SearchRoundedIcon fontSize="small" sx={{ mr: 1 }} />,
-                },
-              }}
-            />
+          <GlassCard variant="default" motionProps={{ variants: itemVariants }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2, px: 2, pt: 2 }}>
+              <TextField
+                size="small"
+                placeholder="Search title or description"
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                fullWidth
+                slotProps={{
+                  input: {
+                    startAdornment: <SearchRoundedIcon fontSize="small" sx={{ mr: 1 }} />,
+                  },
+                }}
+              />
 
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-              sx={{ minWidth: 185 }}
-            >
-              {statusOptions.map((option) => (
-                <MenuItem key={option.value || 'all-statuses'} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
+              <TextField
+                select
+                size="small"
+                label="Status"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                sx={{ minWidth: 185 }}
+              >
+                {statusOptions.map((option) => (
+                  <MenuItem key={option.value || 'all-statuses'} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-            <TextField
-              select
-              size="small"
-              label="Type"
-              value={type}
-              onChange={(event) => setType(event.target.value)}
-              sx={{ minWidth: 190 }}
-            >
-              {typeOptions.map((option) => (
-                <MenuItem key={option.value || 'all-types'} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+              <TextField
+                select
+                size="small"
+                label="Type"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+                sx={{ minWidth: 190 }}
+              >
+                {typeOptions.map((option) => (
+                  <MenuItem key={option.value || 'all-types'} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
 
-          {listContent}
-        </CardContent>
-      </Card>
+            {tableContent}
 
-      <AnomalyDetailsModal
-        open={detailsOpen}
-        onClose={closeDetails}
-        selectedAnomaly={selectedAnomaly}
-        loading={detailsLoading}
-        error={detailsError}
-        resolveBusy={resolveBusy}
-        cleanupBusy={cleanupBusy}
-        viewingInvoiceId={viewingInvoiceId}
-        onResolve={handleResolve}
-        onDismiss={handleDismiss}
-        onKeepItem={handleDeleteRelatedItem}
-        onViewInvoice={handleViewInvoiceItem}
-      />
+            {anomalies.length > 0 ? (
+              <TablePagination
+                component="div"
+                count={totalCount}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                sx={{ px: 2 }}
+              />
+            ) : null}
+          </GlassCard>
 
-      <InvoiceVerificationModal
-        key={invoiceModal.file?.id || 'empty-anomaly-invoice'}
-        open={invoiceModal.open}
-        onClose={() => setInvoiceModal({ open: false, file: null })}
-        onSave={() => {}}
-        initialData={invoiceModal.file?.extractedData}
-        fileName={invoiceModal.file?.name}
-        fileType={
-          invoiceModal.file?.sourceInvoice?.fileType ||
-          invoiceModal.file?.sourceInvoice?.file_type ||
-          null
-        }
-        invoiceId={invoiceModal.file?.existingInvoiceId || null}
-        token={token}
-        extractionMethod={
-          invoiceModal.file?.sourceInvoice?.extractionMethod ||
-          invoiceModal.file?.sourceInvoice?.extraction_method
-        }
-        readOnly
-      />
+          <AnomalyDetailsModal
+            open={detailsOpen}
+            onClose={closeDetails}
+            selectedAnomaly={selectedAnomaly}
+            loading={detailsLoading}
+            error={detailsError}
+            resolveBusy={resolveBusy}
+            cleanupBusy={cleanupBusy}
+            viewingInvoiceId={viewingInvoiceId}
+            onResolve={handleResolve}
+            onDismiss={handleDismiss}
+            onKeepItem={handleDeleteRelatedItem}
+            onViewInvoice={handleViewInvoiceItem}
+          />
 
+          <InvoiceVerificationModal
+            key={invoiceModal.file?.id || 'empty-anomaly-invoice'}
+            open={invoiceModal.open}
+            onClose={() => setInvoiceModal({ open: false, file: null })}
+            onSave={() => {}}
+            initialData={invoiceModal.file?.extractedData}
+            fileName={invoiceModal.file?.name}
+            fileType={
+              invoiceModal.file?.sourceInvoice?.fileType ||
+              invoiceModal.file?.sourceInvoice?.file_type ||
+              null
+            }
+            invoiceId={invoiceModal.file?.existingInvoiceId || null}
+            token={token}
+            extractionMethod={
+              invoiceModal.file?.sourceInvoice?.extractionMethod ||
+              invoiceModal.file?.sourceInvoice?.extraction_method
+            }
+            readOnly
+          />
         </Stack>
       </Container>
     </Box>

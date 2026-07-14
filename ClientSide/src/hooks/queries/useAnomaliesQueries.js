@@ -24,20 +24,32 @@ function normalizeAnomalyItem(item) {
 }
 
 /**
- * Fetches a list of anomalies for a company with optional filters.
+ * Fetches a paginated list of anomalies for a company with optional filters and search.
  *
  * @param {Object} params - Query parameters.
  * @param {string|number} params.companyId - Company identifier used to fetch anomalies.
  * @param {string} params.token - Authentication token for the request.
- * @param {Object} [params.filters] - Optional filter values for the anomaly list.
+ * @param {Object} [params.filters] - Optional filter values (status, severity, type).
+ * @param {number} [params.page=1] - Page number (1-based).
+ * @param {number} [params.pageSize=50] - Items per page.
+ * @param {string} [params.searchTerm] - Search title or description.
  * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for the anomaly list.
  */
-export function useAnomaliesListQuery({ companyId, token, filters }) {
+export function useAnomaliesListQuery({ companyId, token, filters, page = 1, pageSize = 50, searchTerm }) {
   return useQuery({
-    queryKey: anomalyKeys.list(companyId, filters),
+    queryKey: anomalyKeys.list(companyId, { ...filters, page, pageSize, searchTerm }),
     queryFn: async () => {
-      const data = await getAnomaliesByCompany(companyId, filters, token)
-      return Array.isArray(data) ? data.map(normalizeAnomalyItem) : []
+      const data = await getAnomaliesByCompany(companyId, { ...filters, page, pageSize, searchTerm }, token)
+      if (data && Array.isArray(data.items)) {
+        return {
+          items: data.items.map(normalizeAnomalyItem),
+          totalCount: data.totalCount ?? 0,
+          pageNumber: data.pageNumber ?? page,
+          pageSize: data.pageSize ?? pageSize,
+          totalPages: data.totalPages ?? 0,
+        }
+      }
+      return { items: [], totalCount: 0, pageNumber: page, pageSize, totalPages: 0 }
     },
     enabled: Boolean(companyId) && Boolean(token),
   })

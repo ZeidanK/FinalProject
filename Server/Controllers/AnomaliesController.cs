@@ -1,3 +1,4 @@
+using System.Linq;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
@@ -24,25 +25,36 @@ namespace FinalProjectAuthAPI.Controllers
             _realtime = realtime;
         }
 
-        // GET api/anomalies/company/{companyId}?status=&severity=&type=
+        // GET api/anomalies/company/{companyId}?status=&severity=&type=&searchTerm=&page=1&pageSize=50
         [HttpGet("company/{companyId:long}")]
         public IActionResult GetByCompany(
             long companyId,
             [FromQuery] string? status,
             [FromQuery] string? severity,
-            [FromQuery] string? type)
+            [FromQuery] string? type,
+            [FromQuery] string? searchTerm,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             if (!CanAccessCompany(companyId, _db))
                 return Forbid();
 
-            var data = _svc.GetByCompany(companyId, status, severity, type);
-            var legacy = new
+            var allData = _svc.GetByCompany(companyId, status, severity, type, searchTerm);
+            var totalCount = allData?.Count ?? 0;
+            var pagedItems = allData?
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList() ?? new List<AnomalyRow>();
+
+            var response = new PagedResponse<AnomalyRow>
             {
-                items = data,
-                totalCount = data?.Count ?? 0
+                Items = pagedItems,
+                TotalCount = totalCount,
+                PageNumber = page,
+                PageSize = pageSize,
             };
 
-            return SuccessWithLegacy(data, legacy, "Anomalies retrieved.");
+            return SuccessWithLegacy(response, response, "Anomalies retrieved.");
         }
 
         // GET api/anomalies/{id}
