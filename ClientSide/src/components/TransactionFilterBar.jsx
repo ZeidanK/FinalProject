@@ -3,6 +3,7 @@ import {
   Box, Button, CircularProgress, FormControl, InputAdornment, InputLabel,
   MenuItem, Select, Stack, TextField, Typography,
 } from '@mui/material'
+import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
@@ -20,6 +21,8 @@ export default function TransactionFilterBar({
   selectedCount,
   bulkDeleting,
   onBulkDelete,
+  onDeleteAll,
+  deletingAll,
   onExport,
   totalCount,
   loading,
@@ -85,6 +88,16 @@ export default function TransactionFilterBar({
         </Button>
         <Button
           size="small"
+          color="error"
+          variant="contained"
+          startIcon={deletingAll ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : <DeleteForeverRoundedIcon />}
+          onClick={onDeleteAll}
+          disabled={totalCount === 0 || deletingAll}
+        >
+          {deletingAll ? 'Deleting...' : 'Delete All'}
+        </Button>
+        <Button
+          size="small"
           variant="outlined"
           startIcon={<DownloadRoundedIcon />}
           onClick={onExport}
@@ -109,6 +122,8 @@ TransactionFilterBar.propTypes = {
   selectedCount: PropTypes.number,
   bulkDeleting: PropTypes.bool,
   onBulkDelete: PropTypes.func.isRequired,
+  onDeleteAll: PropTypes.func.isRequired,
+  deletingAll: PropTypes.bool,
   onExport: PropTypes.func.isRequired,
   totalCount: PropTypes.number,
   loading: PropTypes.bool,

@@ -125,6 +125,22 @@ export async function bulkDeleteTransactions(ids, token) {
  * @returns {Promise<any>} Unwrapped response payload from the preview endpoint.
  */
 /**
+ * Delete all transactions for a company.
+ *
+ * @param {string|number} companyId - Company identifier.
+ * @param {string} token - JWT token for authorization.
+ * @returns {Promise<any>} Unwrapped response payload from the delete all endpoint.
+ */
+export async function deleteAllTransactionsByCompany(companyId, token) {
+  const response = await apiRequest(URLS.transactions.deleteAll(companyId), {
+    method: 'DELETE',
+    token,
+  })
+
+  return unwrapEnvelope(response)
+}
+
+/**
  * Set whether a transaction requires an invoice match.
  *
  * @param {string|number} id - Transaction identifier.

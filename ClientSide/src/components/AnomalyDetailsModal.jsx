@@ -77,7 +77,7 @@ function InfoCard({ label, value }) {
     <Paper
       variant="outlined"
       sx={{
-        p: 1.5,
+        p: 1.25,
         borderRadius: 2,
         bgcolor: 'rgba(255,255,255,0.02)',
         borderColor: 'divider',
@@ -130,13 +130,13 @@ function AnomalyHero({ data }) {
     <Paper
       variant="outlined"
       sx={{
-        p: 2.5,
+        p: 2,
         borderRadius: 3,
         background: 'linear-gradient(135deg, rgba(129, 191, 255, 0.08) 0%, rgba(129, 191, 255, 0.02) 100%)',
         borderColor: 'rgba(129, 191, 255, 0.15)',
       }}
     >
-      <Stack spacing={1.5}>
+      <Stack spacing={1}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" flexWrap="wrap" gap={1}>
           <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
             {data.title || 'Untitled anomaly'}
@@ -182,10 +182,10 @@ function RelatedRecordsSection({ relatedItems, canCleanup, cleanupBusy, viewingI
         <Typography variant="subtitle2" sx={{ mb: 0.8 }}>
           Related Records
         </Typography>
-        <Stack spacing={0.6}>
+        <Grid container spacing={0.6}>
           {relatedItems.map((item, index) => (
+            <Grid key={`${item.itemType || 'item'}-${item.entityId || index}`} size={{ xs: 12, md: relatedItems.length === 1 ? 12 : 6 }}>
             <Box
-              key={`${item.itemType || 'item'}-${item.entityId || index}`}
               sx={{
                 minWidth: 0,
                 px: 1,
@@ -229,8 +229,7 @@ function RelatedRecordsSection({ relatedItems, canCleanup, cleanupBusy, viewingI
                     variant="text"
                     startIcon={<TaskAltRoundedIcon fontSize="small" />}
                     disabled={
-                      cleanupBusy ||
-                      (item.itemType === 'invoice' && false)
+                      cleanupBusy
                     }
                     onClick={() => onKeepItem(item)}
                   >
@@ -239,8 +238,9 @@ function RelatedRecordsSection({ relatedItems, canCleanup, cleanupBusy, viewingI
                 </Stack>
               ) : null}
             </Box>
+            </Grid>
           ))}
-        </Stack>
+        </Grid>
       </CardContent>
     </Card>
   )
@@ -257,9 +257,9 @@ RelatedRecordsSection.propTypes = {
 
 function AnomalySkeleton() {
   return (
-    <Stack spacing={2} sx={{ mt: 2 }}>
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, borderColor: 'divider' }}>
-        <Stack spacing={1.5}>
+    <Stack spacing={2} sx={{ mt: 1 }}>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, borderColor: 'divider' }}>
+        <Stack spacing={1}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
             <Skeleton variant="rounded" width={220} height={32} />
             <Stack direction="row" spacing={0.5}>
@@ -268,13 +268,12 @@ function AnomalySkeleton() {
             </Stack>
           </Stack>
           <Skeleton variant="rounded" width="100%" height={20} />
-          <Skeleton variant="rounded" width="60%" height={16} />
         </Stack>
       </Paper>
       <Grid container spacing={2}>
-        {[0, 1, 2].map((i) => (
-          <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
-            <Skeleton variant="rounded" height={64} />
+        {[0, 1, 2, 3].map((i) => (
+          <Grid key={i} size={{ xs: 6, md: 3 }}>
+            <Skeleton variant="rounded" height={56} />
           </Grid>
         ))}
       </Grid>
@@ -367,7 +366,7 @@ export default function AnomalyDetailsModal({
     <ModalShell
       open={open}
       onClose={actionsDisabled ? undefined : onClose}
-      maxWidth="sm"
+      maxWidth="md"
       title={(
         <Stack spacing={0.5}>
           <Typography variant="h6">Anomaly Details</Typography>
@@ -410,7 +409,7 @@ export default function AnomalyDetailsModal({
           ) : null}
         </>
       )}
-      contentSx={{ py: 2 }}
+      contentSx={{ py: 1.5 }}
     >
       {loading ? <AnomalySkeleton /> : null}
 
@@ -423,7 +422,7 @@ export default function AnomalyDetailsModal({
       ) : null}
 
       {selectedAnomaly && !loading ? (
-        <Stack spacing={3} sx={{ mt: 2 }}>
+        <Stack spacing={2.5} sx={{ mt: 1 }}>
           <AnomalyHero data={selectedAnomaly} />
 
           <SectionDivider label="Details" />
@@ -482,17 +481,21 @@ export default function AnomalyDetailsModal({
             <TextField
               fullWidth
               multiline
-              minRows={3}
+              minRows={2}
               label="Resolution Notes"
               error={Boolean(errors.resolutionNotes?.message)}
               helperText={errors.resolutionNotes?.message || ' '}
               {...resolutionNotesProps}
             />
           ) : (
-            <Stack spacing={1}>
-              <InfoCard label="Resolved At" value={fmtDate(selectedAnomaly.resolvedAt)} />
-              <InfoCard label="Resolution Notes" value={selectedAnomaly.resolutionNotes || '—'} />
-            </Stack>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <InfoCard label="Resolved At" value={fmtDate(selectedAnomaly.resolvedAt)} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <InfoCard label="Resolution Notes" value={selectedAnomaly.resolutionNotes || '—'} />
+              </Grid>
+            </Grid>
           )}
         </Stack>
       ) : null}

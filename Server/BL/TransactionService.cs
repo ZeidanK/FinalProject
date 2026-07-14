@@ -169,6 +169,19 @@ namespace FinalProjectAuthAPI.BL
             return result;
         }
 
+        public int DeleteAllByCompany(long companyId)
+        {
+            if (companyId <= 0)
+                return 0;
+
+            var allIds = _db.GetTransactionIdsByCompany(companyId);
+            if (allIds.Count == 0)
+                return 0;
+
+            var (deletedIds, _) = BulkDelete(allIds);
+            return deletedIds.Count;
+        }
+
         private void TryCleanupFileUpload(long fileUploadId)
         {
             var remaining = _db.CountTransactionsByFileUploadId(fileUploadId);

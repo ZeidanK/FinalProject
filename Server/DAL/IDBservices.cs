@@ -54,6 +54,7 @@ namespace FinalProjectAuthAPI.DAL
         List<long> BulkCreateTransactions(long companyId, long? createdByUserId, IEnumerable<TransactionInsertData> rows, long? fileUploadId = null);
         bool DeleteTransaction(long id);
         (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteTransactions(IEnumerable<long> ids);
+        List<long> GetTransactionIdsByCompany(long companyId);
         int CountTransactionsByFileUploadId(long fileUploadId);
         List<TransactionRow> GetTransactionsByFileUploadIds(List<long> fileUploadIds);
         bool SetTransactionRequiresInvoice(long id, bool requiresInvoice);

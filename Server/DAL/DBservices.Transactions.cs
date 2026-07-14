@@ -198,6 +198,25 @@ namespace FinalProjectAuthAPI.DAL
             return (deletedIds, notFoundIds);
         }
 
+        public virtual List<long> GetTransactionIdsByCompany(long companyId)
+        {
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            var ids = new List<long>();
+            try
+            {
+                con = Connect();
+                using var cmd = new SqlCommand(
+                    "SELECT id FROM dbo.FP26_transactions WHERE company_id = @CompanyId", con);
+                cmd.Parameters.AddWithValue("@CompanyId", companyId);
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                    ids.Add(Convert.ToInt64(reader[0]));
+                return ids;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static TransactionRow MapTransaction(SqlDataReader r) => new()

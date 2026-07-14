@@ -142,6 +142,22 @@ namespace FinalProjectAuthAPI.Controllers
             });
         }
 
+        // DELETE api/transactions/company/{companyId}
+        [HttpDelete("company/{companyId:long}")]
+        public IActionResult DeleteAllByCompany(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
+            var deletedCount = _svc.DeleteAllByCompany(companyId);
+
+            return Ok(new
+            {
+                deletedCount,
+                message = $"Deleted {deletedCount} transaction(s)."
+            });
+        }
+
         // POST api/transactions/preview-excel
         [HttpPost("preview-excel")]
         public async Task<IActionResult> PreviewExcel(

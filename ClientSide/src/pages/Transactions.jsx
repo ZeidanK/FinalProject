@@ -18,7 +18,7 @@ import { useCompany } from '../context/useCompany'
 import { useNotification } from '../context/useNotification'
 import { useConfirm } from '../components/ConfirmContext'
 import {
-  bulkDeleteTransactions, deleteTransaction, getTransactionById,
+  bulkDeleteTransactions, deleteAllTransactionsByCompany, deleteTransaction, getTransactionById,
   getTransactionsByCompany, importExcelTransactions, setRequiresInvoice,
 } from '../services/transactions'
 import { getUploadJobStatus } from '../services/uploadJobs'
@@ -72,6 +72,7 @@ function TransactionsPage() {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState([])
   const [deletingTransactionIds, setDeletingTransactionIds] = useState([])
   const [bulkDeletingTransactions, setBulkDeletingTransactions] = useState(false)
+  const [deletingAllTransactions, setDeletingAllTransactions] = useState(false)
 
   const filters = useMemo(() => ({
     type: typeFilter !== 'all' ? typeFilter : undefined,
@@ -210,6 +211,24 @@ function TransactionsPage() {
       setBulkDeletingTransactions(false)
     }
   }, [selectedTransactionIds, token, queryClient, activeCompanyId, confirm, notify])
+
+  const handleDeleteAllTransactions = useCallback(async () => {
+    if (!totalCount || totalCount === 0) return
+    const confirmed = await confirm(`Delete ALL ${totalCount} transaction(s) for this company? This action cannot be undone.`)
+    if (!confirmed) return
+    setDeletingAllTransactions(true)
+    try {
+      const response = await deleteAllTransactionsByCompany(activeCompanyId, token)
+      const deletedCount = response?.deletedCount ?? totalCount
+      setSelectedTransactionIds([])
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
+      notify({ message: `Deleted ${deletedCount} transaction(s).`, severity: 'success' })
+    } catch (err) {
+      notify({ message: err.message || 'Failed to delete all transactions.', severity: 'error' })
+    } finally {
+      setDeletingAllTransactions(false)
+    }
+  }, [activeCompanyId, token, queryClient, confirm, notify, totalCount])
 
   const handleToggleRequiresInvoice = useCallback(async (tx, newValue) => {
     const id = tx.id ?? tx.transactionId
@@ -382,6 +401,8 @@ function TransactionsPage() {
                     selectedCount={selectedTransactionIds.length}
                     bulkDeleting={bulkDeletingTransactions}
                     onBulkDelete={handleBulkDeleteTransactions}
+                    onDeleteAll={handleDeleteAllTransactions}
+                    deletingAll={deletingAllTransactions}
                     onExport={handleExport}
                     totalCount={totalCount}
                     loading={listLoading}
