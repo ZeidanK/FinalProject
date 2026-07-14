@@ -17,7 +17,9 @@ import {
   Typography,
 } from '@mui/material'
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
+import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
 import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
@@ -25,7 +27,13 @@ import DataSaverOnRoundedIcon from '@mui/icons-material/DataSaverOnRounded'
 import { AnimatePresence, motion } from 'framer-motion'
 import AnimatedBackground from '../components/AnimatedBackground'
 import RevealOnScroll from '../components/RevealOnScroll'
-import PageHeaderCard from '../components/PageHeaderCard'
+import DataTable from '../components/DataTable'
+import SuggestionsTable from '../components/SuggestionsTable'
+import MatchActionBarEnhanced from '../components/MatchActionBarEnhanced'
+import MatchDetailsModal from '../components/MatchDetailsModal'
+import UndoSnackbar from '../components/UndoSnackbar'
+import AutoMatchPreviewModal from '../components/AutoMatchPreviewModal'
+import MatchComparisonPanel from '../components/MatchComparisonPanel'
 import StatsCards from '../components/StatsCards'
 import CollapsibleSection from '../components/CollapsibleSection'
 import MatchActionBar from '../components/MatchActionBar'
@@ -111,7 +119,7 @@ const TRX_COLUMNS = [
   { key: 'vendor', label: 'Vendor', sortable: true, render: (r) => r.vendor_name || r.vendorName || r.description || `#${r.id}`, minWidth: 120 },
   { key: 'amount', label: 'Amount', sortable: true, render: (r) => fmtAmount(r.chargeAmount ?? r.charge_amount ?? r.amount ?? 0), minWidth: 90 },
   { key: 'date', label: 'Date', sortable: true, render: (r) => fmtDate(r.transaction_date || r.transactionDate), minWidth: 90 },
-  { key: 'type', label: 'Type', sortable: true, render: (r) => r.type || r.transaction_type || '', minWidth: 70 },
+  { key: 'type', label: 'Type', sortable: true, render: (r) => r.type || r.transaction_type || r.transactionType || '\u2014', minWidth: 70 },
 ]
 
 function MatchesPage() {
@@ -356,8 +364,8 @@ function MatchesPage() {
       const result = await autoMatchMutation.mutateAsync({ minConfidence: 70 })
       const items = result?.matchDetails || result?.suggestionsForReview || []
       setAutoPreviewData(Array.isArray(items) ? items.map((item) => ({
-        invoice: { id: item.invoiceId, invoice_number: item.invoiceNumber, total_amount: item.invoiceAmount },
-        transaction: { id: item.transactionId, description: item.transactionDescription, amount: item.transactionAmount },
+        invoice: { id: item.invoiceId, invoice_number: item.invoiceNumber, total_amount: item.invoiceAmount, invoice_date: item.invoiceDate },
+        transaction: { id: item.transactionId, description: item.transactionDescription, amount: item.transactionAmount, transaction_date: item.transactionDate },
         confidence: item.matchScore ?? item.matchConfidence ?? 0.7,
         amount: item.matchedAmount ?? item.invoiceAmount,
       })) : [])
@@ -428,19 +436,19 @@ function MatchesPage() {
         <AnimatedBackground density="low" />
         <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
           <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-            <PageHeaderCard
-              title="Matches"
-              description="Match invoices to bank transactions for reconciliation."
-              onRefresh={loadData}
-              refreshDisabled={loading}
-              variants={itemVariants}
-            />
+            <Stack component={motion.div} variants={itemVariants} direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack spacing={0.5}>
+                <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '1.9rem' } }}>Matches</Typography>
+                <Typography color="text.secondary">Match invoices to bank transactions for reconciliation. Select one invoice and one transaction, then create a match.</Typography>
+              </Stack>
+              <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={loadData} disabled={loading}>Refresh</Button>
+            </Stack>
 
             <StatsCards
               unmatchedInvoices={invoices.length}
-              unmatchedTransactions={invoiceTransactions.length}
+              unmatchedTransactions={table.filteredTransactions.length}
               totalMatches={matches.length}
-              totalMatchedFormatted={fmtAmount(totalMatchedAmount)}
+              totalMatchedFormatted={fmtAmount(table.totalMatchedAmount)}
             />
 
             {error && <Alert severity="error" variant="outlined" onClose={() => setError('')} action={<Button color="inherit" size="small" onClick={loadData}>Retry</Button>}>{error}</Alert>}
@@ -569,7 +577,7 @@ function MatchesPage() {
                     </Tooltip>
                     <Tooltip title="Unmatch">
                       <IconButton size="small" aria-label="Unmatch" onClick={(e) => { e.stopPropagation(); confirmUnmatch(row.id) }} sx={{ color: 'error.main' }}>
-                        <CheckCircleRoundedIcon fontSize="small" />
+                        <LinkOffRoundedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   </Stack>

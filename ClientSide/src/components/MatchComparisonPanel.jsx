@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/material'
 import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded'
-import { fmtAmount, fmtDate } from '../utils/formatters'
+import { fmtAmount, fmtCurrency, fmtDate } from '../utils/formatters'
 
 function FieldRow({ label, invValue, trxValue, format }) {
   const formattedInv = format ? format(invValue) : (invValue ?? '\u2014')
@@ -61,17 +61,19 @@ FieldRow.propTypes = {
   format: PropTypes.func,
 }
 
-const fields = [
-  { label: 'Vendor', invKey: 'vendor_name', invAlt: 'vendorName', trxKey: 'vendor_name', trxAlt: 'vendorName' },
-  { label: 'Amount', invKey: 'total_amount', invAlt: 'totalAmount', trxKey: 'charge_amount', trxAlt: 'chargeAmount', format: fmtAmount },
-  { label: 'Date', invKey: 'invoice_date', invAlt: 'invoiceDate', trxKey: 'transaction_date', trxAlt: 'transactionDate', format: fmtDate },
-  { label: 'Card', invKey: 'last_four_digits_card', invAlt: 'lastFourDigitsCard', trxKey: 'card_last4', trxAlt: 'cardLast4' },
-]
-
 const readField = (obj, snake, camel) => (obj ? (obj[snake] ?? obj[camel] ?? undefined) : undefined)
 
 export default function MatchComparisonPanel({ invoice, transaction, sx }) {
   if (!invoice || !transaction) return null
+
+  const invCurrency = readField(invoice, 'currency', 'currency') || 'USD'
+  const fields = [
+    { label: 'Vendor', invKey: 'vendor_name', invAlt: 'vendorName', trxKey: 'vendor_name', trxAlt: 'vendorName' },
+    { label: 'Amount', invKey: 'total_amount', invAlt: 'totalAmount', trxKey: 'charge_amount', trxAlt: 'chargeAmount', format: (v) => fmtCurrency(v, invCurrency) },
+    { label: 'Currency', invKey: 'currency', invAlt: 'currency', trxKey: 'charge_currency', trxAlt: 'chargeCurrency' },
+    { label: 'Date', invKey: 'invoice_date', invAlt: 'invoiceDate', trxKey: 'transaction_date', trxAlt: 'transactionDate', format: fmtDate },
+    { label: 'Card', invKey: 'last_four_digits_card', invAlt: 'lastFourDigitsCard', trxKey: 'card_last4', trxAlt: 'cardLast4' },
+  ]
 
   return (
     <Paper

@@ -1507,24 +1507,24 @@ function InvoicesPage() {
   const pendingFiles = files.filter((f) => f.status !== 'verified')
 
   const invoiceColumns = [
-    { key: 'invoiceNumber', label: 'Invoice #', sortable: true, getValue: (row) => row.invoice_number || row.invoiceNumber || '—', render: (val) => <Typography variant="body2" fontWeight={600}>{val}</Typography> },
+    { key: 'invoiceNumber', label: 'Invoice #', sortable: true, render: (r) => <Typography variant="body2" fontWeight={600}>{r.invoice_number || r.invoiceNumber || '—'}</Typography> },
     { key: 'vendor', label: 'Vendor', sortable: true, getValue: (row) => row.vendor_name || row.vendorName || '—' },
     { key: 'date', label: 'Date', sortable: true,     getValue: (row) => fmtDate(row.invoice_date || row.invoiceDate) },
     { key: 'total', label: 'Total', align: 'right', sortable: true, getValue: (row) => (row.total_amount ?? row.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     { key: 'currency', label: 'Currency', align: 'center', sortable: true, getValue: (row) => row.currency || 'USD' },
-    { key: 'status', label: 'Status', align: 'center', sortable: true, render: (val, row) => <Chip label={row.status || 'uploaded'} size="small" color={statusColors[row.status] || 'default'} variant="outlined" /> },
+    { key: 'status', label: 'Status', align: 'center', sortable: true, render: (r) => <Chip label={r.status || 'uploaded'} size="small" color={statusColors[r.status] || 'default'} variant="outlined" /> },
     {
       key: 'confidence',
       label: 'Confidence',
       align: 'center',
       sortable: true,
-      getValue: (row) => {
-        const confidence = Number(row.ai_extraction_confidence ?? row.aiExtractionConfidence)
-        return Number.isFinite(confidence) ? confidence : null
+      render: (r) => {
+        const confidence = Number(r.ai_extraction_confidence ?? r.aiExtractionConfidence)
+        const value = Number.isFinite(confidence) ? confidence : null
+        return value == null
+          ? <Typography variant="body2" color="text.secondary">—</Typography>
+          : <Chip label={confidenceLabel(value)} size="small" color={confidenceColor(value)} variant="outlined" />
       },
-      render: (value) => value == null
-        ? <Typography variant="body2" color="text.secondary">—</Typography>
-        : <Chip label={confidenceLabel(value)} size="small" color={confidenceColor(value)} variant="outlined" />,
     },
   ]
 

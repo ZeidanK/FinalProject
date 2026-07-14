@@ -107,7 +107,7 @@ export default function DataTable({
 
         <TableContainer sx={{ maxHeight: 480, borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
           <Table size="small" stickyHeader>
-            <TableHead>
+            <TableHead sx={{ bgcolor: 'rgba(14,24,45,0.9)' }}>
               <TableRow>
                 {columns.map((col) => (
                   <TableCell

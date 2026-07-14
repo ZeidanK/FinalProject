@@ -89,9 +89,8 @@ describe('MatchesPage', () => {
     mockInvoicesQuery = { ...mockInvoicesQuery, data: sampleInvoices }
     mockTransactionsQuery = { ...mockTransactionsQuery, data: { items: sampleTransactions } }
     renderPage()
-    expect(await screen.findByText('Unmatched Invoices')).toBeInTheDocument()
-    expect(screen.getByText('Unmatched Transactions')).toBeInTheDocument()
-    expect(screen.getByText('INV-010')).toBeInTheDocument()
+    expect(await screen.findByText('INV-010')).toBeInTheDocument()
+    expect(screen.getAllByText('Unmatched Transactions').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Vendor Z')).toBeInTheDocument()
   })
 
