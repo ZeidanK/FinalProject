@@ -28,6 +28,11 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
+import EmailRoundedIcon from '@mui/icons-material/EmailRounded'
+import PhoneRoundedIcon from '@mui/icons-material/PhoneRounded'
+import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded'
+import LanguageRoundedIcon from '@mui/icons-material/LanguageRounded'
 import { motion } from 'framer-motion'
 import AnimatedBackground from '../components/AnimatedBackground'
 import SectionHeader from '../components/SectionHeader'
@@ -73,6 +78,7 @@ export default function AccountantWorkspace() {
   const [loadingRequests, setLoadingRequests] = useState(true)
   const [requestsError, setRequestsError] = useState(null)
   const [respondingId, setRespondingId] = useState(null)
+  const [showDetails, setShowDetails] = useState({})
 
   // ── Companies state ────────────────────────────────────────
   const [companies, setCompanies] = useState([])
@@ -209,6 +215,10 @@ export default function AccountantWorkspace() {
     } finally {
       setRespondingId(null)
     }
+  }
+
+  const toggleDetails = (id) => {
+    setShowDetails((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
   const confirmDisconnect = (company) => {
@@ -374,7 +384,27 @@ export default function AccountantWorkspace() {
                         {new Date(req.createdAt).toLocaleDateString('en-GB')}
                       </Typography>
                     </Stack>
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Button
+                        size="small"
+                        variant="text"
+                        color="info"
+                        onClick={() => toggleDetails(req.id)}
+                        sx={{ textTransform: 'none', minWidth: 0 }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                            {showDetails[req.id] ? 'Hide' : 'View'} details
+                          </Typography>
+                          <ExpandMoreRoundedIcon
+                            sx={{
+                              fontSize: 18,
+                              transition: 'transform 0.2s',
+                              transform: showDetails[req.id] ? 'rotate(180deg)' : 'rotate(0deg)',
+                            }}
+                          />
+                        </Stack>
+                      </Button>
                       <Button
                         size="small"
                         variant="contained"
@@ -409,6 +439,82 @@ export default function AccountantWorkspace() {
                       </Button>
                     </Stack>
                   </Stack>
+
+                  <Collapse in={showDetails[req.id]} timeout="auto" unmountOnExit>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        pt: 2,
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Stack spacing={1.5}>
+                        <Box>
+                          <Typography variant="caption" fontWeight={700} color="primary.light" sx={{ mb: 0.5, display: 'block' }}>
+                            Owner Information
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <EmailRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {req.ownerEmail || 'N/A'}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <PhoneRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {req.ownerPhone || 'N/A'}
+                              </Typography>
+                            </Stack>
+                          </Stack>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="caption" fontWeight={700} color="primary.light" sx={{ mb: 0.5, display: 'block' }}>
+                            Company Information
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <EmailRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {req.companyEmail || 'N/A'}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <PhoneRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {req.companyPhone || 'N/A'}
+                              </Typography>
+                            </Stack>
+                            {(req.companyStreet || req.companyCity) && (
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <LanguageRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {[req.companyStreet, req.companyCity, req.companyState, req.companyCountry].filter(Boolean).join(', ')}
+                                </Typography>
+                              </Stack>
+                            )}
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <BadgeRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">
+                                Reg: {req.companyRegistrationNumber || 'N/A'}
+                                {req.companyTaxId ? ` | Tax ID: ${req.companyTaxId}` : ''}
+                              </Typography>
+                            </Stack>
+                            {req.companyWebsite && (
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <LanguageRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {req.companyWebsite}
+                                </Typography>
+                              </Stack>
+                            )}
+                          </Stack>
+                        </Box>
+                      </Stack>
+                    </Box>
+                  </Collapse>
                 </Box>
               ))}
             </Stack>

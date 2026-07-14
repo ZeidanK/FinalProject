@@ -304,6 +304,18 @@ namespace FinalProjectAuthAPI.DAL
                                                ? Convert.ToInt64(reader["requested_by_user_id"])
                                                : 0,
                         RequestedByName   = reader["requested_by_name"]?.ToString() ?? "Unknown",
+                        OwnerEmail        = reader.GetStringOrNull("owner_email"),
+                        OwnerPhone        = reader.GetStringOrNull("owner_phone"),
+                        OwnerProfilePicture = reader.GetStringOrNull("owner_profile_picture"),
+                        CompanyEmail      = reader.GetStringOrNull("company_email"),
+                        CompanyPhone      = reader.GetStringOrNull("company_phone"),
+                        CompanyStreet     = reader.GetStringOrNull("company_street"),
+                        CompanyCity       = reader.GetStringOrNull("company_city"),
+                        CompanyState      = reader.GetStringOrNull("company_state"),
+                        CompanyCountry    = reader.GetStringOrNull("company_country"),
+                        CompanyRegistrationNumber = reader.GetStringOrNull("company_registration_number"),
+                        CompanyTaxId      = reader.GetStringOrNull("company_tax_id"),
+                        CompanyWebsite    = reader.GetStringOrNull("company_website"),
                         CreatedAt         = Convert.ToDateTime(reader["created_at"]),
                         Status            = reader["status"]?.ToString() ?? "pending",
                     });

@@ -46,6 +46,23 @@ namespace FinalProjectAuthAPI.Models
         public string CompanyName { get; set; } = string.Empty;
         public long RequestedByUserId { get; set; }
         public string RequestedByName { get; set; } = string.Empty;
+
+        // Owner details
+        public string? OwnerEmail { get; set; }
+        public string? OwnerPhone { get; set; }
+        public string? OwnerProfilePicture { get; set; }
+
+        // Company details
+        public string? CompanyEmail { get; set; }
+        public string? CompanyPhone { get; set; }
+        public string? CompanyStreet { get; set; }
+        public string? CompanyCity { get; set; }
+        public string? CompanyState { get; set; }
+        public string? CompanyCountry { get; set; }
+        public string? CompanyRegistrationNumber { get; set; }
+        public string? CompanyTaxId { get; set; }
+        public string? CompanyWebsite { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = "pending";
     }
