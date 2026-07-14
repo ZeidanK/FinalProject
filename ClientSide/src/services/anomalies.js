@@ -3,16 +3,29 @@ import { apiRequest } from './httpClient'
 import { unwrapEnvelope } from './unwrapEnvelope'
 
 /**
- * Fetch anomalies for a specific company.
+ * Fetch anomalies for a specific company with optional pagination, filters, and search.
  *
  * @param {string|number} companyId - Company identifier.
- * @param {object} [filters={}] - Optional query filters.
+ * @param {object} [params={}] - Query parameters.
+ * @param {number} [params.page=1] - Page number (1-based).
+ * @param {number} [params.pageSize=50] - Items per page.
+ * @param {string} [params.status] - Filter by status.
+ * @param {string} [params.severity] - Filter by severity.
+ * @param {string} [params.type] - Filter by anomaly type.
+ * @param {string} [params.searchTerm] - Search title or description.
  * @param {string} token - JWT token used for authorization.
- * @returns {Promise<any>} Unwrapped response payload from the anomalies endpoint.
+ * @returns {Promise<{items: Array, totalCount: number, pageNumber: number, pageSize: number, totalPages: number}>}
  */
-export async function getAnomaliesByCompany(companyId, filters = {}, token) {
+export async function getAnomaliesByCompany(companyId, params = {}, token) {
   const response = await apiRequest(URLS.anomalies.byCompany(companyId), {
-    query: filters,
+    query: {
+      page: params.page,
+      pageSize: params.pageSize,
+      status: params.status,
+      severity: params.severity,
+      type: params.type,
+      searchTerm: params.searchTerm,
+    },
     token,
   })
 

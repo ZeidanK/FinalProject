@@ -178,7 +178,7 @@ function TransactionsPage() {
     setDeletingTransactionIds((prev) => [...prev, transactionId])
     try {
       await deleteTransaction(transactionId, token)
-      queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
       setSelectedTransactionIds((prev) => prev.filter((id) => id !== transactionId))
       notify({ message: 'Transaction deleted successfully.', severity: 'success' })
     } catch (err) {
@@ -198,7 +198,7 @@ function TransactionsPage() {
       const deletedIds = Array.isArray(response?.deletedIds) ? response.deletedIds : selectedTransactionIds
       const notFoundIds = Array.isArray(response?.notFoundIds) ? response.notFoundIds : []
       setSelectedTransactionIds((prev) => prev.filter((id) => !deletedIds.includes(id)))
-      queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
       if (notFoundIds.length > 0) {
         notify({ message: `Deleted ${deletedIds.length} transaction(s). ${notFoundIds.length} were not found.`, severity: 'warning' })
       } else {
@@ -215,7 +215,7 @@ function TransactionsPage() {
     const id = tx.id ?? tx.transactionId
     try {
       await setRequiresInvoice(id, newValue, token)
-      queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
     } catch (err) {
       notify({ message: err.message || 'Failed to update transaction classification.', severity: 'error' })
     }
@@ -285,7 +285,7 @@ function TransactionsPage() {
 
       if (totalImported > 0) {
         notify({ message: `Successfully imported ${totalImported} transaction(s).`, severity: 'success' })
-        queryClient.invalidateQueries({ queryKey: transactionKeys.byCompany(activeCompanyId) })
+        queryClient.invalidateQueries({ queryKey: ['transactions', 'company', activeCompanyId] })
       } else if (excelFiles.length > 0) {
         notify({ message: `${excelFiles.length} Excel file(s) queued for import — you can leave this page, we'll keep processing.`, severity: 'info' })
       }

@@ -1,18 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
-import { useForm } from 'react-hook-form'
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Grid,
   MenuItem,
   Skeleton,
@@ -22,6 +15,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -32,13 +26,14 @@ import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded'
 import DoNotDisturbOnRoundedIcon from '@mui/icons-material/DoNotDisturbOnRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
-import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import PageHeaderCard from '../components/PageHeaderCard'
 import AnimatedBackground from '../components/AnimatedBackground'
+import GlassCard from '../components/GlassCard'
+import AnomalyDetailsModal from '../components/AnomalyDetailsModal'
 import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -52,15 +47,10 @@ import {
 import { keepDuplicateInvoice } from '../services/anomalies'
 import { getInvoiceById } from '../services/invoices'
 import { invoiceKeys } from '../queries/queryKeys'
-import { resolveAnomalySchema } from '../schemas/anomalies'
 import { mapSavedInvoiceToForm } from '../utils/invoiceExtraction'
 import { containerVariants, itemVariants } from '../utils/motionVariants'
 import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
 
-/**
- * Maps anomaly statuses to Material UI chip color variants.
- * @type {{[key: string]: string}}
- */
 const statusColors = {
   open: 'warning',
   resolved: 'success',
@@ -73,10 +63,6 @@ const statusLabels = {
   dismissed: 'Dismissed',
 }
 
-/**
- * Dropdown options used to filter anomalies by status.
- * @type {{value: string, label: string}[]}
- */
 const statusOptions = [
   { value: '', label: 'All statuses' },
   { value: 'open', label: 'Unresolved' },
@@ -84,10 +70,6 @@ const statusOptions = [
   { value: 'dismissed', label: 'Dismissed' },
 ]
 
-/**
- * Dropdown options used to filter anomalies by anomaly type.
- * @type {{value: string, label: string}[]}
- */
 const typeOptions = [
   { value: '', label: 'All types' },
   { value: 'amount_mismatch', label: 'Amount Mismatch' },
@@ -96,24 +78,8 @@ const typeOptions = [
   { value: 'missing_link', label: 'Missing Link' },
 ]
 
-/**
- * Formats a numeric amount for display with two decimal places.
- * @param {*} value - The value to format.
- * @returns {string} Formatted amount or an em dash when no value is available.
- */
-const fmtAmount = (value) => {
-  if (value === null || value === undefined) return '—'
-  return Number(value).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
+const ROWS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 
-/**
- * Formats a date value into the user's locale string.
- * @param {*} value - The date input to format.
- * @returns {string} Localized date string or an em dash when invalid.
- */
 const fmtDate = (value) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -121,20 +87,6 @@ const fmtDate = (value) => {
   return date.toLocaleDateString('en-GB')
 }
 
-const fmtBytes = (value) => {
-  if (!value) return ''
-  const bytes = Number(value)
-  if (!Number.isFinite(bytes) || bytes <= 0) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-/**
- * Converts snake_case or other raw values into human-readable labels.
- * @param {*} value - The raw value to convert.
- * @returns {string} Human-friendly label or an em dash when empty.
- */
 const toLabel = (value) => {
   if (!value) return '—'
   return String(value)
@@ -149,43 +101,33 @@ const toStatusLabel = (value) => statusLabels[value] || toLabel(value)
 const toAnomalyTypeLabel = (value) =>
   value === 'duplicate_transaction_file' ? 'Duplicate' : toLabel(value)
 
-/**
- * Renders the main anomalies list section based on current query state.
- *
- * @param {Object} props - List rendering props.
- * @param {boolean} props.listLoading - Whether anomaly data is currently loading.
- * @param {string} props.listError - Error message when loading failed.
- * @param {Array} props.anomalies - List of anomaly records to display.
- * @param {Function} props.onOpenDetails - Callback to open anomaly details.
- * @returns {JSX.Element} Rendered list content or placeholder states.
- */
-function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
-  if (listLoading) {
-    return (
-      <Stack spacing={1}>
-        {['rows-1', 'rows-2', 'rows-3', 'rows-4', 'rows-5'].map((key) => (
-          <Skeleton key={key} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
-        ))}
-      </Stack>
-    )
-  }
+function AnomalyTableSkeleton() {
+  return (
+    <Stack spacing={1}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} variant="rectangular" height={52} sx={{ borderRadius: 2 }} />
+      ))}
+    </Stack>
+  )
+}
 
-  if (listError) {
-    return <Alert severity="error">{listError}</Alert>
-  }
+function AnomalyTableEmpty() {
+  return (
+    <Stack alignItems="center" spacing={1} sx={{ py: 6 }}>
+      <InboxRoundedIcon sx={{ fontSize: 42, color: 'text.secondary' }} />
+      <Typography variant="h6">No anomalies found</Typography>
+      <Typography variant="body2" color="text.secondary" align="center">
+        Try adjusting your filters or search query.
+      </Typography>
+    </Stack>
+  )
+}
 
-  if (anomalies.length === 0) {
-    return (
-      <Stack alignItems="center" spacing={1} sx={{ py: 6 }}>
-        <InboxRoundedIcon sx={{ fontSize: 42, color: 'text.secondary' }} />
-        <Typography variant="h6">No anomalies found</Typography>
-        <Typography variant="body2" color="text.secondary" align="center">
-          Try adjusting your filters or search query.
-        </Typography>
-      </Stack>
-    )
-  }
+function AnomalyTableError({ message }) {
+  return <Alert severity="error">{message}</Alert>
+}
 
+function AnomalyTableBody({ anomalies, onOpenDetails }) {
   return (
     <TableContainer>
       <Table>
@@ -235,239 +177,27 @@ function getListContent({ listLoading, listError, anomalies, onOpenDetails }) {
   )
 }
 
-/**
- * Renders the anomaly details panel, including the resolution form when the anomaly remains open.
- *
- * @param {Object} props - Detail panel rendering props.
- * @param {boolean} props.detailsLoading - Whether detail data is loading.
- * @param {string} props.detailsError - Error message when detail fetch failed.
- * @param {Object|null} props.selectedAnomaly - The currently selected anomaly record.
- * @param {Object} props.resolutionFieldProps - Props wired for the resolution notes form field.
- * @param {string} props.resolutionError - Validation error message for resolution notes.
- * @returns {JSX.Element} Rendered anomaly detail content.
- */
-function getDetailsContent({
-  detailsLoading,
-  detailsError,
-  selectedAnomaly,
-  resolutionFieldProps,
-  resolutionError,
-  onDeleteRelatedItem,
-  onViewInvoiceItem,
-  cleanupBusy,
-  viewingInvoiceId,
-}) {
-  if (detailsLoading) {
-    return (
-      <Stack spacing={1.2}>
-        <Skeleton variant="text" />
-        <Skeleton variant="text" />
-        <Skeleton variant="rectangular" height={90} sx={{ borderRadius: 2 }} />
-      </Stack>
-    )
-  }
-
-  if (detailsError) {
-    return <Alert severity="error">{detailsError}</Alert>
-  }
-
-  if (!selectedAnomaly) {
-    return <Alert severity="info">No anomaly details available.</Alert>
-  }
-
-  const isOpen = selectedAnomaly.status === 'open'
-  const isDuplicateTransactionFile = selectedAnomaly.anomalyType === 'duplicate_transaction_file'
-  const confidence =
-    selectedAnomaly.detectionConfidence !== null && selectedAnomaly.detectionConfidence !== undefined
-      ? ` (${Math.round(Number(selectedAnomaly.detectionConfidence) * 100)}%)`
-      : ''
-  const relatedItems = Array.isArray(selectedAnomaly.relatedItems) ? selectedAnomaly.relatedItems : []
-  const canCleanupRelatedItems =
-    isOpen &&
-    relatedItems.length > 1 &&
-    selectedAnomaly.anomalyType === 'duplicate'
-
-  return (
-    <Stack spacing={1.2}>
-      <Typography variant="h6">{selectedAnomaly.title || 'Untitled anomaly'}</Typography>
-      <Stack direction="row" spacing={1}>
-        <Chip
-          size="small"
-          label={toStatusLabel(selectedAnomaly.status)}
-          color={statusColors[selectedAnomaly.status] || 'default'}
-        />
-      </Stack>
-
-      <Typography variant="body2" color="text.secondary">
-        {isDuplicateTransactionFile
-          ? 'This file matches a previously imported transaction file. The duplicate upload was not imported.'
-          : selectedAnomaly.description || 'No description was provided for this anomaly.'}
-      </Typography>
-
-      <Typography variant="body2">
-        <strong>Type:</strong> {toAnomalyTypeLabel(selectedAnomaly.anomalyType)}
-      </Typography>
-      <Typography variant="body2">
-        <strong>Suggested Action:</strong> {selectedAnomaly.suggestedAction || '—'}
-      </Typography>
-      <Typography variant="body2">
-        <strong>Detection:</strong> {toLabel(selectedAnomaly.detectionMethod)}
-        {confidence}
-      </Typography>
-
-      <Typography variant="body2">
-        <strong>Group Size:</strong> {selectedAnomaly.relatedItemsCount || relatedItems.length || 0}
-      </Typography>
-
-      {relatedItems.length > 0 ? (
-        <Card variant="outlined" sx={{ borderRadius: 2 }}>
-          <CardContent sx={{ py: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ mb: 0.8 }}>
-              Related Records
-            </Typography>
-            <Stack spacing={0.6}>
-              {relatedItems.map((item, index) => (
-                <Box
-                  key={`${item.itemType || 'item'}-${item.entityId || index}`}
-                  sx={{
-                    minWidth: 0,
-                    px: 1,
-                    py: 0.7,
-                    borderRadius: 1.25,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <Typography variant="body2" fontWeight={600} sx={{ overflowWrap: 'anywhere' }}>
-                    {item.label || `${toLabel(item.itemType)} #${item.entityId || '—'}`}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block', overflowWrap: 'anywhere' }}
-                  >
-                    {item.fileName ? `File: ${item.fileName}` : null}
-                    {item.fileSize ? ` | Size: ${fmtBytes(item.fileSize)}` : null}
-                    {item.amount !== null && item.amount !== undefined ? ` | Amount: ${fmtAmount(item.amount)}` : null}
-                    {item.date ? ` | Date: ${fmtDate(item.date)}` : null}
-                    {item.status ? ` | Status: ${toStatusLabel(item.status)}` : null}
-                    {item.uploadedAt ? ` | Uploaded: ${fmtDate(item.uploadedAt)}` : null}
-                  </Typography>
-                  {canCleanupRelatedItems ? (
-                    <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
-                      {item.itemType === 'invoice' ? (
-                        <Button
-                          size="small"
-                          variant="text"
-                          startIcon={<VisibilityRoundedIcon fontSize="small" />}
-                          disabled={viewingInvoiceId === item.entityId}
-                          onClick={() => onViewInvoiceItem(item)}
-                        >
-                          {viewingInvoiceId === item.entityId ? 'Opening...' : 'View'}
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="small"
-                        color="primary"
-                        variant="text"
-                        startIcon={<TaskAltRoundedIcon fontSize="small" />}
-                        disabled={
-                          cleanupBusy ||
-                          (item.itemType === 'invoice' && selectedAnomaly.status !== 'open' && item.status !== 'deleted')
-                        }
-                        onClick={() => onDeleteRelatedItem(item)}
-                      >
-                        {item.itemType === 'invoice' && selectedAnomaly.status !== 'open' && item.status !== 'deleted'
-                          ? 'Kept'
-                          : 'Keep This'}
-                      </Button>
-                    </Stack>
-                  ) : null}
-                </Box>
-              ))}
-            </Stack>
-          </CardContent>
-        </Card>
-      ) : (
-        <Typography variant="body2">
-          <strong>Related IDs:</strong>
-          {' '}
-          Invoice #{selectedAnomaly.relatedInvoiceId || '—'}
-          {' | '}
-          Transaction #{selectedAnomaly.relatedTransactionId || '—'}
-          {' | '}
-          Match #{selectedAnomaly.relatedMatchId || '—'}
-        </Typography>
-      )}
-
-      <Typography variant="body2">
-        <strong>Created:</strong> {fmtDate(selectedAnomaly.createdAt)}
-      </Typography>
-
-      {isOpen ? (
-        <TextField
-          fullWidth
-          multiline
-          minRows={3}
-          label="Resolution Notes"
-          error={Boolean(resolutionError)}
-          helperText={resolutionError || ' '}
-          {...resolutionFieldProps}
-        />
-      ) : (
-        <>
-          <Typography variant="body2">
-            <strong>Resolved At:</strong> {fmtDate(selectedAnomaly.resolvedAt)}
-          </Typography>
-          <Typography variant="body2">
-            <strong>Resolution Notes:</strong> {selectedAnomaly.resolutionNotes || '—'}
-          </Typography>
-        </>
-      )}
-    </Stack>
-  )
+AnomalyTableBody.propTypes = {
+  anomalies: PropTypes.array.isRequired,
+  onOpenDetails: PropTypes.func.isRequired,
 }
 
-/**
- * Displays a compact anomaly statistics card.
- *
- * @param {Object} props - Card properties.
- * @param {string} props.title - Card title.
- * @param {string|number} props.value - Display value.
- * @param {string} props.hint - Supporting hint text.
- * @param {React.ReactNode} props.icon - Icon displayed in the card.
- * @param {string} props.color - Color used for the icon.
- * @returns {JSX.Element} Rendered statistics card.
- */
 function StatsCard({ title, value, hint, icon, color }) {
   return (
-    <Card
-      component={motion.div}
-      variants={itemVariants}
-      elevation={0}
-      sx={{
-        borderRadius: 3.5,
-        border: '1px solid rgba(129, 191, 255, 0.12)',
-        background: 'rgba(14, 24, 45, 0.65)',
-        backdropFilter: 'blur(16px)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
-      }}
-    >
-      <CardContent>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {title}
-          </Typography>
-          <Box sx={{ color }}>{icon}</Box>
-        </Stack>
-        <Typography variant="h5" fontWeight={700}>
-          {value}
+    <GlassCard variant="default" motionProps={{ variants: itemVariants }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1, px: 2, pt: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          {title}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {hint}
-        </Typography>
-      </CardContent>
-    </Card>
+        <Box sx={{ color }}>{icon}</Box>
+      </Stack>
+      <Typography variant="h5" fontWeight={700} sx={{ px: 2 }}>
+        {value}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 2, pb: 2 }}>
+        {hint}
+      </Typography>
+    </GlassCard>
   )
 }
 
@@ -479,14 +209,6 @@ StatsCard.propTypes = {
   color: PropTypes.string.isRequired,
 }
 
-/**
- * Main page for anomaly monitoring and resolution workflows.
- *
- * This page provides filter controls, anomaly summary cards, a searchable anomaly list,
- * and a details dialog for resolving open anomalies.
- *
- * @returns {JSX.Element} The anomalies page content.
- */
 function AnomaliesPage() {
   const queryClient = useQueryClient()
   const { token } = useAuth()
@@ -497,7 +219,9 @@ function AnomaliesPage() {
   const [status, setStatus] = useState('open')
   const [type, setType] = useState('')
   const [queryInput, setQueryInput] = useState('')
-  const [query, setQuery] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(50)
 
   const [selectedAnomalyId, setSelectedAnomalyId] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -508,20 +232,6 @@ function AnomaliesPage() {
   const { notify } = useNotification()
 
   const { confirm } = useConfirm()
-
-  const {
-    register,
-    getValues,
-    setValue,
-    setError,
-    clearErrors,
-    reset,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      resolutionNotes: '',
-    },
-  })
 
   const filters = useMemo(
     () => ({
@@ -535,6 +245,9 @@ function AnomaliesPage() {
     companyId: activeCompanyId,
     token,
     filters,
+    page: page + 1,
+    pageSize: rowsPerPage,
+    searchTerm: searchTerm || undefined,
   })
 
   const statsQuery = useAnomalyStatsQuery({
@@ -554,23 +267,23 @@ function AnomaliesPage() {
   })
 
   useEffect(() => {
-    const timeoutId = globalThis.setTimeout(() => setQuery(queryInput.trim()), 350)
+    const timeoutId = globalThis.setTimeout(() => setSearchTerm(queryInput.trim()), 350)
     return () => globalThis.clearTimeout(timeoutId)
   }, [queryInput])
 
   useEffect(() => {
-    if (!detailsQuery.data) {
-      return
-    }
+    if (page !== 0) setPage(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, type, searchTerm])
 
-    setValue('resolutionNotes', detailsQuery.data?.resolutionNotes || '')
-    clearErrors('resolutionNotes')
-  }, [clearErrors, detailsQuery.data, setValue])
+  useEffect(() => {
+    if (!deepLinkedAnomalyId) return
+    handleOpenDetails(deepLinkedAnomalyId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkedAnomalyId])
 
-  const anomalies = useMemo(
-    () => (Array.isArray(anomaliesQuery.data) ? anomaliesQuery.data : []),
-    [anomaliesQuery.data],
-  )
+  const anomalies = anomaliesQuery.data?.items ?? []
+  const totalCount = anomaliesQuery.data?.totalCount ?? 0
 
   const stats = useMemo(
     () => ({
@@ -578,21 +291,6 @@ function AnomaliesPage() {
     }),
     [statsQuery.data],
   )
-
-  const filteredAnomalies = useMemo(() => {
-    const q = query.toLowerCase()
-    return anomalies.filter((item) => {
-      const matchesType =
-        !type ||
-        (type === 'duplicate'
-          ? ['duplicate', 'duplicate_transaction_file'].includes(item?.anomalyType)
-          : item?.anomalyType === type)
-      const titleText = item?.title?.toLowerCase() || ''
-      const descriptionText = item?.description?.toLowerCase() || ''
-      const matchesSearch = !q || titleText.includes(q) || descriptionText.includes(q)
-      return matchesType && matchesSearch
-    })
-  }, [anomalies, query, type])
 
   const totalAnomalies = useMemo(
     () => Object.values(stats.byStatus || {}).reduce((sum, entry) => sum + Number(entry || 0), 0),
@@ -607,60 +305,54 @@ function AnomaliesPage() {
     async (anomalyId) => {
       setDetailsOpen(true)
       setSelectedAnomalyId(anomalyId)
-      reset({ resolutionNotes: '' })
     },
-    [reset],
+    [],
   )
-
-  useEffect(() => {
-    if (!deepLinkedAnomalyId) return
-    handleOpenDetails(deepLinkedAnomalyId)
-  }, [deepLinkedAnomalyId, handleOpenDetails])
 
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)
     setSelectedAnomalyId(null)
     setCleanupTarget(null)
     resolveMutation.reset()
-    reset({ resolutionNotes: '' })
-  }, [reset, resolveMutation])
+  }, [resolveMutation])
 
-  const handleStatusChange = useCallback(async (nextStatus) => {
+  const handleResolve = useCallback(async (resolutionNotes) => {
     if (!detailsQuery.data?.id) return
 
-    const parsed = resolveAnomalySchema.safeParse({
-      resolutionNotes: getValues('resolutionNotes') || '',
-    })
-
-    if (!parsed.success) {
-      setError('resolutionNotes', {
-        type: 'manual',
-        message: parsed.error.issues[0]?.message || 'Please enter valid resolution notes.',
-      })
-      return
-    }
-
-    clearErrors('resolutionNotes')
     try {
       await resolveMutation.mutateAsync({
         anomalyId: detailsQuery.data.id,
-        payload: {
-          status: nextStatus,
-          resolutionNotes: parsed.data.resolutionNotes || null,
-        },
+        payload: { status: 'resolved', resolutionNotes: resolutionNotes || null },
       })
 
-      const actionLabel = nextStatus === 'dismissed' ? 'dismissed' : 'resolved'
-      notify({ severity: 'success', message: `Anomaly ${actionLabel} successfully.` })
-
+      notify({ severity: 'success', message: 'Anomaly resolved successfully.' })
       closeDetails()
     } catch (err) {
       notify({
         severity: 'error',
-        message: err.message || `Failed to ${nextStatus === 'dismissed' ? 'dismiss' : 'resolve'} anomaly.`,
+        message: err.message || 'Failed to resolve anomaly.',
       })
     }
-  }, [clearErrors, closeDetails, detailsQuery.data, getValues, resolveMutation, setError])
+  }, [closeDetails, detailsQuery.data, resolveMutation, notify])
+
+  const handleDismiss = useCallback(async (resolutionNotes) => {
+    if (!detailsQuery.data?.id) return
+
+    try {
+      await resolveMutation.mutateAsync({
+        anomalyId: detailsQuery.data.id,
+        payload: { status: 'dismissed', resolutionNotes: resolutionNotes || null },
+      })
+
+      notify({ severity: 'success', message: 'Anomaly dismissed successfully.' })
+      closeDetails()
+    } catch (err) {
+      notify({
+        severity: 'error',
+        message: err.message || 'Failed to dismiss anomaly.',
+      })
+    }
+  }, [closeDetails, detailsQuery.data, resolveMutation, notify])
 
   const handleDeleteRelatedItem = useCallback(async (item) => {
     if (!item?.entityId || !detailsQuery.data) return
@@ -694,7 +386,7 @@ function AnomaliesPage() {
     } finally {
       setCleanupTarget(null)
     }
-  }, [anomaliesQuery, detailsQuery, queryClient, statsQuery, token])
+  }, [anomaliesQuery, confirm, detailsQuery, notify, queryClient, statsQuery, token])
 
   const handleViewInvoiceItem = useCallback(async (item) => {
     const invoiceId = item?.entityId
@@ -721,7 +413,16 @@ function AnomaliesPage() {
     } finally {
       setViewingInvoiceId(null)
     }
-  }, [token])
+  }, [notify, token])
+
+  const handleChangePage = useCallback((_event, newPage) => {
+    setPage(newPage)
+  }, [])
+
+  const handleChangeRowsPerPage = useCallback((event) => {
+    setRowsPerPage(Number(event.target.value))
+    setPage(0)
+  }, [])
 
   const listLoading = anomaliesQuery.isLoading || anomaliesQuery.isFetching
   const listError = anomaliesQuery.error?.message || ''
@@ -732,30 +433,17 @@ function AnomaliesPage() {
   const detailsError = detailsQuery.error?.message || ''
   const resolveBusy = resolveMutation.isPending
   const cleanupBusy = Boolean(cleanupTarget)
-  const duplicateInvoiceNeedsDecision =
-    selectedAnomaly?.status === 'open' &&
-    selectedAnomaly?.anomalyType === 'duplicate' &&
-    Number(selectedAnomaly?.relatedItemsCount || selectedAnomaly?.relatedItems?.length || 0) > 1
-  const resolutionFieldProps = register('resolutionNotes')
 
-  const listContent = getListContent({
-    listLoading,
-    listError,
-    anomalies: filteredAnomalies,
-    onOpenDetails: handleOpenDetails,
-  })
-
-  const detailsContent = getDetailsContent({
-    detailsLoading,
-    detailsError,
-    selectedAnomaly,
-    resolutionFieldProps,
-    resolutionError: errors.resolutionNotes?.message,
-    onDeleteRelatedItem: handleDeleteRelatedItem,
-    onViewInvoiceItem: handleViewInvoiceItem,
-    cleanupBusy,
-    viewingInvoiceId,
-  })
+  let tableContent
+  if (listLoading) {
+    tableContent = <AnomalyTableSkeleton />
+  } else if (listError) {
+    tableContent = <AnomalyTableError message={listError} />
+  } else if (anomalies.length === 0) {
+    tableContent = <AnomalyTableEmpty />
+  } else {
+    tableContent = <AnomalyTableBody anomalies={anomalies} onOpenDetails={handleOpenDetails} />
+  }
 
   const statsCards = [
     {
@@ -793,152 +481,130 @@ function AnomaliesPage() {
       <AnimatedBackground density="low" />
       <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
         <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
-      <PageHeaderCard
-        title="Anomalies"
-        description="Monitor data quality issues and resolve exception cases quickly."
-      />
+          <PageHeaderCard
+            title="Anomalies"
+            description="Monitor data quality issues and resolve exception cases quickly."
+          />
 
-      <Grid container spacing={2}>
-        {statsLoading
-          ? ['stats-skeleton-1', 'stats-skeleton-2', 'stats-skeleton-3', 'stats-skeleton-4'].map((key) => (
-              <Grid key={key} size={{ xs: 12, sm: 6, md: 3 }}>
-                <Skeleton variant="rectangular" height={130} sx={{ borderRadius: 3 }} />
-              </Grid>
-            ))
-          : statsCards.map((card) => (
-              <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
-                <StatsCard
-                  title={card.title}
-                  value={card.value}
-                  hint={card.hint}
-                  color={card.color}
-                  icon={card.icon}
-                />
-              </Grid>
-            ))}
-      </Grid>
+          <Grid container spacing={2}>
+            {statsLoading
+              ? [0, 1, 2, 3].map((i) => (
+                  <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Skeleton variant="rectangular" height={130} sx={{ borderRadius: 3 }} />
+                  </Grid>
+                ))
+              : statsCards.map((card) => (
+                  <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <StatsCard
+                      title={card.title}
+                      value={card.value}
+                      hint={card.hint}
+                      color={card.color}
+                      icon={card.icon}
+                    />
+                  </Grid>
+                ))}
+          </Grid>
 
-      {statsError ? <Alert severity="warning">{statsError}</Alert> : null}
+          {statsError ? <Alert severity="warning">{statsError}</Alert> : null}
 
-      <Card
-        component={motion.div}
-        variants={itemVariants}
-        elevation={0}
-        sx={{
-          borderRadius: 3.5,
-          border: '1px solid rgba(129, 191, 255, 0.12)',
-          background: 'rgba(14, 24, 45, 0.65)',
-          backdropFilter: 'blur(16px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
-        }}
-      >
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Search title or description"
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              fullWidth
-              slotProps={{
-                input: {
-                  startAdornment: <SearchRoundedIcon fontSize="small" sx={{ mr: 1 }} />,
-                },
-              }}
-            />
+          <GlassCard variant="default" motionProps={{ variants: itemVariants }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2, px: 2, pt: 2 }}>
+              <TextField
+                size="small"
+                placeholder="Search title or description"
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                fullWidth
+                slotProps={{
+                  input: {
+                    startAdornment: <SearchRoundedIcon fontSize="small" sx={{ mr: 1 }} />,
+                  },
+                }}
+              />
 
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-              sx={{ minWidth: 185 }}
-            >
-              {statusOptions.map((option) => (
-                <MenuItem key={option.value || 'all-statuses'} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              size="small"
-              label="Type"
-              value={type}
-              onChange={(event) => setType(event.target.value)}
-              sx={{ minWidth: 190 }}
-            >
-              {typeOptions.map((option) => (
-                <MenuItem key={option.value || 'all-types'} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
-
-          {listContent}
-        </CardContent>
-      </Card>
-
-      <Dialog
-        open={detailsOpen}
-        onClose={resolveBusy || cleanupBusy ? undefined : closeDetails}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Anomaly Details</DialogTitle>
-        <DialogContent dividers>
-          {detailsContent}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDetails} disabled={resolveBusy || cleanupBusy}>Close</Button>
-          {selectedAnomaly?.status === 'open' ? (
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => handleStatusChange('dismissed')}
-              disabled={resolveBusy || cleanupBusy || detailsLoading}
-              startIcon={<DoNotDisturbOnRoundedIcon />}
-            >
-              {resolveBusy ? 'Updating...' : 'Dismiss'}
-            </Button>
-          ) : null}
-          {selectedAnomaly?.status === 'open' && !duplicateInvoiceNeedsDecision ? (
-              <Button
-                variant="contained"
-                onClick={() => handleStatusChange('resolved')}
-                disabled={resolveBusy || cleanupBusy || detailsLoading}
-                startIcon={<TaskAltRoundedIcon />}
+              <TextField
+                select
+                size="small"
+                label="Status"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                sx={{ minWidth: 185 }}
               >
-                {resolveBusy ? 'Resolving...' : 'Resolve'}
-              </Button>
-          ) : null}
-        </DialogActions>
-      </Dialog>
+                {statusOptions.map((option) => (
+                  <MenuItem key={option.value || 'all-statuses'} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-      <InvoiceVerificationModal
-        key={invoiceModal.file?.id || 'empty-anomaly-invoice'}
-        open={invoiceModal.open}
-        onClose={() => setInvoiceModal({ open: false, file: null })}
-        onSave={() => {}}
-        initialData={invoiceModal.file?.extractedData}
-        fileName={invoiceModal.file?.name}
-        fileType={
-          invoiceModal.file?.sourceInvoice?.fileType ||
-          invoiceModal.file?.sourceInvoice?.file_type ||
-          null
-        }
-        invoiceId={invoiceModal.file?.existingInvoiceId || null}
-        token={token}
-        extractionMethod={
-          invoiceModal.file?.sourceInvoice?.extractionMethod ||
-          invoiceModal.file?.sourceInvoice?.extraction_method
-        }
-        readOnly
-      />
+              <TextField
+                select
+                size="small"
+                label="Type"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+                sx={{ minWidth: 190 }}
+              >
+                {typeOptions.map((option) => (
+                  <MenuItem key={option.value || 'all-types'} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
 
+            {tableContent}
+
+            {anomalies.length > 0 ? (
+              <TablePagination
+                component="div"
+                count={totalCount}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                sx={{ px: 2 }}
+              />
+            ) : null}
+          </GlassCard>
+
+          <AnomalyDetailsModal
+            open={detailsOpen}
+            onClose={closeDetails}
+            selectedAnomaly={selectedAnomaly}
+            loading={detailsLoading}
+            error={detailsError}
+            resolveBusy={resolveBusy}
+            cleanupBusy={cleanupBusy}
+            viewingInvoiceId={viewingInvoiceId}
+            onResolve={handleResolve}
+            onDismiss={handleDismiss}
+            onKeepItem={handleDeleteRelatedItem}
+            onViewInvoice={handleViewInvoiceItem}
+          />
+
+          <InvoiceVerificationModal
+            key={invoiceModal.file?.id || 'empty-anomaly-invoice'}
+            open={invoiceModal.open}
+            onClose={() => setInvoiceModal({ open: false, file: null })}
+            onSave={() => {}}
+            initialData={invoiceModal.file?.extractedData}
+            fileName={invoiceModal.file?.name}
+            fileType={
+              invoiceModal.file?.sourceInvoice?.fileType ||
+              invoiceModal.file?.sourceInvoice?.file_type ||
+              null
+            }
+            invoiceId={invoiceModal.file?.existingInvoiceId || null}
+            token={token}
+            extractionMethod={
+              invoiceModal.file?.sourceInvoice?.extractionMethod ||
+              invoiceModal.file?.sourceInvoice?.extraction_method
+            }
+            readOnly
+          />
         </Stack>
       </Container>
     </Box>

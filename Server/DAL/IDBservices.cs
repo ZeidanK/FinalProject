@@ -71,7 +71,7 @@ namespace FinalProjectAuthAPI.DAL
         bool DeleteInvoice(long id);
         (List<long> DeletedIds, List<long> NotFoundIds) BulkDeleteInvoices(IEnumerable<long> ids);
 
-        List<AnomalyRow> GetAnomaliesByCompany(long companyId, string? status, string? severity, string? type);
+        List<AnomalyRow> GetAnomaliesByCompany(long companyId, string? status, string? severity, string? type, string? searchTerm = null);
         AnomalyRow? GetAnomalyById(long id);
         long CreateAnomaly(long companyId, string anomalyType, string title, string description, string severity, string? suggestedAction, long? relatedInvoiceId, long? relatedTransactionId, long? relatedMatchId, decimal? amount, string detectionMethod, decimal? detectionConfidence);
         bool ResolveAnomaly(long id, long resolvedByUserId, string? resolutionNotes, string status);

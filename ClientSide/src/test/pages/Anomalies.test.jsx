@@ -31,7 +31,7 @@ vi.mock('../../components/ConfirmContext', () => ({
   useConfirm: () => ({ confirm: vi.fn() }),
 }))
 
-let mockAnomaliesQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+let mockAnomaliesQuery = { data: { items: [], totalCount: 0, pageNumber: 1, pageSize: 50, totalPages: 0 }, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
 let mockDetailsQuery = { data: null, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
 let mockStatsQuery = { data: null, isLoading: false, isFetching: false, error: null }
 let mockResolveMutation = { mutateAsync: vi.fn(), isPending: false, reset: vi.fn() }
@@ -148,7 +148,7 @@ describe('AnomaliesPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAnomaliesQuery = { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
+    mockAnomaliesQuery = { data: { items: [], totalCount: 0, pageNumber: 1, pageSize: 50, totalPages: 0 }, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     mockDetailsQuery = { data: null, isLoading: false, isFetching: false, error: null, refetch: vi.fn() }
     mockStatsQuery = { data: null, isLoading: false, isFetching: false, error: null }
     mockResolveMutation = { mutateAsync: vi.fn(), isPending: false, reset: vi.fn() }
@@ -194,13 +194,13 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows empty state when no anomalies', () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: [] }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: [], totalCount: 0, pageNumber: 1, pageSize: 50, totalPages: 0 } }
     renderPage()
     expect(screen.getByText('No anomalies found')).toBeInTheDocument()
   })
 
   it('renders anomaly rows in table', () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     renderPage()
     expect(screen.getByText('Amount mismatch on INV-001')).toBeInTheDocument()
@@ -209,7 +209,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows details button for each row', () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     renderPage()
     const detailsButtons = screen.getAllByRole('button', { name: /details/i })
@@ -217,7 +217,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('opens details dialog on button click', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleOpenAnomaly }
     renderPage()
@@ -228,7 +228,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows resolution form for open anomalies', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleOpenAnomaly }
     renderPage()
@@ -238,7 +238,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows Dismiss and Resolve buttons for open anomalies', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleOpenAnomaly }
     renderPage()
@@ -249,7 +249,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('calls resolve mutation on Resolve click', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleOpenAnomaly }
     mockResolveMutation = { ...mockResolveMutation, mutateAsync: vi.fn().mockResolvedValue({}) }
@@ -262,7 +262,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows success snackbar after resolve', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleOpenAnomaly }
     mockResolveMutation = { ...mockResolveMutation, mutateAsync: vi.fn().mockResolvedValue({}) }
@@ -277,7 +277,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows error snackbar on resolve failure', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleOpenAnomaly }
     mockResolveMutation = { ...mockResolveMutation, mutateAsync: vi.fn().mockRejectedValue(new Error('API error')) }
@@ -292,7 +292,7 @@ describe('AnomaliesPage', () => {
   })
 
   it('shows resolved/dismissed details for non-open anomalies', async () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     mockDetailsQuery = { ...mockDetailsQuery, data: sampleResolvedAnomaly }
     renderPage()
@@ -306,12 +306,26 @@ describe('AnomaliesPage', () => {
     expect(screen.queryByRole('button', { name: /resolve/i })).not.toBeInTheDocument()
   })
 
-  it('renders severity/status chips correctly', () => {
-    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: sampleAnomalies }
+  it('renders status chips correctly', () => {
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
     mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
     renderPage()
     expect(screen.getAllByText('Unresolved').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Dismissed').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders pagination controls when anomalies exist', () => {
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 3, pageNumber: 1, pageSize: 50, totalPages: 1 } }
+    mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
+    renderPage()
+    expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
+  })
+
+  it('shows rows per page selector', () => {
+    mockAnomaliesQuery = { ...mockAnomaliesQuery, data: { items: sampleAnomalies, totalCount: 100, pageNumber: 1, pageSize: 50, totalPages: 2 } }
+    mockStatsQuery = { ...mockStatsQuery, data: sampleStats }
+    renderPage()
+    expect(screen.getByText('1–50 of 100')).toBeInTheDocument()
   })
 })

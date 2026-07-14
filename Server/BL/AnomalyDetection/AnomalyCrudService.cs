@@ -14,9 +14,10 @@ namespace FinalProjectAuthAPI.BL.AnomalyDetection
 
         public virtual List<AnomalyRow> GetByCompany(
             long companyId, string? status = null,
-            string? severity = null, string? type = null)
+            string? severity = null, string? type = null,
+            string? searchTerm = null)
         {
-            return _db.GetAnomaliesByCompany(companyId, status, severity, type);
+            return _db.GetAnomaliesByCompany(companyId, status, severity, type, searchTerm);
         }
 
         public virtual AnomalyRow? GetById(long id)
