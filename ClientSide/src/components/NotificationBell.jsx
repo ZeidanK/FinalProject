@@ -271,19 +271,20 @@ export default function NotificationBell() {
                       flexShrink: 0,
                     }} />
                     <ListItemText
+                      sx={{ wordBreak: 'break-word', minWidth: 0 }}
                       primary={
-                        <Typography variant="body2" component="span" fontWeight={item.isRead ? 400 : 700}>
+                        <Typography variant="body2" component="span" fontWeight={item.isRead ? 400 : 700} sx={{ wordBreak: 'break-word' }}>
                           {item.title}
                         </Typography>
                       }
                       secondary={(
                         <Stack component="span" spacing={0.35} sx={{ mt: 0.35 }}>
                           {item.body && (
-                            <Typography variant="caption" component="span" color="text.secondary">
+                            <Typography variant="caption" component="span" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
                               {item.body}
                             </Typography>
                           )}
-                          <Typography variant="caption" component="span" color="text.disabled">
+                          <Typography variant="caption" component="span" color="text.disabled" sx={{ wordBreak: 'break-word' }}>
                             {[item.companyName, formatRelativeTime(item.createdAt)].filter(Boolean).join(' · ')}
                           </Typography>
                         </Stack>
