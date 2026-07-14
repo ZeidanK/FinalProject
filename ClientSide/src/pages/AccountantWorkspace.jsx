@@ -137,10 +137,13 @@ export default function AccountantWorkspace() {
       if (eventTypes.has(eventType)) {
         loadRequests()
         loadCompanies()
+        if (eventType === 'accountant.connection.disconnected') {
+          refreshCompanies()
+        }
       }
     })
     return () => unsubscribe()
-  }, [subscribe, loadRequests, loadCompanies])
+  }, [subscribe, loadRequests, loadCompanies, refreshCompanies])
 
   useEffect(() => {
     if (!user?.id || !token) return
