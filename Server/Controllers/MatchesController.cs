@@ -1,5 +1,6 @@
 using FinalProjectAuthAPI.BL;
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,44 +13,74 @@ namespace FinalProjectAuthAPI.Controllers
     public class MatchesController : ApiControllerBase
     {
         private readonly IMatchService _svc;
+        private readonly IDBservices _db;
 
-        public MatchesController(IMatchService svc)
+        public MatchesController(IMatchService svc, IDBservices db)
         {
             _svc = svc;
+            _db = db;
         }
 
         // GET api/matches/company/{companyId}
         [HttpGet("company/{companyId:long}")]
-        public IActionResult GetByCompany(long companyId) =>
-            Ok(_svc.GetByCompany(companyId));
+        public IActionResult GetByCompany(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetByCompany(companyId));
+        }
 
         // GET api/matches/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)
         {
             var match = _svc.GetById(id);
-            return match is null ? NotFound(new { message = "Match not found." }) : Ok(match);
+            if (match is null)
+                return NotFound(new { message = "Match not found." });
+
+            var invoice = _db.GetInvoiceById(match.InvoiceId);
+            if (invoice == null || !CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
+            return Ok(match);
         }
 
         // GET api/matches/suggestions/{invoiceId}
         [HttpGet("suggestions/{invoiceId:long}")]
-        public async Task<IActionResult> GetSuggestions(long invoiceId) =>
-            Ok(await _svc.GetSuggestionsAsync(invoiceId));
+        public async Task<IActionResult> GetSuggestions(long invoiceId)
+        {
+            var invoice = _db.GetInvoiceById(invoiceId);
+            if (invoice == null || !CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+            return Ok(await _svc.GetSuggestionsAsync(invoiceId));
+        }
 
         // GET api/matches/simple-suggestions/{companyId}
         [HttpGet("simple-suggestions/{companyId:long}")]
-        public IActionResult GetSimpleSuggestions(long companyId) =>
-            Ok(_svc.GetSimpleSuggestions(companyId));
+        public IActionResult GetSimpleSuggestions(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetSimpleSuggestions(companyId));
+        }
 
         // GET api/matches/installment-suggestions/{companyId}
         [HttpGet("installment-suggestions/{companyId:long}")]
-        public IActionResult GetInstallmentSuggestions(long companyId) =>
-            Ok(_svc.GetInstallmentSuggestions(companyId));
+        public IActionResult GetInstallmentSuggestions(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetInstallmentSuggestions(companyId));
+        }
 
         // POST api/matches
         [HttpPost]
         public IActionResult Create([FromBody] CreateMatchRequest request)
         {
+            var invoice = _db.GetInvoiceById(request.InvoiceId);
+            if (invoice == null || !CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
             var userId = GetCurrentUserId();
             var (success, id, error) = _svc.Create(request, userId);
 
@@ -66,6 +97,10 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("auto-match/{invoiceId:long}")]
         public async Task<IActionResult> AutoMatch(long invoiceId, [FromQuery] decimal? minConfidence)
         {
+            var invoice = _db.GetInvoiceById(invoiceId);
+            if (invoice == null || !CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
             var userId = GetCurrentUserId();
             var threshold = minConfidence ?? 70m;
             
@@ -90,6 +125,9 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("auto-match-batch/{companyId:long}")]
         public async Task<IActionResult> AutoMatchBatch(long companyId, [FromQuery] decimal? minConfidence)
         {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
             var result = await ExecuteAutoMatchBatch(companyId, minConfidence);
             
             return Ok(new { 
@@ -112,6 +150,9 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPost("auto-match-on-load/{companyId:long}")]
         public async Task<IActionResult> AutoMatchOnLoad(long companyId, [FromQuery] decimal? minConfidence)
         {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
             var result = await ExecuteAutoMatchBatch(companyId, minConfidence);
             
             return Ok(new { 
@@ -128,6 +169,14 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpDelete("{id:long}")]
         public IActionResult Delete(long id)
         {
+            var match = _svc.GetById(id);
+            if (match is null)
+                return NotFound(new { message = "Match not found." });
+
+            var invoice = _db.GetInvoiceById(match.InvoiceId);
+            if (invoice == null || !CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
             var ok = _svc.Delete(id);
             return ok ? Ok(new { message = "Match deleted." }) : NotFound(new { message = "Match not found." });
         }

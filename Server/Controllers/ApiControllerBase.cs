@@ -1,3 +1,4 @@
+using FinalProjectAuthAPI.DAL;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 
@@ -15,6 +16,11 @@ public abstract class ApiControllerBase : ControllerBase
     {
         return User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value
                ?? User.FindFirst("role")?.Value;
+    }
+
+    protected bool CanAccessCompany(long companyId, IDBservices db)
+    {
+        return db.UserHasActiveCompanyAccess(GetCurrentUserId(), companyId);
     }
 
     protected IActionResult Success<T>(T data, string message = "Success", int code = 200)

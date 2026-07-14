@@ -40,15 +40,23 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpGet("company/{companyId:long}")]
         public IActionResult GetByCompany(
             long companyId,
-            [FromQuery] TransactionFilterRequest filter) =>
-            Ok(_svc.GetByCompany(companyId, filter ?? new TransactionFilterRequest()));
+            [FromQuery] TransactionFilterRequest filter)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetByCompany(companyId, filter ?? new TransactionFilterRequest()));
+        }
 
         // GET api/transactions/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)
         {
             var txn = _svc.GetById(id);
-            return txn is null ? NotFound(new { message = "Transaction not found." }) : Ok(txn);
+            if (txn is null)
+                return NotFound(new { message = "Transaction not found." });
+            if (!CanAccessCompany(txn.CompanyId, _db))
+                return Forbid();
+            return Ok(txn);
         }
 
         // POST api/transactions
@@ -79,6 +87,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("{id:long}/requires-invoice")]
         public IActionResult SetRequiresInvoice(long id, [FromBody] SetRequiresInvoiceRequest request)
         {
+            var txn = _svc.GetById(id);
+            if (txn is null)
+                return NotFound(new { message = "Transaction not found." });
+            if (!CanAccessCompany(txn.CompanyId, _db))
+                return Forbid();
+
             var ok = _svc.SetRequiresInvoice(id, request.RequiresInvoice);
             return ok
                 ? Ok(new { message = $"Transaction requires_invoice set to {request.RequiresInvoice}." })
@@ -89,6 +103,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpDelete("{id:long}")]
         public IActionResult Delete(long id)
         {
+            var txn = _svc.GetById(id);
+            if (txn is null)
+                return NotFound(new { message = "Transaction not found." });
+            if (!CanAccessCompany(txn.CompanyId, _db))
+                return Forbid();
+
             var ok = _svc.Delete(id);
             return ok
                 ? Ok(new { message = "Transaction deleted." })
@@ -101,6 +121,10 @@ namespace FinalProjectAuthAPI.Controllers
         {
             if (request?.Ids == null || request.Ids.Count == 0)
                 return BadRequest(new { message = "At least one transaction ID is required." });
+
+            var firstTxn = _svc.GetById(request.Ids[0]);
+            if (firstTxn != null && !CanAccessCompany(firstTxn.CompanyId, _db))
+                return Forbid();
 
             var (deletedIds, notFoundIds) = _svc.BulkDelete(request.Ids);
             var deletedCount = deletedIds.Count;

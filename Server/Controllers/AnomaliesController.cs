@@ -32,6 +32,9 @@ namespace FinalProjectAuthAPI.Controllers
             [FromQuery] string? severity,
             [FromQuery] string? type)
         {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
             var data = _svc.GetByCompany(companyId, status, severity, type);
             var legacy = new
             {
@@ -47,15 +50,20 @@ namespace FinalProjectAuthAPI.Controllers
         public IActionResult GetById(long id)
         {
             var anomaly = _svc.GetById(id);
-            return anomaly is null
-                ? NotFound(new { message = "Anomaly not found." })
-                : SuccessWithLegacy(anomaly, anomaly, "Anomaly retrieved.");
+            if (anomaly is null)
+                return NotFound(new { message = "Anomaly not found." });
+            if (!CanAccessCompany(anomaly.CompanyId, _db))
+                return Forbid();
+            return SuccessWithLegacy(anomaly, anomaly, "Anomaly retrieved.");
         }
 
         // GET api/anomalies/stats/{companyId}
         [HttpGet("stats/{companyId:long}")]
         public IActionResult GetStats(long companyId)
         {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
             var data = _svc.GetStats(companyId);
             return SuccessWithLegacy(data, data, "Anomaly stats retrieved.");
         }
@@ -65,6 +73,9 @@ namespace FinalProjectAuthAPI.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
         public async Task<IActionResult> Create([FromBody] CreateAnomalyRequest request)
         {
+            if (!CanAccessCompany(request.CompanyId, _db))
+                return Forbid();
+
             var (success, id, error) = _svc.Create(request);
 
             if (success)
@@ -105,6 +116,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("{id:long}/resolve")]
         public async Task<IActionResult> Resolve(long id, [FromBody] ResolveAnomalyRequest request)
         {
+            var anomaly = _svc.GetById(id);
+            if (anomaly is null)
+                return NotFound(new { message = "Anomaly not found." });
+            if (!CanAccessCompany(anomaly.CompanyId, _db))
+                return Forbid();
+
             var userId = GetCurrentUserId();
             var (success, error) = _svc.Resolve(id, userId, request);
             if (!success)
@@ -120,7 +137,6 @@ namespace FinalProjectAuthAPI.Controllers
                 : "Anomaly resolved.";
             var payload = new { id, status, resolutionNotes = request.ResolutionNotes };
 
-            var anomaly = _svc.GetById(id);
             if (anomaly != null)
             {
                 var notificationPayload = new
@@ -150,6 +166,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("{id:long}/duplicate-invoices/keep")]
         public async Task<IActionResult> KeepDuplicateInvoice(long id, [FromBody] KeepDuplicateInvoiceRequest request)
         {
+            var anomaly = _svc.GetById(id);
+            if (anomaly is null)
+                return NotFound(new { message = "Anomaly not found." });
+            if (!CanAccessCompany(anomaly.CompanyId, _db))
+                return Forbid();
+
             var userId = GetCurrentUserId();
             var (success, error) = _svc.KeepDuplicateInvoice(id, userId, request);
             if (!success)
@@ -159,7 +181,6 @@ namespace FinalProjectAuthAPI.Controllers
 
             var payload = new { id, keepInvoiceId = request.KeepInvoiceId };
 
-            var anomaly = _svc.GetById(id);
             if (anomaly != null)
             {
                 var notificationPayload = new

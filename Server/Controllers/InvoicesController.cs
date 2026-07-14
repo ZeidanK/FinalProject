@@ -51,15 +51,23 @@ namespace FinalProjectAuthAPI.Controllers
             [FromQuery] string? status,
             [FromQuery] DateTime? startDate,
             [FromQuery] DateTime? endDate,
-            [FromQuery] bool? isMatched) =>
-            Ok(_svc.GetByCompany(companyId, status, startDate, endDate, isMatched));
+            [FromQuery] bool? isMatched)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetByCompany(companyId, status, startDate, endDate, isMatched));
+        }
 
         // GET api/invoices/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)
         {
             var invoice = _svc.GetById(id);
-            return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
+            if (invoice is null)
+                return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+            return Ok(invoice);
         }
 
         // POST api/invoices
@@ -135,6 +143,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPut("{id:long}")]
         public IActionResult Update(long id, [FromBody] CreateInvoiceRequest request)
         {
+            var existing = _svc.GetById(id);
+            if (existing is null)
+                return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(existing.CompanyId, _db))
+                return Forbid();
+
             var userId = GetCurrentUserId();
             var (success, error, notFound) = _svc.Update(id, request, userId);
 
@@ -151,6 +165,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("{id:long}/status")]
         public IActionResult UpdateStatus(long id, [FromBody] UpdateInvoiceStatusRequest request)
         {
+            var invoice = _svc.GetById(id);
+            if (invoice is null)
+                return BadRequest(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
             var ok = _svc.UpdateStatus(id, request.Status);
             return ok ? Ok(new { message = "Invoice status updated." }) : BadRequest(new { message = "Invalid status or invoice not found." });
         }
@@ -163,6 +183,8 @@ namespace FinalProjectAuthAPI.Controllers
 
             if (invoice is null)
                 return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
 
             if (!string.IsNullOrWhiteSpace(invoice.FilePath))
             {
@@ -188,6 +210,10 @@ namespace FinalProjectAuthAPI.Controllers
         {
             if (request?.Ids == null || request.Ids.Count == 0)
                 return BadRequest(new { message = "At least one invoice ID is required." });
+
+            var firstInvoice = _svc.GetById(request.Ids[0]);
+            if (firstInvoice != null && !CanAccessCompany(firstInvoice.CompanyId, _db))
+                return Forbid();
 
             var filesToDelete = new List<string>();
             foreach (var id in request.Ids)
@@ -233,6 +259,8 @@ namespace FinalProjectAuthAPI.Controllers
             var invoice = _svc.GetById(id);
             if (invoice is null)
                 return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
 
             if (string.IsNullOrWhiteSpace(invoice.FilePath))
                 return NotFound(new { message = "No saved file was found for this invoice." });
