@@ -34,4 +34,13 @@ describe('LandingPage', () => {
     const buttons = screen.getAllByText('Register')
     expect(buttons.length).toBeGreaterThanOrEqual(1)
   })
+
+  it('renders pricing packages that match system capabilities', () => {
+    renderPage()
+    expect(screen.getByText('Invoice Essentials')).toBeInTheDocument()
+    expect(screen.getByText('Reconciliation Pro')).toBeInTheDocument()
+    expect(screen.getByText('Firm Operations')).toBeInTheDocument()
+    expect(screen.getByText('Hybrid Gemini/local-model extraction')).toBeInTheDocument()
+    expect(screen.getByText('Installment payment matching')).toBeInTheDocument()
+  })
 })

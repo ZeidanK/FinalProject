@@ -50,18 +50,18 @@ const testimonials = [
 
 const pricingPlans = [
   {
-    name: 'Starter', price: '$29', period: '/month', desc: 'For small businesses getting started',
-    features: ['500 invoices/mo', 'Bank & credit card sync', 'AI extraction', 'Basic reports', 'Email support'],
+    name: 'Invoice Essentials', price: '$29', period: '/month', desc: 'For small businesses digitizing invoice review',
+    features: ['AI PDF invoice extraction', 'Manual field verification', 'Excel/CSV transaction import', 'Single-company workspace', 'Dashboard and basic reports'],
     cta: 'Start Free Trial', popular: false,
   },
   {
-    name: 'Professional', price: '$79', period: '/month', desc: 'For growing teams and accountants',
-    features: ['5,000 invoices/mo', 'Multi-company support', 'Advanced AI matching', 'Anomaly detection', 'CSV/Excel export', 'Priority support'],
+    name: 'Reconciliation Pro', price: '$79', period: '/month', desc: 'For accountants and teams handling active reconciliation',
+    features: ['Advanced match suggestions', 'Installment payment matching', 'Duplicate invoice detection', 'Duplicate transaction-file alerts', 'Realtime upload job notifications', 'Aging and reconciliation reports'],
     cta: 'Start Free Trial', popular: true,
   },
   {
-    name: 'Enterprise', price: '$199', period: '/month', desc: 'For firms and high-volume operations',
-    features: ['Unlimited invoices', 'API access', 'Custom matching rules', 'Dedicated account manager', 'SLA guarantee', 'SSO & audit logs'],
+    name: 'Firm Operations', price: '$199', period: '/month', desc: 'For firms managing users, companies, and audit visibility',
+    features: ['Multi-company accountant access', 'Admin portal and user controls', 'Activity and audit logs', 'Hybrid Gemini/local-model extraction', 'Background upload queues', 'System health and notification retention'],
     cta: 'Contact Sales', popular: false,
   },
 ]
