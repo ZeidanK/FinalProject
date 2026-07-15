@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { fmtDate } from '../utils/formatters'
 
 export function useMatchesTable({
   invoices: rawInvoices,
@@ -9,6 +10,7 @@ export function useMatchesTable({
 }) {
   const [invoiceSearch, setInvoiceSearch] = useState('')
   const [transactionSearch, setTransactionSearch] = useState('')
+  const [matchSearch, setMatchSearch] = useState('')
   const [invoiceSort, setInvoiceSort] = useState({ column: 'id', dir: 'asc' })
   const [transactionSort, setTransactionSort] = useState({ column: 'id', dir: 'asc' })
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null)
@@ -78,7 +80,9 @@ export function useMatchesTable({
       items = items.filter((inv) => {
         const vendor = (inv.vendor_name || inv.vendorName || '').toLowerCase()
         const num = (inv.invoice_number || inv.invoiceNumber || '').toLowerCase()
-        return vendor.includes(q) || num.includes(q)
+        const rawDate = inv.invoice_date || inv.invoiceDate
+        const dateStr = rawDate ? fmtDate(rawDate).toLowerCase() + ' ' + String(rawDate).toLowerCase() : ''
+        return vendor.includes(q) || num.includes(q) || dateStr.includes(q)
       })
     }
     return sortItems(items, invoiceSort.column, invoiceSort.dir, invoiceFieldMap)
@@ -91,11 +95,27 @@ export function useMatchesTable({
       items = items.filter((trx) => {
         const vendor = (trx.vendor_name || trx.vendorName || '').toLowerCase()
         const amt = `${trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? ''}`
-        return vendor.includes(q) || amt.includes(q)
+        const rawDate = trx.transaction_date || trx.transactionDate
+        const dateStr = rawDate ? fmtDate(rawDate).toLowerCase() + ' ' + String(rawDate).toLowerCase() : ''
+        return vendor.includes(q) || amt.includes(q) || dateStr.includes(q)
       })
     }
     return sortItems(items, transactionSort.column, transactionSort.dir, transactionFieldMap)
   }, [invoiceTransactions, transactionSearch, transactionSort, sortItems])
+
+  const filteredMatches = useMemo(() => {
+    const q = matchSearch.toLowerCase()
+    if (!q) return matches
+    return matches.filter((m) => {
+      const invNum = (m.invoice_number || m.invoiceNumber || '').toLowerCase()
+      const trxInfo = (m.transaction_vendor_name || m.transactionVendorName || m.transaction_description || m.transactionDescription || '').toLowerCase()
+      const amt = String(m.matched_amount ?? m.matchedAmount ?? '')
+      const method = (m.match_method || m.matchMethod || '').toLowerCase()
+      const rawDate = m.transaction_date || m.transactionDate || m.created_at || m.createdAt
+      const dateStr = rawDate ? fmtDate(rawDate).toLowerCase() + ' ' + String(rawDate).toLowerCase() : ''
+      return invNum.includes(q) || trxInfo.includes(q) || amt.includes(q) || method.includes(q) || dateStr.includes(q)
+    })
+  }, [matches, matchSearch])
 
   const toggleInvoiceSort = useCallback((column) => {
     setInvoiceSort((prev) => prev.column === column ? { column, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { column, dir: 'asc' })
@@ -145,6 +165,7 @@ export function useMatchesTable({
   return {
     invoiceSearch, setInvoiceSearch,
     transactionSearch, setTransactionSearch,
+    matchSearch, setMatchSearch,
     invoiceSort, toggleInvoiceSort,
     transactionSort, toggleTransactionSort,
     selectedInvoiceId, selectInvoice,
@@ -153,6 +174,7 @@ export function useMatchesTable({
     deniedSimplePairs, denySimplePair, undoAllDenied,
     deniedInstallmentPairs, denyInstallmentPair,
     filteredInvoices, filteredTransactions,
+    filteredMatches,
     noInvoiceTransactions,
     invoices, transactions, matches,
     simpleSuggestions, quickSuggestions,

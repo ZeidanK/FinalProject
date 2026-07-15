@@ -562,11 +562,14 @@ function MatchesPage() {
                 title="Matched Items"
                 icon={CheckCircleRoundedIcon}
                 color="#37d67a"
-                count={matches.length}
+                count={table.filteredMatches.length}
+                searchValue={table.matchSearch}
+                onSearchChange={table.setMatchSearch}
+                searchPlaceholder="Search by invoice, transaction, amount, method, or date..."
                 loading={loading}
                 emptyMessage="No matches yet."
                 columns={matchColumns}
-                rows={matches}
+                rows={table.filteredMatches}
                 getRowStyle={(row) => isInstallmentMatch(row) ? { borderLeft: '3px solid #fbbf24', bgcolor: 'rgba(251,191,36,0.04)' } : {}}
                 renderActions={(row) => (
                   <Stack direction="row" spacing={0.3}>
