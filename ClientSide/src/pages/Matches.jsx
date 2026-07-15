@@ -362,12 +362,17 @@ function MatchesPage() {
     setAutoPreviewOpen(true)
     try {
       const result = await autoMatchMutation.mutateAsync({ minConfidence: 70 })
-      const items = result?.matchDetails || result?.suggestionsForReview || []
+      const autoMatched = result?.matchDetails ?? []
+      const suggestions = result?.suggestionsForReview ?? []
+      const items = [...autoMatched, ...suggestions]
       setAutoPreviewData(Array.isArray(items) ? items.map((item) => ({
         invoice: { id: item.invoiceId, invoice_number: item.invoiceNumber, total_amount: item.invoiceAmount, invoice_date: item.invoiceDate },
         transaction: { id: item.transactionId, description: item.transactionDescription, amount: item.transactionAmount, transaction_date: item.transactionDate },
-        confidence: item.matchScore ?? item.matchConfidence ?? 0.7,
+        confidence: item.matchScore != null ? item.matchScore / 100 : (item.matchConfidence ?? 0.7),
         amount: item.matchedAmount ?? item.invoiceAmount,
+        alreadyMatched: item.success ?? false,
+        message: item.message,
+        matchId: item.matchId,
       })) : [])
     } catch { setAutoPreviewData([]) }
     finally { setAutoPreviewLoading(false) }
@@ -379,13 +384,29 @@ function MatchesPage() {
     let count = 0
     try {
       for (const item of selectedItems) {
+        if (item.alreadyMatched) continue
         await createMatchMutation.mutateAsync({ invoiceId: item.invoice.id, transactionId: item.transaction.id, matchedAmount: item.amount || item.invoice?.total_amount || 0, matchMethod: 'auto', matchType: 'full', matchConfidence: item.confidence ?? 0.7 })
         count++
       }
-      setSnack({ message: `${count} auto-match(es) created!`, severity: 'success' })
+      setSnack({ message: count > 0 ? `${count} auto-match(es) created!` : 'No new matches to create.', severity: count > 0 ? 'success' : 'info' })
     } catch (err) { setSnack({ message: err.message || 'Auto-match failed.', severity: 'error' }) }
     finally { setMatchBusy(false) }
   }, [createMatchMutation])
+
+  const handleAutoUnmatch = useCallback(async (selectedItems) => {
+    setAutoPreviewOpen(false)
+    setMatchBusy(true)
+    let count = 0
+    try {
+      for (const item of selectedItems) {
+        if (!item.alreadyMatched || !item.matchId) continue
+        await deleteMatchMutation.mutateAsync(item.matchId)
+        count++
+      }
+      setSnack({ message: count > 0 ? `${count} auto-match(es) undone.` : 'No matches to undo.', severity: count > 0 ? 'success' : 'info' })
+    } catch (err) { setSnack({ message: err.message || 'Unmatch failed.', severity: 'error' }) }
+    finally { setMatchBusy(false) }
+  }, [deleteMatchMutation])
 
   const handleExport = useCallback(() => {
     exportMatchesCSV(table.regularMatches)
@@ -614,7 +635,7 @@ function MatchesPage() {
 
       <UndoSnackbar pending={undoManager.pending} onUndo={handleUndo} onDismiss={undoManager.dismiss} />
 
-      <AutoMatchPreviewModal open={autoPreviewOpen} onClose={() => setAutoPreviewOpen(false)} onConfirm={handleAutoConfirm} previewData={autoPreviewData} loading={autoPreviewLoading} />
+      <AutoMatchPreviewModal open={autoPreviewOpen} onClose={() => setAutoPreviewOpen(false)} onConfirm={handleAutoConfirm} onUnmatch={handleAutoUnmatch} previewData={autoPreviewData} loading={autoPreviewLoading} />
     </>
   )
 }

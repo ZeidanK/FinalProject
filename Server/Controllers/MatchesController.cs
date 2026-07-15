@@ -159,6 +159,8 @@ namespace FinalProjectAuthAPI.Controllers
                 successfulMatches = result.SuccessfulMatches,
                 skippedInvoices = result.SkippedInvoices,
                 totalProcessed = result.SuccessfulMatches + result.SkippedInvoices,
+                matchDetails = result.MatchDetails,
+                suggestionsForReview = result.SuggestionsForReview,
                 message = result.SuccessfulMatches > 0 
                     ? $"✓ {result.SuccessfulMatches} automatic match(es) found"
                     : "No automatic matches found"
