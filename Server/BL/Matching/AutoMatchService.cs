@@ -121,13 +121,22 @@ namespace FinalProjectAuthAPI.BL.Matching
                 if (createResult.Success)
                 {
                     result.SuccessfulMatches++;
+                    var txn = transactions.FirstOrDefault(t => t.Id == match.TransactionId);
                     result.MatchDetails.Add(new MatchDetail
                     {
+                        MatchId = createResult.Id,
                         InvoiceId = match.InvoiceId,
-                        InvoiceNumber = string.Empty,
+                        InvoiceNumber = invoice?.InvoiceNumber ?? string.Empty,
                         Success = true,
                         MatchScore = (decimal)(match.Confidence * 100),
-                        Message = $"Auto-matched via {match.RuleName}"
+                        Message = $"Auto-matched via {match.RuleName}",
+                        InvoiceAmount = invoice?.TotalAmount,
+                        InvoiceDate = invoice?.InvoiceDate.ToString("yyyy-MM-dd"),
+                        TransactionId = match.TransactionId,
+                        TransactionDescription = txn?.Description,
+                        TransactionAmount = txn?.Amount,
+                        TransactionDate = txn?.TransactionDate.ToString("yyyy-MM-dd"),
+                        MatchedAmount = match.MatchedAmount,
                     });
                 }
             }
@@ -157,7 +166,14 @@ namespace FinalProjectAuthAPI.BL.Matching
                             InvoiceNumber = invoice.InvoiceNumber,
                             Success = false,
                             MatchScore = score,
-                            Message = $"Best suggestion: {bestSuggestion.VendorName} (score: {score:F1})"
+                            Message = $"Best suggestion: {bestSuggestion.VendorName} (score: {score:F1})",
+                            InvoiceAmount = bestSuggestion.InvoiceAmount,
+                            InvoiceDate = bestSuggestion.InvoiceDate.ToString("yyyy-MM-dd"),
+                            TransactionId = bestSuggestion.TransactionId,
+                            TransactionDescription = bestSuggestion.TransactionDescription,
+                            TransactionAmount = bestSuggestion.TransactionAmount,
+                            TransactionDate = bestSuggestion.TransactionDate.ToString("yyyy-MM-dd"),
+                            MatchedAmount = bestSuggestion.TransactionAmount,
                         });
                     }
                 }
@@ -230,7 +246,11 @@ namespace FinalProjectAuthAPI.BL.Matching
                             InvoiceNumber = group.InvoiceNumber,
                             Success = false,
                             MatchScore = 90m,
-                            Message = createResult.Error
+                            Message = createResult.Error,
+                            TransactionId = txn.TransactionId,
+                            TransactionDescription = txn.Description,
+                            TransactionAmount = txn.Amount,
+                            TransactionDate = txn.TransactionDate.ToString("yyyy-MM-dd"),
                         });
                         continue;
                     }
@@ -240,11 +260,17 @@ namespace FinalProjectAuthAPI.BL.Matching
                     remainingAmount -= matchedAmount;
                     result.MatchDetails.Add(new MatchDetail
                     {
+                        MatchId = createResult.Id,
                         InvoiceId = group.InvoiceId,
                         InvoiceNumber = group.InvoiceNumber,
                         Success = true,
                         MatchScore = 90m,
-                        Message = $"Auto-confirmed installment {installmentNumber}{(expectedInstallments.HasValue ? $"/{expectedInstallments.Value}" : string.Empty)}"
+                        Message = $"Auto-confirmed installment {installmentNumber}{(expectedInstallments.HasValue ? $"/{expectedInstallments.Value}" : string.Empty)}",
+                        TransactionId = txn.TransactionId,
+                        TransactionDescription = txn.Description,
+                        TransactionAmount = txn.Amount,
+                        TransactionDate = txn.TransactionDate.ToString("yyyy-MM-dd"),
+                        MatchedAmount = matchedAmount,
                     });
 
                     installmentNumber++;

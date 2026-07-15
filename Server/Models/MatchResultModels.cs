@@ -15,5 +15,13 @@ namespace FinalProjectAuthAPI.Models
         public bool Success { get; set; }
         public decimal? MatchScore { get; set; }
         public string Message { get; set; } = string.Empty;
+        public decimal? InvoiceAmount { get; set; }
+        public string? InvoiceDate { get; set; }
+        public long? TransactionId { get; set; }
+        public string? TransactionDescription { get; set; }
+        public decimal? TransactionAmount { get; set; }
+        public string? TransactionDate { get; set; }
+        public decimal? MatchedAmount { get; set; }
+        public long? MatchId { get; set; }
     }
 }

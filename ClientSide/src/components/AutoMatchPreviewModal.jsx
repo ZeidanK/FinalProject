@@ -4,12 +4,15 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   LinearProgress,
   Stack,
   Typography,
 } from '@mui/material'
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded'
+import NotInterestedRoundedIcon from '@mui/icons-material/NotInterestedRounded'
 import ModalShell from './ModalShell'
 import { fmtAmount, fmtDate } from '../utils/formatters'
 
@@ -17,12 +20,17 @@ export default function AutoMatchPreviewModal({
   open,
   onClose,
   onConfirm,
+  onUnmatch,
   previewData,
   loading,
 }) {
   const [selected, setSelected] = useState([])
 
   const items = Array.isArray(previewData) ? previewData : []
+
+  const hasMatched = items.some((i) => i.alreadyMatched)
+  const selectedMatched = selected.filter((i) => items[i]?.alreadyMatched)
+  const selectedPending = selected.filter((i) => !items[i]?.alreadyMatched)
 
   const handleToggle = (index) => {
     setSelected((prev) =>
@@ -38,9 +46,14 @@ export default function AutoMatchPreviewModal({
     }
   }
 
-  const handleConfirm = () => {
-    const selectedItems = selected.map((i) => items[i])
+  const handleMatch = () => {
+    const selectedItems = selectedPending.map((i) => items[i])
     onConfirm(selectedItems)
+  }
+
+  const handleUnmatch = () => {
+    const selectedItems = selectedMatched.map((i) => items[i])
+    onUnmatch(selectedItems)
   }
 
   return (
@@ -64,15 +77,28 @@ export default function AutoMatchPreviewModal({
           <Button onClick={onClose} color="inherit">
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleConfirm}
-            disabled={selected.length === 0 || loading}
-            startIcon={<AutoFixHighRoundedIcon />}
-          >
-            Match {selected.length > 0 ? `(${selected.length})` : ''}
-          </Button>
+          {selectedMatched.length > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleUnmatch}
+              disabled={loading}
+              startIcon={<NotInterestedRoundedIcon />}
+            >
+              Unmatch ({selectedMatched.length})
+            </Button>
+          )}
+          {selectedPending.length > 0 && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleMatch}
+              disabled={loading}
+              startIcon={<AutoFixHighRoundedIcon />}
+            >
+              Match ({selectedPending.length})
+            </Button>
+          )}
         </Stack>
       }
     >
@@ -86,7 +112,7 @@ export default function AutoMatchPreviewModal({
 
       {items.length > 0 && (
         <>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, ml: 0.5 }}>
             <Checkbox
               size="small"
               checked={selected.length === items.length && items.length > 0}
@@ -95,19 +121,38 @@ export default function AutoMatchPreviewModal({
             />
             <Typography variant="body2" color="text.secondary">
               {selected.length} of {items.length} selected
+              {hasMatched && ` (${items.filter((i) => i.alreadyMatched).length} already matched)`}
             </Typography>
           </Stack>
 
           <Stack spacing={1.5}>
             {items.map((item, index) => (
-              <Box key={index} sx={{ position: 'relative' }}>
+              <Box
+                key={index}
+                onClick={() => handleToggle(index)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  p: 1.5,
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: selected.includes(index)
+                    ? 'rgba(55,214,122,0.3)'
+                    : 'rgba(255,255,255,0.08)',
+                  bgcolor: selected.includes(index)
+                    ? 'rgba(55,214,122,0.08)'
+                    : item.alreadyMatched
+                      ? 'rgba(55,214,122,0.05)'
+                      : 'rgba(255,255,255,0.02)',
+                  cursor: 'pointer',
+                }}
+              >
                 <Checkbox
                   size="small"
                   checked={selected.includes(index)}
-                  onChange={() => handleToggle(index)}
-                  sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1 }}
+                  sx={{ mr: 1, mt: -0.5, ml: -0.5 }}
                 />
-                <Box sx={{ ml: 4, p: 1.5, borderRadius: 2, border: '1px solid', borderColor: selected.includes(index) ? 'rgba(55,214,122,0.3)' : 'rgba(255,255,255,0.08)', bgcolor: 'rgba(255,255,255,0.02)' }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography variant="body2" fontWeight={600} noWrap>
@@ -127,13 +172,21 @@ export default function AutoMatchPreviewModal({
                       </Typography>
                     </Box>
                   </Stack>
-                  <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+                  <Stack direction="row" spacing={2} sx={{ mt: 0.5 }} alignItems="center">
                     <Typography variant="caption" color="text.secondary">
                       Confidence: {item.confidence ? `${Math.round(item.confidence * 100)}%` : '\u2014'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Amount: {item.amount ? fmtAmount(item.amount) : '\u2014'}
+                      Match: {item.amount ? fmtAmount(item.amount) : '\u2014'}
                     </Typography>
+                    {item.message && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }} noWrap>
+                        {item.message}
+                      </Typography>
+                    )}
+                    {item.alreadyMatched && (
+                      <Chip icon={<CheckCircleOutlineRoundedIcon />} label="Matched" size="small" color="success" variant="outlined" sx={{ height: 20, '& .MuiChip-icon': { fontSize: 14, ml: 0.5 } }} />
+                    )}
                   </Stack>
                 </Box>
               </Box>
@@ -148,7 +201,8 @@ export default function AutoMatchPreviewModal({
 AutoMatchPreviewModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
-  onConfirm: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func,
+  onUnmatch: PropTypes.func,
   previewData: PropTypes.array,
   loading: PropTypes.bool,
 }

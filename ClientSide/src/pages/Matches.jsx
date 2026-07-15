@@ -135,7 +135,8 @@ function MatchesPage() {
   const [invoiceModal, setInvoiceModal] = useState({ open: false, file: null })
   const [invoiceSaving, setInvoiceSaving] = useState(false)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
-  const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null })
+  const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null, bulk: false })
+  const [selectedMatchIds, setSelectedMatchIds] = useState([])
   const [matchDetailsDialog, setMatchDetailsDialog] = useState({ open: false, match: null, invoice: null, transaction: null, loading: false, error: '' })
   const [autoPreviewOpen, setAutoPreviewOpen] = useState(false)
   const [autoPreviewData, setAutoPreviewData] = useState(null)
@@ -266,11 +267,40 @@ function MatchesPage() {
     }
   }, [undoManager, deleteMatchMutation])
 
-  const confirmUnmatch = useCallback((matchId) => setUnmatchDialog({ open: true, matchId }), [])
+  const confirmUnmatch = useCallback((matchId) => setUnmatchDialog({ open: true, matchId, bulk: false }), [])
+  const confirmBulkUnmatch = useCallback(() => {
+    if (selectedMatchIds.length === 0) return
+    setUnmatchDialog({ open: true, matchId: null, bulk: true })
+  }, [selectedMatchIds])
+
+  const toggleMatchSelection = useCallback((id) => {
+    setSelectedMatchIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }, [])
+
+  const toggleSelectAllMatches = useCallback(() => {
+    setSelectedMatchIds((prev) => prev.length === table.filteredMatches.length ? [] : table.filteredMatches.map((r) => r.id ?? r._id))
+  }, [table.filteredMatches])
+
+  const allMatchesSelected = selectedMatchIds.length > 0 && selectedMatchIds.length === table.filteredMatches.length
 
   const handleUnmatch = useCallback(async () => {
-    const matchId = unmatchDialog.matchId
-    setUnmatchDialog({ open: false, matchId: null })
+    const { matchId, bulk } = unmatchDialog
+    setUnmatchDialog({ open: false, matchId: null, bulk: false })
+    if (bulk) {
+      if (selectedMatchIds.length === 0) return
+      let count = 0
+      try {
+        for (const id of selectedMatchIds) {
+          await deleteMatchMutation.mutateAsync(id)
+          count++
+        }
+        setSelectedMatchIds([])
+        setSnack({ message: `${count} match(es) removed.`, severity: 'success' })
+      } catch (err) {
+        setSnack({ message: err.message || 'Failed to remove matches.', severity: 'error' })
+      }
+      return
+    }
     if (!matchId) return
     try {
       await deleteMatchMutation.mutateAsync(matchId)
@@ -278,7 +308,7 @@ function MatchesPage() {
     } catch (err) {
       setSnack({ message: err.message || 'Failed to remove match.', severity: 'error' })
     }
-  }, [unmatchDialog.matchId, deleteMatchMutation])
+  }, [unmatchDialog.matchId, unmatchDialog.bulk, selectedMatchIds, deleteMatchMutation])
 
   const openMatchDetails = useCallback(async (match) => {
     const invoiceId = readField(match, 'invoice_id', 'invoiceId')
@@ -319,6 +349,10 @@ function MatchesPage() {
     const sourceInvoice = invoiceModal.file?.sourceInvoice || {}
     setInvoiceSaving(true)
     try {
+      const paymentPlanEnabled = Boolean(formData.paymentPlanEnabled)
+      const parseOptionalInt = (v) => { if (v == null || v === '') return null; const p = Number.parseInt(v, 10); return Number.isNaN(p) ? null : p }
+      const parseOptionalFloat = (v) => { if (v == null || v === '') return null; const p = Number.parseFloat(v); return Number.isNaN(p) ? null : p }
+      const normalizeStr = (v) => { if (v == null || v === '') return null; const t = String(v).trim(); return t.length > 0 ? t : null }
       const payload = {
         companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
         invoiceNumber: formData.invoiceNumber?.value || '',
@@ -334,18 +368,18 @@ function MatchesPage() {
         dueDate: formData.dueDate?.value || null,
         paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
         itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
-        paymentPlanTotalInstallments: formData.paymentPlan?.totalInstallments?.value ?? sourceInvoice.paymentPlanTotalInstallments ?? sourceInvoice.payment_plan_total_installments ?? null,
-        paymentPlanInstallmentAmount: formData.paymentPlan?.installmentAmount?.value ?? sourceInvoice.paymentPlanInstallmentAmount ?? sourceInvoice.payment_plan_installment_amount ?? null,
-        paymentPlanFrequency: formData.paymentPlan?.frequency?.value ?? sourceInvoice.paymentPlanFrequency ?? sourceInvoice.payment_plan_frequency ?? null,
-        paymentPlanCurrentInstallment: formData.paymentPlan?.currentInstallment?.value ?? sourceInvoice.paymentPlanCurrentInstallment ?? sourceInvoice.payment_plan_current_installment ?? null,
-        paymentPlanDescription: formData.paymentPlan?.description?.value ?? sourceInvoice.paymentPlanDescription ?? sourceInvoice.payment_plan_description ?? null,
+        paymentPlanTotalInstallments: paymentPlanEnabled ? parseOptionalInt(formData.paymentPlan?.totalInstallments?.value) : null,
+        paymentPlanInstallmentAmount: paymentPlanEnabled ? parseOptionalFloat(formData.paymentPlan?.installmentAmount?.value) : null,
+        paymentPlanFrequency: paymentPlanEnabled ? normalizeStr(formData.paymentPlan?.frequency?.value) : null,
+        paymentPlanCurrentInstallment: paymentPlanEnabled ? parseOptionalInt(formData.paymentPlan?.currentInstallment?.value) : null,
+        paymentPlanDescription: paymentPlanEnabled ? normalizeStr(formData.paymentPlan?.description?.value) : null,
         fileOriginalName: sourceInvoice.fileOriginalName || sourceInvoice.file_original_name || null,
         filePath: sourceInvoice.filePath || sourceInvoice.file_path || null,
         fileType: sourceInvoice.fileType || sourceInvoice.file_type || null,
         fileSize: sourceInvoice.fileSize || sourceInvoice.file_size || null,
-        aiExtractionConfidence: sourceInvoice.aiExtractionConfidence || sourceInvoice.ai_extraction_confidence || null,
+        aiExtractionConfidence: 1,
         lineItems: (formData.lineItems || []).map((li, idx) => ({
-          description: li.description || 'Item', unitPrice: Number.parseFloat(li.unitPrice) || 0, totalAmount: Number.parseFloat(li.totalAmount) || 0, lineNumber: idx + 1, quantity: Number.parseFloat(li.quantity) || 1, vatRate: Number.parseFloat(formData.vatRate?.value) || null, aiConfidenceScore: li.confidence ?? null,
+          description: li.description || 'Item', unitPrice: Number.parseFloat(li.unitPrice) || 0, totalAmount: Number.parseFloat(li.totalAmount) || 0, lineNumber: idx + 1, quantity: Number.parseFloat(li.quantity) || 1, vatRate: Number.parseFloat(formData.vatRate?.value) || null, aiConfidenceScore: 1,
         })),
       }
       await updateInvoice(editingInvoiceId, payload, token)
@@ -362,12 +396,17 @@ function MatchesPage() {
     setAutoPreviewOpen(true)
     try {
       const result = await autoMatchMutation.mutateAsync({ minConfidence: 70 })
-      const items = result?.matchDetails || result?.suggestionsForReview || []
+      const autoMatched = result?.matchDetails ?? []
+      const suggestions = result?.suggestionsForReview ?? []
+      const items = [...autoMatched, ...suggestions]
       setAutoPreviewData(Array.isArray(items) ? items.map((item) => ({
         invoice: { id: item.invoiceId, invoice_number: item.invoiceNumber, total_amount: item.invoiceAmount, invoice_date: item.invoiceDate },
         transaction: { id: item.transactionId, description: item.transactionDescription, amount: item.transactionAmount, transaction_date: item.transactionDate },
-        confidence: item.matchScore ?? item.matchConfidence ?? 0.7,
+        confidence: item.matchScore != null ? item.matchScore / 100 : (item.matchConfidence ?? 0.7),
         amount: item.matchedAmount ?? item.invoiceAmount,
+        alreadyMatched: item.success ?? false,
+        message: item.message,
+        matchId: item.matchId,
       })) : [])
     } catch { setAutoPreviewData([]) }
     finally { setAutoPreviewLoading(false) }
@@ -379,13 +418,29 @@ function MatchesPage() {
     let count = 0
     try {
       for (const item of selectedItems) {
+        if (item.alreadyMatched) continue
         await createMatchMutation.mutateAsync({ invoiceId: item.invoice.id, transactionId: item.transaction.id, matchedAmount: item.amount || item.invoice?.total_amount || 0, matchMethod: 'auto', matchType: 'full', matchConfidence: item.confidence ?? 0.7 })
         count++
       }
-      setSnack({ message: `${count} auto-match(es) created!`, severity: 'success' })
+      setSnack({ message: count > 0 ? `${count} auto-match(es) created!` : 'No new matches to create.', severity: count > 0 ? 'success' : 'info' })
     } catch (err) { setSnack({ message: err.message || 'Auto-match failed.', severity: 'error' }) }
     finally { setMatchBusy(false) }
   }, [createMatchMutation])
+
+  const handleAutoUnmatch = useCallback(async (selectedItems) => {
+    setAutoPreviewOpen(false)
+    setMatchBusy(true)
+    let count = 0
+    try {
+      for (const item of selectedItems) {
+        if (!item.alreadyMatched || !item.matchId) continue
+        await deleteMatchMutation.mutateAsync(item.matchId)
+        count++
+      }
+      setSnack({ message: count > 0 ? `${count} auto-match(es) undone.` : 'No matches to undo.', severity: count > 0 ? 'success' : 'info' })
+    } catch (err) { setSnack({ message: err.message || 'Unmatch failed.', severity: 'error' }) }
+    finally { setMatchBusy(false) }
+  }, [deleteMatchMutation])
 
   const handleExport = useCallback(() => {
     exportMatchesCSV(table.regularMatches)
@@ -562,12 +617,24 @@ function MatchesPage() {
                 title="Matched Items"
                 icon={CheckCircleRoundedIcon}
                 color="#37d67a"
-                count={matches.length}
+                count={table.filteredMatches.length}
+                searchValue={table.matchSearch}
+                onSearchChange={table.setMatchSearch}
+                searchPlaceholder="Search by invoice, transaction, amount, method, or date..."
                 loading={loading}
                 emptyMessage="No matches yet."
                 columns={matchColumns}
-                rows={matches}
+                rows={table.filteredMatches}
+                selectedIds={selectedMatchIds}
+                onToggleSelect={toggleMatchSelection}
+                onToggleSelectAll={toggleSelectAllMatches}
+                allSelected={allMatchesSelected}
                 getRowStyle={(row) => isInstallmentMatch(row) ? { borderLeft: '3px solid #fbbf24', bgcolor: 'rgba(251,191,36,0.04)' } : {}}
+                titleAction={selectedMatchIds.length > 0 ? (
+                  <Button size="small" color="error" variant="outlined" onClick={confirmBulkUnmatch}>
+                    Unmatch Selected ({selectedMatchIds.length})
+                  </Button>
+                ) : undefined}
                 renderActions={(row) => (
                   <Stack direction="row" spacing={0.3}>
                     <Tooltip title="View details">
@@ -598,11 +665,17 @@ function MatchesPage() {
 
       <MatchDetailsModal open={matchDetailsDialog.open} match={matchDetailsDialog.match} invoice={matchDetailsDialog.invoice} transaction={matchDetailsDialog.transaction} loading={matchDetailsDialog.loading} error={matchDetailsDialog.error} onClose={closeMatchDetails} />
 
-      <Dialog open={unmatchDialog.open} onClose={() => setUnmatchDialog({ open: false, matchId: null })}>
-        <DialogTitle>Remove Match</DialogTitle>
-        <DialogContent><DialogContentText>Are you sure you want to unmatch these items?</DialogContentText></DialogContent>
+      <Dialog open={unmatchDialog.open} onClose={() => setUnmatchDialog({ open: false, matchId: null, bulk: false })}>
+        <DialogTitle>{unmatchDialog.bulk ? 'Remove Matches' : 'Remove Match'}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {unmatchDialog.bulk
+              ? `Are you sure you want to unmatch ${selectedMatchIds.length} selected item(s)?`
+              : 'Are you sure you want to unmatch these items?'}
+          </DialogContentText>
+        </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUnmatchDialog({ open: false, matchId: null })}>Cancel</Button>
+          <Button onClick={() => setUnmatchDialog({ open: false, matchId: null, bulk: false })}>Cancel</Button>
           <Button onClick={handleUnmatch} color="error" variant="contained">Unmatch</Button>
         </DialogActions>
       </Dialog>
@@ -611,7 +684,7 @@ function MatchesPage() {
 
       <UndoSnackbar pending={undoManager.pending} onUndo={handleUndo} onDismiss={undoManager.dismiss} />
 
-      <AutoMatchPreviewModal open={autoPreviewOpen} onClose={() => setAutoPreviewOpen(false)} onConfirm={handleAutoConfirm} previewData={autoPreviewData} loading={autoPreviewLoading} />
+      <AutoMatchPreviewModal open={autoPreviewOpen} onClose={() => setAutoPreviewOpen(false)} onConfirm={handleAutoConfirm} onUnmatch={handleAutoUnmatch} previewData={autoPreviewData} loading={autoPreviewLoading} />
     </>
   )
 }

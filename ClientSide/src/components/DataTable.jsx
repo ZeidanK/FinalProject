@@ -57,6 +57,7 @@ export default function DataTable({
   editingId,
   renderActions,
   rowActions,
+  titleAction,
   defaultPageSize = 25,
   getRowStyle,
   getRowId,
@@ -104,11 +105,14 @@ export default function DataTable({
                 <Chip label={count} size="small" sx={{ bgcolor: `${color}1A`, color, fontWeight: 600 }} />
               )}
             </Stack>
-            {totalRows > 0 && (
-              <IconButton size="small" onClick={() => setPage(0)} aria-label="Reset pagination" sx={{ color: 'text.secondary' }}>
-                <RestartAltRoundedIcon fontSize="small" />
-              </IconButton>
-            )}
+            <Stack direction="row" alignItems="center" spacing={1}>
+              {titleAction}
+              {totalRows > 0 && (
+                <IconButton size="small" onClick={() => setPage(0)} aria-label="Reset pagination" sx={{ color: 'text.secondary' }}>
+                  <RestartAltRoundedIcon fontSize="small" />
+                </IconButton>
+              )}
+            </Stack>
           </Stack>
         )}
 
@@ -137,7 +141,7 @@ export default function DataTable({
           <Table size="small" stickyHeader>
             <TableHead sx={{ bgcolor: 'rgba(14,24,45,0.9)' }}>
               <TableRow>
-                {effectiveSelectedIds.length > 0 && onToggleSelect && (
+                {onToggleSelect && (
                   <TableCell sx={{ bgcolor: 'rgba(14,24,45,0.9)', borderBottom: '1px solid rgba(129,191,255,0.08)', width: 48, p: 0.5, textAlign: 'center' }}>
                     {onToggleSelectAll && (
                       <span
@@ -178,6 +182,11 @@ export default function DataTable({
                     )}
                   </TableCell>
                 ))}
+                {effectiveRenderActions && (
+                  <TableCell sx={{ bgcolor: 'rgba(14,24,45,0.9)', borderBottom: '1px solid rgba(129,191,255,0.08)', color: 'text.secondary', fontWeight: 700, fontSize: '0.75rem', letterSpacing: 0.3, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    Actions
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -193,7 +202,7 @@ export default function DataTable({
                 ))
               ) : paginatedRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length + (onToggleSelect ? 1 : 0)} sx={{ textAlign: 'center', py: 4, borderBottom: 'none' }}>
+                  <TableCell colSpan={columns.length + (onToggleSelect ? 1 : 0) + (effectiveRenderActions ? 1 : 0)} sx={{ textAlign: 'center', py: 4, borderBottom: 'none' }}>
                     {EmptyIcon ? <Stack alignItems="center" spacing={1}>{EmptyIcon}<Typography variant="body2" color="text.secondary">{emptyMessage || 'No items.'}</Typography></Stack> : (
                       <Typography variant="body2" color="text.secondary">
                         {emptyMessage || 'No items.'}
@@ -220,7 +229,7 @@ export default function DataTable({
                         ...(getRowStyle?.(row) || {}),
                       }}
                     >
-                      {effectiveSelectedIds.length > 0 && onToggleSelect && (
+                      {onToggleSelect && (
                         <TableCell sx={{ color: isSelected ? '#fff' : 'inherit', fontSize: '0.8rem', textAlign: 'center', p: 0.5 }}>
                           <span style={{ cursor: 'pointer', fontSize: '1rem' }} onClick={(e) => { e.stopPropagation(); onToggleSelect(id) }}>
                             {isSelected ? '\u2611' : '\u2610'}
@@ -311,7 +320,11 @@ DataTable.propTypes = {
   })).isRequired,
   rows: PropTypes.array.isRequired,
   selectedId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  selectedIds: PropTypes.array,
   onSelect: PropTypes.func,
+  onToggleSelect: PropTypes.func,
+  onToggleSelectAll: PropTypes.func,
+  allSelected: PropTypes.bool,
   onSort: PropTypes.func,
   sortColumn: PropTypes.string,
   sortDirection: PropTypes.oneOf(['asc', 'desc']),
@@ -319,6 +332,8 @@ DataTable.propTypes = {
   onEditLabel: PropTypes.string,
   editingId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   renderActions: PropTypes.func,
+  titleAction: PropTypes.node,
   defaultPageSize: PropTypes.number,
   getRowStyle: PropTypes.func,
+  getRowId: PropTypes.func,
 }
