@@ -80,7 +80,7 @@ import {
  * @type {number}
  */
 const MAX_FILE_SIZE = 10 * 1024 * 1024
-const AUTO_VERIFY_CONFIDENCE_THRESHOLD = 0.9
+const AUTO_VERIFY_CONFIDENCE_THRESHOLD = 0.8
 const INVOICE_EXTRACTION_PROVIDERS = {
   GEMINI: 'gemini',
   LOCAL_MODEL: 'localmodel',
@@ -1434,7 +1434,7 @@ function InvoicesPage() {
     }).length
 
     const warning = belowThresholdCount > 0
-      ? ` ${belowThresholdCount} selected invoice(s) are below or missing 90% confidence.`
+      ? ` ${belowThresholdCount} selected invoice(s) are below or missing 80% confidence.`
       : ''
     const confirmed = await confirm(
       `Verify ${selectedEntries.length} selected invoice(s) without opening them?${warning}`,
@@ -1599,7 +1599,7 @@ function InvoicesPage() {
                   color="success"
                 />
               )}
-              label="Auto-verify invoices with 90% confidence or higher"
+              label="Auto-verify invoices with 80% confidence or higher"
             />
             <Typography variant="caption" color="text.secondary">
               Applies only to files added after the switch is enabled.

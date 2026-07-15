@@ -228,7 +228,7 @@ describe('InvoicesPage', () => {
 
   it('shows auto-verify switch', () => {
     renderPage()
-    expect(screen.getByText(/Auto-verify invoices with 90% confidence or higher/)).toBeInTheDocument()
+    expect(screen.getByText(/Auto-verify invoices with 80% confidence or higher/)).toBeInTheDocument()
   })
 
   it('shows local model warning when extraction toggle is enabled', async () => {
