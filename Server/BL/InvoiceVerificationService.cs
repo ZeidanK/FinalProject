@@ -16,7 +16,7 @@ namespace FinalProjectAuthAPI.BL
         private readonly InvoiceJobValidator _validator;
         private readonly InvoiceJobPayloadSerializer _serializer;
 
-        public const decimal AutoVerifyConfidenceThreshold = 0.90m;
+        public const decimal AutoVerifyConfidenceThreshold = 0.80m;
 
         public InvoiceVerificationService(
             IInvoiceService invoiceSvc,
