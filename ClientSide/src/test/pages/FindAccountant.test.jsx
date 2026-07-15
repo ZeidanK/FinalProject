@@ -60,7 +60,6 @@ const mockItems = [
     reviewCount: 12,
     bio: 'Experienced CPA',
     hourlyRate: 150,
-    website: 'https://bob.example.com',
     profilePicture: null,
   },
   {
@@ -76,7 +75,6 @@ const mockItems = [
     reviewCount: 0,
     bio: null,
     hourlyRate: null,
-    website: null,
     profilePicture: null,
   },
   {
@@ -92,7 +90,6 @@ const mockItems = [
     reviewCount: 25,
     bio: 'Expert auditor',
     hourlyRate: 200,
-    website: null,
     profilePicture: null,
   },
 ]

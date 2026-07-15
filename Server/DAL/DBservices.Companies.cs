@@ -114,7 +114,7 @@ namespace FinalProjectAuthAPI.DAL
             string name, long createdByUserId,
             string? registrationNumber, string? street, string? city,
             string? state, string? postalCode, string country,
-            string? email, string? phone, string? website,
+            string? email, string? phone,
             string? taxId, string? vatNumber, DateTime? fiscalYearStart,
             string currency)
         {
@@ -138,7 +138,6 @@ namespace FinalProjectAuthAPI.DAL
                         country: country,
                         email: email,
                         phone: phone,
-                        website: website,
                         taxId: taxId,
                         vatNumber: vatNumber,
                         fiscalYearStart: fiscalYearStart,
@@ -178,7 +177,7 @@ namespace FinalProjectAuthAPI.DAL
         public virtual bool UpdateCompany(
             long id, string? name, string? street, string? city,
             string? state, string? postalCode, string? country,
-            string? email, string? phone, string? website,
+            string? email, string? phone,
             string? taxId, string? vatNumber, bool? isActive)
         {
             SqlConnection? con = null;
@@ -199,7 +198,6 @@ namespace FinalProjectAuthAPI.DAL
                         country: country,
                         email: email,
                         phone: phone,
-                        website: website,
                         taxId: taxId,
                         vatNumber: vatNumber,
                         fiscalYearStart: null,
@@ -223,7 +221,6 @@ namespace FinalProjectAuthAPI.DAL
             string? country,
             string? email,
             string? phone,
-            string? website,
             string? taxId,
             string? vatNumber,
             DateTime? fiscalYearStart,
@@ -240,7 +237,6 @@ namespace FinalProjectAuthAPI.DAL
                 { "@Country",            country            },
                 { "@Email",              email              },
                 { "@Phone",              phone              },
-                { "@Website",            website            },
                 { "@TaxId",              taxId              },
                 { "@VatNumber",          vatNumber          },
             };
@@ -315,7 +311,6 @@ namespace FinalProjectAuthAPI.DAL
                         CompanyCountry    = reader.GetStringOrNull("company_country"),
                         CompanyRegistrationNumber = reader.GetStringOrNull("company_registration_number"),
                         CompanyTaxId      = reader.GetStringOrNull("company_tax_id"),
-                        CompanyWebsite    = reader.GetStringOrNull("company_website"),
                         CreatedAt         = Convert.ToDateTime(reader["created_at"]),
                         Status            = reader["status"]?.ToString() ?? "pending",
                     });
@@ -426,7 +421,6 @@ namespace FinalProjectAuthAPI.DAL
                 Country            = r.GetStringOrDefault("country", "USA"),
                 Email              = r.GetStringOrNull("email"),
                 Phone              = r.GetStringOrNull("phone"),
-                Website            = r.GetStringOrNull("website"),
                 TaxId              = r.GetStringOrNull("tax_id"),
                 VatNumber          = r.GetStringOrNull("vat_number"),
                 Currency           = r.GetStringOrDefault("currency", "USD"),

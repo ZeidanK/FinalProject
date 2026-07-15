@@ -109,14 +109,6 @@ export default function CompanyForm({ form, setForm, saving, onSave, onCancel, i
             onChange={handleChange('phone')}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Website"
-            fullWidth
-            value={form.website}
-            onChange={handleChange('website')}
-          />
-        </Grid>
         <Grid size={{ xs: 12, sm: 3 }}>
           <TextField
             label="Tax ID"
@@ -184,7 +176,6 @@ CompanyForm.propTypes = {
     country: PropTypes.string,
     email: PropTypes.string,
     phone: PropTypes.string,
-    website: PropTypes.string,
     taxId: PropTypes.string,
     vatNumber: PropTypes.string,
     currency: PropTypes.string,

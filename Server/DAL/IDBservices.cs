@@ -10,7 +10,7 @@ namespace FinalProjectAuthAPI.DAL
 
         User? GetUserById(long id);
         List<User> GetAllUsers();
-        bool UpdateUser(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null, string? website = null);
+        bool UpdateUser(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null);
         string? GetPasswordHash(long id);
         bool ChangePassword(long id, string newPasswordHash);
         bool UpdateUserVisibility(long userId, bool isPublic);
@@ -24,8 +24,8 @@ namespace FinalProjectAuthAPI.DAL
         List<CompanyRow> GetCompaniesByUserId(long userId);
         bool UserHasActiveCompanyAccess(long userId, long companyId);
         bool EnsureUserHasFullCompanyAccess(long userId, long companyId);
-        long CreateCompany(string name, long createdByUserId, string? registrationNumber, string? street, string? city, string? state, string? postalCode, string country, string? email, string? phone, string? website, string? taxId, string? vatNumber, DateTime? fiscalYearStart, string currency);
-        bool UpdateCompany(long id, string? name, string? street, string? city, string? state, string? postalCode, string? country, string? email, string? phone, string? website, string? taxId, string? vatNumber, bool? isActive);
+        long CreateCompany(string name, long createdByUserId, string? registrationNumber, string? street, string? city, string? state, string? postalCode, string country, string? email, string? phone, string? taxId, string? vatNumber, DateTime? fiscalYearStart, string currency);
+        bool UpdateCompany(long id, string? name, string? street, string? city, string? state, string? postalCode, string? country, string? email, string? phone, string? taxId, string? vatNumber, bool? isActive);
         (bool Success, string Error) CreatePendingAccessRequest(long accountantUserId, long companyId, long requestedByUserId);
         List<AccessRequestRow> GetPendingRequestsByAccountant(long accountantId);
         List<CompanyRow> GetActiveCompaniesByAccountant(long accountantId);

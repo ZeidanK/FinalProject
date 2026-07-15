@@ -71,7 +71,7 @@ describe('AccountantWorkspace', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetUserById.mockResolvedValue({ isPublic: true, bio: '', yearsOfExperience: null, hourlyRate: null, location: '', website: '' })
+    mockGetUserById.mockResolvedValue({ isPublic: true, bio: '', yearsOfExperience: null, hourlyRate: null, location: '' })
     mockGetAccountantRequests.mockResolvedValue(mockRequests)
     mockGetAccountantCompanies.mockResolvedValue(mockCompanies)
     mockGetAccountantSpecialties.mockResolvedValue([])

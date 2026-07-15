@@ -33,9 +33,6 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(50)]
         public string? Phone { get; set; }
 
-        [StringLength(500)]
-        public string? Website { get; set; }
-
         [StringLength(100)]
         public string? TaxId { get; set; }
 
@@ -76,9 +73,6 @@ namespace FinalProjectAuthAPI.Models
         [StringLength(50)]
         public string? Phone { get; set; }
 
-        [StringLength(500)]
-        public string? Website { get; set; }
-
         [StringLength(100)]
         public string? TaxId { get; set; }
 
@@ -101,7 +95,6 @@ namespace FinalProjectAuthAPI.Models
         public string  Country            { get; set; } = "USA";
         public string? Email              { get; set; }
         public string? Phone              { get; set; }
-        public string? Website            { get; set; }
         public string? TaxId              { get; set; }
         public string? VatNumber          { get; set; }
         public DateTime? FiscalYearStart  { get; set; }

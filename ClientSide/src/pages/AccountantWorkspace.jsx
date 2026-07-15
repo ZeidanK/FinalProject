@@ -495,14 +495,6 @@ export default function AccountantWorkspace() {
                                 {req.companyTaxId ? ` | Tax ID: ${req.companyTaxId}` : ''}
                               </Typography>
                             </Stack>
-                            {req.companyWebsite && (
-                              <Stack direction="row" alignItems="center" spacing={1}>
-                                <LanguageRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                <Typography variant="body2" color="text.secondary">
-                                  {req.companyWebsite}
-                                </Typography>
-                              </Stack>
-                            )}
                           </Stack>
                         </Box>
                       </Stack>

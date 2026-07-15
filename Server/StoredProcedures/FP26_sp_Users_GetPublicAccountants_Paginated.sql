@@ -56,7 +56,6 @@ BEGIN
             u.years_of_experience,
             u.hourly_rate,
             u.location,
-            u.website,
             ISNULL(
                 (SELECT STUFF(
                     (SELECT ', ' + s.specialty
@@ -117,7 +116,7 @@ BEGIN
     SELECT
         id, name, email, phone, profile_picture,
         request_status, bio, years_of_experience, hourly_rate,
-        location, website, specialties, certifications,
+        location, specialties, certifications,
         average_rating, review_count
     FROM AccountantData
     WHERE row_num > @Offset

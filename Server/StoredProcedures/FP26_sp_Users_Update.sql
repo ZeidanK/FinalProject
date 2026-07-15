@@ -16,8 +16,7 @@ CREATE PROCEDURE dbo.FP26_sp_Users_Update
     @Bio               NVARCHAR(MAX) = NULL,
     @YearsOfExperience INT           = NULL,
     @HourlyRate        DECIMAL(10,2) = NULL,
-    @Location          NVARCHAR(255) = NULL,
-    @Website           NVARCHAR(500) = NULL
+    @Location          NVARCHAR(255) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -31,7 +30,6 @@ BEGIN
         years_of_experience = ISNULL(@YearsOfExperience, years_of_experience),
         hourly_rate        = ISNULL(@HourlyRate,        hourly_rate),
         location           = ISNULL(@Location,          location),
-        website            = ISNULL(@Website,           website),
         updated_at         = GETDATE()
     WHERE id = @Id;
 

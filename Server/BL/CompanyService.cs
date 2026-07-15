@@ -30,7 +30,7 @@ namespace FinalProjectAuthAPI.BL
             string? state = null, string? postalCode = null,
             string country = "USA",
             string? email = null, string? phone = null,
-            string? website = null, string? taxId = null,
+            string? taxId = null,
             string? vatNumber = null, DateTime? fiscalYearStart = null,
             string currency = "USD")
         {
@@ -46,7 +46,7 @@ namespace FinalProjectAuthAPI.BL
                 var id = _db.CreateCompany(
                     name.Trim(), createdByUserId, normalizedRegistrationNumber,
                     street, city, state, postalCode, country,
-                    email, phone, website, taxId, vatNumber,
+                    email, phone, taxId, vatNumber,
                     fiscalYearStart, currency);
 
                 return id > 0
@@ -66,10 +66,10 @@ namespace FinalProjectAuthAPI.BL
         public bool Update(
             long id, string? name, string? street, string? city,
             string? state, string? postalCode, string? country,
-            string? email, string? phone, string? website,
+            string? email, string? phone,
             string? taxId, string? vatNumber, bool? isActive) =>
             _db.UpdateCompany(id, name, street, city, state,
-                postalCode, country, email, phone, website,
+                postalCode, country, email, phone,
                 taxId, vatNumber, isActive);
 
         public bool EnsureUserHasFullCompanyAccess(long userId, long companyId) =>
@@ -85,7 +85,6 @@ namespace FinalProjectAuthAPI.BL
                 country: null,
                 email: null,
                 phone: null,
-                website: null,
                 taxId: null,
                 vatNumber: null,
                 isActive: false);

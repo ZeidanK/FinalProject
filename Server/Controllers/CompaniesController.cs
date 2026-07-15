@@ -57,7 +57,7 @@ namespace FinalProjectAuthAPI.Controllers
                 request.Name, currentUserId,
                 request.RegistrationNumber, request.Street, request.City,
                 request.State, request.PostalCode, request.Country,
-                request.Email, request.Phone, request.Website,
+                request.Email, request.Phone,
                 request.TaxId, request.VatNumber, request.FiscalYearStart,
                 request.Currency);
 
@@ -87,7 +87,7 @@ namespace FinalProjectAuthAPI.Controllers
 
             var ok = _svc.Update(id, request.Name, request.Street, request.City,
                 request.State, request.PostalCode, request.Country,
-                request.Email, request.Phone, request.Website,
+                request.Email, request.Phone,
                 request.TaxId, request.VatNumber, request.IsActive);
 
             return ok ? Ok(new { message = "Company updated." }) : NotFound(new { message = "Company not found." });

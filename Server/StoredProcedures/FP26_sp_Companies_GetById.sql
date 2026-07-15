@@ -23,7 +23,6 @@ BEGIN
         c.country,
         c.email,
         c.phone,
-        c.website,
         c.tax_id,
         c.vat_number,
         c.fiscal_year_start,

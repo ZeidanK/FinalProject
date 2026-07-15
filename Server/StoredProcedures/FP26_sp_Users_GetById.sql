@@ -28,8 +28,7 @@ BEGIN
         bio,
         years_of_experience,
         hourly_rate,
-        location,
-        website
+        location
     FROM dbo.FP26_users
     WHERE id = @Id;
 END

@@ -47,7 +47,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public virtual bool UpdateUser(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null, string? website = null)
+        public virtual bool UpdateUser(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null)
         {
             SqlConnection? con = null;
             try
@@ -65,7 +65,6 @@ namespace FinalProjectAuthAPI.DAL
                         { "@YearsOfExperience", (object?)yearsOfExperience ?? DBNull.Value },
                         { "@HourlyRate",        (object?)hourlyRate ?? DBNull.Value },
                         { "@Location",          (object?)location ?? DBNull.Value },
-                        { "@Website",           (object?)website ?? DBNull.Value },
                     });
 
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
@@ -208,7 +207,6 @@ namespace FinalProjectAuthAPI.DAL
                             YearsOfExperience  = reader["years_of_experience"] != DBNull.Value ? Convert.ToInt32(reader["years_of_experience"]) : null,
                             HourlyRate        = reader["hourly_rate"] != DBNull.Value ? Convert.ToDecimal(reader["hourly_rate"]) : null,
                             Location          = reader["location"] != DBNull.Value ? reader["location"]?.ToString() : null,
-                            Website           = reader["website"] != DBNull.Value ? reader["website"]?.ToString() : null,
                             Specialties       = reader["specialties"]?.ToString() ?? string.Empty,
                             Certifications    = reader["certifications"]?.ToString() ?? string.Empty,
                             AverageRating     = reader["average_rating"] != DBNull.Value ? Convert.ToDecimal(reader["average_rating"]) : null,
@@ -447,7 +445,6 @@ namespace FinalProjectAuthAPI.DAL
             YearsOfExperience = r["years_of_experience"] != DBNull.Value ? Convert.ToInt32(r["years_of_experience"]) : null,
             HourlyRate        = r["hourly_rate"] != DBNull.Value ? Convert.ToDecimal(r["hourly_rate"]) : null,
             Location          = r["location"] != DBNull.Value ? r["location"]?.ToString() : null,
-            Website           = r["website"] != DBNull.Value ? r["website"]?.ToString() : null,
         };
     }
 }

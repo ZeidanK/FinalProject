@@ -18,7 +18,6 @@ namespace FinalProjectAuthAPI.Models
         public int? YearsOfExperience { get; set; }
         public decimal? HourlyRate { get; set; }
         public string? Location { get; set; }
-        public string? Website { get; set; }
         public string Specialties { get; set; } = string.Empty;
         public string Certifications { get; set; } = string.Empty;
         public decimal? AverageRating { get; set; }
@@ -61,7 +60,6 @@ namespace FinalProjectAuthAPI.Models
         public string? CompanyCountry { get; set; }
         public string? CompanyRegistrationNumber { get; set; }
         public string? CompanyTaxId { get; set; }
-        public string? CompanyWebsite { get; set; }
 
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = "pending";

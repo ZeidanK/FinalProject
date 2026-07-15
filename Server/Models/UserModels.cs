@@ -21,9 +21,6 @@ namespace FinalProjectAuthAPI.Models
 
         [StringLength(255)]
         public string? Location { get; set; }
-
-        [StringLength(500)]
-        public string? Website { get; set; }
     }
 
     public class ChangePasswordRequest

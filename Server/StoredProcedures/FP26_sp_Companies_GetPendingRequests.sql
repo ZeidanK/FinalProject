@@ -22,9 +22,8 @@ BEGIN
            c.state                 AS company_state,
            c.country               AS company_country,
            c.registration_number   AS company_registration_number,
-           c.tax_id                AS company_tax_id,
-           c.website               AS company_website,
-           uca.created_at,
+            c.tax_id                AS company_tax_id,
+            uca.created_at,
            uca.status
     FROM dbo.FP26_user_company_access uca
     INNER JOIN dbo.FP26_companies c ON c.id = uca.company_id

@@ -599,22 +599,6 @@ export default function FindAccountant() {
                 )}
               </Stack>
 
-              {detailAccountant.website && (
-                <Typography variant="body2">
-                  Website:{' '}
-                  <Typography
-                    component="a"
-                    href={detailAccountant.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    color="primary"
-                    sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-                  >
-                    {detailAccountant.website}
-                  </Typography>
-                </Typography>
-              )}
-
               {specialties.length > 0 && (
                 <Box>
                   <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1 }}>

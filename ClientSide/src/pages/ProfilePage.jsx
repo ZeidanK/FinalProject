@@ -82,7 +82,6 @@ const createEmptyCompanyForm = () => ({
   country: 'USA',
   email: '',
   phone: '',
-  website: '',
   taxId: '',
   vatNumber: '',
   currency: 'USD',
@@ -134,7 +133,6 @@ export default function ProfilePage() {
     yearsOfExperience: null,
     hourlyRate: null,
     location: '',
-    website: '',
   })
   const [savingAccountantProfile, setSavingAccountantProfile] = useState(false)
   const [accountantProfileMsg, setAccountantProfileMsg] = useState(null)
@@ -227,7 +225,6 @@ export default function ProfilePage() {
         yearsOfExperience: profileQuery.data.yearsOfExperience ?? null,
         hourlyRate: profileQuery.data.hourlyRate ?? null,
         location: profileQuery.data.location || '',
-        website: profileQuery.data.website || '',
       })
     }
   }, [profileQuery.data, isAccountant])
@@ -334,7 +331,6 @@ export default function ProfilePage() {
         yearsOfExperience: parsed.data.yearsOfExperience ?? null,
         hourlyRate: parsed.data.hourlyRate ?? null,
         location: parsed.data.location || null,
-        website: parsed.data.website || null,
       })
       setEditingAccountantProfile(false)
       setAccountantProfileMsg({ type: 'success', text: 'Accountant profile updated.' })
@@ -479,7 +475,6 @@ export default function ProfilePage() {
       country: company.country || 'USA',
       email: company.email || '',
       phone: company.phone || '',
-      website: company.website || '',
       taxId: company.taxId || company.tax_id || '',
       vatNumber: company.vatNumber || company.vat_number || '',
       currency: company.currency || 'USD',
@@ -1042,15 +1037,6 @@ export default function ProfilePage() {
                         sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
                       />
                     </Stack>
-                    <TextField
-                      label="Website"
-                      fullWidth
-                      value={accountantProfileForm.website}
-                      onChange={(e) =>
-                        setAccountantProfileForm((p) => ({ ...p, website: e.target.value }))
-                      }
-                      sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
-                    />
 
                     <Divider sx={{ borderColor: 'divider' }} />
 
@@ -1130,7 +1116,6 @@ export default function ProfilePage() {
                             yearsOfExperience: profile?.yearsOfExperience ?? null,
                             hourlyRate: profile?.hourlyRate ?? null,
                             location: profile?.location || '',
-                            website: profile?.website || '',
                           })
                         }}
                         sx={{ borderRadius: 2 }}
@@ -1178,10 +1163,6 @@ export default function ProfilePage() {
                         <Typography fontWeight={700}>{profile?.location || '—'}</Typography>
                       </Box>
                     </Stack>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
-                      <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>Website</Typography>
-                      <Typography fontWeight={700}>{profile?.website || '—'}</Typography>
-                    </Box>
 
                     {specialties.length > 0 && (
                       <>

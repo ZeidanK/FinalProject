@@ -50,7 +50,7 @@ namespace FinalProjectAuthAPI.Controllers
                 return Forbid();
 
             var ok = _svc.Update(id, request.Name, request.Phone, request.ProfilePicture,
-                request.Bio, request.YearsOfExperience, request.HourlyRate, request.Location, request.Website);
+                request.Bio, request.YearsOfExperience, request.HourlyRate, request.Location);
             return ok ? Ok(new { message = "User updated." }) : BadRequest(new { message = "Update failed or no valid fields provided." });
         }
 

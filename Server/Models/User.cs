@@ -27,7 +27,6 @@ namespace FinalProjectAuthAPI.Models
         public int? YearsOfExperience { get; set; }
         public decimal? HourlyRate { get; set; }
         public string? Location { get; set; }
-        public string? Website { get; set; }
 
         // -- JWT --------------------------------------------------------------
 
