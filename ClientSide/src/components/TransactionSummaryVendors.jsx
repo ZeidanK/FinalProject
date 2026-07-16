@@ -2,17 +2,25 @@ import { Box, Chip, Grid, Skeleton, Stack, Typography, useTheme } from '@mui/mat
 import GlassCard from './GlassCard'
 import { fmtShekel } from '../utils/formatters'
 
+const chipPalette = {
+  success: { bg: 'rgba(55, 214, 122, 0.18)', text: '#37d67a', border: 'rgba(55, 214, 122, 0.4)' },
+  warning: { bg: 'rgba(245, 158, 11, 0.18)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.4)' },
+  error:   { bg: 'rgba(255, 107, 107, 0.18)', text: '#ff6b6b', border: 'rgba(255, 107, 107, 0.4)' },
+  info:    { bg: 'rgba(88, 166, 255, 0.18)', text: '#58a6ff', border: 'rgba(88, 166, 255, 0.4)' },
+  default: { bg: 'rgba(148, 163, 184, 0.18)', text: '#94a3b8', border: 'rgba(148, 163, 184, 0.4)' },
+}
+
 function StatusChip({ label, count, color }) {
+  const p = chipPalette[color] || chipPalette.default
   return (
     <Chip
       label={`${label}: ${count}`}
       size="small"
       sx={{
-        color: `${color}.main`,
-        borderColor: `${color}.main`,
-        bgcolor: `${color}.dark`,
+        color: p.text,
+        borderColor: p.border,
+        bgcolor: p.bg,
         fontWeight: 600,
-        backdropFilter: 'blur(4px)',
       }}
       variant="outlined"
     />
