@@ -3,6 +3,18 @@ import { apiRequest } from './httpClient'
 import { unwrapEnvelope } from './unwrapEnvelope'
 
 /**
+ * Fetch distinct transaction types and categories for a company's filter options.
+ *
+ * @param {string|number} companyId - Company identifier.
+ * @param {string} token - JWT token for authorization.
+ * @returns {Promise<{types: string[], categories: string[]}>}
+ */
+export async function getTransactionFilterOptions(companyId, token) {
+  const response = await apiRequest(URLS.transactions.filterOptions(companyId), { token })
+  return unwrapEnvelope(response)
+}
+
+/**
  * Fetch transactions for a specific company.
  *
  * @param {string|number} companyId - Company identifier.

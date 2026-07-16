@@ -25,6 +25,9 @@ namespace FinalProjectAuthAPI.BL
             long companyId, TransactionFilterRequest filter) =>
             _db.GetTransactionsByCompany(companyId, filter);
 
+        public TransactionFilterOptionsResponse GetFilterOptions(long companyId) =>
+            _db.GetTransactionFilterOptions(companyId);
+
         public TransactionRow? GetById(long id) => _db.GetTransactionById(id);
 
         private bool ShouldRequireInvoice(string? transactionType, string? vendorName, string? description, bool? explicitValue)

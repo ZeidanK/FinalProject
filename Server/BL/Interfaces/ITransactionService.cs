@@ -6,6 +6,7 @@ namespace FinalProjectAuthAPI.BL.Interfaces
     public interface ITransactionService
     {
         PagedResponse<TransactionRow> GetByCompany(long companyId, TransactionFilterRequest filter);
+        TransactionFilterOptionsResponse GetFilterOptions(long companyId);
         TransactionRow? GetById(long id);
         (bool Success, long Id, string Error) Create(CreateTransactionRequest req, long createdByUserId);
         (bool Success, List<long> Ids, string Error) BulkCreate(BulkCreateTransactionsRequest req, long createdByUserId);

@@ -36,6 +36,15 @@ namespace FinalProjectAuthAPI.Controllers
             _db = db;
         }
 
+        // GET api/transactions/company/{companyId}/filters
+        [HttpGet("company/{companyId:long}/filters")]
+        public IActionResult GetFilterOptions(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetFilterOptions(companyId));
+        }
+
         // GET api/transactions/company/{companyId}?type=&isMatched=&startDate=&endDate=&pageNumber=&pageSize=&sortBy=&sortDirection=&searchTerm=&requiresInvoice=&category=
         [HttpGet("company/{companyId:long}")]
         public IActionResult GetByCompany(

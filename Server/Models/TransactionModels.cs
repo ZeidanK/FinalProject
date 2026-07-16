@@ -169,6 +169,12 @@ namespace FinalProjectAuthAPI.Models
         public bool RequiresInvoice { get; init; } = true;
     }
 
+    public class TransactionFilterOptionsResponse
+    {
+        public List<string> Types { get; set; } = new();
+        public List<string> Categories { get; set; } = new();
+    }
+
     // ── Filter / Pagination Models ────────────────────────────────────────────
 
     public class TransactionFilterRequest

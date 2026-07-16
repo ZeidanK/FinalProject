@@ -15,6 +15,9 @@ export default function TransactionFilterBar({
   typeFilter,
   onTypeFilterChange,
   transactionTypeOptions,
+  categoryFilter,
+  onCategoryFilterChange,
+  categoryOptions,
   invoiceFilter,
   onInvoiceFilterChange,
   hasSelection,
@@ -24,6 +27,7 @@ export default function TransactionFilterBar({
   onDeleteAll,
   deletingAll,
   onExport,
+  onExportAll,
   totalCount,
   loading,
 }) {
@@ -60,6 +64,16 @@ export default function TransactionFilterBar({
               {transactionTypeOptions.map((type) => (
                 <MenuItem key={type} value={type}>
                   {formatTransactionTypeLabel(type)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Category</InputLabel>
+            <Select value={categoryFilter} label="Category" onChange={(e) => onCategoryFilterChange(e.target.value)}>
+              {categoryOptions.map((cat) => (
+                <MenuItem key={cat} value={cat}>
+                  {cat === 'all' ? 'All' : cat}
                 </MenuItem>
               ))}
             </Select>
@@ -105,6 +119,14 @@ export default function TransactionFilterBar({
         >
           Export CSV
         </Button>
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<DownloadRoundedIcon />}
+          onClick={onExportAll}
+        >
+          Export All
+        </Button>
       </Stack>
     </Box>
   )
@@ -116,6 +138,9 @@ TransactionFilterBar.propTypes = {
   typeFilter: PropTypes.string.isRequired,
   onTypeFilterChange: PropTypes.func.isRequired,
   transactionTypeOptions: PropTypes.arrayOf(PropTypes.string).isRequired,
+  categoryFilter: PropTypes.string,
+  onCategoryFilterChange: PropTypes.func,
+  categoryOptions: PropTypes.arrayOf(PropTypes.string),
   invoiceFilter: PropTypes.string.isRequired,
   onInvoiceFilterChange: PropTypes.func.isRequired,
   hasSelection: PropTypes.bool,
@@ -125,6 +150,7 @@ TransactionFilterBar.propTypes = {
   onDeleteAll: PropTypes.func.isRequired,
   deletingAll: PropTypes.bool,
   onExport: PropTypes.func.isRequired,
+  onExportAll: PropTypes.func.isRequired,
   totalCount: PropTypes.number,
   loading: PropTypes.bool,
 }

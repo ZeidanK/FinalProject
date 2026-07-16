@@ -17,17 +17,16 @@ import { useCompany } from '../context/useCompany'
 import { useNotification } from '../context/useNotification'
 import { useConfirm } from '../components/ConfirmContext'
 import {
-  bulkDeleteTransactions, deleteAllTransactionsByCompany, deleteTransaction, getTransactionById,
-  getTransactionsByCompany, importExcelTransactions, setRequiresInvoice,
+  bulkDeleteTransactions, deleteAllTransactionsByCompany, deleteTransaction,
+  getTransactionById, getTransactionFilterOptions, getTransactionsByCompany,
+  importExcelTransactions, setRequiresInvoice,
 } from '../services/transactions'
 import { getUploadJobStatus } from '../services/uploadJobs'
 import { useTransactionsByCompanyQuery, useCreateTransactionsBulkMutation } from '../hooks/queries/useTransactionsQueries'
 import { useTransactionUpload } from '../hooks/useTransactionUpload'
 import { useTransactionImportJobs } from '../hooks/useTransactionImportJobs'
 import { transactionKeys } from '../queries/queryKeys'
-import {
-  exportTransactionsToCSV, filterTransactionsByType, getTransactionTypes, normalizeTransactionType,
-} from '../utils/transactionHelpers'
+import { exportTransactionsToCSV } from '../utils/transactionHelpers'
 import { containerVariants } from '../utils/motionVariants'
 
 function TransactionsPage() {
@@ -58,8 +57,10 @@ function TransactionsPage() {
   } = useTransactionUpload({ activeCompanyId, token })
 
   const [typeFilter, setTypeFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [invoiceFilter, setInvoiceFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterOptions, setFilterOptions] = useState(null)
   const [sortKey, setSortKey] = useState('date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [page, setPage] = useState(0)
@@ -73,8 +74,23 @@ function TransactionsPage() {
   const [bulkDeletingTransactions, setBulkDeletingTransactions] = useState(false)
   const [deletingAllTransactions, setDeletingAllTransactions] = useState(false)
 
+  useEffect(() => {
+    if (!activeCompanyId || !token) return
+    getTransactionFilterOptions(activeCompanyId, token).then(setFilterOptions).catch(() => {})
+  }, [activeCompanyId, token])
+
+  const categoryOptions = useMemo(() => {
+    if (!filterOptions?.categories?.length) return ['all']
+    return ['all', ...filterOptions.categories.sort((a, b) => a.localeCompare(b))]
+  }, [filterOptions])
+
+  useEffect(() => {
+    if (categoryFilter !== 'all' && !categoryOptions.includes(categoryFilter)) setCategoryFilter('all')
+  }, [categoryOptions, categoryFilter])
+
   const filters = useMemo(() => ({
     type: typeFilter !== 'all' ? typeFilter : undefined,
+    category: categoryFilter !== 'all' ? categoryFilter : undefined,
     requiresInvoice: invoiceFilter !== 'all' ? (invoiceFilter === 'required') : undefined,
     searchTerm: searchTerm.trim() || undefined,
     sortBy: sortKey === 'date' ? 'transaction_date'
@@ -85,7 +101,7 @@ function TransactionsPage() {
     sortDirection: sortDirection.toUpperCase(),
     pageNumber: page + 1,
     pageSize: rowsPerPage,
-  }), [typeFilter, invoiceFilter, searchTerm, sortKey, sortDirection, page, rowsPerPage])
+  }), [typeFilter, categoryFilter, invoiceFilter, searchTerm, sortKey, sortDirection, page, rowsPerPage])
 
   const transactionsQuery = useTransactionsByCompanyQuery({
     companyId: activeCompanyId, token, filters,
@@ -102,7 +118,10 @@ function TransactionsPage() {
   const totalCount = pagedData?.totalCount ?? transactions.length
   const listError = transactionsQuery.error?.message || ''
 
-  const transactionTypeOptions = useMemo(() => getTransactionTypes(transactions), [transactions])
+  const transactionTypeOptions = useMemo(() => {
+    if (!filterOptions?.types?.length) return ['all']
+    return ['all', ...filterOptions.types.sort((a, b) => a.localeCompare(b))]
+  }, [filterOptions])
 
   useEffect(() => {
     if (!transactionTypeOptions.includes(typeFilter)) setTypeFilter('all')
@@ -110,7 +129,7 @@ function TransactionsPage() {
 
   useEffect(() => {
     setPage(0)
-  }, [typeFilter, searchTerm])
+  }, [typeFilter, searchTerm, categoryFilter])
 
   const handleSort = useCallback((columnKey) => {
     setSortKey((prevKey) => {
@@ -323,6 +342,7 @@ function TransactionsPage() {
     if (!activeCompanyId) return
     const exportFilters = {
       type: typeFilter !== 'all' ? typeFilter : undefined,
+      category: categoryFilter !== 'all' ? categoryFilter : undefined,
       requiresInvoice: invoiceFilter !== 'all' ? (invoiceFilter === 'required') : undefined,
       searchTerm: searchTerm.trim() || undefined,
       sortBy: sortKey === 'date' ? 'transaction_date'
@@ -336,7 +356,13 @@ function TransactionsPage() {
     }
     const data = await getTransactionsByCompany(activeCompanyId, exportFilters, token)
     exportTransactionsToCSV(data?.items ?? data)
-  }, [activeCompanyId, token, typeFilter, invoiceFilter, searchTerm, sortKey, sortDirection])
+  }, [activeCompanyId, token, typeFilter, categoryFilter, invoiceFilter, searchTerm, sortKey, sortDirection])
+
+  const handleExportAll = useCallback(async () => {
+    if (!activeCompanyId) return
+    const data = await getTransactionsByCompany(activeCompanyId, { pageNumber: 1, pageSize: 100000 }, token)
+    exportTransactionsToCSV(data?.items ?? data, 'all-transactions.csv')
+  }, [activeCompanyId, token])
 
   return (
     <ErrorBoundary>
@@ -390,6 +416,9 @@ function TransactionsPage() {
                     typeFilter={typeFilter}
                     onTypeFilterChange={setTypeFilter}
                     transactionTypeOptions={transactionTypeOptions}
+                    categoryFilter={categoryFilter}
+                    onCategoryFilterChange={setCategoryFilter}
+                    categoryOptions={categoryOptions}
                     invoiceFilter={invoiceFilter}
                     onInvoiceFilterChange={setInvoiceFilter}
                     hasSelection={hasTransactionSelection}
@@ -399,6 +428,7 @@ function TransactionsPage() {
                     onDeleteAll={handleDeleteAllTransactions}
                     deletingAll={deletingAllTransactions}
                     onExport={handleExport}
+                    onExportAll={handleExportAll}
                     totalCount={totalCount}
                     loading={listLoading}
                   />

@@ -8,6 +8,32 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Transactions ──────────────────────────────────────────────────────
 
+        public virtual TransactionFilterOptionsResponse GetTransactionFilterOptions(long companyId)
+        {
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            var result = new TransactionFilterOptionsResponse();
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Transactions_GetFilterOptions", con,
+                    new Dictionary<string, object?> { { "@CompanyId", companyId } });
+
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                    result.Types.Add(reader.GetString(0));
+
+                reader.NextResult();
+                while (reader.Read())
+                    result.Categories.Add(reader.GetString(0));
+
+                return result;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
         public virtual PagedResponse<TransactionRow> GetTransactionsByCompany(
             long companyId, TransactionFilterRequest filter)
         {

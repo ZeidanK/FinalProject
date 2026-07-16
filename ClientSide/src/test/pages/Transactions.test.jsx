@@ -75,6 +75,8 @@ const mockBulkDeleteTransactions = vi.fn()
 
 vi.mock('../../services/transactions', () => ({
   getTransactionById: (...args) => mockGetTransactionById(...args),
+  getTransactionsByCompany: vi.fn().mockResolvedValue({ items: [], totalCount: 0 }),
+  getTransactionFilterOptions: vi.fn().mockResolvedValue({ types: ['debit', 'credit'], categories: ['Supplies', 'Services'] }),
   createTransactionsBulk: vi.fn(),
   deleteTransaction: (...args) => mockDeleteTransaction(...args),
   bulkDeleteTransactions: (...args) => mockBulkDeleteTransactions(...args),
