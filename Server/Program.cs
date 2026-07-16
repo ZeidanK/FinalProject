@@ -45,6 +45,8 @@ builder.Services.AddScoped<IUploadJobWorker, UploadJobWorker>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimeNotificationService, RealtimeNotificationService>();
 builder.Services.AddSingleton<RealtimeConnectionRegistry>();
+var uploadQueueNameProvider = new UploadQueueNameProvider(builder.Configuration);
+builder.Services.AddSingleton<IUploadQueueNameProvider>(uploadQueueNameProvider);
 // Internal services (domain sub-classes)
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.MatchCrudService>();
 builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.MatchSuggestionService>();
@@ -82,7 +84,7 @@ builder.Services.AddHangfire(config => config
 builder.Services.AddHangfireServer(options =>
 {
     options.WorkerCount = Math.Max(1, Environment.ProcessorCount / 2);
-    options.Queues = new[] { "uploads", "default" };
+    options.Queues = new[] { uploadQueueNameProvider.UploadQueueName, "default" };
 });
 
 var geminiSettings = new GeminiSettings();

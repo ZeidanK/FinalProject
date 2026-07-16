@@ -6,6 +6,16 @@ export default defineConfig({
   base: '/cgroup4/test2/tar2/FinalProject/',
   plugins: [react()],
   server: {
+    watch: {
+      usePolling: true,
+      interval: 300,
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/coverage/**',
+      ],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5050',

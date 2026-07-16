@@ -275,7 +275,8 @@ namespace FinalProjectAuthAPI.Tests.Controllers
                     FileType = "application/pdf",
                     FileOriginalName = "test.pdf"
                 });
-                _mockEnv.Setup(x => x.WebRootPath).Returns(tempDir);
+                _mockFileSvc.Setup(x => x.GetInvoiceFullPath("uploads/invoices/5/test.pdf"))
+                    .Returns(filePath);
 
                 var result = _controller.Download(1);
 
@@ -309,7 +310,8 @@ namespace FinalProjectAuthAPI.Tests.Controllers
                 Id = 1, UserId = 42, CompanyId = 5,
                 FilePath = "uploads/invoices/5/test.pdf"
             });
-            _mockEnv.Setup(x => x.WebRootPath).Returns("C:\\wwwroot");
+            _mockFileSvc.Setup(x => x.GetInvoiceFullPath("uploads/invoices/5/test.pdf"))
+                .Throws(new FileNotFoundException("missing"));
 
             var result = _controller.Download(1);
 

@@ -2,6 +2,8 @@ using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
@@ -18,6 +20,7 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly IFileStorageService _fileSvc;
         private readonly IUploadJobService _jobSvc;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IUploadQueueNameProvider _uploadQueueNameProvider;
         private readonly IDBservices _db;
         private readonly IWebHostEnvironment _env;
         private readonly IAnomalyService _anomalySvc;
@@ -28,6 +31,7 @@ namespace FinalProjectAuthAPI.Controllers
             IFileStorageService fileSvc,
             IUploadJobService jobSvc,
             IBackgroundJobClient backgroundJobClient,
+            IUploadQueueNameProvider uploadQueueNameProvider,
             IDBservices db,
             IWebHostEnvironment env,
             IAnomalyService anomalySvc,
@@ -37,6 +41,7 @@ namespace FinalProjectAuthAPI.Controllers
             _fileSvc = fileSvc;
             _jobSvc = jobSvc;
             _backgroundJobClient = backgroundJobClient;
+            _uploadQueueNameProvider = uploadQueueNameProvider;
             _db = db;
             _env = env;
             _anomalySvc = anomalySvc;
@@ -276,8 +281,15 @@ namespace FinalProjectAuthAPI.Controllers
             if (!normalizedRelativePath.StartsWith(expectedCompanyPrefix, StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "Invoice file path does not match the invoice company." });
 
-            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
-            var fullPath = Path.Combine(webRoot, normalizedRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            string fullPath;
+            try
+            {
+                fullPath = _fileSvc.GetInvoiceFullPath(normalizedRelativePath);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound(new { message = "Invoice file could not be found on disk." });
+            }
 
             if (!System.IO.File.Exists(fullPath))
                 return NotFound(new { message = "Invoice file could not be found on disk." });
@@ -324,8 +336,8 @@ namespace FinalProjectAuthAPI.Controllers
                     }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
                 });
 
-                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
-                    w => w.ProcessInvoiceJobAsync(
+                var hangfireJobId = _backgroundJobClient.Create(
+                    Job.FromExpression<IUploadJobWorker>(w => w.ProcessInvoiceJobAsync(
                         jobId,
                         relativePath,
                         file.FileName,
@@ -333,7 +345,8 @@ namespace FinalProjectAuthAPI.Controllers
                         file.Length,
                         companyId,
                         userId,
-                        UploadJobTypes.InvoiceUploadPdf));
+                        UploadJobTypes.InvoiceUploadPdf)),
+                    new EnqueuedState(_uploadQueueNameProvider.UploadQueueName));
                 _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
 
                 return Accepted(new QueueUploadJobResponse
@@ -380,8 +393,8 @@ namespace FinalProjectAuthAPI.Controllers
                     PayloadJson = null
                 });
 
-                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
-                    w => w.ProcessInvoiceJobAsync(
+                var hangfireJobId = _backgroundJobClient.Create(
+                    Job.FromExpression<IUploadJobWorker>(w => w.ProcessInvoiceJobAsync(
                         jobId,
                         relativePath,
                         file.FileName,
@@ -389,7 +402,8 @@ namespace FinalProjectAuthAPI.Controllers
                         file.Length,
                         companyId,
                         userId,
-                        UploadJobTypes.InvoiceUploadAndCreate));
+                        UploadJobTypes.InvoiceUploadAndCreate)),
+                    new EnqueuedState(_uploadQueueNameProvider.UploadQueueName));
                 _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
 
                 return Accepted(new QueueUploadJobResponse

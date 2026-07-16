@@ -23,6 +23,7 @@ namespace FinalProjectAuthAPI.Tests.Controllers
         private readonly Mock<IFileStorageService> _mockFileSvc;
         private readonly Mock<IUploadJobService> _mockJobSvc;
         private readonly Mock<IBackgroundJobClient> _mockHangfire;
+        private readonly Mock<IUploadQueueNameProvider> _mockUploadQueueNameProvider;
         private readonly Mock<IDBservices> _mockDb;
         private readonly Mock<IWebHostEnvironment> _mockEnv;
         private readonly Mock<IAnomalyService> _mockAnomaly;
@@ -35,13 +36,16 @@ namespace FinalProjectAuthAPI.Tests.Controllers
             _mockFileSvc = new Mock<IFileStorageService>();
             _mockJobSvc = new Mock<IUploadJobService>();
             _mockHangfire = new Mock<IBackgroundJobClient>();
+            _mockUploadQueueNameProvider = new Mock<IUploadQueueNameProvider>();
+            _mockUploadQueueNameProvider.Setup(x => x.UploadQueueName).Returns("uploads_test_laptop");
             _mockDb = new Mock<IDBservices>();
             _mockEnv = new Mock<IWebHostEnvironment>();
             _mockAnomaly = new Mock<IAnomalyService>();
             _mockRealtime = new Mock<IRealtimeNotificationService>();
             _controller = new InvoicesController(
                 _mockSvc.Object, _mockFileSvc.Object, _mockJobSvc.Object,
-                _mockHangfire.Object, _mockDb.Object, _mockEnv.Object,
+                _mockHangfire.Object, _mockUploadQueueNameProvider.Object,
+                _mockDb.Object, _mockEnv.Object,
                 _mockAnomaly.Object, _mockRealtime.Object);
             _controller.ControllerContext = new ControllerContext
             {
@@ -329,7 +333,8 @@ namespace FinalProjectAuthAPI.Tests.Controllers
                     FileType = "application/pdf",
                     FileOriginalName = "inv.pdf"
                 });
-                _mockEnv.Setup(x => x.WebRootPath).Returns(tempDir);
+                _mockFileSvc.Setup(x => x.GetInvoiceFullPath("uploads/invoices/5/inv.pdf"))
+                    .Returns(filePath);
 
                 var result = _controller.Download(1);
 
@@ -405,6 +410,9 @@ namespace FinalProjectAuthAPI.Tests.Controllers
 
             Assert.IsType<AcceptedResult>(result);
             Assert.NotNull(capturedRequest);
+            _mockHangfire.Verify(x => x.Create(
+                It.IsAny<Job>(),
+                It.Is<EnqueuedState>(state => state.Queue == "uploads_test_laptop")), Times.Once);
             using var payload = JsonDocument.Parse(capturedRequest!.PayloadJson!);
             Assert.False(payload.RootElement.GetProperty("autoVerify").GetBoolean());
             Assert.Equal("gemini", payload.RootElement.GetProperty("extractionProvider").GetString());
@@ -461,6 +469,9 @@ namespace FinalProjectAuthAPI.Tests.Controllers
 
             Assert.IsType<AcceptedResult>(result);
             Assert.NotNull(capturedRequest);
+            _mockHangfire.Verify(x => x.Create(
+                It.IsAny<Job>(),
+                It.Is<EnqueuedState>(state => state.Queue == "uploads_test_laptop")), Times.Once);
             Assert.Null(capturedRequest.PayloadJson);
         }
 

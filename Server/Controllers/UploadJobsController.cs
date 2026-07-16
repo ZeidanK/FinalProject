@@ -169,8 +169,15 @@ namespace FinalProjectAuthAPI.Controllers
             if (!normalizedRelativePath.StartsWith(expectedCompanyPrefix, StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "Upload job file path does not match the job company." });
 
-            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
-            var fullPath = Path.Combine(webRoot, normalizedRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            string fullPath;
+            try
+            {
+                fullPath = _fileSvc.GetInvoiceFullPath(normalizedRelativePath);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound(new { message = "Upload job file could not be found on disk." });
+            }
 
             if (!System.IO.File.Exists(fullPath))
                 return NotFound(new { message = "Upload job file could not be found on disk." });
