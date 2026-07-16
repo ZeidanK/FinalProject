@@ -58,6 +58,7 @@ export const profileKeys = {
 export const transactionKeys = {
   all: ['transactions'],
   byCompany: (companyId, filters) => [...transactionKeys.all, 'company', companyId, filters],
+  summary: (companyId) => [...transactionKeys.all, 'summary', companyId],
   detail: (transactionId) => [...transactionKeys.all, 'detail', transactionId],
 }
 

@@ -231,4 +231,63 @@ namespace FinalProjectAuthAPI.Models
         public DateTime  CreatedAt           { get; set; }
         public DateTime  UpdatedAt           { get; set; }
     }
+
+    // ── Transaction Summary Models ─────────────────────────────────────────────
+
+    public class TransactionSummaryResponse
+    {
+        public OverallSummary Overall { get; set; } = new();
+        public List<TypeBreakdownItem> ByType { get; set; } = new();
+        public List<CategoryBreakdownItem> ByCategory { get; set; } = new();
+        public List<MonthlyBreakdownItem> Monthly { get; set; } = new();
+        public List<VendorSummaryItem> TopVendors { get; set; } = new();
+        public StatusSummaryItem Status { get; set; } = new();
+    }
+
+    public class OverallSummary
+    {
+        public int TotalCount { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal TotalDebits { get; set; }
+        public decimal TotalCredits { get; set; }
+        public decimal AvgAmount { get; set; }
+    }
+
+    public class TypeBreakdownItem
+    {
+        public string TransactionType { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class CategoryBreakdownItem
+    {
+        public string Category { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class MonthlyBreakdownItem
+    {
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class VendorSummaryItem
+    {
+        public string VendorName { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class StatusSummaryItem
+    {
+        public int MatchedCount { get; set; }
+        public int AnomalyCount { get; set; }
+        public int DuplicateCount { get; set; }
+        public int RequiresInvoiceCount { get; set; }
+        public int WithoutInvoiceCount { get; set; }
+    }
 }

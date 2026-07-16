@@ -11,6 +11,7 @@ import TransactionImportPreview from '../components/TransactionImportPreview'
 import TransactionFilterBar from '../components/TransactionFilterBar'
 import TransactionTable from '../components/TransactionTable'
 import TransactionImportJobs from '../components/TransactionImportJobs'
+import TransactionSummary from '../components/TransactionSummary'
 import TransactionDetailsModal from '../components/TransactionDetailsModal'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
@@ -407,6 +408,10 @@ function TransactionsPage() {
               )}
 
               <TransactionImportJobs jobs={importingJobs} />
+
+              {activeCompanyId && (
+                <TransactionSummary companyId={activeCompanyId} token={token} />
+              )}
 
               <GlassCard variant="default">
                 <Box sx={{ p: { xs: 2.2, md: 3 } }}>

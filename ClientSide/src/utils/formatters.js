@@ -30,6 +30,19 @@ export const toDateInput = (value) => {
   return d.toISOString().slice(0, 10)
 }
 
+export const fmtShekel = (v) => {
+  try {
+    return (Number(v) || 0).toLocaleString('he-IL', {
+      style: 'currency',
+      currency: 'ILS',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  } catch {
+    return `₪${(Number(v) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+}
+
 export const fmtMonth = (d) => {
   if (!d) return null
   const date = new Date(d)

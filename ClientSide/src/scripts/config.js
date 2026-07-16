@@ -92,6 +92,7 @@ export const URLS = {
       byId: (id) => buildApiPath(`/Transactions/${id}`),
       byCompany: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
       filterOptions: (companyId) => buildApiPath(`/Transactions/company/${companyId}/filters`),
+      summary: (companyId) => buildApiPath(`/Transactions/company/${companyId}/summary`),
       deleteAll: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
     bulk: buildApiPath('/Transactions/bulk'),
     bulkDelete: buildApiPath('/Transactions/bulk'),

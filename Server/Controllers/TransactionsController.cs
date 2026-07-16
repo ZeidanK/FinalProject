@@ -56,6 +56,15 @@ namespace FinalProjectAuthAPI.Controllers
             return Ok(_svc.GetByCompany(companyId, filter ?? new TransactionFilterRequest()));
         }
 
+        // GET api/transactions/company/{companyId}/summary
+        [HttpGet("company/{companyId:long}/summary")]
+        public IActionResult GetSummary(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetSummary(companyId));
+        }
+
         // GET api/transactions/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)

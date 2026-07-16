@@ -50,6 +50,7 @@ namespace FinalProjectAuthAPI.DAL
 
         PagedResponse<TransactionRow> GetTransactionsByCompany(long companyId, TransactionFilterRequest filter);
         TransactionFilterOptionsResponse GetTransactionFilterOptions(long companyId);
+        TransactionSummaryResponse GetTransactionSummary(long companyId);
         TransactionRow? GetTransactionById(long id);
         long CreateTransaction(long companyId, long? createdByUserId, TransactionInsertData data);
         List<long> BulkCreateTransactions(long companyId, long? createdByUserId, IEnumerable<TransactionInsertData> rows, long? fileUploadId = null);

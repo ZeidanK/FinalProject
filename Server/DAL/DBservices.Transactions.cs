@@ -243,6 +243,101 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
+        public virtual TransactionSummaryResponse GetTransactionSummary(long companyId)
+        {
+            SqlConnection? con = null;
+            SqlDataReader? reader = null;
+            var result = new TransactionSummaryResponse();
+            try
+            {
+                con = Connect();
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Transactions_GetSummary", con,
+                    new Dictionary<string, object?> { { "@CompanyId", companyId } });
+
+                reader = cmd.ExecuteReader();
+
+                // 1. Overall summary
+                if (reader.Read())
+                {
+                    result.Overall = new OverallSummary
+                    {
+                        TotalCount   = Convert.ToInt32(reader["total_count"]),
+                        TotalAmount  = Convert.ToDecimal(reader["total_amount"]),
+                        TotalDebits  = Convert.ToDecimal(reader["total_debits"]),
+                        TotalCredits = Convert.ToDecimal(reader["total_credits"]),
+                        AvgAmount    = Convert.ToDecimal(reader["avg_amount"]),
+                    };
+                }
+
+                // 2. By transaction type
+                reader.NextResult();
+                while (reader.Read())
+                {
+                    result.ByType.Add(new TypeBreakdownItem
+                    {
+                        TransactionType = reader["transaction_type"]?.ToString() ?? string.Empty,
+                        Count           = Convert.ToInt32(reader["count"]),
+                        SumAmount       = Convert.ToDecimal(reader["sum_amount"]),
+                    });
+                }
+
+                // 3. By category
+                reader.NextResult();
+                while (reader.Read())
+                {
+                    result.ByCategory.Add(new CategoryBreakdownItem
+                    {
+                        Category  = reader["category"]?.ToString() ?? "Uncategorized",
+                        Count     = Convert.ToInt32(reader["count"]),
+                        SumAmount = Convert.ToDecimal(reader["sum_amount"]),
+                    });
+                }
+
+                // 4. Monthly breakdown
+                reader.NextResult();
+                while (reader.Read())
+                {
+                    result.Monthly.Add(new MonthlyBreakdownItem
+                    {
+                        Year      = Convert.ToInt32(reader["year"]),
+                        Month     = Convert.ToInt32(reader["month"]),
+                        Count     = Convert.ToInt32(reader["count"]),
+                        SumAmount = Convert.ToDecimal(reader["sum_amount"]),
+                    });
+                }
+
+                // 5. Top vendors
+                reader.NextResult();
+                while (reader.Read())
+                {
+                    result.TopVendors.Add(new VendorSummaryItem
+                    {
+                        VendorName = reader["vendor_name"]?.ToString() ?? "Unknown",
+                        Count      = Convert.ToInt32(reader["count"]),
+                        SumAmount  = Convert.ToDecimal(reader["sum_amount"]),
+                    });
+                }
+
+                // 6. Status summary
+                reader.NextResult();
+                if (reader.Read())
+                {
+                    result.Status = new StatusSummaryItem
+                    {
+                        MatchedCount        = Convert.ToInt32(reader["matched_count"]),
+                        AnomalyCount        = Convert.ToInt32(reader["anomaly_count"]),
+                        DuplicateCount      = Convert.ToInt32(reader["duplicate_count"]),
+                        RequiresInvoiceCount = Convert.ToInt32(reader["requires_invoice_count"]),
+                        WithoutInvoiceCount = Convert.ToInt32(reader["without_invoice_count"]),
+                    };
+                }
+
+                return result;
+            }
+            finally { reader?.Close(); con?.Close(); }
+        }
+
         // ── Mapping helper ────────────────────────────────────────────────────
 
         private static TransactionRow MapTransaction(SqlDataReader r) => new()

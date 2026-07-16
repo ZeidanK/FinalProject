@@ -3,6 +3,18 @@ import { apiRequest } from './httpClient'
 import { unwrapEnvelope } from './unwrapEnvelope'
 
 /**
+ * Fetch transaction summary/aggregates for a company.
+ *
+ * @param {string|number} companyId - Company identifier.
+ * @param {string} token - JWT token for authorization.
+ * @returns {Promise<{overall: object, byType: Array, byCategory: Array, monthly: Array, topVendors: Array, status: object}>}
+ */
+export async function getTransactionSummary(companyId, token) {
+  const response = await apiRequest(URLS.transactions.summary(companyId), { token })
+  return unwrapEnvelope(response)
+}
+
+/**
  * Fetch distinct transaction types and categories for a company's filter options.
  *
  * @param {string|number} companyId - Company identifier.

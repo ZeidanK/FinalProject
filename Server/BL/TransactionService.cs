@@ -30,6 +30,9 @@ namespace FinalProjectAuthAPI.BL
 
         public TransactionRow? GetById(long id) => _db.GetTransactionById(id);
 
+        public TransactionSummaryResponse GetSummary(long companyId) =>
+            _db.GetTransactionSummary(companyId);
+
         private bool ShouldRequireInvoice(string? transactionType, string? vendorName, string? description, bool? explicitValue)
         {
             if (explicitValue.HasValue)
