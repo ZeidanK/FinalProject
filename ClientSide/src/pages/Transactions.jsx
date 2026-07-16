@@ -95,7 +95,7 @@ function TransactionsPage() {
     companyId: activeCompanyId, filters, token,
   })
 
-  const listLoading = transactionsQuery.isLoading || transactionsQuery.isFetching
+  const listLoading = transactionsQuery.isLoading
 
   const pagedData = transactionsQuery.data
   const transactions = Array.isArray(pagedData?.items) ? pagedData.items : (Array.isArray(pagedData) ? pagedData : [])
@@ -113,15 +113,19 @@ function TransactionsPage() {
   }, [typeFilter, searchTerm])
 
   const handleSort = useCallback((columnKey) => {
-    setSortKey((prev) => {
-      if (prev === columnKey) {
-        setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))
-        return prev
+    setSortKey((prevKey) => {
+      if (prevKey === columnKey) {
+        return prevKey
       }
-      setSortDirection('asc')
       return columnKey
     })
-  }, [])
+    setSortDirection((prevDir) => {
+      if (sortKey === columnKey) {
+        return prevDir === 'asc' ? 'desc' : 'asc'
+      }
+      return 'asc'
+    })
+  }, [sortKey])
 
   const handlePageChange = useCallback((newPage) => {
     setPage(newPage)

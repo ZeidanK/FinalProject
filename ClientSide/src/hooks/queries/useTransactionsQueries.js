@@ -23,6 +23,7 @@ export function useTransactionsByCompanyQuery({ companyId, token, filters }) {
     queryKey: transactionKeys.byCompany(companyId, filters),
     queryFn: () => getTransactionsByCompany(companyId, filters, token),
     enabled: Boolean(companyId) && Boolean(token),
+    placeholderData: (prev) => prev,
   })
 }
 
