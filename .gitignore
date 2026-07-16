@@ -64,6 +64,9 @@ reports/
 # Generated local AI models and training checkpoints
 Server/LocalModel/model/
 
+# Python virtual environment
+Server/LocalModel/venv/
+
 # Python bytecode
 __pycache__/
 *.py[cod]
