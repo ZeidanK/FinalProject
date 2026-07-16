@@ -110,7 +110,7 @@ export default function ProfilePage() {
     loadingCompanies: loadingCompaniesFromContext,
   } = useCompany()
   const location = useLocation()
-  const requiresCompanySetup = Boolean(location.state?.noCompany)
+  const requiresCompanySetup = Boolean(location.state?.noCompany) && !isAdmin
 
   // ── Profile state ──────────────────────────────────────────
   const [profile, setProfile] = useState(null)
@@ -123,6 +123,11 @@ export default function ProfilePage() {
 
   const isAccountant = useMemo(
     () => user?.role === 'accountant' || user?.role === 'accountant_business_owner',
+    [user?.role],
+  )
+
+  const isAdmin = useMemo(
+    () => user?.role === 'admin',
     [user?.role],
   )
 

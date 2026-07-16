@@ -100,17 +100,18 @@ function CompanyRoute({ children }) {
 
   if (!activeCompanyId) {
     const isPureAccountant = user?.role === 'accountant'
+    const isAdmin = user?.role === 'admin'
     // If companies haven't resolved (server error), redirect to landing page
-    // Otherwise, let user access profile to create company
+    // Otherwise, let user access profile to create company (except admins and pure accountants)
     const destination = hasResolvedCompanies 
-      ? (isPureAccountant ? '/accountant-workspace' : '/profile')
+      ? (isPureAccountant ? '/accountant-workspace' : isAdmin ? '/admin' : '/profile')
       : '/'
     return (
       <Navigate
         to={destination}
         replace
         state={{
-          noCompany: true,
+          noCompany: !isAdmin && !isPureAccountant,
           from: location.pathname,
         }}
       />

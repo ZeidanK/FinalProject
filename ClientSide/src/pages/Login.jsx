@@ -53,8 +53,10 @@ function Login() {
     }
     logout()
     try {
-      await loginMutation.mutateAsync({ email: parsed.data.email, password: parsed.data.password })
-      navigate('/dashboard', { replace: true })
+      const result = await loginMutation.mutateAsync({ email: parsed.data.email, password: parsed.data.password })
+      const userRole = result?.user?.role
+      const destination = userRole === 'admin' ? '/admin' : '/dashboard'
+      navigate(destination, { replace: true })
     } catch (error) {
       setErrorMessage(error.message || 'Login failed. Please try again.')
     }
