@@ -1,10 +1,17 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Hangfire;
+using Hangfire.SqlServer;
 using FinalProjectAuthAPI.BL;
+using FinalProjectAuthAPI.BL.InvoiceVerification;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Middleware;
+using FinalProjectAuthAPI.Models;
+using FinalProjectAuthAPI.MatchingEngine;
+using FinalProjectAuthAPI.BL.UploadProcessing;
+using FinalProjectAuthAPI.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,23 +20,89 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ── Dependency Injection: register BL services ───────────────────────────
-builder.Services.AddScoped<DBservices>();
+builder.Services.AddScoped<IDBservices, DBservices>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddScoped<IAnomalyService, AnomalyService>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
+builder.Services.AddScoped<IInvoiceVerificationService, InvoiceVerificationService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<IRulePipelineEngine, RulePipelineEngine>();
+builder.Services.AddScoped<FinalProjectAuthAPI.MatchingEngine.IFxRateProvider, FinalProjectAuthAPI.MatchingEngine.MockFxRateProvider>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAccountantService, AccountantService>();
 builder.Services.AddScoped<IPdfExtractionService, PdfExtractionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IExcelExtractionService, ExcelExtractionService>();
+builder.Services.AddScoped<IUploadJobService, UploadJobService>();
+builder.Services.AddScoped<IUploadJobWorker, UploadJobWorker>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IRealtimeNotificationService, RealtimeNotificationService>();
+builder.Services.AddSingleton<RealtimeConnectionRegistry>();
+var uploadQueueNameProvider = new UploadQueueNameProvider(builder.Configuration);
+builder.Services.AddSingleton<IUploadQueueNameProvider>(uploadQueueNameProvider);
+// Internal services (domain sub-classes)
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.MatchCrudService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.MatchSuggestionService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.Matching.AutoMatchService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.AnomalyCrudService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateInvoiceService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.AnomalyDetection.DuplicateFileDetectionService>();
+builder.Services.AddScoped<IUploadJobNotificationService, UploadJobNotificationService>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.InvoiceJobProcessor>();
+builder.Services.AddScoped<FinalProjectAuthAPI.BL.UploadProcessing.TransactionJobProcessor>();
+builder.Services.AddScoped<IVerifiedHybridAuditWriter, VerifiedHybridAuditWriter>();
+builder.Services.AddSignalR();
 
-// AI provider toggle: set "AiProvider" in appsettings.json to "gemini" or "ollama"
+var hybridSettings = new HybridExtractionSettings();
+builder.Configuration.GetSection("HybridExtractionSettings").Bind(hybridSettings);
+builder.Services.AddSingleton(hybridSettings);
+
+var classificationSettings = new TransactionClassificationSettings();
+builder.Configuration.GetSection("TransactionClassification").Bind(classificationSettings);
+builder.Services.AddSingleton(classificationSettings);
+
+var hangfireConnectionString = builder.Configuration.GetConnectionString("myProjDB");
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(hangfireConnectionString, new SqlServerStorageOptions
+    {
+        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+        QueuePollInterval = TimeSpan.FromSeconds(15),
+        UseRecommendedIsolationLevel = true,
+        DisableGlobalLocks = true
+    }));
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = Math.Max(1, Environment.ProcessorCount / 2);
+    options.Queues = new[] { uploadQueueNameProvider.UploadQueueName, "default" };
+});
+
+var geminiSettings = new GeminiSettings();
+builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettings);
+builder.Services.AddSingleton(geminiSettings);
+builder.Services.AddSingleton<GeminiApiKeyPool>();
+builder.Services.AddKeyedScoped<IGeminiExtractionService, GeminiExtractionService>(InvoiceExtractionProviders.Gemini);
+
+var localModelSettings = new LocalModelSettings();
+builder.Configuration.GetSection("LocalModelSettings").Bind(localModelSettings);
+builder.Services.AddSingleton(localModelSettings);
+builder.Services.AddHttpClient("localmodel", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddKeyedScoped<IGeminiExtractionService, LocalModelExtractionService>(InvoiceExtractionProviders.LocalModel);
+
+// AI provider toggle: set "AiProvider" in appsettings.json to "gemini", "ollama", or "localmodel"
 var aiProvider = builder.Configuration["AiProvider"] ?? "gemini";
 
 if (aiProvider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
@@ -43,29 +116,29 @@ if (aiProvider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
     });
     builder.Services.AddScoped<IGeminiExtractionService, OllamaExtractionService>();
 }
+else if (aiProvider.Equals("localmodel", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IGeminiExtractionService, LocalModelExtractionService>();
+
+    // Register Gemini as a keyed fallback — used automatically when local model returns empty
+    builder.Services.AddKeyedScoped<IGeminiExtractionService, GeminiExtractionService>("gemini-fallback");
+}
 else
 {
-    var geminiSettings = new GeminiSettings();
-    builder.Configuration.GetSection("GeminiSettings").Bind(geminiSettings);
-    builder.Services.AddSingleton(geminiSettings);
     builder.Services.AddScoped<IGeminiExtractionService, GeminiExtractionService>();
 }
 
-// CORS – allow the React frontend (and any localhost port during dev)
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "https://localhost:5173",
-                "http://localhost:3000"
-              )
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+  // CORS – allow the React frontend (and any localhost port during dev)
+  builder.Services.AddCors(options =>
+  {
+      options.AddPolicy("AllowFrontend", policy =>
+      {
+          policy.SetIsOriginAllowed(_ => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+      });
+  });
 
 // JWT Authentication – mirrors the NewsSitePro setup
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -89,6 +162,61 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
         ClockSkew                = TimeSpan.Zero
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var idClaim = context.Principal?.FindFirst("id")?.Value;
+            if (!long.TryParse(idClaim, out var userId) || userId <= 0)
+            {
+                context.Fail("Invalid token user.");
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<IDBservices>();
+                if (!db.IsUserActive(userId))
+                {
+                    context.Fail("User account is inactive or banned.");
+                }
+            }
+            catch
+            {
+                context.Fail("User account status could not be verified.");
+            }
+
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            var path = context.HttpContext.Request.Path;
+            var fullPath = $"{context.HttpContext.Request.PathBase}{path}";
+            var isSignalRRequest = path.StartsWithSegments("/api/realtime/notifications")
+                || fullPath.Contains("/api/realtime/notifications", StringComparison.OrdinalIgnoreCase);
+
+            if (!isSignalRRequest)
+                return Task.CompletedTask;
+
+            // Prefer Authorization header (SignalR accessTokenFactory sends Bearer token there),
+            // fall back to the legacy access_token query parameter for older clients.
+            var authHeader = context.Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Token = authHeader.Substring("Bearer ".Length).Trim();
+                return Task.CompletedTask;
+            }
+
+            var accessToken = context.Request.Query["access_token"];
+            if (!string.IsNullOrWhiteSpace(accessToken))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -104,11 +232,21 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
-app.UseCors("AllowFrontend");
+  app.UseCors("AllowFrontend");
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseMiddleware<ActivityLoggingMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHangfireDashboard("/hangfire");
+  app.MapHub<NotificationHub>("/api/realtime/notifications")
+     .RequireCors("AllowFrontend");
 
-app.Run();
+RecurringJob.AddOrUpdate<INotificationService>(
+    "notification-retention",
+    service => service.CleanupExpired(90, 365),
+    Cron.Daily);
+
+  app.Run();

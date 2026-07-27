@@ -80,11 +80,11 @@ function FeatureWorkspacePage({
             component={motion.div}
             variants={animationVariants}
             sx={{
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(145deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.96))',
+              borderRadius: 3.5,
+              border: '1px solid rgba(129, 191, 255, 0.12)',
+              background: 'rgba(14, 24, 45, 0.65)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
             }}
           >
             <CardContent sx={{ p: { xs: 2.1, md: 2.8 } }}>
@@ -127,11 +127,11 @@ function FeatureWorkspacePage({
                   elevation={0}
                   sx={{
                     height: '100%',
-                    borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    background:
-                      'linear-gradient(160deg, rgba(14, 24, 42, 0.96), rgba(10, 18, 34, 0.96))',
+                    borderRadius: 3.5,
+                    border: '1px solid rgba(129, 191, 255, 0.12)',
+                    background: 'rgba(14, 24, 45, 0.65)',
+                    backdropFilter: 'blur(16px)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
                   }}
                 >
                   <CardContent>

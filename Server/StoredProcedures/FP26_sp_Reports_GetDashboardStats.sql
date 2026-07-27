@@ -27,10 +27,11 @@ BEGIN
 
     -- 2. Transaction stats
     SELECT
-        COUNT(*)                                         AS total_transactions,
-        COUNT(CASE WHEN is_matched = 1 THEN 1 END)       AS matched_transactions,
-        COUNT(CASE WHEN is_matched = 0 THEN 1 END)       AS unmatched_transactions,
-        ISNULL(SUM(ABS(amount)), 0)                      AS total_transaction_volume,
+        COUNT(*)                                                                 AS total_transactions,
+        COUNT(CASE WHEN is_matched = 1 THEN 1 END)                               AS matched_transactions,
+        COUNT(CASE WHEN is_matched = 0 AND requires_invoice = 1 THEN 1 END)      AS unmatched_transactions,
+        COUNT(CASE WHEN requires_invoice = 0 THEN 1 END)                         AS transactions_without_invoice,
+        ISNULL(SUM(ABS(amount)), 0)                                              AS total_transaction_volume,
         ISNULL(SUM(CASE WHEN transaction_type = 'debit'  THEN ABS(amount) ELSE 0 END), 0) AS total_debits,
         ISNULL(SUM(CASE WHEN transaction_type = 'credit' THEN ABS(amount) ELSE 0 END), 0) AS total_credits
     FROM dbo.FP26_transactions

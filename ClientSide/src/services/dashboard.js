@@ -69,8 +69,9 @@ export async function getRecentActivity({ companyId, token }) {
 
   items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
-  return items.slice(0, 8)
+  return items.slice(0, 5)
 }
+
 
 /**
  * Map raw dashboard stats into KPI cards.
@@ -83,14 +84,14 @@ export function mapDashboardStatsToKpis(stats) {
 
   return [
     {
-      title: 'Open Runs',
-      value: String(toNumber(safeStats.processingInvoices, 0)),
-      subtitle: 'Reconciliation batches in progress',
-    },
-    {
       title: 'Pending Matches',
       value: String(toNumber(safeStats.unmatchedTransactions, 0)),
-      subtitle: 'Transactions awaiting review',
+      subtitle: `Transactions awaiting review${safeStats.transactionsWithoutInvoice > 0 ? ` (${safeStats.transactionsWithoutInvoice} without invoices)` : ''}`,
+    },
+    {
+      title: 'Pending Invoice Matches',
+      value: String(toNumber(safeStats.unmatchedInvoices, 0)),
+      subtitle: 'Invoices awaiting review',
     },
     {
       title: 'Exceptions',

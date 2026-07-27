@@ -18,7 +18,7 @@ BEGIN
 
     SELECT COUNT(*) AS total_count
     FROM dbo.FP26_system_logs
-    WHERE (@Level    IS NULL OR level    = @Level)
+    WHERE (@Level    IS NULL OR UPPER(level) = UPPER(@Level))
       AND (@Category IS NULL OR category = @Category);
 
     SELECT
@@ -29,9 +29,10 @@ BEGIN
         details,
         user_id,
         ip_address,
+        user_agent,
         created_at
     FROM dbo.FP26_system_logs
-    WHERE (@Level    IS NULL OR level    = @Level)
+    WHERE (@Level    IS NULL OR UPPER(level) = UPPER(@Level))
       AND (@Category IS NULL OR category = @Category)
     ORDER BY created_at DESC
     OFFSET  (@Page - 1) * @Limit ROWS

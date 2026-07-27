@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import PropTypes from 'prop-types'
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Chip,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,34 +12,46 @@ import {
   DialogTitle,
   Grid,
   IconButton,
-  InputAdornment,
-  Skeleton,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
-import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded'
+import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
-import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
-import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
-import EditRoundedIcon from '@mui/icons-material/EditRounded'
-import { motion, AnimatePresence } from 'framer-motion'
-import PageSectionLayout from '../components/PageSectionLayout'
-import PageHeaderCard from '../components/PageHeaderCard'
-import SnackbarAlert from '../components/SnackbarAlert'
-import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
+import DataSaverOnRoundedIcon from '@mui/icons-material/DataSaverOnRounded'
+import { AnimatePresence, motion } from 'framer-motion'
+import AnimatedBackground from '../components/AnimatedBackground'
+import RevealOnScroll from '../components/RevealOnScroll'
+import DataTable from '../components/DataTable'
+import SuggestionsTable from '../components/SuggestionsTable'
+import MatchActionBarEnhanced from '../components/MatchActionBarEnhanced'
+import MatchDetailsModal from '../components/MatchDetailsModal'
+import UndoSnackbar from '../components/UndoSnackbar'
+import AutoMatchPreviewModal from '../components/AutoMatchPreviewModal'
+import MatchComparisonPanel from '../components/MatchComparisonPanel'
+import StatsCards from '../components/StatsCards'
+import CollapsibleSection from '../components/CollapsibleSection'
+import MatchActionBar from '../components/MatchActionBar'
+import SuggestionPanel from '../components/SuggestionPanel'
+import QuickMatchSuggestions from '../components/QuickMatchSuggestions'
 import InstallmentMatchGroups from '../components/InstallmentMatchGroups'
+import InvoiceVerificationModal from '../components/InvoiceVerificationModal'
+import { useNotification } from '../context/useNotification'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { getInvoiceById, updateInvoice } from '../services/invoices'
+import { getTransactionById } from '../services/transactions'
 import { mapExtractedToForm } from '../utils/invoiceExtraction'
-import { itemVariants } from '../utils/motionVariants'
+import { fmtAmount, fmtDate, toDateInput } from '../utils/formatters'
+import { getInstallmentSuggestionAmount } from '../utils/matchAmounts'
+import { containerVariants, itemVariants } from '../utils/motionVariants'
 import { invoiceKeys, matchKeys, transactionKeys } from '../queries/queryKeys'
+import { exportMatchesCSV } from '../utils/csvExport'
 import {
   useAutoMatchOnLoadMutation,
   useCreateMatchMutation,
@@ -54,77 +63,17 @@ import {
   useUnmatchedInvoicesQuery,
   useUnmatchedTransactionsQuery,
 } from '../hooks/queries/useMatchesQueries'
+import { useMatchesTable } from '../hooks/useMatchesTable'
+import { useUndoManager } from '../hooks/useUndoManager'
 
-/**
- * Base card styling shared across the matches page panels.
- * @type {import('@mui/material').SxProps}
- */
-const cardBaseSx = {
-  borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
-}
-
-// --------------- helper ---------------
-/**
- * Formats a numeric value as a decimal amount string.
- * @param {*} v - The value to format.
- * @returns {string} Formatted amount with two decimal places.
- */
-const fmtAmount = (v) =>
-  (Number(v) || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-
-/**
- * Formats a numeric value as a currency string.
- * Falls back to a simple currency prefix if Intl formatting fails.
- * @param {*} v - The amount to format.
- * @param {string} [currency='USD'] - Currency code.
- * @returns {string} Formatted currency string.
- */
-const fmtCurrency = (v, currency = 'USD') => {
-  try {
-    return (Number(v) || 0).toLocaleString(undefined, {
-      style: 'currency',
-      currency, 
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  } catch {
-    return `${currency} ${fmtAmount(v)}`
-  }
-}
-
-/**
- * Formats a date value for display.
- * @param {*} d - Date value or string.
- * @returns {string} Localized date string or dash if invalid.
- */
-const fmtDate = (d) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString()
-}
-
-/**
- * Converts a date value into a YYYY-MM-DD string for date inputs.
- * @param {*} value - Date value or string.
- * @returns {string} Date input string or empty when invalid.
- */
-const toDateInput = (value) => {
-  if (!value) return ''
-  if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toISOString().slice(0, 10)
+const readField = (source, snakeKey, camelKey) => {
+  if (!source) return undefined
+  return source[snakeKey] ?? source[camelKey] ?? undefined
 }
 
 const mapSavedInvoiceToForm = (invoice) => {
   const confidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
   const lineItems = invoice?.lineItems || invoice?.line_items || []
-
   return mapExtractedToForm(
     {
       vendorName: invoice?.vendor_name ?? invoice?.vendorName ?? '',
@@ -139,13 +88,10 @@ const mapSavedInvoiceToForm = (invoice) => {
       vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
       lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
       paymentPlan: {
-        totalInstallments:
-          invoice?.paymentPlanTotalInstallments ?? invoice?.payment_plan_total_installments ?? null,
-        installmentAmount:
-          invoice?.paymentPlanInstallmentAmount ?? invoice?.payment_plan_installment_amount ?? null,
+        totalInstallments: invoice?.paymentPlanTotalInstallments ?? invoice?.payment_plan_total_installments ?? null,
+        installmentAmount: invoice?.paymentPlanInstallmentAmount ?? invoice?.payment_plan_installment_amount ?? null,
         frequency: invoice?.paymentPlanFrequency ?? invoice?.payment_plan_frequency ?? null,
-        currentInstallment:
-          invoice?.paymentPlanCurrentInstallment ?? invoice?.payment_plan_current_installment ?? null,
+        currentInstallment: invoice?.paymentPlanCurrentInstallment ?? invoice?.payment_plan_current_installment ?? null,
         description: invoice?.paymentPlanDescription ?? invoice?.payment_plan_description ?? null,
       },
       lineItems: lineItems.map((li, idx) => ({
@@ -162,413 +108,43 @@ const mapSavedInvoiceToForm = (invoice) => {
   )
 }
 
-/**
- * Render a selectable list panel with search and item actions.
- *
- * @param {Object} props - Panel props.
- * @param {import('@mui/icons-material').SvgIconComponent} props.icon - Icon component for the panel header.
- * @param {string} props.title - Panel title.
- * @param {number} props.count - Number of items.
- * @param {string} props.searchPlaceholder - Placeholder for the search input.
- * @param {string} props.searchValue - Current search text.
- * @param {function(string): void} props.onSearchChange - Callback for search input changes.
- * @param {boolean} props.loading - Whether the panel is loading.
- * @param {string} props.emptyMessage - Message shown when there are no items.
- * @param {Array} props.items - Array of items to render.
- * @param {number|null} props.selectedId - Currently selected item id.
- * @param {function(number|null): void} props.onSelect - Item selection callback.
- * @param {function(Object): string|JSX.Element} props.renderPrimary - Renders primary item text.
- * @param {function(Object): string|JSX.Element} props.renderSecondary - Renders secondary item text.
- * @param {function(Object): string|JSX.Element} props.renderAmount - Renders amount text.
- * @param {function(Object): string|JSX.Element} props.renderDate - Renders date text.
- * @param {function(Object): JSX.Element|null} [props.renderActions] - Optional action render function.
- * @returns {JSX.Element} Rendered selection panel.
- */
-function SelectionPanel({
-  icon,
-  title,
-  count,
-  searchPlaceholder,
-  searchValue,
-  onSearchChange,
-  loading,
-  emptyMessage,
-  items,
-  selectedId,
-  onSelect,
-  renderPrimary,
-  renderSecondary,
-  renderAmount,
-  renderDate,
-  renderActions,
-}) {
-  const PanelIcon = icon
-  let panelContent
+const INV_COLUMNS = [
+  { key: 'invoice', label: 'Invoice', sortable: true, render: (r) => r.invoice_number || r.invoiceNumber || `#${r.id}`, minWidth: 100 },
+  { key: 'vendor', label: 'Vendor', sortable: true, render: (r) => r.vendor_name || r.vendorName || '\u2014', minWidth: 120 },
+  { key: 'amount', label: 'Amount', sortable: true, render: (r) => fmtAmount(r.total_amount ?? r.totalAmount), minWidth: 90 },
+  { key: 'date', label: 'Date', sortable: true, render: (r) => fmtDate(r.invoice_date || r.invoiceDate), minWidth: 90 },
+]
 
-  if (loading) {
-    panelContent = (
-      <Stack spacing={1}>
-        {['list-skeleton-1', 'list-skeleton-2', 'list-skeleton-3', 'list-skeleton-4'].map((skeletonKey) => (
-          <Skeleton key={skeletonKey} variant="rectangular" height={64} sx={{ borderRadius: 2 }} />
-        ))}
-      </Stack>
-    )
-  } else if (items.length === 0) {
-    panelContent = (
-      <Stack alignItems="center" sx={{ py: 4 }}>
-        <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-        <Typography color="text.secondary" variant="body2">
-          {emptyMessage}
-        </Typography>
-      </Stack>
-    )
-  } else {
-    panelContent = (
-      <Stack spacing={1}>
-        <AnimatePresence>
-          {items.map((item) => {
-            const id = item.id
-            const isSelected = id === selectedId
-            return (
-              <Box
-                key={id}
-                component={motion.div}
-                layout
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                onClick={() => onSelect(isSelected ? null : id)}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  cursor: 'pointer',
-                  border: '2px solid',
-                  borderColor: isSelected ? 'primary.main' : 'divider',
-                  bgcolor: isSelected ? 'rgba(88,166,255,0.08)' : 'rgba(255,255,255,0.02)',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    borderColor: isSelected ? 'primary.main' : 'rgba(88,166,255,0.4)',
-                    bgcolor: 'rgba(88,166,255,0.05)',
-                  },
-                }}
-              >
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      {renderPrimary(item)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {renderSecondary(item)}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" fontWeight={700}>
-                    {renderAmount(item)}
-                  </Typography>
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {renderDate(item)}
-                </Typography>
-                {renderActions ? (
-                  <Box sx={{ mt: 1 }}>
-                    {renderActions(item)}
-                  </Box>
-                ) : null}
-              </Box>
-            )
-          })}
-        </AnimatePresence>
-      </Stack>
-    )
-  }
+const TRX_COLUMNS = [
+  { key: 'vendor', label: 'Vendor', sortable: true, render: (r) => r.vendor_name || r.vendorName || r.description || `#${r.id}`, minWidth: 120 },
+  { key: 'amount', label: 'Amount', sortable: true, render: (r) => fmtAmount(r.chargeAmount ?? r.charge_amount ?? r.amount ?? 0), minWidth: 90 },
+  { key: 'date', label: 'Date', sortable: true, render: (r) => fmtDate(r.transaction_date || r.transactionDate), minWidth: 90 },
+  { key: 'type', label: 'Type', sortable: true, render: (r) => r.type || r.transaction_type || r.transactionType || '\u2014', minWidth: 70 },
+]
 
-  return (
-    <Card component={motion.div} variants={itemVariants} elevation={0} sx={cardBaseSx}>
-      <CardContent>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-          <PanelIcon sx={{ color: '#a9d5ff' }} />
-          <Typography variant="subtitle1" fontWeight={700}>
-            {title}
-          </Typography>
-          <Chip label={count} size="small" />
-        </Stack>
-
-        <TextField
-          placeholder={searchPlaceholder}
-          size="small"
-          fullWidth
-          value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRoundedIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{ mb: 2 }}
-        />
-
-        <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>{panelContent}</Box>
-      </CardContent>
-    </Card>
-  )
-}
-
-SelectionPanel.propTypes = {
-  icon: PropTypes.elementType.isRequired,
-  title: PropTypes.string.isRequired,
-  count: PropTypes.number.isRequired,
-  searchPlaceholder: PropTypes.string.isRequired,
-  searchValue: PropTypes.string.isRequired,
-  onSearchChange: PropTypes.func.isRequired,
-  loading: PropTypes.bool.isRequired,
-  emptyMessage: PropTypes.string.isRequired,
-  items: PropTypes.array.isRequired,
-  selectedId: PropTypes.number,
-  onSelect: PropTypes.func.isRequired,
-  renderPrimary: PropTypes.func.isRequired,
-  renderSecondary: PropTypes.func.isRequired,
-  renderAmount: PropTypes.func.isRequired,
-  renderDate: PropTypes.func.isRequired,
-  renderActions: PropTypes.func,
-}
-
-SelectionPanel.defaultProps = {
-  selectedId: null,
-  renderActions: null,
-}
-
-// ── Quick Match Suggestions component ──────────────────────────────────────
-
-/**
- * Renders quick invoice-to-transaction match suggestions.
- * Filters out any session-denied pairs and provides confirm/deny actions.
- *
- * @param {Object} props - Suggestion panel props.
- * @param {import('@tanstack/react-query').UseQueryResult} props.query - React Query result containing suggestions.
- * @param {Set<string>} props.deniedPairs - Set of denied invoice-transaction keys.
- * @param {function(number, number): void} props.onDeny - Callback when a pair is denied.
- * @param {function(Object): void} props.onConfirm - Callback when a suggestion is confirmed.
- * @param {boolean} props.matchBusy - Whether a match action is currently in progress.
- * @param {Array} props.invoices - Available invoice records.
- * @param {Array} props.transactions - Available transaction records.
- * @returns {JSX.Element} Rendered suggestion card.
- */
-function QuickMatchSuggestions({ query, deniedPairs, onDeny, onConfirm, matchBusy, invoices, transactions }) {
-  const rawSuggestions = Array.isArray(query.data) ? query.data : []
-  const suggestions = rawSuggestions.filter(
-    (s) => !deniedPairs.has(`${s.invoiceId}-${s.transactionId}`),
-  )
-
-  return (
-    <Card
-      component={motion.div}
-      variants={itemVariants}
-      elevation={0}
-      sx={{
-        ...cardBaseSx,
-        borderColor: 'rgba(55,214,122,0.35)',
-        background: 'linear-gradient(135deg, rgba(14,30,22,0.96), rgba(10,20,16,0.96))',
-      }}
-    >
-      <CardContent>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <CompareArrowsRoundedIcon sx={{ color: '#37d67a' }} />
-          <Typography variant="subtitle1" fontWeight={700}>
-            Quick Match Suggestions
-          </Typography>
-          <Chip
-            label={suggestions.length}
-            size="small"
-            sx={{ bgcolor: 'rgba(55,214,122,0.15)', color: '#37d67a' }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            Same date &amp; exact amount
-          </Typography>
-        </Stack>
-
-        {query.isLoading && (
-          <Stack spacing={1}>
-            {['qs-1', 'qs-2', 'qs-3'].map((k) => (
-              <Skeleton key={k} variant="rectangular" height={72} sx={{ borderRadius: 2 }} />
-            ))}
-          </Stack>
-        )}
-        {!query.isLoading && suggestions.length === 0 && (
-          <Stack alignItems="center" sx={{ py: 3 }}>
-            <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-            <Typography variant="body2" color="text.secondary">
-              No current suggestions.
-            </Typography>
-          </Stack>
-        )}
-        {!query.isLoading && suggestions.length > 0 && (
-          <Stack spacing={1.5}>
-            <AnimatePresence>
-              {suggestions.map((s) => {
-                const pairKey = `${s.invoiceId}-${s.transactionId}`
-                const _inv = invoices.find((i) => i.id === s.invoiceId)
-                const _trx = transactions.find((t) => t.id === s.transactionId)
-                const invCurrency = _inv?.currency || 'USD'
-                const trxCurrency = _trx?.charge_currency || _trx?.chargeCurrency || invCurrency
-                return (
-                  <Box
-                    key={pairKey}
-                    component={motion.div}
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      alignItems={{ sm: 'center' }}
-                      justifyContent="space-between"
-                      spacing={2}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: 'rgba(55,214,122,0.2)',
-                        bgcolor: 'rgba(55,214,122,0.04)',
-                      }}
-                    >
-                      {/* Invoice side */}
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          Invoice
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {s.invoiceNumber || `#${s.invoiceId}`}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {s.vendorName || '—'}
-                        </Typography>
-                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {fmtDate(s.invoiceDate)}
-                          </Typography>
-                          <Typography variant="caption" fontWeight={700} sx={{ color: '#37d67a' }}>
-                            {fmtCurrency(s.invoiceAmount, invCurrency)}
-                          </Typography>
-                        </Stack>
-                      </Box>
-
-                      <CompareArrowsRoundedIcon sx={{ color: 'rgba(55,214,122,0.5)', flexShrink: 0 }} />
-
-                      {/* Transaction side */}
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          Transaction
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {(_trx?.vendor_name || _trx?.vendorName || s.transactionDescription) || `#${s.transactionId}`}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {s.transactionType || '—'}
-                        </Typography>
-                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {fmtDate(s.transactionDate)}
-                          </Typography>
-                          <Typography variant="caption" fontWeight={700} sx={{ color: '#37d67a' }}>
-                            {fmtCurrency(s.transactionAmount, trxCurrency)}
-                          </Typography>
-                        </Stack>
-                      </Box>
-
-                      {/* Actions */}
-                      <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          onClick={() => onDeny(s.invoiceId, s.transactionId)}
-                          disabled={matchBusy}
-                        >
-                          Deny
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="success"
-                          startIcon={<CheckCircleRoundedIcon fontSize="small" />}
-                          onClick={() => onConfirm(s)}
-                          disabled={matchBusy}
-                        >
-                          Confirm
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </Box>
-                )
-              })}
-            </AnimatePresence>
-          </Stack>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-QuickMatchSuggestions.propTypes = {
-  query: PropTypes.object.isRequired,
-  deniedPairs: PropTypes.instanceOf(Set).isRequired,
-  onDeny: PropTypes.func.isRequired,
-  onConfirm: PropTypes.func.isRequired,
-  matchBusy: PropTypes.bool.isRequired,
-  invoices: PropTypes.array.isRequired,
-  transactions: PropTypes.array.isRequired,
-}
-
-/**
- * Main matches page for invoice-to-transaction reconciliation.
- * Provides unmatched invoice/transaction panels, match actions, AI suggestions,
- * and uninstallment match grouping workflows.
- *
- * @returns {JSX.Element} Rendered matches page.
- */
 function MatchesPage() {
   const { token } = useAuth()
   const { activeCompanyId } = useCompany()
   const queryClient = useQueryClient()
+  const { notify } = useNotification()
+  const setSnack = useCallback(({ message, severity }) => { notify({ message, severity }) }, [notify])
 
-  // ----- Data state -----
-  const [invoices, setInvoices] = useState([])
-  const [transactions, setTransactions] = useState([])
-  const [matches, setMatches] = useState([])
-  const [suggestions, setSuggestions] = useState([])
-
-  // ----- Selection state -----
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null)
-  const [selectedTransactionId, setSelectedTransactionId] = useState(null)
-
-  // ----- Search state -----
-  const [invoiceSearch, setInvoiceSearch] = useState('')
-  const [transactionSearch, setTransactionSearch] = useState('')
-
-  // ----- Loading / Error / Snack -----
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [matchBusy, setMatchBusy] = useState(false)
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' })
   const [invoiceModal, setInvoiceModal] = useState({ open: false, file: null })
   const [invoiceSaving, setInvoiceSaving] = useState(false)
   const [reopeningInvoiceId, setReopeningInvoiceId] = useState(null)
+  const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null, bulk: false })
+  const [selectedMatchIds, setSelectedMatchIds] = useState([])
+  const [matchDetailsDialog, setMatchDetailsDialog] = useState({ open: false, match: null, invoice: null, transaction: null, loading: false, error: '' })
+  const [autoPreviewOpen, setAutoPreviewOpen] = useState(false)
+  const [autoPreviewData, setAutoPreviewData] = useState(null)
+  const [autoPreviewLoading, setAutoPreviewLoading] = useState(false)
+  const [comparisonInvoice, setComparisonInvoice] = useState(null)
+  const [comparisonTransaction, setComparisonTransaction] = useState(null)
 
-  // ----- Unmatch confirmation dialog -----
-  const [unmatchDialog, setUnmatchDialog] = useState({ open: false, matchId: null })
-
-  // ----- Simple suggestions denied pairs (session-only) -----
-  const [deniedPairs, setDeniedPairs] = useState(new Set())
-
-  // ----- Installment suggestions denied txn pairs (session-only) -----
-  const [deniedInstallmentPairs, setDeniedInstallmentPairs] = useState(new Set())
-
-  // ----- Prevent double auto-match in StrictMode -----
-  const autoMatchRanRef = useRef(false)
+  const undoManager = useUndoManager(5000)
 
   const matchesQuery = useMatchesByCompanyQuery({ companyId: activeCompanyId, token })
   const invoicesQuery = useUnmatchedInvoicesQuery({ companyId: activeCompanyId, token })
@@ -576,21 +152,26 @@ function MatchesPage() {
   const createMatchMutation = useCreateMatchMutation({ companyId: activeCompanyId, token })
   const deleteMatchMutation = useDeleteMatchMutation({ companyId: activeCompanyId, token })
   const autoMatchMutation = useAutoMatchOnLoadMutation({ companyId: activeCompanyId, token })
-  const suggestionsQuery = useMatchSuggestionsQuery({
-    invoiceId: selectedInvoiceId,
-    token,
-    enabled: Boolean(selectedInvoiceId),
-  })
   const simpleSuggestionsQuery = useSimpleSuggestionsQuery({ companyId: activeCompanyId, token })
   const installmentSuggestionsQuery = useInstallmentSuggestionsQuery({ companyId: activeCompanyId, token })
 
-  const getConfidenceChipColor = (confidence) => {
-    if (confidence >= 0.8) return 'success'
-    if (confidence >= 0.5) return 'warning'
-    return 'default'
-  }
+  const invoices = useMemo(() => Array.isArray(invoicesQuery.data) ? invoicesQuery.data : [], [invoicesQuery.data])
+  const rawTransactions = useMemo(() => transactionsQuery.data?.items ?? [], [transactionsQuery.data])
+  const matches = useMemo(() => Array.isArray(matchesQuery.data) ? matchesQuery.data : [], [matchesQuery.data])
 
-  // ===================== Data Fetching =====================
+  const table = useMatchesTable({
+    invoices,
+    transactions: rawTransactions,
+    matches,
+    simpleSuggestions: simpleSuggestionsQuery.data,
+    installmentSuggestions: installmentSuggestionsQuery.data,
+  })
+
+  useEffect(() => {
+    const nextError = matchesQuery.error?.message || invoicesQuery.error?.message || transactionsQuery.error?.message || ''
+    setError(nextError)
+    setLoading(matchesQuery.isLoading || invoicesQuery.isLoading || transactionsQuery.isLoading)
+  }, [invoicesQuery.error, invoicesQuery.isLoading, matchesQuery.error, matchesQuery.isLoading, transactionsQuery.error, transactionsQuery.isLoading])
 
   const loadData = useCallback(async () => {
     await Promise.all([
@@ -600,794 +181,510 @@ function MatchesPage() {
     ])
   }, [queryClient])
 
-  useEffect(() => {
-    setInvoices(Array.isArray(invoicesQuery.data) ? invoicesQuery.data : [])
-  }, [invoicesQuery.data])
-
-  useEffect(() => {
-    setTransactions(Array.isArray(transactionsQuery.data) ? transactionsQuery.data : [])
-  }, [transactionsQuery.data])
-
-  useEffect(() => {
-    setMatches(Array.isArray(matchesQuery.data) ? matchesQuery.data : [])
-  }, [matchesQuery.data])
-
-  useEffect(() => {
-    const nextError =
-      matchesQuery.error?.message ||
-      invoicesQuery.error?.message ||
-      transactionsQuery.error?.message ||
-      ''
-
-    setError(nextError)
-    setLoading(
-      matchesQuery.isLoading ||
-      invoicesQuery.isLoading ||
-      transactionsQuery.isLoading,
-    )
-  }, [
-    invoicesQuery.error,
-    invoicesQuery.isLoading,
-    matchesQuery.error,
-    matchesQuery.isLoading,
-    transactionsQuery.error,
-    transactionsQuery.isLoading,
-  ])
-
-  // Auto-match once on mount
-  useEffect(() => {
-    if (autoMatchRanRef.current) return
-    autoMatchRanRef.current = true
-
-    const runAutoMatch = async () => {
-      try {
-        const matchResult = await autoMatchMutation.mutateAsync({ minConfidence: 70 })
-        if (matchResult?.successfulMatches > 0) {
-          setSnack({
-            open: true,
-            message: `✓ ${matchResult.successfulMatches} automatic match(es) found`,
-            severity: 'success',
-          })
-        }
-      } catch (matchErr) {
-        console.warn('[MATCH] Auto-match on load failed:', matchErr)
-      }
-    }
-    runAutoMatch()
-  }, [autoMatchMutation, loadData])
-
-  useEffect(() => {
-    setSuggestions(Array.isArray(suggestionsQuery.data) ? suggestionsQuery.data : [])
-  }, [suggestionsQuery.data])
-
-  // ===================== Handlers =====================
-
   const handleCreateMatch = useCallback(async () => {
-    if (!selectedInvoiceId || !selectedTransactionId) return
-    const inv = invoices.find((i) => i.id === selectedInvoiceId)
-    const trx = transactions.find((t) => t.id === selectedTransactionId)
-    if (!inv || !trx) return
-
+    if (!table.selectedInvoice || !table.selectedTransaction) return
     setMatchBusy(true)
     try {
-      await createMatchMutation.mutateAsync({
-        invoiceId: inv.id,
-        transactionId: trx.id,
-        matchedAmount: Math.min(
-          Math.abs(Number(inv.total_amount ?? inv.totalAmount) || 0),
-          Math.abs(Number(trx.amount) || 0),
-        ),
+      const amount = table.computeMatchedAmount()
+      const result = await createMatchMutation.mutateAsync({
+        invoiceId: table.selectedInvoice.id,
+        transactionId: table.selectedTransaction.id,
+        matchedAmount: amount,
         matchMethod: 'manual',
         matchType: 'full',
         matchConfidence: 1,
       })
-      setSelectedInvoiceId(null)
-      setSelectedTransactionId(null)
-      setSuggestions([])
-      setSnack({ open: true, message: 'Match created successfully!', severity: 'success' })
+      undoManager.push({ message: 'Manual match created', matchId: result?.id ?? result?.matchId ?? null })
+      table.clearSelection()
+      setSnack({ message: 'Match created!', severity: 'success' })
     } catch (err) {
-      setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
+      setSnack({ message: err.message || 'Failed to create match.', severity: 'error' })
     } finally {
       setMatchBusy(false)
     }
-  }, [selectedInvoiceId, selectedTransactionId, invoices, transactions, createMatchMutation])
+  }, [table.selectedInvoice, table.selectedTransaction, table.clearSelection, table.computeMatchedAmount, createMatchMutation])
 
-  const confirmUnmatch = useCallback((matchId) => {
-    setUnmatchDialog({ open: true, matchId })
+  const handleConfirmSuggestion = useCallback(async (suggestion, source) => {
+    setMatchBusy(true)
+    try {
+      const result = await createMatchMutation.mutateAsync({
+        invoiceId: suggestion.invoiceId,
+        transactionId: suggestion.transactionId,
+        matchedAmount: suggestion.invoiceAmount ?? 0,
+        matchMethod: source === 'ai' ? 'auto' : 'simple',
+        matchType: 'full',
+        matchConfidence: suggestion.confidence ?? 1,
+      })
+      undoManager.push({ message: `${source === 'ai' ? 'AI' : 'Quick'} match confirmed`, matchId: result?.id ?? result?.matchId ?? null })
+      setSnack({ message: 'Match confirmed!', severity: 'success' })
+    } catch (err) {
+      setSnack({ message: err.message || 'Failed to confirm.', severity: 'error' })
+    } finally {
+      setMatchBusy(false)
+    }
+  }, [createMatchMutation])
+
+  const handleConfirmInstallment = useCallback(async (group, txn) => {
+    setMatchBusy(true)
+    try {
+      const installmentNumber = (group.alreadyMatchedCount || 0) + 1
+      const expected = group.expectedInstallments
+      const totalAmount = Number(group.totalAmount) || 0
+      const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
+      const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
+      const suggestedAmount = getInstallmentSuggestionAmount(txn)
+      const effectiveAmount = Math.min(suggestedAmount, remainingAmount)
+      if (suggestedAmount <= 0) throw new Error('Installment amount is missing.')
+      if (effectiveAmount <= 0) throw new Error('No remaining balance to match.')
+
+      const result = await createMatchMutation.mutateAsync({
+        invoiceId: group.invoiceId,
+        transactionId: txn.transactionId,
+        matchedAmount: effectiveAmount,
+        matchMethod: 'installment_simple',
+        matchType: effectiveAmount >= remainingAmount ? 'full' : 'partial',
+        matchConfidence: 1,
+        installmentNumber,
+        installmentNote: `Installment ${installmentNumber}${expected ? ` of ${expected}` : ''}`,
+      })
+      undoManager.push({ message: `Installment ${installmentNumber} confirmed`, matchId: result?.id ?? result?.matchId ?? null })
+      setSnack({ message: `Installment ${installmentNumber} confirmed!`, severity: 'success' })
+    } catch (err) {
+      setSnack({ message: err.message || 'Failed to confirm installment.', severity: 'error' })
+    } finally {
+      setMatchBusy(false)
+    }
+  }, [createMatchMutation])
+
+  const handleUndo = useCallback(async () => {
+    const action = undoManager.undo()
+    if (!action?.matchId) return
+    try {
+      await deleteMatchMutation.mutateAsync(action.matchId)
+      setSnack({ message: 'Match undone.', severity: 'info' })
+    } catch (err) {
+      setSnack({ message: err.message || 'Failed to undo.', severity: 'error' })
+    }
+  }, [undoManager, deleteMatchMutation])
+
+  const confirmUnmatch = useCallback((matchId) => setUnmatchDialog({ open: true, matchId, bulk: false }), [])
+  const confirmBulkUnmatch = useCallback(() => {
+    if (selectedMatchIds.length === 0) return
+    setUnmatchDialog({ open: true, matchId: null, bulk: true })
+  }, [selectedMatchIds])
+
+  const toggleMatchSelection = useCallback((id) => {
+    setSelectedMatchIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
   }, [])
 
+  const toggleSelectAllMatches = useCallback(() => {
+    setSelectedMatchIds((prev) => prev.length === table.filteredMatches.length ? [] : table.filteredMatches.map((r) => r.id ?? r._id))
+  }, [table.filteredMatches])
+
+  const allMatchesSelected = selectedMatchIds.length > 0 && selectedMatchIds.length === table.filteredMatches.length
+
   const handleUnmatch = useCallback(async () => {
-    const matchId = unmatchDialog.matchId
-    setUnmatchDialog({ open: false, matchId: null })
+    const { matchId, bulk } = unmatchDialog
+    setUnmatchDialog({ open: false, matchId: null, bulk: false })
+    if (bulk) {
+      if (selectedMatchIds.length === 0) return
+      let count = 0
+      try {
+        for (const id of selectedMatchIds) {
+          await deleteMatchMutation.mutateAsync(id)
+          count++
+        }
+        setSelectedMatchIds([])
+        setSnack({ message: `${count} match(es) removed.`, severity: 'success' })
+      } catch (err) {
+        setSnack({ message: err.message || 'Failed to remove matches.', severity: 'error' })
+      }
+      return
+    }
     if (!matchId) return
     try {
       await deleteMatchMutation.mutateAsync(matchId)
-      setSnack({ open: true, message: 'Match removed.', severity: 'success' })
+      setSnack({ message: 'Match removed.', severity: 'success' })
     } catch (err) {
-      setSnack({ open: true, message: err.message || 'Failed to remove match.', severity: 'error' })
+      setSnack({ message: err.message || 'Failed to remove match.', severity: 'error' })
     }
-  }, [unmatchDialog.matchId, deleteMatchMutation])
+  }, [unmatchDialog.matchId, unmatchDialog.bulk, selectedMatchIds, deleteMatchMutation])
 
-  const handleAcceptSuggestion = useCallback((transactionId) => {
-    setSelectedTransactionId(transactionId)
-  }, [])
+  const openMatchDetails = useCallback(async (match) => {
+    const invoiceId = readField(match, 'invoice_id', 'invoiceId')
+    const transactionId = readField(match, 'transaction_id', 'transactionId')
+    const hasDetails = Boolean(invoiceId || transactionId)
+    setMatchDetailsDialog({ open: true, match, invoice: null, transaction: null, loading: hasDetails, error: '' })
+    if (!hasDetails) return
+    const [invResult, trxResult] = await Promise.allSettled([
+      invoiceId ? getInvoiceById(invoiceId, token) : Promise.resolve(null),
+      transactionId ? getTransactionById(transactionId, token) : Promise.resolve(null),
+    ])
+    const matchKey = readField(match, 'id', 'id') ?? match
+    setMatchDetailsDialog((cur) => {
+      if (!cur.open || (readField(cur.match, 'id', 'id') ?? cur.match) !== matchKey) return cur
+      return { ...cur, invoice: invResult.status === 'fulfilled' ? invResult.value : null, transaction: trxResult.status === 'fulfilled' ? trxResult.value : null, loading: false, error: invResult.status === 'rejected' || trxResult.status === 'rejected' ? 'Some details could not be loaded.' : '' }
+    })
+  }, [token])
 
-  const openInvoiceForEditing = useCallback(
-    async (invoiceId) => {
-      if (!invoiceId) return
-      setReopeningInvoiceId(invoiceId)
-      try {
-        const invoice = await getInvoiceById(invoiceId, token)
-        const extractedData = mapSavedInvoiceToForm(invoice)
-        setInvoiceModal({
-          open: true,
-          file: {
-            id: `saved-${invoice.id}`,
-            name:
-              invoice.fileOriginalName ||
-              invoice.file_original_name ||
-              `Invoice ${invoice.invoiceNumber || invoice.invoice_number || invoice.id}`,
-            extractedData,
-            existingInvoiceId: invoice.id,
-            sourceInvoice: invoice,
-          },
-        })
-      } catch (err) {
-        setSnack({
-          open: true,
-          message: err.message || 'Failed to open invoice for editing.',
-          severity: 'error',
-        })
-      } finally {
-        setReopeningInvoiceId(null)
+  const closeMatchDetails = useCallback(() => setMatchDetailsDialog({ open: false, match: null, invoice: null, transaction: null, loading: false, error: '' }), [])
+
+  const openInvoiceForEditing = useCallback(async (invoiceId) => {
+    if (!invoiceId) return
+    setReopeningInvoiceId(invoiceId)
+    try {
+      const invoice = await getInvoiceById(invoiceId, token)
+      const extractedData = mapSavedInvoiceToForm(invoice)
+      setInvoiceModal({
+        open: true,
+        file: { id: `saved-${invoice.id}`, name: invoice.fileOriginalName || invoice.file_original_name || `Invoice ${invoice.invoiceNumber || invoice.invoice_number || invoice.id}`, extractedData, existingInvoiceId: invoice.id, sourceInvoice: invoice },
+      })
+    } catch (err) { setSnack({ message: err.message || 'Failed to open invoice.', severity: 'error' }) }
+    finally { setReopeningInvoiceId(null) }
+  }, [token])
+
+  const handleSaveInvoiceVerification = useCallback(async (formData) => {
+    const editingInvoiceId = invoiceModal.file?.existingInvoiceId
+    if (!editingInvoiceId) return
+    const sourceInvoice = invoiceModal.file?.sourceInvoice || {}
+    setInvoiceSaving(true)
+    try {
+      const paymentPlanEnabled = Boolean(formData.paymentPlanEnabled)
+      const parseOptionalInt = (v) => { if (v == null || v === '') return null; const p = Number.parseInt(v, 10); return Number.isNaN(p) ? null : p }
+      const parseOptionalFloat = (v) => { if (v == null || v === '') return null; const p = Number.parseFloat(v); return Number.isNaN(p) ? null : p }
+      const normalizeStr = (v) => { if (v == null || v === '') return null; const t = String(v).trim(); return t.length > 0 ? t : null }
+      const payload = {
+        companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
+        invoiceNumber: formData.invoiceNumber?.value || '',
+        vendorName: formData.vendorName?.value || '',
+        invoiceDate: formData.invoiceDate?.value || new Date().toISOString(),
+        totalAmount: Number.parseFloat(formData.totalAmount?.value) || 0,
+        subtotal: Number.parseFloat(formData.subtotal?.value) || 0,
+        vatRate: Number.parseFloat(formData.vatRate?.value) || null,
+        vatAmount: Number.parseFloat(formData.vatAmount?.value) || null,
+        currency: formData.currency?.value || 'USD',
+        vendorTaxId: formData.vendorTaxId?.value || null,
+        lastFourDigitsCard: formData.lastFourDigitsCard?.value || null,
+        dueDate: formData.dueDate?.value || null,
+        paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
+        itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
+        paymentPlanTotalInstallments: paymentPlanEnabled ? parseOptionalInt(formData.paymentPlan?.totalInstallments?.value) : null,
+        paymentPlanInstallmentAmount: paymentPlanEnabled ? parseOptionalFloat(formData.paymentPlan?.installmentAmount?.value) : null,
+        paymentPlanFrequency: paymentPlanEnabled ? normalizeStr(formData.paymentPlan?.frequency?.value) : null,
+        paymentPlanCurrentInstallment: paymentPlanEnabled ? parseOptionalInt(formData.paymentPlan?.currentInstallment?.value) : null,
+        paymentPlanDescription: paymentPlanEnabled ? normalizeStr(formData.paymentPlan?.description?.value) : null,
+        fileOriginalName: sourceInvoice.fileOriginalName || sourceInvoice.file_original_name || null,
+        filePath: sourceInvoice.filePath || sourceInvoice.file_path || null,
+        fileType: sourceInvoice.fileType || sourceInvoice.file_type || null,
+        fileSize: sourceInvoice.fileSize || sourceInvoice.file_size || null,
+        aiExtractionConfidence: 1,
+        lineItems: (formData.lineItems || []).map((li, idx) => ({
+          description: li.description || 'Item', unitPrice: Number.parseFloat(li.unitPrice) || 0, totalAmount: Number.parseFloat(li.totalAmount) || 0, lineNumber: idx + 1, quantity: Number.parseFloat(li.quantity) || 1, vatRate: Number.parseFloat(formData.vatRate?.value) || null, aiConfidenceScore: 1,
+        })),
       }
-    },
-    [token],
-  )
+      await updateInvoice(editingInvoiceId, payload, token)
+      setInvoiceModal({ open: false, file: null })
+      setSnack({ message: 'Invoice updated!', severity: 'success' })
+      table.clearSelection()
+      await loadData()
+    } catch (err) { setSnack({ message: err.message || 'Failed to save.', severity: 'error' }) }
+    finally { setInvoiceSaving(false) }
+  }, [invoiceModal.file, activeCompanyId, token, loadData])
 
-  const handleSaveInvoiceVerification = useCallback(
-    async (formData) => {
-      const editingInvoiceId = invoiceModal.file?.existingInvoiceId
-      if (!editingInvoiceId) return
+  const handleAutoPreview = useCallback(async () => {
+    setAutoPreviewLoading(true)
+    setAutoPreviewOpen(true)
+    try {
+      const result = await autoMatchMutation.mutateAsync({ minConfidence: 70 })
+      const autoMatched = result?.matchDetails ?? []
+      const suggestions = result?.suggestionsForReview ?? []
+      const items = [...autoMatched, ...suggestions]
+      setAutoPreviewData(Array.isArray(items) ? items.map((item) => ({
+        invoice: { id: item.invoiceId, invoice_number: item.invoiceNumber, total_amount: item.invoiceAmount, invoice_date: item.invoiceDate },
+        transaction: { id: item.transactionId, description: item.transactionDescription, amount: item.transactionAmount, transaction_date: item.transactionDate },
+        confidence: item.matchScore != null ? item.matchScore / 100 : (item.matchConfidence ?? 0.7),
+        amount: item.matchedAmount ?? item.invoiceAmount,
+        alreadyMatched: item.success ?? false,
+        message: item.message,
+        matchId: item.matchId,
+      })) : [])
+    } catch { setAutoPreviewData([]) }
+    finally { setAutoPreviewLoading(false) }
+  }, [autoMatchMutation])
 
-      const sourceInvoice = invoiceModal.file?.sourceInvoice || {}
-      setInvoiceSaving(true)
-      try {
-        const paymentPlanTotalInstallmentsInput = formData.paymentPlan?.totalInstallments?.value
-        const paymentPlanInstallmentAmountInput = formData.paymentPlan?.installmentAmount?.value
-        const paymentPlanCurrentInstallmentInput = formData.paymentPlan?.currentInstallment?.value
-
-        const paymentPlanTotalInstallments =
-          paymentPlanTotalInstallmentsInput === '' || paymentPlanTotalInstallmentsInput == null
-            ? sourceInvoice.paymentPlanTotalInstallments ??
-              sourceInvoice.payment_plan_total_installments ??
-              null
-            : Number.parseInt(paymentPlanTotalInstallmentsInput, 10) || 0
-
-        const paymentPlanInstallmentAmount =
-          paymentPlanInstallmentAmountInput === '' || paymentPlanInstallmentAmountInput == null
-            ? sourceInvoice.paymentPlanInstallmentAmount ??
-              sourceInvoice.payment_plan_installment_amount ??
-              null
-            : Number.parseFloat(paymentPlanInstallmentAmountInput) || 0
-
-        const paymentPlanCurrentInstallment =
-          paymentPlanCurrentInstallmentInput === '' || paymentPlanCurrentInstallmentInput == null
-            ? sourceInvoice.paymentPlanCurrentInstallment ??
-              sourceInvoice.payment_plan_current_installment ??
-              null
-            : Number.parseInt(paymentPlanCurrentInstallmentInput, 10) || 0
-
-        const payload = {
-          companyId: sourceInvoice.companyId || sourceInvoice.company_id || activeCompanyId,
-          invoiceNumber: formData.invoiceNumber?.value || '',
-          vendorName: formData.vendorName?.value || '',
-          invoiceDate: formData.invoiceDate?.value || new Date().toISOString(),
-          totalAmount: Number.parseFloat(formData.totalAmount?.value) || 0,
-          subtotal: Number.parseFloat(formData.subtotal?.value) || 0,
-          vatRate: Number.parseFloat(formData.vatRate?.value) || null,
-          vatAmount: Number.parseFloat(formData.vatAmount?.value) || null,
-          currency: formData.currency?.value || 'USD',
-          vendorTaxId: formData.vendorTaxId?.value || null,
-          lastFourDigitsCard: formData.lastFourDigitsCard?.value || null,
-          dueDate: formData.dueDate?.value || null,
-          paymentDate: sourceInvoice.paymentDate || sourceInvoice.payment_date || null,
-          itemCount: sourceInvoice.itemCount || sourceInvoice.item_count || null,
-          paymentPlanTotalInstallments,
-          paymentPlanInstallmentAmount,
-          paymentPlanFrequency:
-            formData.paymentPlan?.frequency?.value ||
-            sourceInvoice.paymentPlanFrequency ||
-            sourceInvoice.payment_plan_frequency ||
-            null,
-          paymentPlanCurrentInstallment,
-          paymentPlanDescription:
-            formData.paymentPlan?.description?.value ||
-            sourceInvoice.paymentPlanDescription ||
-            sourceInvoice.payment_plan_description ||
-            null,
-          fileOriginalName: sourceInvoice.fileOriginalName || sourceInvoice.file_original_name || null,
-          filePath: sourceInvoice.filePath || sourceInvoice.file_path || null,
-          fileType: sourceInvoice.fileType || sourceInvoice.file_type || null,
-          fileSize: sourceInvoice.fileSize || sourceInvoice.file_size || null,
-          aiExtractionConfidence:
-            sourceInvoice.aiExtractionConfidence || sourceInvoice.ai_extraction_confidence || null,
-          lineItems: (formData.lineItems || []).map((li, idx) => ({
-            description: li.description || 'Item',
-            unitPrice: Number.parseFloat(li.unitPrice) || 0,
-            totalAmount: Number.parseFloat(li.totalAmount) || 0,
-            lineNumber: idx + 1,
-            quantity: Number.parseFloat(li.quantity) || 1,
-            vatRate: Number.parseFloat(formData.vatRate?.value) || null,
-            aiConfidenceScore: li.confidence ?? null,
-          })),
-        }
-
-        await updateInvoice(editingInvoiceId, payload, token)
-        setInvoiceModal({ open: false, file: null })
-        setSnack({ open: true, message: 'Invoice updated successfully!', severity: 'success' })
-
-        setSelectedInvoiceId(null)
-        setSelectedTransactionId(null)
-        setSuggestions([])
-        await loadData()
-      } catch (err) {
-        setSnack({
-          open: true,
-          message: err.message || 'Failed to save invoice.',
-          severity: 'error',
-        })
-      } finally {
-        setInvoiceSaving(false)
+  const handleAutoConfirm = useCallback(async (selectedItems) => {
+    setAutoPreviewOpen(false)
+    setMatchBusy(true)
+    let count = 0
+    try {
+      for (const item of selectedItems) {
+        if (item.alreadyMatched) continue
+        await createMatchMutation.mutateAsync({ invoiceId: item.invoice.id, transactionId: item.transaction.id, matchedAmount: item.amount || item.invoice?.total_amount || 0, matchMethod: 'auto', matchType: 'full', matchConfidence: item.confidence ?? 0.7 })
+        count++
       }
+      setSnack({ message: count > 0 ? `${count} auto-match(es) created!` : 'No new matches to create.', severity: count > 0 ? 'success' : 'info' })
+    } catch (err) { setSnack({ message: err.message || 'Auto-match failed.', severity: 'error' }) }
+    finally { setMatchBusy(false) }
+  }, [createMatchMutation])
+
+  const handleAutoUnmatch = useCallback(async (selectedItems) => {
+    setAutoPreviewOpen(false)
+    setMatchBusy(true)
+    let count = 0
+    try {
+      for (const item of selectedItems) {
+        if (!item.alreadyMatched || !item.matchId) continue
+        await deleteMatchMutation.mutateAsync(item.matchId)
+        count++
+      }
+      setSnack({ message: count > 0 ? `${count} auto-match(es) undone.` : 'No matches to undo.', severity: count > 0 ? 'success' : 'info' })
+    } catch (err) { setSnack({ message: err.message || 'Unmatch failed.', severity: 'error' }) }
+    finally { setMatchBusy(false) }
+  }, [deleteMatchMutation])
+
+  const handleExport = useCallback(() => {
+    exportMatchesCSV(table.regularMatches)
+    setSnack({ message: 'Matches exported as CSV.', severity: 'info' })
+  }, [table.regularMatches])
+
+  const handleShowComparison = useCallback(() => {
+    setComparisonInvoice(table.selectedInvoice)
+    setComparisonTransaction(table.selectedTransaction)
+  }, [table.selectedInvoice, table.selectedTransaction])
+
+  const inReviewCount = table.quickSuggestions.length + table.installmentSuggestions.reduce((sum, g) => {
+    const suggested = Array.isArray(g?.suggested_transactions ?? g?.suggestedTransactions) ? (g?.suggested_transactions ?? g?.suggestedTransactions) : []
+    return sum + suggested.filter((t) => !table.deniedInstallmentPairs.has(`${g.invoiceId}-${(t.transaction_id ?? t.transactionId)}`)).length
+  }, 0)
+
+  const isInstallmentMatch = (r) => (r.match_method || r.matchMethod) === 'installment_simple'
+
+  const matchColumns = [
+    { key: 'invoice', label: 'Invoice', render: (r) => r.invoice_number || r.invoiceNumber || `#${r.invoice_id ?? r.invoiceId}`, minWidth: 100 },
+    { key: 'transaction', label: 'Transaction', render: (r) => r.transaction_vendor_name || r.transactionVendorName || r.transaction_description || r.transactionDescription || `#${r.transaction_id ?? r.transactionId}`, minWidth: 120 },
+    { key: 'amount', label: 'Amount', render: (r) => fmtAmount(r.matched_amount ?? r.matchedAmount), minWidth: 90 },
+    {
+      key: 'installment',
+      label: 'Installment',
+      render: (r) => {
+        if (!isInstallmentMatch(r)) return '\u2014'
+        const num = r.installment_number ?? r.installmentNumber
+        const note = r.installment_note ?? r.installmentNote
+        return note || (num ? `#${num}` : '\u2713')
+      },
+      minWidth: 80,
     },
-    [invoiceModal.file, activeCompanyId, token, loadData],
-  )
-
-  // ===================== Filtered lists =====================
-
-  const filteredInvoices = invoices.filter((inv) => {
-    const q = invoiceSearch.toLowerCase()
-    if (!q) return true
-    const vendor = (inv.vendor_name || inv.vendorName || '').toLowerCase()
-    const num = (inv.invoice_number || inv.invoiceNumber || '').toLowerCase()
-    const invoiceDate = fmtDate(inv.invoice_date || inv.invoiceDate).toLowerCase()
-    return vendor.includes(q) || num.includes(q) || invoiceDate.includes(q)
-  })
-
-  const filteredTransactions = transactions.filter((trx) => {
-    const q = transactionSearch.toLowerCase()
-    if (!q) return true
-
-    const vendorName = (trx.vendor_name || trx.vendorName || '').toLowerCase()
-    const chargeAmountRaw = trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? ''
-    const chargeAmountText = `${chargeAmountRaw} ${fmtAmount(chargeAmountRaw)}`.toLowerCase()
-    const transactionDate = fmtDate(trx.transaction_date || trx.transactionDate).toLowerCase()
-
-    return transactionDate.includes(q) || vendorName.includes(q) || chargeAmountText.includes(q)
-  })
-
-  const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId)
-  const selectedTransaction = transactions.find((t) => t.id === selectedTransactionId)
-
-  const regularMatches = matches.filter(
-    (m) => (m.match_method || m.matchMethod) !== 'installment_simple',
-  )
-
-  let matchedItemsContent
-  if (loading) {
-    matchedItemsContent = (
-      <Stack spacing={1}>
-        {['match-skeleton-1', 'match-skeleton-2', 'match-skeleton-3'].map((skeletonKey) => (
-          <Skeleton key={skeletonKey} variant="rectangular" height={48} sx={{ borderRadius: 2 }} />
-        ))}
-      </Stack>
-    )
-  } else if (regularMatches.length === 0) {
-    matchedItemsContent = (
-      <Stack alignItems="center" sx={{ py: 5 }}>
-        <CompareArrowsRoundedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-        <Typography color="text.secondary">
-          No matches yet. Select an invoice and a transaction above to create one.
-        </Typography>
-      </Stack>
-    )
-  } else {
-    matchedItemsContent = (
-      <Stack spacing={1}>
-        <AnimatePresence>
-          {regularMatches.map((m) => {
-            const id = m.id
-            const invLabel =
-              m.invoice_number || m.invoiceNumber || `Invoice #${m.invoice_id ?? m.invoiceId ?? '?'}`
-            const trxLabel =
-              m.transaction_vendor_name ||
-              m.transactionVendorName ||
-              m.transaction_description ||
-              m.transactionDescription ||
-              `Transaction #${m.transaction_id ?? m.transactionId ?? '?'}`
-            const amount = Number(m.matched_amount ?? m.matchedAmount) || 0
-            const method = m.match_method || m.matchMethod || '—'
-            const confidence = Number(m.match_confidence ?? m.matchConfidence ?? 0)
-
-            return (
-              <Stack
-                key={id}
-                component={motion.div}
-                layout
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ sm: 'center' }}
-                justifyContent="space-between"
-                spacing={1}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(55,214,122,0.05)',
-                  border: '1px solid',
-                  borderColor: 'rgba(55,214,122,0.25)',
-                }}
-              >
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1 }}>
-                  <CheckCircleRoundedIcon sx={{ color: 'success.main' }} />
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      {invLabel} ↔ {trxLabel}
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Amount: {fmtAmount(amount)}
-                      </Typography>
-                      <Chip label={method} size="small" variant="outlined" />
-                      {confidence > 0 && (
-                        <Chip
-                          label={`${Math.round(confidence * 100)}%`}
-                          size="small"
-                          color={confidence >= 0.8 ? 'success' : 'warning'}
-                          variant="outlined"
-                        />
-                      )}
-                    </Stack>
-                  </Box>
-                </Stack>
-                <Tooltip title="Remove match">
-                  <IconButton
-                    size="small"
-                    onClick={() => confirmUnmatch(id)}
-                    sx={{ color: 'error.main' }}
-                  >
-                    <LinkOffRoundedIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            )
-          })}
-        </AnimatePresence>
-      </Stack>
-    )
-  }
-
-  // ===================== Render =====================
+    {
+      key: 'method',
+      label: 'Method',
+      render: (r) => {
+        const method = r.match_method || r.matchMethod || '\u2014'
+        return isInstallmentMatch(r) ? 'installment' : method
+      },
+      minWidth: 70,
+    },
+  ]
 
   return (
     <>
-      <PageSectionLayout>
-          <PageHeaderCard
-            title="Matches"
-            description="Match invoices to bank transactions for reconciliation."
-            onRefresh={loadData}
-            refreshDisabled={loading}
-            variants={itemVariants}
-          />
+      <Box sx={{ py: { xs: 3, md: 4 }, position: 'relative', overflow: 'hidden' }} role="region" aria-label="Matches page">
+        <AnimatedBackground density="low" />
+        <Container maxWidth={false} disableGutters sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}>
+          <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
+            <Stack component={motion.div} variants={itemVariants} direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack spacing={0.5}>
+                <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '1.9rem' } }}>Matches</Typography>
+                <Typography color="text.secondary">Match invoices to bank transactions for reconciliation. Select one invoice and one transaction, then create a match.</Typography>
+              </Stack>
+              <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={loadData} disabled={loading}>Refresh</Button>
+            </Stack>
 
-          {/* ---- Stats Cards ---- */}
-          <Grid
-            container
-            spacing={2}
-            component={motion.div}
-            variants={itemVariants}
-          >
-            {[
-              { label: 'Unmatched Invoices', value: invoices.length, color: '#f59e0b' },
-              { label: 'Unmatched Transactions', value: transactions.length, color: '#f59e0b' },
-              { label: 'Total Matches', value: matches.length, color: '#37d67a' },
-              {
-                label: 'Total Matched',
-                value: fmtAmount(
-                  matches.reduce(
-                    (sum, m) => sum + (Number(m.matched_amount ?? m.matchedAmount) || 0),
-                    0,
-                  ),
-                ),
-                color: '#58a6ff',
-                prefix: '$',
-              },
-            ].map((stat) => (
-              <Grid size={{ xs: 6, md: 3 }} key={stat.label}>
-                <Card elevation={0} sx={cardBaseSx}>
-                  <CardContent sx={{ p: 2 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {stat.label}
-                    </Typography>
-                    <Typography
-                      variant="h5"
-                      fontWeight={700}
-                      sx={{ color: stat.color, mt: 0.5 }}
-                    >
-                      {stat.value}
-                    </Typography>
-                  </CardContent>
-                </Card>
+            <StatsCards
+              unmatchedInvoices={invoices.length}
+              unmatchedTransactions={table.filteredTransactions.length}
+              totalMatches={matches.length}
+              totalMatchedFormatted={fmtAmount(table.totalMatchedAmount)}
+            />
+
+            {error && <Alert severity="error" variant="outlined" onClose={() => setError('')} action={<Button color="inherit" size="small" onClick={loadData}>Retry</Button>}>{error}</Alert>}
+
+            <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" spacing={1}>
+              <Typography variant="caption" color="text.secondary">
+                Select one invoice and one transaction below to create a match. Use suggestions for faster matching.
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="outlined" startIcon={<AutoFixHighRoundedIcon />} onClick={handleAutoPreview} disabled={matchBusy}>Auto-Match</Button>
+                <Button size="small" variant="outlined" startIcon={<FileDownloadRoundedIcon />} onClick={handleExport} disabled={table.regularMatches.length === 0}>Export CSV</Button>
+              </Stack>
+            </Stack>
+
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <DataTable
+                  title="Unmatched Invoices"
+                  icon={ReceiptLongRoundedIcon}
+                  color="#58a6ff"
+                  count={table.filteredInvoices.length}
+                  searchValue={table.invoiceSearch}
+                  onSearchChange={table.setInvoiceSearch}
+                  searchPlaceholder="Search by vendor or invoice #..."
+                  loading={loading}
+                  emptyMessage="All invoices matched!"
+                  columns={INV_COLUMNS}
+                  rows={table.filteredInvoices}
+                  selectedId={table.selectedInvoiceId}
+                  onSelect={table.selectInvoice}
+                  onSort={table.toggleInvoiceSort}
+                  sortColumn={table.invoiceSort.column}
+                  sortDirection={table.invoiceSort.dir}
+                  renderActions={(row) => (
+                    <Tooltip title="Edit invoice">
+                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); openInvoiceForEditing(row.id) }} disabled={reopeningInvoiceId === row.id} sx={{ color: 'text.secondary' }}>
+                        <DataSaverOnRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                />
               </Grid>
-            ))}
-          </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <DataTable
+                  title="Unmatched Transactions"
+                  icon={AccountBalanceRoundedIcon}
+                  color="#37d67a"
+                  count={table.filteredTransactions.length}
+                  searchValue={table.transactionSearch}
+                  onSearchChange={table.setTransactionSearch}
+                  searchPlaceholder="Search by vendor or amount..."
+                  loading={loading}
+                  emptyMessage="All transactions matched!"
+                  columns={TRX_COLUMNS}
+                  rows={table.filteredTransactions}
+                  selectedId={table.selectedTransactionId}
+                  onSelect={table.selectTransaction}
+                  onSort={table.toggleTransactionSort}
+                  sortColumn={table.transactionSort.column}
+                  sortDirection={table.transactionSort.dir}
+                />
+              </Grid>
+            </Grid>
 
-          {/* ---- Error Alert ---- */}
-          {error && (
-            <Alert
-              severity="error"
-              variant="outlined"
-              onClose={() => setError('')}
-              action={
-                <Button color="inherit" size="small" onClick={loadData}>
-                  Retry
-                </Button>
-              }
-            >
-              {error}
-            </Alert>
-          )}
+            <AnimatePresence>
+              <MatchActionBarEnhanced
+                selectedInvoice={table.selectedInvoice}
+                selectedTransaction={table.selectedTransaction}
+                amount={table.manualMatchAmount}
+                onAmountChange={table.setManualMatchAmount}
+                onCreateMatch={handleCreateMatch}
+                onClear={table.clearSelection}
+                onShowComparison={handleShowComparison}
+                canCreate={table.canCreateManualMatch}
+                matchBusy={matchBusy}
+              />
+            </AnimatePresence>
 
-          {/* ---- AI Suggestions ---- */}
-          {suggestions.length > 0 && (
-            <Card
-              component={motion.div}
-              variants={itemVariants}
-              elevation={0}
-              sx={{
-                ...cardBaseSx,
-                borderColor: 'rgba(88,166,255,0.35)',
-                background:
-                  'linear-gradient(135deg, rgba(20,35,65,0.96), rgba(12,22,42,0.96))',
-              }}
-            >
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <AutoFixHighRoundedIcon sx={{ color: '#58a6ff' }} />
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    AI Suggestions
-                  </Typography>
-                </Stack>
-                <Stack spacing={1.5}>
-                  {suggestions.map((s) => {
-                    const trxId = s.id ?? s.transaction_id ?? s.transactionId
-                    const rawScore = Number(s.matchScore ?? s.match_score ?? s.match_confidence ?? s.matchConfidence ?? 0)
-                    // matchScore from backend is 0-100 (Gemini similarity %)
-                    const confidence = rawScore > 1 ? rawScore / 100 : rawScore
-                    const desc = s.description ?? s.transaction_description ?? s.transactionDescription ?? `Transaction #${trxId}`
-                    const amt = Number(s.amount ?? s.transaction_amount ?? s.transactionAmount ?? 0)
-                    return (
-                      <Stack
-                        key={trxId}
-                        direction={{ xs: 'column', sm: 'row' }}
-                        alignItems={{ sm: 'center' }}
-                        justifyContent="space-between"
-                        spacing={1}
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: 'rgba(255,255,255,0.03)',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                        }}
-                      >
-                        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1 }}>
-                          <Chip
-                            label={`${Math.round(confidence * 100)}%`}
-                            size="small"
-                            color={getConfidenceChipColor(confidence)}
-                          />
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>
-                              {desc}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Amount: {fmtAmount(amt)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleAcceptSuggestion(trxId)}
-                        >
-                          Select
-                        </Button>
-                      </Stack>
-                    )
-                  })}
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+            {table.selectedInvoice && table.selectedTransaction && (comparisonInvoice || comparisonTransaction) && (
+              <MatchComparisonPanel invoice={comparisonInvoice || table.selectedInvoice} transaction={comparisonTransaction || table.selectedTransaction} />
+            )}
 
-          {/* ---- Two-Panel Matching Interface ---- */}
-          <Grid container spacing={2.5}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <SelectionPanel
-                icon={ReceiptLongRoundedIcon}
-                title="Unmatched Invoices"
-                count={filteredInvoices.length}
-                searchPlaceholder="Search by date, vendor, or invoice #…"
-                searchValue={invoiceSearch}
-                onSearchChange={setInvoiceSearch}
+            <SuggestionsTable
+              title="Quick Match Suggestions"
+              icon={CheckCircleRoundedIcon}
+              color="#37d67a"
+              suggestions={table.quickSuggestions}
+              type="quick"
+              loading={simpleSuggestionsQuery.isLoading}
+              emptyMessage="No quick match suggestions."
+              deniedCount={table.deniedSimplePairs.size}
+              onUndoAll={table.undoAllDenied}
+              onConfirm={(s) => handleConfirmSuggestion(s, 'quick')}
+              onDeny={(s) => table.denySimplePair(s.invoiceId, s.transactionId)}
+              matchBusy={matchBusy}
+            />
+
+            {table.installmentSuggestions.length > 0 && (
+              <InstallmentMatchGroups
+                query={installmentSuggestionsQuery}
+                deniedTxnIds={table.deniedInstallmentPairs}
+                onDeny={(invoiceId, transactionId) => table.denyInstallmentPair(invoiceId, transactionId)}
+                onConfirm={handleConfirmInstallment}
+                onRemoveMatch={confirmUnmatch}
+                matchBusy={matchBusy}
+              />
+            )}
+
+            {matches.length > 0 && (
+              <DataTable
+                title="Matched Items"
+                icon={CheckCircleRoundedIcon}
+                color="#37d67a"
+                count={table.filteredMatches.length}
+                searchValue={table.matchSearch}
+                onSearchChange={table.setMatchSearch}
+                searchPlaceholder="Search by invoice, transaction, amount, method, or date..."
                 loading={loading}
-                emptyMessage={invoiceSearch ? 'No invoices match your search.' : 'All invoices are matched!'}
-                items={filteredInvoices}
-                selectedId={selectedInvoiceId}
-                onSelect={setSelectedInvoiceId}
-                renderPrimary={(inv) => inv.invoice_number || inv.invoiceNumber || '—'}
-                renderSecondary={(inv) => inv.vendor_name || inv.vendorName || '—'}
-                renderAmount={(inv) => fmtAmount(inv.total_amount ?? inv.totalAmount)}
-                renderDate={(inv) => fmtDate(inv.invoice_date || inv.invoiceDate)}
-                renderActions={(inv) => (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={
-                      reopeningInvoiceId === inv.id ? <CheckCircleRoundedIcon fontSize="small" /> : <EditRoundedIcon fontSize="small" />
-                    }
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      openInvoiceForEditing(inv.id)
-                    }}
-                    disabled={reopeningInvoiceId === inv.id}
-                  >
-                    {reopeningInvoiceId === inv.id ? 'Opening...' : 'Reopen'}
+                emptyMessage="No matches yet."
+                columns={matchColumns}
+                rows={table.filteredMatches}
+                selectedIds={selectedMatchIds}
+                onToggleSelect={toggleMatchSelection}
+                onToggleSelectAll={toggleSelectAllMatches}
+                allSelected={allMatchesSelected}
+                getRowStyle={(row) => isInstallmentMatch(row) ? { borderLeft: '3px solid #fbbf24', bgcolor: 'rgba(251,191,36,0.04)' } : {}}
+                titleAction={selectedMatchIds.length > 0 ? (
+                  <Button size="small" color="error" variant="outlined" onClick={confirmBulkUnmatch}>
+                    Unmatch Selected ({selectedMatchIds.length})
                   </Button>
+                ) : undefined}
+                renderActions={(row) => (
+                  <Stack direction="row" spacing={0.3}>
+                    <Tooltip title="View details">
+                      <IconButton size="small" aria-label="View details" onClick={(e) => { e.stopPropagation(); openMatchDetails(row) }} sx={{ color: 'primary.main' }}>
+                        <DataSaverOnRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Unmatch">
+                      <IconButton size="small" aria-label="Unmatch" onClick={(e) => { e.stopPropagation(); confirmUnmatch(row.id) }} sx={{ color: 'error.main' }}>
+                        <LinkOffRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
                 )}
               />
-            </Grid>
+            )}
+          </Stack>
+        </Container>
+      </Box>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <SelectionPanel
-                icon={AccountBalanceRoundedIcon}
-                title="Unmatched Transactions"
-                count={filteredTransactions.length}
-                searchPlaceholder="Search by date, vendor, or amount…"
-                searchValue={transactionSearch}
-                onSearchChange={setTransactionSearch}
-                loading={loading}
-                emptyMessage={
-                  transactionSearch
-                    ? 'No transactions match your search.'
-                    : 'All transactions are matched!'
-                }
-                items={filteredTransactions}
-                selectedId={selectedTransactionId}
-                onSelect={setSelectedTransactionId}
-                renderPrimary={(trx) => trx.vendor_name || trx.vendorName || trx.description || '—'}
-                renderSecondary={(trx) => trx.type || trx.transaction_type || ''}
-                renderAmount={(trx) => fmtAmount(trx.chargeAmount ?? trx.charge_amount ?? trx.amount ?? 0)}
-                renderDate={(trx) => fmtDate(trx.transaction_date || trx.transactionDate)}
-              />
-            </Grid>
-          </Grid>
+      {table.noInvoiceTransactions.length > 0 && (
+        <Box sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, pb: 3, maxWidth: 1600, mx: 'auto' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
+            {table.noInvoiceTransactions.length} transaction(s) with no invoice expected
+          </Typography>
+        </Box>
+      )}
 
-          {/* ---- Match Action Bar ---- */}
-          {(selectedInvoiceId || selectedTransactionId) && (
-            <Card
-              component={motion.div}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              elevation={0}
-              sx={{
-                ...cardBaseSx,
-                borderColor: 'primary.main',
-                background:
-                  'linear-gradient(135deg, rgba(20,35,65,0.97), rgba(12,22,42,0.97))',
-              }}
-            >
-              <CardContent>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  alignItems={{ sm: 'center' }}
-                  justifyContent="space-between"
-                  spacing={2}
-                >
-                  <Stack direction="row" alignItems="center" spacing={2} sx={{ flex: 1 }}>
-                    <Box sx={{ textAlign: 'center', minWidth: 100 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Invoice
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {selectedInvoice
-                          ? selectedInvoice.invoice_number || selectedInvoice.invoiceNumber || '—'
-                          : 'None'}
-                      </Typography>
-                    </Box>
-                    <CompareArrowsRoundedIcon sx={{ color: 'text.secondary' }} />
-                    <Box sx={{ textAlign: 'center', minWidth: 100 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Transaction
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {selectedTransaction
-                          ? selectedTransaction.vendor_name || selectedTransaction.vendorName || selectedTransaction.description || `#${selectedTransaction.id}`
-                          : 'None'}
-                      </Typography>
-                    </Box>
-                  </Stack>
+      <MatchDetailsModal open={matchDetailsDialog.open} match={matchDetailsDialog.match} invoice={matchDetailsDialog.invoice} transaction={matchDetailsDialog.transaction} loading={matchDetailsDialog.loading} error={matchDetailsDialog.error} onClose={closeMatchDetails} />
 
-                  <Stack direction="row" spacing={1.5}>
-                    <Button
-                      variant="text"
-                      onClick={() => {
-                        setSelectedInvoiceId(null)
-                        setSelectedTransactionId(null)
-                      }}
-                    >
-                      Clear
-                    </Button>
-                    <Button
-                      variant="contained"
-                      startIcon={<CheckCircleRoundedIcon />}
-                      disabled={!selectedInvoiceId || !selectedTransactionId || matchBusy}
-                      onClick={handleCreateMatch}
-                    >
-                      {matchBusy ? 'Matching…' : 'Create Match'}
-                    </Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* ---- Matched Items ---- */}
-          <Card
-            component={motion.div}
-            variants={itemVariants}
-            elevation={0}
-            sx={cardBaseSx}
-          >
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                Matched Items ({regularMatches.length})
-              </Typography>
-
-              {matchedItemsContent}
-            </CardContent>
-          </Card>
-
-          {/* ---- Quick Match Suggestions ---- */}
-          <QuickMatchSuggestions
-            query={simpleSuggestionsQuery}
-            deniedPairs={deniedPairs}
-            invoices={invoices}
-            transactions={transactions}
-            onDeny={(invoiceId, transactionId) =>
-              setDeniedPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
-            }
-            onConfirm={async (suggestion) => {
-              setMatchBusy(true)
-              try {
-                await createMatchMutation.mutateAsync({
-                  invoiceId: suggestion.invoiceId,
-                  transactionId: suggestion.transactionId,
-                  matchedAmount: suggestion.invoiceAmount,
-                  matchMethod: 'simple',
-                  matchType: 'full',
-                  matchConfidence: 1,
-                })
-                setSnack({ open: true, message: 'Match confirmed!', severity: 'success' })
-              } catch (err) {
-                setSnack({ open: true, message: err.message || 'Failed to create match.', severity: 'error' })
-              } finally {
-                setMatchBusy(false)
-              }
-            }}
-            matchBusy={matchBusy}
-          />
-
-          {/* ---- Installment Plan Suggestions ---- */}
-          <InstallmentMatchGroups
-            query={installmentSuggestionsQuery}
-            deniedTxnIds={deniedInstallmentPairs}
-            onDeny={(invoiceId, transactionId) =>
-              setDeniedInstallmentPairs((prev) => new Set([...prev, `${invoiceId}-${transactionId}`]))
-            }
-            onConfirm={async (group, txn) => {
-              setMatchBusy(true)
-              try {
-                const installmentNumber = (group.alreadyMatchedCount || 0) + 1
-                const expected = group.expectedInstallments
-                const suffix = expected ? ` of ${expected}` : ''
-                const totalAmount = Number(group.totalAmount) || 0
-                const alreadyMatchedAmount = Number(group.alreadyMatchedAmount) || 0
-                const remainingAmount = Math.max(totalAmount - alreadyMatchedAmount, 0)
-                const suggestedAmount = Number(txn.chargeAmount ?? txn.charge_amount ?? txn.amount) || 0
-                const effectiveAmount = Math.min(
-                  suggestedAmount > 0 ? suggestedAmount : remainingAmount,
-                  remainingAmount,
-                )
-
-                if (effectiveAmount <= 0) {
-                  throw new Error('No remaining balance to match for this invoice.')
-                }
-
-                await createMatchMutation.mutateAsync({
-                  invoiceId: group.invoiceId,
-                  transactionId: txn.transactionId,
-                  matchedAmount: effectiveAmount,
-                  matchMethod: 'installment_simple',
-                  matchType: effectiveAmount >= remainingAmount ? 'full' : 'partial',
-                  matchConfidence: 1,
-                  installmentNumber,
-                  installmentNote: `Installment ${installmentNumber}${suffix}`,
-                })
-                setSnack({ open: true, message: `Installment ${installmentNumber} confirmed!`, severity: 'success' })
-              } catch (err) {
-                setSnack({ open: true, message: err.message || 'Failed to confirm installment.', severity: 'error' })
-              } finally {
-                setMatchBusy(false)
-              }
-            }}
-            onRemoveMatch={confirmUnmatch}
-            matchBusy={matchBusy}
-          />
-      </PageSectionLayout>
-
-      {/* ---- Unmatch Confirmation Dialog ---- */}
-      <Dialog
-        open={unmatchDialog.open}
-        onClose={() => setUnmatchDialog({ open: false, matchId: null })}
-      >
-        <DialogTitle>Remove Match</DialogTitle>
+      <Dialog open={unmatchDialog.open} onClose={() => setUnmatchDialog({ open: false, matchId: null, bulk: false })}>
+        <DialogTitle>{unmatchDialog.bulk ? 'Remove Matches' : 'Remove Match'}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to unmatch these items? Both the invoice and
-            transaction will return to the unmatched lists.
+            {unmatchDialog.bulk
+              ? `Are you sure you want to unmatch ${selectedMatchIds.length} selected item(s)?`
+              : 'Are you sure you want to unmatch these items?'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUnmatchDialog({ open: false, matchId: null })}>
-            Cancel
-          </Button>
-          <Button onClick={handleUnmatch} color="error" variant="contained">
-            Unmatch
-          </Button>
+          <Button onClick={() => setUnmatchDialog({ open: false, matchId: null, bulk: false })}>Cancel</Button>
+          <Button onClick={handleUnmatch} color="error" variant="contained">Unmatch</Button>
         </DialogActions>
       </Dialog>
 
-      <InvoiceVerificationModal
-        key={invoiceModal.file?.id || 'empty'}
-        open={invoiceModal.open}
-        onClose={() => setInvoiceModal({ open: false, file: null })}
-        onSave={handleSaveInvoiceVerification}
-        initialData={invoiceModal.file?.extractedData}
-        fileName={invoiceModal.file?.name}
-        fileType={
-          invoiceModal.file?.sourceInvoice?.fileType ||
-          invoiceModal.file?.sourceInvoice?.file_type ||
-          invoiceModal.file?.file?.type ||
-          null
-        }
-        invoiceId={invoiceModal.file?.existingInvoiceId || null}
-        token={token}
-        localFile={invoiceModal.file?.file || null}
-        extractionMethod={invoiceModal.file?.serverResponse?.extractedData?.extractionMethod}
-        saving={invoiceSaving}
-      />
+      <InvoiceVerificationModal key={invoiceModal.file?.id || 'empty'} open={invoiceModal.open} onClose={() => setInvoiceModal({ open: false, file: null })} onSave={handleSaveInvoiceVerification} initialData={invoiceModal.file?.extractedData} fileName={invoiceModal.file?.name} fileType={invoiceModal.file?.sourceInvoice?.fileType || invoiceModal.file?.sourceInvoice?.file_type || null} invoiceId={invoiceModal.file?.existingInvoiceId || null} token={token} localFile={invoiceModal.file?.file || null} extractionMethod={invoiceModal.file?.serverResponse?.extractedData?.extractionMethod} saving={invoiceSaving} />
 
-      {/* ---- Snackbar ---- */}
-      <SnackbarAlert
-        open={snack.open}
-        message={snack.message}
-        severity={snack.severity}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
-      />
+      <UndoSnackbar pending={undoManager.pending} onUndo={handleUndo} onDismiss={undoManager.dismiss} />
+
+      <AutoMatchPreviewModal open={autoPreviewOpen} onClose={() => setAutoPreviewOpen(false)} onConfirm={handleAutoConfirm} onUnmatch={handleAutoUnmatch} previewData={autoPreviewData} loading={autoPreviewLoading} />
     </>
   )
 }

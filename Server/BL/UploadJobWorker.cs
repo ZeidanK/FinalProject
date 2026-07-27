@@ -1,0 +1,41 @@
+using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.BL.UploadProcessing;
+
+namespace FinalProjectAuthAPI.BL
+{
+    public class UploadJobWorker : IUploadJobWorker
+    {
+        private readonly InvoiceJobProcessor _invoiceProcessor;
+        private readonly TransactionJobProcessor _transactionProcessor;
+
+        public UploadJobWorker(
+            InvoiceJobProcessor invoiceProcessor,
+            TransactionJobProcessor transactionProcessor)
+        {
+            _invoiceProcessor = invoiceProcessor;
+            _transactionProcessor = transactionProcessor;
+        }
+
+        public async Task ProcessInvoiceJobAsync(
+            long jobId,
+            string? filePath = null,
+            string? fileOriginalName = null,
+            string? fileType = null,
+            long? fileSize = null,
+            long? companyId = null,
+            long? userId = null,
+            string? jobType = null) =>
+            await _invoiceProcessor.ProcessAsync(
+                jobId,
+                filePath,
+                fileOriginalName,
+                fileType,
+                fileSize,
+                companyId,
+                userId,
+                jobType);
+
+        public async Task ProcessTransactionJobAsync(long jobId) =>
+            await _transactionProcessor.ProcessAsync(jobId);
+    }
+}

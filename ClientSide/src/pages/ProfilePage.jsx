@@ -4,15 +4,19 @@ import {
   Avatar,
   Box,
   Button,
-  Card,
   CardContent,
   Chip,
   CircularProgress,
   Collapse,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
   IconButton,
+  Rating,
   Skeleton,
   Stack,
   TextField,
@@ -24,56 +28,51 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import PropTypes from 'prop-types'
-import { useLocation } from 'react-router-dom'
+import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
+import { useLocation, useNavigate } from 'react-router-dom'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
+import SectionHeader from '../components/SectionHeader'
+import AnimatedBackground from '../components/AnimatedBackground'
+import GlassCard from '../components/GlassCard'
+import CompanyCard from '../components/CompanyCard'
+import CompanyForm from '../components/CompanyForm'
+import { APP_CONFIG } from '../scripts/config'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
-import { getAllCompanies, grantCompanyAccess } from '../services/companies'
+import { useConfirm } from '../components/ConfirmContext'
 import {
+  useAccountantProfileMutation,
   useChangePasswordMutation,
   useCreateCompanyMutation,
+  useDeleteAccountMutation,
   useDeleteCompanyMutation,
   useUpdateCompanyMutation,
   useUpdateProfileMutation,
   useUploadProfilePictureMutation,
   useUserProfileQuery,
 } from '../hooks/queries/useProfileQueries'
-import { companySchema, passwordChangeSchema, profileUpdateSchema } from '../schemas/profile'
+import {
+  getAccountantSpecialties,
+  getAccountantReviews,
+  addAccountantSpecialty,
+  removeAccountantSpecialty,
+  getAccountantCertifications,
+  addAccountantCertification,
+  removeAccountantCertification,
+} from '../services/accountants'
+import { companySchema, passwordChangeSchema, profileUpdateSchema, accountantProfileSchema } from '../schemas/profile'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
-  ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
-  : ''
-
-const cardSx = {
-  bgcolor: 'background.paper',
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 3.5,
-  background:
-    'linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(10, 17, 33, 0.96) 100%)',
+const getProfilePictureUrl = (path) => {
+  if (!path) return undefined
+  return `${APP_CONFIG.apiBaseUrl.replace(/\/api\/?$/, '')}/${path}`
 }
 
-/**
- * Render a section header with icon and title.
- *
- * @param {React.ReactNode} icon - Icon element shown before the title.
- * @param {string} title - Section title text.
- * @returns {JSX.Element} Section header markup.
- */
-const sectionHeader = (icon, title) => (
-  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2.5 }}>
-    {icon}
-    <Typography variant="h6" fontWeight={700}>
-      {title}
-    </Typography>
-  </Stack>
-)
-
-const emptyCompanyForm = {
+const createEmptyCompanyForm = () => ({
   name: '',
   registrationNumber: '',
   street: '',
@@ -83,17 +82,16 @@ const emptyCompanyForm = {
   country: 'USA',
   email: '',
   phone: '',
-  website: '',
   taxId: '',
   vatNumber: '',
   currency: 'USD',
-}
+})
 
-const passwordFieldMeta = {
-  current: { label: 'Current Password', formKey: 'currentPassword' },
-  new: { label: 'New Password', formKey: 'newPassword' },
-  confirm: { label: 'Confirm New Password', formKey: 'confirmPassword' },
-}
+const PASSWORD_FIELDS = [
+  { key: 'current', label: 'Current Password', formKey: 'currentPassword' },
+  { key: 'new', label: 'New Password', formKey: 'newPassword' },
+  { key: 'confirm', label: 'Confirm New Password', formKey: 'confirmPassword' },
+]
 
 /**
  * ProfilePage is the user settings page where profile data, password changes,
@@ -105,16 +103,14 @@ const passwordFieldMeta = {
  * @returns {JSX.Element} Profile page content.
  */
 export default function ProfilePage() {
-  const { user, token, updateUser: updateAuthUser } = useAuth()
+  const { user, token, updateUser: updateAuthUser, logout } = useAuth()
   const {
     refreshCompanies,
     companies,
-    activeCompanyId,
-    setActiveCompanyId,
     loadingCompanies: loadingCompaniesFromContext,
   } = useCompany()
   const location = useLocation()
-  const requiresCompanySetup = Boolean(location.state?.noCompany)
+  const requiresCompanySetup = Boolean(location.state?.noCompany) && !isAdmin
 
   // ── Profile state ──────────────────────────────────────────
   const [profile, setProfile] = useState(null)
@@ -124,6 +120,39 @@ export default function ProfilePage() {
   const [profilePicPreview, setProfilePicPreview] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMsg, setProfileMsg] = useState(null)
+
+  const isAccountant = useMemo(
+    () => user?.role === 'accountant' || user?.role === 'accountant_business_owner',
+    [user?.role],
+  )
+
+  const isAdmin = useMemo(
+    () => user?.role === 'admin',
+    [user?.role],
+  )
+
+  // ── Accountant profile state ──────────────────────────────
+  const [editingAccountantProfile, setEditingAccountantProfile] = useState(false)
+  const [accountantProfileForm, setAccountantProfileForm] = useState({
+    bio: '',
+    yearsOfExperience: null,
+    hourlyRate: null,
+    location: '',
+  })
+  const [savingAccountantProfile, setSavingAccountantProfile] = useState(false)
+  const [accountantProfileMsg, setAccountantProfileMsg] = useState(null)
+  const [specialties, setSpecialties] = useState([])
+  const [certifications, setCertifications] = useState([])
+  const [reviews, setReviews] = useState([])
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0)
+    return sum / reviews.length
+  }, [reviews])
+  const [specialtyInput, setSpecialtyInput] = useState('')
+  const [certInput, setCertInput] = useState('')
+  const [addingSpecialty, setAddingSpecialty] = useState(false)
+  const [addingCert, setAddingCert] = useState(false)
 
   // ── Password state ─────────────────────────────────────────
   const [passwordForm, setPasswordForm] = useState({
@@ -139,24 +168,24 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState(null)
 
+  // ── Delete account state ───────────────────────────────────
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+
   // ── Companies state ────────────────────────────────────────
   const [editingCompanyId, setEditingCompanyId] = useState(null)
-  const [companyForm, setCompanyForm] = useState({ ...emptyCompanyForm })
+  const [companyForm, setCompanyForm] = useState(() => createEmptyCompanyForm())
   const [addingCompany, setAddingCompany] = useState(false)
   const [savingCompany, setSavingCompany] = useState(false)
   const [deletingCompanyId, setDeletingCompanyId] = useState(null)
   const [companyMsg, setCompanyMsg] = useState(null)
-  const [accountantCompanies, setAccountantCompanies] = useState([])
-  const [loadingAccountantCompanies, setLoadingAccountantCompanies] = useState(false)
-  const [accountantCompaniesError, setAccountantCompaniesError] = useState('')
+
+  const { confirm } = useConfirm()
 
   const isBusinessOwner = useMemo(
     () => user?.role === 'business_owner' || user?.role === 'accountant_business_owner',
-    [user?.role],
-  )
-
-  const isAccountant = useMemo(
-    () => user?.role === 'accountant' || user?.role === 'accountant_business_owner',
     [user?.role],
   )
 
@@ -180,6 +209,10 @@ export default function ProfilePage() {
   const createCompanyMutation = useCreateCompanyMutation({ userId: user?.id, token })
   const updateCompanyMutation = useUpdateCompanyMutation({ userId: user?.id, token })
   const deleteCompanyMutation = useDeleteCompanyMutation({ userId: user?.id, token })
+  const deleteAccountMutation = useDeleteAccountMutation({ token })
+  const accountantProfileMutation = useAccountantProfileMutation({ userId: user?.id, token })
+
+  const navigate = useNavigate()
 
   const loadingProfile = profileQuery.isLoading || profileQuery.isFetching
   const loadingCompanies = loadingCompaniesFromContext
@@ -191,39 +224,28 @@ export default function ProfilePage() {
       name: profileQuery.data.name || '',
       phone: profileQuery.data.phone || '',
     })
-  }, [profileQuery.data])
+    if (isAccountant) {
+      setAccountantProfileForm({
+        bio: profileQuery.data.bio || '',
+        yearsOfExperience: profileQuery.data.yearsOfExperience ?? null,
+        hourlyRate: profileQuery.data.hourlyRate ?? null,
+        location: profileQuery.data.location || '',
+      })
+    }
+  }, [profileQuery.data, isAccountant])
 
   useEffect(() => {
-    if (!isAccountant || !token) {
-      setAccountantCompanies([])
-      setAccountantCompaniesError('')
-      setLoadingAccountantCompanies(false)
-      return
-    }
-
-    let mounted = true
-    setLoadingAccountantCompanies(true)
-    setAccountantCompaniesError('')
-
-    getAllCompanies(token)
-      .then((data) => {
-        if (!mounted) return
-        setAccountantCompanies(Array.isArray(data) ? data : [])
-      })
-      .catch((err) => {
-        if (!mounted) return
-        setAccountantCompanies([])
-        setAccountantCompaniesError(err.message || 'Failed to load companies list.')
-      })
-      .finally(() => {
-        if (!mounted) return
-        setLoadingAccountantCompanies(false)
-      })
-
-    return () => {
-      mounted = false
-    }
-  }, [isAccountant, token])
+    if (!user?.id || !token || !isAccountant) return
+    getAccountantSpecialties(user.id, token).then((data) => {
+      setSpecialties(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+    getAccountantCertifications(user.id, token).then((data) => {
+      setCertifications(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+    getAccountantReviews(user.id, token).then((data) => {
+      setReviews(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+  }, [user?.id, token, isAccountant])
 
   // ── Profile picture helpers ────────────────────────────────
   /**
@@ -242,7 +264,7 @@ export default function ProfilePage() {
 
   const avatarSrc = useMemo(() => {
     if (profilePicPreview) return profilePicPreview
-    if (profile?.profilePicture) return `${API_BASE}/${profile.profilePicture}`
+    if (profile?.profilePicture) return getProfilePictureUrl(profile.profilePicture)
     return undefined
   }, [profilePicPreview, profile?.profilePicture])
 
@@ -294,6 +316,86 @@ export default function ProfilePage() {
     }
   }
 
+  // ── Accountant profile handlers ────────────────────────────
+  const handleSaveAccountantProfile = async () => {
+    const parsed = accountantProfileSchema.safeParse(accountantProfileForm)
+    if (!parsed.success) {
+      setAccountantProfileMsg({
+        type: 'error',
+        text: parsed.error.issues[0]?.message || 'Profile data is invalid.',
+      })
+      return
+    }
+
+    setSavingAccountantProfile(true)
+    setAccountantProfileMsg(null)
+
+    try {
+      await accountantProfileMutation.mutateAsync({
+        bio: parsed.data.bio || null,
+        yearsOfExperience: parsed.data.yearsOfExperience ?? null,
+        hourlyRate: parsed.data.hourlyRate ?? null,
+        location: parsed.data.location || null,
+      })
+      setEditingAccountantProfile(false)
+      setAccountantProfileMsg({ type: 'success', text: 'Accountant profile updated.' })
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to update profile.' })
+    } finally {
+      setSavingAccountantProfile(false)
+    }
+  }
+
+  const handleAddSpecialty = async () => {
+    const s = specialtyInput.trim()
+    if (!s || !token) return
+    setAddingSpecialty(true)
+    try {
+      await addAccountantSpecialty(user.id, s, token)
+      setSpecialties((prev) => [...prev, s])
+      setSpecialtyInput('')
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to add specialty.' })
+    } finally {
+      setAddingSpecialty(false)
+    }
+  }
+
+  const handleRemoveSpecialty = async (specialty) => {
+    if (!token) return
+    try {
+      await removeAccountantSpecialty(user.id, specialty, token)
+      setSpecialties((prev) => prev.filter((s) => s !== specialty))
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to remove specialty.' })
+    }
+  }
+
+  const handleAddCertification = async () => {
+    const c = certInput.trim()
+    if (!c || !token) return
+    setAddingCert(true)
+    try {
+      await addAccountantCertification(user.id, c, token)
+      setCertifications((prev) => [...prev, c])
+      setCertInput('')
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to add certification.' })
+    } finally {
+      setAddingCert(false)
+    }
+  }
+
+  const handleRemoveCertification = async (cert) => {
+    if (!token) return
+    try {
+      await removeAccountantCertification(user.id, cert, token)
+      setCertifications((prev) => prev.filter((c) => c !== cert))
+    } catch (err) {
+      setAccountantProfileMsg({ type: 'error', text: err.message || 'Failed to remove certification.' })
+    }
+  }
+
   // ── Change password ────────────────────────────────────────
   /**
    * Validate the password change form and perform a password update request.
@@ -325,6 +427,40 @@ export default function ProfilePage() {
     }
   }
 
+  // ── Delete account ─────────────────────────────────────────
+  /**
+   * Open the delete account confirmation dialog.
+   */
+  const handleOpenDeleteDialog = () => {
+    setDeletePassword('')
+    setDeleteError(null)
+    setDeleteDialogOpen(true)
+  }
+
+  /**
+   * Confirm and execute account deletion after password verification.
+   */
+  const handleConfirmDelete = async () => {
+    if (!deletePassword.trim()) {
+      setDeleteError('Please enter your password.')
+      return
+    }
+
+    setDeletingAccount(true)
+    setDeleteError(null)
+
+    try {
+      await deleteAccountMutation.mutateAsync(user.id)
+      setDeleteDialogOpen(false)
+      logout()
+      navigate('/login')
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete account.')
+    } finally {
+      setDeletingAccount(false)
+    }
+  }
+
   // ── Company CRUD ───────────────────────────────────────────
   /**
    * Prepare the UI for editing an existing company record.
@@ -344,7 +480,6 @@ export default function ProfilePage() {
       country: company.country || 'USA',
       email: company.email || '',
       phone: company.phone || '',
-      website: company.website || '',
       taxId: company.taxId || company.tax_id || '',
       vatNumber: company.vatNumber || company.vat_number || '',
       currency: company.currency || 'USD',
@@ -358,7 +493,7 @@ export default function ProfilePage() {
   const startAddCompany = () => {
     setEditingCompanyId(null)
     setAddingCompany(true)
-    setCompanyForm({ ...emptyCompanyForm })
+    setCompanyForm(createEmptyCompanyForm())
     setCompanyMsg(null)
   }
 
@@ -419,7 +554,7 @@ export default function ProfilePage() {
   const handleDeleteCompany = async (company) => {
     if (!company?.id) return
 
-    const confirmed = globalThis.window?.confirm(
+    const confirmed = await confirm(
       `Delete ${company.name || 'this company'}? This will remove it from active company lists.`,
     )
 
@@ -442,125 +577,14 @@ export default function ProfilePage() {
     }
   }
 
-  /**
-   * Select the provided company as the active working company.
-   * For accountant users this also grants access before selection.
-   *
-   * @param {object} company - Company record to select.
-   */
-  const handleSelectCompany = async (company) => {
-    if (!company?.id) return
-
-    setCompanyMsg(null)
-
-    if (isAccountant) {
-      try {
-        await grantCompanyAccess(company.id, token)
-        await refreshCompanies()
-        setActiveCompanyId(company.id)
-        setCompanyMsg({ type: 'success', text: 'Company selected with full access.' })
-        return
-      } catch (err) {
-        setCompanyMsg({
-          type: 'error',
-          text: err.message || 'Failed to enable access for selected company.',
-        })
-        return
-      }
-    }
-
-    setActiveCompanyId(company.id)
-  }
-
-  // ── Render ─────────────────────────────────────────────────
-  const pickerCompanies = isAccountant ? accountantCompanies : companies
-  const activeCompanyIdNumber = Number(activeCompanyId)
-
-  let assignedCompaniesContent
-  if (loadingCompanies || loadingAccountantCompanies) {
-    assignedCompaniesContent = (
-      <Stack spacing={2}>
-        <Skeleton variant="rounded" height={60} />
-        <Skeleton variant="rounded" height={60} />
-      </Stack>
-    )
-  } else if (accountantCompaniesError) {
-    assignedCompaniesContent = (
-      <Alert severity="error" variant="outlined">
-        {accountantCompaniesError}
-      </Alert>
-    )
-  } else if (pickerCompanies.length === 0) {
-    assignedCompaniesContent = (
-      <Typography color="text.secondary">No companies available to select yet.</Typography>
-    )
-  } else {
-    assignedCompaniesContent = (
-      <Stack spacing={1.5}>
-        {pickerCompanies.map((c) => (
-          <Box
-            key={c.id}
-            sx={{
-              p: 2,
-              borderRadius: 2.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'rgba(14, 22, 40, 0.5)',
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Stack>
-                <Typography fontWeight={700}>{c.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
-                  {' · '}
-                  {c.currency || 'USD'}
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Chip
-                  label={c.accessLevel || c.access_level || 'Full Access'}
-                  size="small"
-                  sx={{
-                    bgcolor: 'rgba(55, 214, 122, 0.14)',
-                    border: '1px solid',
-                    borderColor: 'rgba(55, 214, 122, 0.38)',
-                    color: '#b3ffd0',
-                    fontWeight: 700,
-                    fontSize: '0.7rem',
-                    textTransform: 'capitalize',
-                  }}
-                />
-                {activeCompanyIdNumber === Number(c.id) ? (
-                  <Chip
-                    label="Active"
-                    size="small"
-                    color="primary"
-                    variant="filled"
-                  />
-                ) : (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => handleSelectCompany(c)}
-                  >
-                    Select
-                  </Button>
-                )}
-              </Stack>
-            </Stack>
-          </Box>
-        ))}
-      </Stack>
-    )
-  }
-
   return (
-    <Container
-      maxWidth={false}
-      disableGutters
-      sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%' }}
-    >
+    <Box sx={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+      <AnimatedBackground density="low" />
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, py: 3, width: '100%', position: 'relative', zIndex: 1 }}
+      >
       <Box>
         {requiresCompanySetup && (
           <Alert severity="warning" sx={{ mb: 2.5 }}>
@@ -568,300 +592,717 @@ export default function ProfilePage() {
           </Alert>
         )}
 
-        {/* ── Page title ─────────────────────────────────── */}
-        <Box>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 3 }}>
-            Profile &amp; Settings
-          </Typography>
-        </Box>
-
         {/* ══════════════════════════════════════════════════
-            SECTION A — Profile Info
+            SECTION A — Profile Info  |  SECTION B — Change Password (side-by-side)
            ══════════════════════════════════════════════════ */}
-        <Box>
-          <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              {sectionHeader(
-                <EditRoundedIcon sx={{ color: 'primary.main' }} />,
-                'Personal Information',
-              )}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Section A */}
+          <Grid size={{ xs: 12, md: 7 }}>
+            <GlassCard sx={{ height: '100%' }} role="region" aria-label="Personal Information">
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                <SectionHeader
+                  icon={<EditRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="Personal Information"
+                />
 
-              {loadingProfile ? (
-                <Stack spacing={2}>
-                  <Skeleton variant="circular" width={80} height={80} />
-                  <Skeleton variant="rounded" height={48} />
-                  <Skeleton variant="rounded" height={48} />
-                </Stack>
-              ) : (
-                <>
-                  <Collapse in={!!profileMsg}>
-                    {profileMsg && (
-                      <Alert
-                        severity={profileMsg.type}
-                        sx={{ mb: 2 }}
-                        onClose={() => setProfileMsg(null)}
-                      >
-                        {profileMsg.text}
-                      </Alert>
-                    )}
-                  </Collapse>
+                {loadingProfile ? (
+                  <Stack spacing={2.5} sx={{ mt: 1 }}>
+                    <Skeleton variant="circular" width={100} height={100} />
+                    <Skeleton variant="rounded" height={52} />
+                    <Skeleton variant="rounded" height={52} />
+                  </Stack>
+                ) : (
+                  <>
+                    <Collapse in={!!profileMsg}>
+                      {profileMsg && (
+                        <Alert
+                          severity={profileMsg.type}
+                          sx={{ mb: 2.5, borderRadius: 2 }}
+                          onClose={() => setProfileMsg(null)}
+                        >
+                          {profileMsg.text}
+                        </Alert>
+                      )}
+                    </Collapse>
 
-                  {/* Avatar + Upload */}
-                  <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mb: 3 }}>
-                    <Box sx={{ position: 'relative' }}>
-                      <Avatar
-                        src={avatarSrc}
-                        sx={{
-                          width: 80,
-                          height: 80,
-                          fontSize: '2rem',
-                          bgcolor: 'primary.main',
-                          color: '#041229',
-                          fontWeight: 800,
-                        }}
-                      >
-                        {(profile?.name || 'U')[0].toUpperCase()}
-                      </Avatar>
-                      {editingProfile && (
-                        <IconButton
-                          component="label"
-                          size="small"
+                    {/* Avatar + Upload - centered */}
+                    <Stack
+                      direction="row"
+                      spacing={3}
+                      alignItems="center"
+                      sx={{ mb: 4, justifyContent: 'center' }}
+                    >
+                      <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                        <Avatar
+                          src={avatarSrc}
                           sx={{
-                            position: 'absolute',
-                            bottom: -4,
-                            right: -4,
+                            width: 100,
+                            height: 100,
+                            fontSize: '2.5rem',
                             bgcolor: 'primary.main',
                             color: '#041229',
-                            '&:hover': { bgcolor: 'primary.light' },
+                            fontWeight: 800,
+                            boxShadow: '0 8px 24px rgba(88, 166, 255, 0.25)',
                           }}
                         >
-                          <PhotoCameraRoundedIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/jpeg,image/png,image/gif,image/webp"
-                            onChange={handleProfilePicChange}
-                          />
-                        </IconButton>
-                      )}
-                    </Box>
-                    <Stack>
-                      <Typography variant="h6" fontWeight={700}>
-                        {profile?.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {profile?.email}
-                      </Typography>
-                      <Chip
-                        label={roleLabel}
-                        size="small"
-                        sx={{
-                          mt: 0.5,
-                          alignSelf: 'flex-start',
-                          bgcolor: 'rgba(88, 166, 255, 0.16)',
-                          border: '1px solid',
-                          borderColor: 'rgba(129, 191, 255, 0.38)',
-                          color: '#cde7ff',
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                        }}
-                      />
+                          {(profile?.name || 'U')[0].toUpperCase()}
+                        </Avatar>
+                        {editingProfile && (
+                          <IconButton
+                            component="label"
+                            size="small"
+                            aria-label="Upload profile picture"
+                            sx={{
+                              position: 'absolute',
+                              bottom: -6,
+                              right: -6,
+                              bgcolor: 'primary.main',
+                              color: '#041229',
+                              '&:hover': { bgcolor: 'primary.light' },
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            }}
+                          >
+                            <PhotoCameraRoundedIcon fontSize="small" />
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              onChange={handleProfilePicChange}
+                            />
+                          </IconButton>
+                        )}
+                      </Box>
+                      <Stack spacing={0.75} alignItems="center">
+                        <Typography variant="h5" fontWeight={800} textAlign="center">
+                          {profile?.name}
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary">
+                          {profile?.email}
+                        </Typography>
+                        <Chip
+                          label={roleLabel}
+                          size="small"
+                          sx={{
+                            mt: 0.5,
+                            bgcolor: 'rgba(88, 166, 255, 0.16)',
+                            border: '1px solid',
+                            borderColor: 'rgba(129, 191, 255, 0.38)',
+                            color: '#cde7ff',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                            px: 1,
+                          }}
+                        />
+                      </Stack>
                     </Stack>
-                  </Stack>
 
-                  {/* Editable fields */}
-                  {editingProfile ? (
-                    <Stack spacing={2}>
-                      <TextField
-                        label="Full Name"
-                        fullWidth
-                        value={profileForm.name}
-                        onChange={(e) =>
-                          setProfileForm((p) => ({ ...p, name: e.target.value }))
-                        }
-                      />
-                      <TextField
-                        label="Phone"
-                        fullWidth
-                        value={profileForm.phone}
-                        onChange={(e) =>
-                          setProfileForm((p) => ({ ...p, phone: e.target.value }))
-                        }
-                      />
-                      <TextField
-                        label="Email"
-                        fullWidth
-                        value={profile?.email || ''}
-                        disabled
-                        helperText="Email cannot be changed"
-                      />
-                      <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-                        <Button
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<CloseRoundedIcon />}
-                          onClick={() => {
-                            setEditingProfile(false)
-                            setProfilePicFile(null)
-                            setProfilePicPreview(null)
-                            setProfileForm({
-                              name: profile?.name || '',
-                              phone: profile?.phone || '',
-                            })
+                    <Divider sx={{ my: 3, borderColor: 'divider' }} />
+
+                    {/* Editable fields */}
+                    {editingProfile ? (
+                      <Stack spacing={2.5} sx={{ mt: 1 }}>
+                        <TextField
+                          label="Full Name"
+                          fullWidth
+                          value={profileForm.name}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, name: e.target.value }))
+                          }
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        <TextField
+                          label="Phone"
+                          fullWidth
+                          value={profileForm.phone}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, phone: e.target.value }))
+                          }
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        <TextField
+                          label="Email"
+                          fullWidth
+                          value={profile?.email || ''}
+                          disabled
+                          helperText="Email cannot be changed"
+                          sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        />
+                        <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 1 }}>
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            startIcon={<CloseRoundedIcon />}
+                            aria-label="Cancel editing profile"
+                            onClick={() => {
+                              setEditingProfile(false)
+                              setProfilePicFile(null)
+                              setProfilePicPreview(null)
+                              setProfileForm({
+                                name: profile?.name || '',
+                                phone: profile?.phone || '',
+                              })
+                            }}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="contained"
+                            startIcon={
+                              savingProfile ? (
+                                <CircularProgress size={18} color="inherit" />
+                              ) : (
+                                <SaveRoundedIcon />
+                              )
+                            }
+                            disabled={savingProfile}
+                            onClick={handleSaveProfile}
+                            aria-label="Save profile changes"
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Save Changes
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Stack spacing={2} sx={{ mt: 1 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
                           }}
                         >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="contained"
-                          startIcon={
-                            savingProfile ? (
-                              <CircularProgress size={18} color="inherit" />
-                            ) : (
-                              <SaveRoundedIcon />
-                            )
-                          }
-                          disabled={savingProfile}
-                          onClick={handleSaveProfile}
+                          <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>
+                            Name
+                          </Typography>
+                          <Typography fontWeight={700} fontSize="1.05rem">
+                            {profile?.name}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
                         >
-                          Save Changes
-                        </Button>
+                          <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>
+                            Phone
+                          </Typography>
+                          <Typography fontWeight={700} fontSize="1.05rem">
+                            {profile?.phone || '—'}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>
+                            Email
+                          </Typography>
+                          <Typography fontWeight={700} fontSize="1.05rem">
+                            {profile?.email}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<EditRoundedIcon />}
+                            onClick={() => setEditingProfile(true)}
+                            aria-label="Edit profile"
+                            sx={{ borderRadius: 2, px: 4, py: 1.2, fontWeight: 700 }}
+                          >
+                            Edit Profile
+                          </Button>
+                        </Box>
                       </Stack>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </GlassCard>
+          </Grid>
+
+          {/* Section B */}
+          <Grid size={{ xs: 12, md: 5 }}>
+            <GlassCard sx={{ height: '100%' }} role="region" aria-label="Change Password">
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                <SectionHeader
+                  icon={<LockResetRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="Change Password"
+                />
+
+                <Collapse in={!!passwordMsg}>
+                  {passwordMsg && (
+                    <Alert
+                      severity={passwordMsg.type}
+                      sx={{ mb: 2.5, borderRadius: 2 }}
+                      onClose={() => setPasswordMsg(null)}
+                    >
+                      {passwordMsg.text}
+                    </Alert>
+                  )}
+                </Collapse>
+
+                <Stack spacing={2.5} sx={{ mt: 1 }}>
+                  {PASSWORD_FIELDS.map(({ key, label, formKey }) => (
+                    <Box key={key}>
+                      <TextField
+                        label={label}
+                        type={showPasswords[key] ? 'text' : 'password'}
+                        fullWidth
+                        value={passwordForm[formKey]}
+                        onChange={(e) =>
+                          setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
+                        }
+                        slotProps={{
+                          input: {
+                            endAdornment: (
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
+                                }
+                                edge="end"
+                                aria-label={showPasswords[key] ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+                              >
+                                {showPasswords[key] ? (
+                                  <VisibilityOffRoundedIcon fontSize="small" />
+                                ) : (
+                                  <VisibilityRoundedIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            ),
+                          },
+                        }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                      {key === 'new' && <PasswordStrengthMeter password={passwordForm.newPassword} />}
+                    </Box>
+                  ))}
+
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={
+                        savingPassword ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          <LockResetRoundedIcon />
+                        )
+                      }
+                      disabled={savingPassword}
+                      sx={{
+                        borderRadius: 2,
+                        px: 4,
+                        py: 1.3,
+                        fontWeight: 700,
+                        fontSize: '1rem',
+                        boxShadow: '0 4px 14px rgba(88, 166, 255, 0.35)',
+                        '&:hover': {
+                          boxShadow: '0 6px 20px rgba(88, 166, 255, 0.5)',
+                        },
+                      }}
+                      onClick={handleChangePassword}
+                    >
+                      Change Password
+                    </Button>
+                  </Box>
+                </Stack>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* ═══ Delete Account ═══ */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <DeleteForeverRoundedIcon sx={{ color: 'error.main', fontSize: 22 }} />
+                    <Typography variant="subtitle1" fontWeight={700} color="error.main">
+                      Delete Account
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Permanently remove your account and all associated data.
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteForeverRoundedIcon />}
+                      onClick={handleOpenDeleteDialog}
+                      sx={{ borderRadius: 2, px: 3, fontWeight: 600 }}
+                    >
+                      Delete Account
+                    </Button>
+                  </Box>
+                </Box>
+              </CardContent>
+            </GlassCard>
+          </Grid>
+        </Grid>
+
+        {/* ══════════════════════════════════════════════════
+            SECTION C — Accountant Profile (accountant roles)
+           ══════════════════════════════════════════════════ */}
+        {isAccountant && (
+          <Box sx={{ mb: 3 }}>
+            <GlassCard role="region" aria-label="Accountant Profile">
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                <SectionHeader
+                  icon={<BusinessRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="Accountant Profile"
+                />
+
+                <Collapse in={!!accountantProfileMsg}>
+                  {accountantProfileMsg && (
+                    <Alert
+                      severity={accountantProfileMsg.type}
+                      sx={{ mb: 2.5, borderRadius: 2 }}
+                      onClose={() => setAccountantProfileMsg(null)}
+                    >
+                      {accountantProfileMsg.text}
+                    </Alert>
+                  )}
+                </Collapse>
+
+                {loadingProfile ? (
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Skeleton variant="rounded" height={56} />
+                    <Skeleton variant="rounded" height={56} />
+                  </Stack>
+                ) : editingAccountantProfile ? (
+                  <Stack spacing={2.5} sx={{ mt: 1 }}>
+                    <TextField
+                      label="Bio"
+                      multiline
+                      minRows={2}
+                      maxRows={5}
+                      fullWidth
+                      value={accountantProfileForm.bio}
+                      onChange={(e) =>
+                        setAccountantProfileForm((p) => ({ ...p, bio: e.target.value }))
+                      }
+                      sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                    />
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        label="Years of Experience"
+                        type="number"
+                        value={accountantProfileForm.yearsOfExperience ?? ''}
+                        onChange={(e) =>
+                          setAccountantProfileForm((p) => ({
+                            ...p,
+                            yearsOfExperience: e.target.value ? Number(e.target.value) : null,
+                          }))
+                        }
+                        sx={{ width: 200, '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        inputProps={{ min: 0, max: 100 }}
+                      />
+                      <TextField
+                        label="Hourly Rate"
+                        type="number"
+                        value={accountantProfileForm.hourlyRate ?? ''}
+                        onChange={(e) =>
+                          setAccountantProfileForm((p) => ({
+                            ...p,
+                            hourlyRate: e.target.value ? Number(e.target.value) : null,
+                          }))
+                        }
+                        sx={{ width: 200, '& .MuiInputBase-root': { borderRadius: 2 } }}
+                        inputProps={{ min: 0, step: 0.01 }}
+                      />
+                      <TextField
+                        label="Location"
+                        fullWidth
+                        value={accountantProfileForm.location}
+                        onChange={(e) =>
+                          setAccountantProfileForm((p) => ({ ...p, location: e.target.value }))
+                        }
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
                     </Stack>
-                  ) : (
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" spacing={2}>
-                        <Typography color="text.secondary" sx={{ minWidth: 100 }}>
-                          Name
-                        </Typography>
-                        <Typography fontWeight={600}>{profile?.name}</Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={2}>
-                        <Typography color="text.secondary" sx={{ minWidth: 100 }}>
-                          Phone
-                        </Typography>
-                        <Typography fontWeight={600}>
-                          {profile?.phone || '—'}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={2}>
-                        <Typography color="text.secondary" sx={{ minWidth: 100 }}>
-                          Email
-                        </Typography>
-                        <Typography fontWeight={600}>{profile?.email}</Typography>
-                      </Stack>
+
+                    <Divider sx={{ borderColor: 'divider' }} />
+
+                    {/* Specialties */}
+                    <Typography fontWeight={700}>Specialties</Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {specialties.map((s) => (
+                        <Chip
+                          key={s}
+                          label={s}
+                          onDelete={() => handleRemoveSpecialty(s)}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        placeholder="Add a specialty"
+                        value={specialtyInput}
+                        onChange={(e) => setSpecialtyInput(e.target.value)}
+                        size="small"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSpecialty(); } }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                      <IconButton
+                        color="primary"
+                        onClick={handleAddSpecialty}
+                        disabled={addingSpecialty || !specialtyInput.trim()}
+                      >
+                        {addingSpecialty ? <CircularProgress size={20} /> : <AddRoundedIcon />}
+                      </IconButton>
+                    </Stack>
+
+                    {/* Certifications */}
+                    <Typography fontWeight={700} sx={{ mt: 1 }}>Certifications</Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {certifications.map((c) => (
+                        <Chip
+                          key={c}
+                          label={c}
+                          onDelete={() => handleRemoveCertification(c)}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        placeholder="Add a certification"
+                        value={certInput}
+                        onChange={(e) => setCertInput(e.target.value)}
+                        size="small"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCertification(); } }}
+                        sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+                      />
+                      <IconButton
+                        color="secondary"
+                        onClick={handleAddCertification}
+                        disabled={addingCert || !certInput.trim()}
+                      >
+                        {addingCert ? <CircularProgress size={20} /> : <AddRoundedIcon />}
+                      </IconButton>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 1 }}>
                       <Button
                         variant="outlined"
+                        color="secondary"
+                        startIcon={<CloseRoundedIcon />}
+                        onClick={() => {
+                          setEditingAccountantProfile(false)
+                          setAccountantProfileForm({
+                            bio: profile?.bio || '',
+                            yearsOfExperience: profile?.yearsOfExperience ?? null,
+                            hourlyRate: profile?.hourlyRate ?? null,
+                            location: profile?.location || '',
+                          })
+                        }}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        startIcon={
+                          savingAccountantProfile ? (
+                            <CircularProgress size={18} color="inherit" />
+                          ) : (
+                            <SaveRoundedIcon />
+                          )
+                        }
+                        disabled={savingAccountantProfile}
+                        onClick={handleSaveAccountantProfile}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Save Changes
+                      </Button>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                      <Typography color="text.secondary" sx={{ minWidth: 100, fontWeight: 500 }}>Bio</Typography>
+                      <Typography fontWeight={700} textAlign="right" sx={{ maxWidth: 500, wordBreak: 'break-word' }}>
+                        {profile?.bio || '—'}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={2}>
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Experience</Typography>
+                        <Typography fontWeight={700}>{profile?.yearsOfExperience ?? '—'}</Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Hourly Rate</Typography>
+                        <Typography fontWeight={700}>
+                          {profile?.hourlyRate != null ? `$${Number(profile.hourlyRate).toFixed(2)}` : '—'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Location</Typography>
+                        <Typography fontWeight={700}>{profile?.location || '—'}</Typography>
+                      </Box>
+                    </Stack>
+
+                    {specialties.length > 0 && (
+                      <>
+                        <Typography fontWeight={700} sx={{ mt: 1 }}>Specialties</Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          {specialties.map((s) => (
+                            <Chip key={s} label={s} size="small" color="primary" variant="outlined" />
+                          ))}
+                        </Stack>
+                      </>
+                    )}
+
+                    {certifications.length > 0 && (
+                      <>
+                        <Typography fontWeight={700} sx={{ mt: 1 }}>Certifications</Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          {certifications.map((c) => (
+                            <Chip key={c} label={c} size="small" color="secondary" variant="outlined" />
+                          ))}
+                        </Stack>
+                      </>
+                    )}
+
+                    <Divider sx={{ my: 2, borderColor: 'divider' }} />
+                    <Typography fontWeight={700} sx={{ mb: 1.5 }}>
+                      Reviews ({reviews.length})
+                    </Typography>
+                    {reviews.length > 0 ? (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            mb: 2,
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.03)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Rating
+                            value={averageRating}
+                            readOnly
+                            precision={0.1}
+                            icon={<StarRoundedIcon sx={{ fontSize: 28 }} />}
+                            emptyIcon={<StarRoundedIcon sx={{ fontSize: 28, opacity: 0.3 }} />}
+                          />
+                          <Typography variant="h6" fontWeight={700}>
+                            {averageRating.toFixed(1)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                          </Typography>
+                        </Box>
+                        <Stack spacing={1.5}>
+                          {reviews.map((review) => (
+                            <Box
+                              key={review.id}
+                              sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: 'rgba(255,255,255,0.03)',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                              }}
+                            >
+                              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                                <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'primary.main', color: '#041229', fontWeight: 700 }}>
+                                  {(review.createdByName || 'U')[0].toUpperCase()}
+                                </Avatar>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {review.createdByName}
+                                </Typography>
+                                <Rating
+                                  value={review.rating}
+                                  readOnly
+                                  size="small"
+                                  icon={<StarRoundedIcon sx={{ fontSize: 14 }} />}
+                                  emptyIcon={<StarRoundedIcon sx={{ fontSize: 14, opacity: 0.3 }} />}
+                                />
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                                  {new Date(review.createdAt).toLocaleDateString('en-GB')}
+                                </Typography>
+                              </Stack>
+                              {review.review && (
+                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                                  {review.review}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        No reviews yet.
+                      </Typography>
+                    )}
+
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                      <Button
+                        variant="contained"
                         startIcon={<EditRoundedIcon />}
-                        sx={{ alignSelf: 'flex-start', mt: 1 }}
-                        onClick={() => setEditingProfile(true)}
+                        onClick={() => setEditingAccountantProfile(true)}
+                        sx={{ borderRadius: 2, px: 4, py: 1.2, fontWeight: 700 }}
                       >
                         Edit Profile
                       </Button>
-                    </Stack>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* ══════════════════════════════════════════════════
-            SECTION B — Change Password
-           ══════════════════════════════════════════════════ */}
-        <Box>
-          <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              {sectionHeader(
-                <LockResetRoundedIcon sx={{ color: 'primary.main' }} />,
-                'Change Password',
-              )}
-
-              <Collapse in={!!passwordMsg}>
-                {passwordMsg && (
-                  <Alert
-                    severity={passwordMsg.type}
-                    sx={{ mb: 2 }}
-                    onClose={() => setPasswordMsg(null)}
-                  >
-                    {passwordMsg.text}
-                  </Alert>
+                    </Box>
+                  </Stack>
                 )}
-              </Collapse>
-
-              <Stack spacing={2} sx={{ maxWidth: 420 }}>
-                {['current', 'new', 'confirm'].map((key) => {
-                  const { label, formKey } = passwordFieldMeta[key]
-                  return (
-                    <TextField
-                      key={key}
-                      label={label}
-                      type={showPasswords[key] ? 'text' : 'password'}
-                      fullWidth
-                      value={passwordForm[formKey]}
-                      onChange={(e) =>
-                        setPasswordForm((p) => ({ ...p, [formKey]: e.target.value }))
-                      }
-                      slotProps={{
-                        input: {
-                          endAdornment: (
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                setShowPasswords((p) => ({ ...p, [key]: !p[key] }))
-                              }
-                              edge="end"
-                            >
-                              {showPasswords[key] ? (
-                                <VisibilityOffRoundedIcon fontSize="small" />
-                              ) : (
-                                <VisibilityRoundedIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          ),
-                        },
-                      }}
-                    />
-                  )
-                })}
-
-                <Button
-                  variant="contained"
-                  startIcon={
-                    savingPassword ? (
-                      <CircularProgress size={18} color="inherit" />
-                    ) : (
-                      <LockResetRoundedIcon />
-                    )
-                  }
-                  disabled={savingPassword}
-                  sx={{ alignSelf: 'flex-start' }}
-                  onClick={handleChangePassword}
-                >
-                  Change Password
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Box>
+              </CardContent>
+            </GlassCard>
+          </Box>
+        )}
 
         {/* ══════════════════════════════════════════════════
-            SECTION C — Business Info (business_owner roles)
+            SECTION D — Business Info (business_owner roles)
            ══════════════════════════════════════════════════ */}
         {isBusinessOwner && (
           <Box>
-            <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-              <CardContent sx={{ p: 3 }}>
-                {sectionHeader(
-                  <BusinessRoundedIcon sx={{ color: 'primary.main' }} />,
-                  'My Companies',
-                )}
+            <GlassCard sx={{ mb: 3 }} role="region" aria-label="My Companies">
+              <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                <SectionHeader
+                  icon={<BusinessRoundedIcon sx={{ color: 'primary.main', fontSize: 28 }} />}
+                  title="My Companies"
+                />
 
                 <Collapse in={!!companyMsg}>
                   {companyMsg && (
                     <Alert
                       severity={companyMsg.type}
-                      sx={{ mb: 2 }}
+                      sx={{ mb: 2.5, borderRadius: 2 }}
                       onClose={() => setCompanyMsg(null)}
                     >
                       {companyMsg.text}
@@ -870,16 +1311,41 @@ export default function ProfilePage() {
                 </Collapse>
 
                 {loadingCompanies ? (
-                  <Stack spacing={2}>
-                    <Skeleton variant="rounded" height={80} />
-                    <Skeleton variant="rounded" height={80} />
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Skeleton variant="rounded" height={90} sx={{ borderRadius: 2.5 }} />
+                    <Skeleton variant="rounded" height={90} sx={{ borderRadius: 2.5 }} />
                   </Stack>
                 ) : (
-                  <>
+                  <Stack spacing={2} sx={{ mt: 1 }}>
                     {companies.length === 0 && !addingCompany && (
-                      <Typography color="text.secondary" sx={{ mb: 2 }}>
-                        No companies yet. Add your first company below.
-                      </Typography>
+                      <Box
+                        sx={{
+                          textAlign: 'center',
+                          py: 6,
+                          px: 3,
+                          borderRadius: 2.5,
+                          border: '2px dashed',
+                          borderColor: 'divider',
+                          bgcolor: 'rgba(255,255,255,0.01)',
+                        }}
+                      >
+                        <BusinessRoundedIcon
+                          sx={{ fontSize: 48, color: 'text.disabled', mb: 1.5 }}
+                        />
+                        <Typography color="text.secondary" sx={{ mb: 2.5, fontSize: '1.05rem' }}>
+                          No companies yet
+                        </Typography>
+                        {!addingCompany && !editingCompanyId && (
+                          <Button
+                            variant="contained"
+                            startIcon={<AddBusinessRoundedIcon />}
+                            onClick={startAddCompany}
+                            sx={{ borderRadius: 2, px: 3, py: 1.1, fontWeight: 700 }}
+                          >
+                            Add Your First Company
+                          </Button>
+                        )}
+                      </Box>
                     )}
 
                     {companies.map((c) => (
@@ -914,333 +1380,102 @@ export default function ProfilePage() {
                       />
                     )}
 
-                    {!addingCompany && !editingCompanyId && (
+                    {!addingCompany && !editingCompanyId && companies.length > 0 && (
                       <Button
                         variant="outlined"
                         startIcon={<AddBusinessRoundedIcon />}
-                        sx={{ mt: 2 }}
+                        sx={{ mt: 1 }}
                         onClick={startAddCompany}
                       >
                         Add Company
                       </Button>
                     )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Box>
-        )}
-
-        {/* ══════════════════════════════════════════════════
-            SECTION D — Accountant: Assigned Companies
-           ══════════════════════════════════════════════════ */}
-        {isAccountant && (
-          <Box>
-            <Card elevation={0} sx={{ ...cardSx, mb: 3 }}>
-              <CardContent sx={{ p: 3 }}>
-                {sectionHeader(
-                  <BusinessRoundedIcon sx={{ color: 'secondary.main' }} />,
-                  'Choose Business to Work With',
-                )}
-
-                {loadingCompanies ? (
-                  <Stack spacing={2}>
-                    <Skeleton variant="rounded" height={60} />
-                    <Skeleton variant="rounded" height={60} />
                   </Stack>
-                ) : (
-                  assignedCompaniesContent
                 )}
               </CardContent>
-            </Card>
+            </GlassCard>
           </Box>
         )}
       </Box>
     </Container>
-  )
-}
 
-// ═══════════════════════════════════════════════════════════════
-// Sub-components
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * CompanyCard renders a compact summary view for a company record.
- *
- * @param {object} props
- * @param {object} props.company - Company data object.
- * @param {Function} props.onEdit - Handler for edit action.
- * @param {Function} props.onDelete - Handler for delete action.
- * @param {boolean} props.deleting - Whether the company is currently being deleted.
- * @returns {JSX.Element} Company card markup.
- */
-function CompanyCard({ company, onEdit, onDelete, deleting }) {
-  const c = company
-  return (
-    <Box
-      sx={{
-        p: 2,
-        mb: 1.5,
-        borderRadius: 2.5,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'rgba(14, 22, 40, 0.5)',
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-        <Stack spacing={0.5}>
-          <Typography fontWeight={700}>{c.name}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {c.registrationNumber || c.registration_number
-              ? `Reg: ${c.registrationNumber || c.registration_number}`
-              : 'No registration number'}
+      {/* ═══ Delete Account Confirmation Dialog ═══ */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deletingAccount && setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 3,
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DeleteForeverRoundedIcon color="error" />
+            <Typography fontWeight={700}>Delete Account</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            px: 3,
+            '&.MuiDialogContent-root': {
+              paddingTop: 3,
+              paddingBottom: 3,
+            },
+          }}
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This action is permanent and cannot be undone. Enter your password to confirm.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {[c.city, c.state, c.country].filter(Boolean).join(', ') || 'No address'}
-            {' · '}
-            {c.currency || 'USD'}
-          </Typography>
-          {(c.email || c.phone) && (
-            <Typography variant="body2" color="text.secondary">
-              {[c.email, c.phone].filter(Boolean).join(' · ')}
-            </Typography>
-          )}
-        </Stack>
-        <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={onEdit}>
-            <EditRoundedIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" color="error" onClick={onDelete} disabled={deleting}>
-            {deleting ? <CircularProgress size={16} /> : <DeleteOutlineRoundedIcon fontSize="small" />}
-          </IconButton>
-        </Stack>
-      </Stack>
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            error={Boolean(deleteError)}
+            helperText={deleteError}
+            sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+            slotProps={{
+              input: {
+                autoFocus: true,
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deletingAccount}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            disabled={deletingAccount || !deletePassword.trim()}
+            color="error"
+            variant="contained"
+            startIcon={
+              deletingAccount ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <DeleteForeverRoundedIcon />
+              )
+            }
+          >
+            {deletingAccount ? 'Deleting...' : 'Delete My Account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
 
-CompanyCard.propTypes = {
-  company: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    name: PropTypes.string,
-    registrationNumber: PropTypes.string,
-    registration_number: PropTypes.string,
-    city: PropTypes.string,
-    state: PropTypes.string,
-    country: PropTypes.string,
-    currency: PropTypes.string,
-    email: PropTypes.string,
-    phone: PropTypes.string,
-  }).isRequired,
-  onEdit: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  deleting: PropTypes.bool,
-}
-
-CompanyCard.defaultProps = {
-  deleting: false,
-}
-
-/**
- * CompanyForm renders the create/edit company input form.
- *
- * @param {object} props
- * @param {object} props.form - Current form field values.
- * @param {Function} props.setForm - Setter for form state.
- * @param {boolean} props.saving - Loading state for the save action.
- * @param {Function} props.onSave - Callback when the save button is clicked.
- * @param {Function} props.onCancel - Callback when the cancel button is clicked.
- * @param {boolean} props.isNew - Whether the form is creating a new company.
- * @returns {JSX.Element} Company form markup.
- */
-function CompanyForm({ form, setForm, saving, onSave, onCancel, isNew }) {
-  /**
-   * Create an onChange handler for the company form field.
-   *
-   * @param {string} field - Field key to update.
-   * @returns {Function} Change handler for the field.
-   */
-  const handleChange = (field) => (e) =>
-    setForm((p) => ({ ...p, [field]: e.target.value }))
-
-  return (
-    <Box
-      sx={{
-        p: 2.5,
-        mb: 1.5,
-        borderRadius: 2.5,
-        border: '1px solid',
-        borderColor: 'primary.main',
-        bgcolor: 'rgba(88, 166, 255, 0.04)',
-      }}
-    >
-      <Typography fontWeight={700} sx={{ mb: 2 }}>
-        {isNew ? 'New Company' : 'Edit Company'}
-      </Typography>
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Company Name *"
-            fullWidth
-            value={form.name}
-            onChange={handleChange('name')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Registration Number"
-            fullWidth
-            value={form.registrationNumber}
-            onChange={handleChange('registrationNumber')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Street"
-            fullWidth
-            value={form.street}
-            onChange={handleChange('street')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="City"
-            fullWidth
-            value={form.city}
-            onChange={handleChange('city')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="State"
-            fullWidth
-            value={form.state}
-            onChange={handleChange('state')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="Postal Code"
-            fullWidth
-            value={form.postalCode}
-            onChange={handleChange('postalCode')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <TextField
-            label="Country"
-            fullWidth
-            value={form.country}
-            onChange={handleChange('country')}
-          />
-        </Grid>
-
-        <Grid size={12}>
-          <Divider sx={{ my: 0.5 }} />
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Email"
-            fullWidth
-            value={form.email}
-            onChange={handleChange('email')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Phone"
-            fullWidth
-            value={form.phone}
-            onChange={handleChange('phone')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            label="Website"
-            fullWidth
-            value={form.website}
-            onChange={handleChange('website')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="Tax ID"
-            fullWidth
-            value={form.taxId}
-            onChange={handleChange('taxId')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="VAT Number"
-            fullWidth
-            value={form.vatNumber}
-            onChange={handleChange('vatNumber')}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }}>
-          <TextField
-            label="Currency"
-            fullWidth
-            value={form.currency}
-            onChange={handleChange('currency')}
-          />
-        </Grid>
-      </Grid>
-
-      <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 2.5 }}>
-        <Button
-          variant="outlined"
-          color="secondary"
-          startIcon={<CloseRoundedIcon />}
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={
-            saving ? (
-              <CircularProgress size={18} color="inherit" />
-            ) : (
-              <SaveRoundedIcon />
-            )
-          }
-          disabled={saving}
-          onClick={onSave}
-        >
-          {isNew ? 'Create Company' : 'Save Changes'}
-        </Button>
-      </Stack>
-    </Box>
-  )
-}
-
-CompanyForm.propTypes = {
-  form: PropTypes.shape({
-    name: PropTypes.string,
-    registrationNumber: PropTypes.string,
-    street: PropTypes.string,
-    city: PropTypes.string,
-    state: PropTypes.string,
-    postalCode: PropTypes.string,
-    country: PropTypes.string,
-    email: PropTypes.string,
-    phone: PropTypes.string,
-    website: PropTypes.string,
-    taxId: PropTypes.string,
-    vatNumber: PropTypes.string,
-    currency: PropTypes.string,
-  }).isRequired,
-  setForm: PropTypes.func.isRequired,
-  saving: PropTypes.bool.isRequired,
-  onSave: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired,
-  isNew: PropTypes.bool,
-}
-
-CompanyForm.defaultProps = {
-  isNew: false,
-}

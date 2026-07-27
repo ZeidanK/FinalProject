@@ -7,7 +7,11 @@ import { z } from 'zod'
  */
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(1, 'Name cannot be empty.'),
-  phone: z.string().trim().max(30, 'Phone must be at most 30 characters.').optional().or(z.literal('')),
+  phone: z
+    .string()
+    .trim()
+    .max(30, 'Phone must be at most 30 characters.')
+    .optional(),
 })
 
 /**
@@ -27,10 +31,21 @@ export const passwordChangeSchema = z
   })
 
 /**
+ * Schema for accountant-specific profile fields.
+ */
+export const accountantProfileSchema = z.object({
+  bio: z.string().optional(),
+  yearsOfExperience: z.coerce.number().int().min(0).max(100).optional().nullable(),
+  hourlyRate: z.coerce.number().min(0).optional().nullable(),
+  location: z.string().max(255).optional(),
+})
+
+/**
  * Schema for validating company details.
  *
- * Ensures the company name is present.
+ * Ensures the company name and email are present with proper format.
  */
 export const companySchema = z.object({
   name: z.string().trim().min(1, 'Company name is required.'),
+  email: z.string().email('Invalid email address.').trim(),
 })

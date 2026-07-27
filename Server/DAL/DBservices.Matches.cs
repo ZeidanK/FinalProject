@@ -92,39 +92,6 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public List<MatchSuggestionRow> GetMatchSuggestionsForInvoice(long invoiceId)
-        {
-            SqlConnection? con    = null;
-            SqlDataReader? reader = null;
-            var list = new List<MatchSuggestionRow>();
-            try
-            {
-                con = Connect();
-                var cmd = CreateCommandWithStoredProcedure(
-                    "FP26_sp_Matches_GetSuggestionsForInvoice", con,
-                    new Dictionary<string, object?> { { "@InvoiceId", invoiceId } });
-
-                reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    list.Add(new MatchSuggestionRow
-                    {
-                        Id               = Convert.ToInt64(reader["id"]),
-                        TransactionDate  = Convert.ToDateTime(reader["transaction_date"]),
-                        Description      = reader["description"]?.ToString()!,
-                        Amount           = Convert.ToDecimal(reader["amount"]),
-                        TransactionType  = reader["transaction_type"]?.ToString()!,
-                        ReferenceNumber  = reader["reference_number"] as string,
-                        AmountDifference = Convert.ToDecimal(reader["amount_difference"]),
-                        MatchScore       = Convert.ToDecimal(reader["match_score"]),
-                        DaysDifference   = Convert.ToInt32(reader["days_difference"])
-                    });
-                }
-                return list;
-            }
-            finally { reader?.Close(); con?.Close(); }
-        }
-
         public List<MatchRow> GetMatchesByInvoice(long invoiceId)
         {
             SqlConnection? con = null;
@@ -133,33 +100,10 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT
-                        m.id,
-                        m.invoice_id,
-                        m.transaction_id,
-                        m.match_type,
-                        m.matched_amount,
-                        m.match_method,
-                        m.match_confidence,
-                        m.match_reason,
-                        m.matched_by_user_id,
-                        m.installment_number,
-                        m.installment_note,
-                        m.created_at,
-                        m.updated_at,
-                        t.transaction_date,
-                        t.description AS transaction_description,
-                        t.amount AS transaction_amount,
-                        t.transaction_type
-                      FROM dbo.FP26_invoice_transaction_matches m
-                      INNER JOIN dbo.FP26_transactions t ON m.transaction_id = t.id
-                      WHERE m.invoice_id = @InvoiceId
-                      ORDER BY m.created_at ASC", con);
-                
-                cmd.Parameters.AddWithValue("@InvoiceId", invoiceId);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Matches_GetByInvoice", con,
+                    new Dictionary<string, object?> { { "@InvoiceId", invoiceId } });
                 reader = cmd.ExecuteReader();
-                
                 while (reader.Read())
                     list.Add(MapMatch(reader));
                 return list;
@@ -206,14 +150,9 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT id, transaction_date, posted_date, description, amount, charge_amount,
-                             transaction_type, reference_number, vendor_name
-                      FROM dbo.FP26_transactions
-                      WHERE company_id = @CompanyId AND is_matched = 0",
-                    con);
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Matches_GetCandidates", con,
+                    new Dictionary<string, object?> { { "@CompanyId", companyId } });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -227,7 +166,8 @@ namespace FinalProjectAuthAPI.DAL
                         ChargeAmount    = reader["charge_amount"] != DBNull.Value ? Convert.ToDecimal(reader["charge_amount"]) : null,
                         TransactionType = reader["transaction_type"]?.ToString() ?? string.Empty,
                         ReferenceNumber = reader["reference_number"] as string,
-                        VendorName      = reader["vendor_name"] as string
+                        VendorName      = reader["vendor_name"] as string,
+                        RequiresInvoice = reader["requires_invoice"] != DBNull.Value && Convert.ToBoolean(reader["requires_invoice"])
                     });
                 }
                 return list;
@@ -245,15 +185,9 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    @"SELECT id, company_id, vendor_name, transaction_pattern,
-                             confirmation_count, rejection_count, is_active, created_at
-                      FROM dbo.FP26_vendor_aliases
-                      WHERE company_id = @CompanyId AND is_active = 1
-                        AND confirmation_count >= 2",
-                    con);
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_VendorAliases_GetByCompany", con,
+                    new Dictionary<string, object?> { { "@CompanyId", companyId } });
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -280,35 +214,17 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                // Extract the meaningful part of the description (strip common prefixes)
                 var pattern = StripTransactionBoilerplate(transactionDescription);
                 if (string.IsNullOrWhiteSpace(pattern)) return;
 
-                var cmd = new SqlCommand(
-                    @"IF EXISTS (SELECT 1 FROM dbo.FP26_vendor_aliases
-                                 WHERE company_id = @CompanyId
-                                   AND vendor_name = @VendorName
-                                   AND transaction_pattern = @Pattern)
-                      BEGIN
-                          UPDATE dbo.FP26_vendor_aliases
-                          SET confirmation_count = confirmation_count + 1,
-                              is_active = 1
-                          WHERE company_id = @CompanyId
-                            AND vendor_name = @VendorName
-                            AND transaction_pattern = @Pattern;
-                      END
-                      ELSE
-                      BEGIN
-                          INSERT INTO dbo.FP26_vendor_aliases
-                              (company_id, vendor_name, transaction_pattern,
-                               confirmation_count, rejection_count, is_active, created_at)
-                          VALUES
-                              (@CompanyId, @VendorName, @Pattern, 1, 0, 1, GETDATE());
-                      END", con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@VendorName", vendorName);
-                cmd.Parameters.AddWithValue("@Pattern", pattern);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_VendorAliases_Upsert", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@VendorName", vendorName },
+                        { "@Pattern", pattern }
+                    });
                 cmd.ExecuteNonQuery();
             }
             finally { con?.Close(); }
@@ -323,17 +239,14 @@ namespace FinalProjectAuthAPI.DAL
                 var pattern = StripTransactionBoilerplate(transactionDescription);
                 if (string.IsNullOrWhiteSpace(pattern)) return;
 
-                var cmd = new SqlCommand(
-                    @"UPDATE dbo.FP26_vendor_aliases
-                      SET rejection_count = rejection_count + 1,
-                          is_active = CASE WHEN rejection_count + 1 >= 2 THEN 0 ELSE is_active END
-                      WHERE company_id = @CompanyId
-                        AND vendor_name = @VendorName
-                        AND transaction_pattern = @Pattern", con);
-
-                cmd.Parameters.AddWithValue("@CompanyId", companyId);
-                cmd.Parameters.AddWithValue("@VendorName", vendorName);
-                cmd.Parameters.AddWithValue("@Pattern", pattern);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_VendorAliases_Reject", con,
+                    new Dictionary<string, object?>
+                    {
+                        { "@CompanyId", companyId },
+                        { "@VendorName", vendorName },
+                        { "@Pattern", pattern }
+                    });
                 cmd.ExecuteNonQuery();
             }
             finally { con?.Close(); }

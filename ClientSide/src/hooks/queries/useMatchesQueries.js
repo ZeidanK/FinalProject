@@ -178,6 +178,7 @@ export function useAutoMatchOnLoadMutation({ companyId, token }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: matchKeys.byCompany(companyId) }),
         queryClient.invalidateQueries({ queryKey: matchKeys.simpleSuggestions(companyId) }),
+        queryClient.invalidateQueries({ queryKey: matchKeys.installmentSuggestions(companyId) }),
         queryClient.invalidateQueries({ queryKey: invoiceKeys.all }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
       ])

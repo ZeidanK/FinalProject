@@ -31,6 +31,7 @@ CREATE PROCEDURE dbo.FP26_sp_Invoices_Insert
     @PaymentPlanInstallmentAmount DECIMAL(15,2) = NULL,
     @PaymentPlanFrequency VARCHAR(50) = NULL,
     @PaymentPlanDescription VARCHAR(500) = NULL,
+    @PaymentPlanCurrentInstallment INT = NULL,
     @IsDuplicate BIT = 0
 AS
 BEGIN
@@ -46,6 +47,7 @@ BEGIN
          last_four_digits_card, item_count,
          payment_plan_total_installments, payment_plan_installment_amount,
          payment_plan_frequency, payment_plan_description,
+         payment_plan_current_installment,
          uploaded_by_user_id, is_duplicate,
          created_at, updated_at)
     VALUES
@@ -58,6 +60,7 @@ BEGIN
          @LastFourDigitsCard, @ItemCount,
          @PaymentPlanTotalInstallments, @PaymentPlanInstallmentAmount,
          @PaymentPlanFrequency, @PaymentPlanDescription,
+         @PaymentPlanCurrentInstallment,
          @UploadedByUserId, @IsDuplicate,
          GETDATE(), GETDATE());
 

@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json;
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinalProjectAuthAPI.Controllers
@@ -10,10 +12,12 @@ namespace FinalProjectAuthAPI.Controllers
     public class AuthController : ApiControllerBase
     {
         private readonly IAuthService _authSvc;
+        private readonly IActivityLogService _activityLog;
 
-        public AuthController(IAuthService authSvc)
+        public AuthController(IAuthService authSvc, IActivityLogService activityLog)
         {
             _authSvc = authSvc;
+            _activityLog = activityLog;
         }
 
         // POST api/auth/login
@@ -31,14 +35,23 @@ namespace FinalProjectAuthAPI.Controllers
                 user = new { id, name, email, role }
             };
 
+            _activityLog.LogAudit(new CreateAuditLogRequest
+            {
+                UserId = id,
+                Action = "auth.login",
+                EntityType = "User",
+                EntityId = id,
+                NewValue = JsonSerializer.Serialize(new { email, role }),
+                IpAddress = GetIpAddress()
+            });
+
             return SuccessWithLegacy(payload, payload, "Login successful.");
         }
 
         private static readonly HashSet<string> ValidRoles = new()
         {
             "business_owner",
-            "accountant",
-            "accountant_business_owner"
+            "accountant"
         };
 
         // POST api/auth/register
@@ -55,6 +68,16 @@ namespace FinalProjectAuthAPI.Controllers
                 if (!success)
                     return BadRequest(new { message = error });
 
+                _activityLog.LogAudit(new CreateAuditLogRequest
+                {
+                    UserId = userId,
+                    Action = "auth.register",
+                    EntityType = "User",
+                    EntityId = userId,
+                    NewValue = JsonSerializer.Serialize(new { request.Email, request.Role }),
+                    IpAddress = GetIpAddress()
+                });
+
                 var payload = new { userId };
                 return StatusCode(201, new
                 {
@@ -70,15 +93,38 @@ namespace FinalProjectAuthAPI.Controllers
                 // Unique constraint violation
                 return BadRequest(new { message = "A user with this email already exists." });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _activityLog.LogSystem(new CreateSystemLogRequest
+                {
+                    Level = "ERROR",
+                    Category = "security",
+                    Message = "Registration failed because of a server error",
+                    Details = JsonSerializer.Serialize(new
+                    {
+                        request.Email,
+                        request.Role,
+                        error = ex.Message
+                    }),
+                    IpAddress = GetIpAddress()
+                });
                 return StatusCode(500, new { message = "Registration failed due to a server error." });
             }
+        }
+
+        private string? GetIpAddress()
+        {
+            var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(forwardedFor))
+                return forwardedFor.Split(',')[0].Trim();
+
+            return HttpContext.Connection.RemoteIpAddress?.ToString();
         }
 
         // POST api/auth/validate
         // Reads the JWT from the Authorization header and returns the decoded claims.
         // Does NOT re-validate the signature – use the [Authorize] attribute for that.
+        [Authorize]
         [HttpPost("validate")]
         public IActionResult Validate([FromHeader(Name = "Authorization")] string? authHeader)
         {

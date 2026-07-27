@@ -21,56 +21,30 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import HourglassEmptyRoundedIcon from '@mui/icons-material/HourglassEmptyRounded'
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded'
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
 import LinkOffRoundedIcon from '@mui/icons-material/LinkOffRounded'
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded'
 import { itemVariants } from '../utils/motionVariants'
+import { cardBaseSx } from '../utils/sharedStyles'
+import { fmtAmount, fmtDate, fmtMonth } from '../utils/formatters'
+import { getInstallmentSuggestionAmount } from '../utils/matchAmounts'
 
-/**
- * Base styling for installment match group cards.
- *
- * @type {import('@mui/material').SxProps}
- */
-const cardBaseSx = {
-  borderRadius: 3,
-  border: '1px solid',
-  borderColor: 'divider',
-  background: 'linear-gradient(160deg, rgba(14,24,42,0.96), rgba(10,18,34,0.96))',
+const readFields = (source, keys) => {
+  if (!source) return null
+  for (const key of keys) {
+    const value = source[key]
+    if (value !== undefined && value !== null && value !== '') return value
+  }
+  return null
 }
 
-/**
- * Format a numeric value as a localized decimal amount.
- *
- * @param {number|string} v - Raw amount value.
- * @returns {string} Formatted amount with two decimal places.
- */
-const fmtAmount = (v) =>
-  (Number(v) || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+const readField = (source, snakeKey, camelKey) =>
+  readFields(source, [snakeKey, camelKey])
 
-/**
- * Format a date string or timestamp to the current locale's short date.
- *
- * @param {string|number|Date|null|undefined} d - Date input.
- * @returns {string} Localized date or placeholder when missing.
- */
-const fmtDate = (d) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString()
-}
-
-/**
- * Format a date string or timestamp to month and year.
- *
- * @param {string|number|Date|null|undefined} d - Date input.
- * @returns {string|null} Localized month-year string or null when invalid.
- */
-const fmtMonth = (d) => {
-  if (!d) return null
-  const date = new Date(d)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+const readArrayField = (source, snakeKey, camelKey) => {
+  const value = readField(source, snakeKey, camelKey)
+  return Array.isArray(value) ? value : []
 }
 
 // ── Single installment group card ─────────────────────────────────────────
@@ -89,17 +63,32 @@ const fmtMonth = (d) => {
  */
 function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatch, matchBusy }) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  const invoiceId = readField(group, 'invoice_id', 'invoiceId')
+  const invoiceNumber = readField(group, 'invoice_number', 'invoiceNumber')
+  const vendorName = readField(group, 'vendor_name', 'vendorName')
+  const invoiceDate = readField(group, 'invoice_date', 'invoiceDate')
+  const suggestedTransactions = readArrayField(group, 'suggested_transactions', 'suggestedTransactions')
+  const existingMatches = readArrayField(group, 'existing_matches', 'existingMatches')
+  const total = Number(readField(group, 'total_amount', 'totalAmount')) || 0
+  const matched = Number(readField(group, 'already_matched_amount', 'alreadyMatchedAmount')) || 0
+  const expected = readField(group, 'expected_installments', 'expectedInstallments')
+  const alreadyCount = Number(readField(group, 'already_matched_count', 'alreadyMatchedCount')) || 0
+  const normalizedGroup = {
+    ...group,
+    invoiceId,
+    totalAmount: total,
+    alreadyMatchedAmount: matched,
+    expectedInstallments: expected,
+    alreadyMatchedCount: alreadyCount,
+  }
 
-  const visibleSuggestions = group.suggestedTransactions.filter(
-    (t) => !deniedTxnIds.has(`${group.invoiceId}-${t.transactionId}`),
+  const visibleSuggestions = suggestedTransactions.filter(
+    (t) => !deniedTxnIds.has(`${invoiceId}-${readField(t, 'transaction_id', 'transactionId')}`),
   )
 
-  const total = Number(group.totalAmount) || 0
-  const matched = Number(group.alreadyMatchedAmount) || 0
   const progressPct = total > 0 ? Math.min((matched / total) * 100, 100) : 0
+  const isFullyMatched = total > 0 && matched >= total - 0.01
 
-  const expected = group.expectedInstallments
-  const alreadyCount = group.alreadyMatchedCount || 0
   const pendingCount = visibleSuggestions.length
 
   const plural = alreadyCount === 1 ? '' : 's'
@@ -116,10 +105,10 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
       exit={{ opacity: 0, scale: 0.95 }}
     >
       <Stack
-        spacing={1.5}
+        spacing={1.1}
         sx={{
-          p: 2,
-          borderRadius: 2,
+          p: 1.35,
+          borderRadius: 1.5,
           border: '1px solid',
           borderColor: 'rgba(251,191,36,0.25)',
           bgcolor: 'rgba(251,191,36,0.04)',
@@ -129,13 +118,13 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
           <Box>
             <Typography variant="body2" fontWeight={700}>
-              {group.invoiceNumber || `#${group.invoiceId}`}
-              {group.vendorName ? ` · ${group.vendorName}` : ''}
+              {invoiceNumber || `#${invoiceId}`}
+              {vendorName ? ` · ${vendorName}` : ''}
             </Typography>
             <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25 }}>
               <CalendarMonthRoundedIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                Invoice date: {fmtDate(group.invoiceDate)}
+                Invoice date: {fmtDate(invoiceDate)}
               </Typography>
             </Stack>
           </Box>
@@ -189,7 +178,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
               <Typography variant="caption" color="text.secondary">
                 {alreadyCount} confirmed installment{alreadyCount === 1 ? '' : 's'}
               </Typography>
-              <IconButton size="small" sx={{ p: 0 }}>
+              <IconButton size="small" aria-label="Toggle installment history" sx={{ p: 0 }}>
                 <ExpandMoreRoundedIcon
                   fontSize="small"
                   sx={{
@@ -202,8 +191,8 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
             </Stack>
             <Collapse in={historyOpen}>
               <Stack spacing={0.75} sx={{ mt: 0.75 }}>
-                {group.existingMatches.map((m) => {
-                  const matchId = m.id ?? m.Id
+                {existingMatches.map((m) => {
+                  const matchId = readFields(m, ['id', 'Id', 'match_id', 'matchId'])
                   const desc =
                     m.transaction_description ?? m.transactionDescription ?? `TXN #${m.transaction_id ?? m.transactionId}`
                   const amt = Number(m.matched_amount ?? m.matchedAmount) || 0
@@ -216,8 +205,8 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
                       alignItems="center"
                       sx={{
                         px: 1.5,
-                        py: 0.75,
-                        borderRadius: 1.5,
+                        py: 0.55,
+                        borderRadius: 1,
                         bgcolor: 'rgba(55,214,122,0.05)',
                         border: '1px solid rgba(55,214,122,0.15)',
                       }}
@@ -243,6 +232,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
                           <span>
                             <IconButton
                               size="small"
+                              aria-label="Remove match"
                               onClick={() => onRemoveMatch(matchId)}
                               disabled={matchBusy || !matchId}
                               sx={{ color: 'error.main' }}
@@ -265,18 +255,20 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
 
         {/* Pending installment transactions to confirm */}
         {pendingCount > 0 && (
-          <Stack spacing={1}>
+          <Stack spacing={0.75}>
             <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Pending installments ({pendingCount})
             </Typography>
             <AnimatePresence>
               {visibleSuggestions.map((txn) => {
-                const month = fmtMonth(txn.postedDate ?? txn.posted_date)
-                const desc = txn.description || `TXN #${txn.transactionId}`
-                const vendor = txn.vendorName ?? txn.vendor_name
+                const transactionId = readField(txn, 'transaction_id', 'transactionId')
+                const postedDate = readField(txn, 'posted_date', 'postedDate')
+                const month = fmtMonth(postedDate)
+                const desc = txn.description || `TXN #${transactionId}`
+                const vendor = readField(txn, 'vendor_name', 'vendorName')
                 return (
                   <Box
-                    key={txn.transactionId}
+                    key={transactionId}
                     component={motion.div}
                     layout
                     initial={{ opacity: 0, x: -6 }}
@@ -287,11 +279,11 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
                       direction={{ xs: 'column', sm: 'row' }}
                       alignItems={{ sm: 'center' }}
                       justifyContent="space-between"
-                      spacing={1}
+                      spacing={0.85}
                       sx={{
-                        px: 1.5,
-                        py: 1,
-                        borderRadius: 2,
+                        px: 1.2,
+                        py: 0.75,
+                        borderRadius: 1.25,
                         bgcolor: 'rgba(255,255,255,0.03)',
                         border: '1px solid rgba(251,191,36,0.12)',
                       }}
@@ -317,20 +309,20 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
                             />
                           )}
                           <Typography variant="caption" color="text.secondary">
-                            Charge date: {fmtDate(txn.postedDate ?? txn.posted_date)}
+                            Charge date: {fmtDate(postedDate)}
                           </Typography>
                         </Stack>
                       </Box>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
                         <Typography variant="body2" fontWeight={700} sx={{ color: '#fbbf24' }}>
-                          {fmtAmount(txn.chargeAmount ?? txn.charge_amount ?? txn.amount)}
+                          {fmtAmount(getInstallmentSuggestionAmount(txn))}
                         </Typography>
                         <Tooltip title="Skip this installment for now">
                           <Button
                             size="small"
                             variant="outlined"
                             color="warning"
-                            onClick={() => onDeny(group.invoiceId, txn.transactionId)}
+                            onClick={() => onDeny(invoiceId, transactionId)}
                             disabled={matchBusy}
                             sx={{ minWidth: 56 }}
                           >
@@ -341,7 +333,7 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
                           size="small"
                           variant="contained"
                           startIcon={<CheckCircleRoundedIcon fontSize="small" />}
-                          onClick={() => onConfirm(group, txn)}
+                          onClick={() => onConfirm(normalizedGroup, { ...txn, transactionId })}
                           disabled={matchBusy}
                           sx={{
                             bgcolor: '#fbbf24',
@@ -364,9 +356,15 @@ function InstallmentGroup({ group, deniedTxnIds, onDeny, onConfirm, onRemoveMatc
         {/* Waiting state: no pending transactions right now */}
         {pendingCount === 0 && (
           <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 0.5 }}>
-            <HourglassEmptyRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+            {isFullyMatched ? (
+              <CheckCircleRoundedIcon sx={{ fontSize: 16, color: 'success.main' }} />
+            ) : (
+              <HourglassEmptyRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+            )}
             <Typography variant="caption" color="text.secondary">
-              {alreadyCount > 0
+              {isFullyMatched
+                ? 'Installment invoice fully matched.'
+                : alreadyCount > 0
                 ? 'Waiting for next installment to appear in your transactions.'
                 : 'No installment transaction found yet. Waiting for first payment to appear in your transactions.'}
             </Typography>
@@ -401,10 +399,33 @@ InstallmentGroup.propTypes = {
  * @returns {JSX.Element}
  */
 export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, onConfirm, onRemoveMatch, matchBusy }) {
+  const [open, setOpen] = useState(true)
+  const [fullyMatchedOpen, setFullyMatchedOpen] = useState(false)
   const rawGroups = Array.isArray(query.data) ? query.data : []
 
-  // Backend now decides which installment invoices should be tracked in this section.
+  const isFullyMatchedGroup = (group) => {
+    const total = Number(readField(group, 'total_amount', 'totalAmount')) || 0
+    const matched = Number(readField(group, 'already_matched_amount', 'alreadyMatchedAmount')) || 0
+    const remainingRaw = readField(group, 'remaining_amount', 'remainingAmount')
+    const remaining = remainingRaw == null ? NaN : Number(remainingRaw)
+    return total > 0 && (matched >= total - 0.01 || (matched > 0 && Number.isFinite(remaining) && remaining <= 0.01))
+  }
+
+  const hasVisiblePending = (group) => {
+    const invoiceId = readField(group, 'invoice_id', 'invoiceId')
+    return readArrayField(group, 'suggested_transactions', 'suggestedTransactions')
+      .some((t) => !deniedTxnIds.has(`${invoiceId}-${readField(t, 'transaction_id', 'transactionId')}`))
+  }
+
   const groups = rawGroups
+    .map((group, index) => ({ group, index, hasPending: hasVisiblePending(group) }))
+    .sort((a, b) => {
+      if (a.hasPending !== b.hasPending) return a.hasPending ? -1 : 1
+      return a.index - b.index
+    })
+    .map(({ group }) => group)
+  const activeGroups = groups.filter((group) => !isFullyMatchedGroup(group))
+  const fullyMatchedGroups = groups.filter(isFullyMatchedGroup)
 
   return (
     <Card
@@ -414,11 +435,26 @@ export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, on
       sx={{
         ...cardBaseSx,
         borderColor: 'rgba(251,191,36,0.35)',
-        background: 'linear-gradient(135deg, rgba(26,20,10,0.96), rgba(18,14,6,0.96))',
       }}
     >
-      <CardContent>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+      <CardContent sx={{ pb: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: open ? 2 : 0 }}>
+          <IconButton
+            size="small"
+            onClick={() => setOpen((value) => !value)}
+            aria-label={open ? 'Collapse Installment Plan Suggestions' : 'Expand Installment Plan Suggestions'}
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'rgba(255,255,255,0.02)',
+            }}
+          >
+            {open ? (
+              <KeyboardArrowUpRoundedIcon fontSize="small" />
+            ) : (
+              <KeyboardArrowDownRoundedIcon fontSize="small" />
+            )}
+          </IconButton>
           <PaymentsRoundedIcon sx={{ color: '#fbbf24' }} />
           <Typography variant="subtitle1" fontWeight={700}>
             Installment Plan Suggestions
@@ -433,40 +469,94 @@ export default function InstallmentMatchGroups({ query, deniedTxnIds, onDeny, on
           </Typography>
         </Stack>
 
-        {query.isLoading && (
-          <Stack spacing={1.5}>
-            {['is-1', 'is-2'].map((k) => (
-              <Skeleton key={k} variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
-            ))}
-          </Stack>
-        )}
-
-        {!query.isLoading && groups.length === 0 && (
-          <Stack alignItems="center" sx={{ py: 3 }}>
-            <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-            <Typography variant="body2" color="text.secondary">
-              No installment suggestions at this time.
-            </Typography>
-          </Stack>
-        )}
-
-        {!query.isLoading && groups.length > 0 && (
-          <Stack spacing={2}>
-            <AnimatePresence>
-              {groups.map((g) => (
-                <InstallmentGroup
-                  key={g.invoiceId}
-                  group={g}
-                  deniedTxnIds={deniedTxnIds}
-                  onDeny={onDeny}
-                  onConfirm={onConfirm}
-                  onRemoveMatch={onRemoveMatch}
-                  matchBusy={matchBusy}
-                />
+        <Collapse in={open} timeout="auto" unmountOnExit>
+          {query.isLoading && (
+            <Stack spacing={1.5}>
+              {['is-1', 'is-2'].map((k) => (
+                <Skeleton key={k} variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
               ))}
-            </AnimatePresence>
-          </Stack>
-        )}
+            </Stack>
+          )}
+
+          {!query.isLoading && groups.length === 0 && (
+            <Stack alignItems="center" sx={{ py: 3 }}>
+              <InboxRoundedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                No installment suggestions at this time.
+              </Typography>
+            </Stack>
+          )}
+
+          {!query.isLoading && activeGroups.length > 0 && (
+            <Stack spacing={1.25}>
+              <AnimatePresence>
+                {activeGroups.map((g) => (
+                  <InstallmentGroup
+                    key={readField(g, 'invoice_id', 'invoiceId')}
+                    group={g}
+                    deniedTxnIds={deniedTxnIds}
+                    onDeny={onDeny}
+                    onConfirm={onConfirm}
+                    onRemoveMatch={onRemoveMatch}
+                    matchBusy={matchBusy}
+                  />
+                ))}
+              </AnimatePresence>
+            </Stack>
+          )}
+
+          {!query.isLoading && fullyMatchedGroups.length > 0 && (
+            <Box sx={{ mt: activeGroups.length > 0 ? 2 : 0 }}>
+              {activeGroups.length > 0 && <Divider sx={{ borderColor: 'rgba(55,214,122,0.15)', mb: 1.25 }} />}
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <IconButton
+                  size="small"
+                  onClick={() => setFullyMatchedOpen((value) => !value)}
+                  aria-label={
+                    fullyMatchedOpen
+                      ? 'Collapse fully matched installment invoices'
+                      : 'Expand fully matched installment invoices'
+                  }
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'rgba(255,255,255,0.02)',
+                  }}
+                >
+                  {fullyMatchedOpen ? (
+                    <KeyboardArrowUpRoundedIcon fontSize="small" />
+                  ) : (
+                    <KeyboardArrowDownRoundedIcon fontSize="small" />
+                  )}
+                </IconButton>
+                <CheckCircleRoundedIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  Fully matched installment invoices
+                </Typography>
+                <Chip
+                  label={fullyMatchedGroups.length}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(55,214,122,0.12)', color: 'success.main' }}
+                />
+              </Stack>
+              <Collapse in={fullyMatchedOpen} timeout="auto" unmountOnExit>
+                <Stack spacing={1.25} sx={{ mt: 1 }}>
+                  {fullyMatchedGroups.map((g) => (
+                    <InstallmentGroup
+                      key={readField(g, 'invoice_id', 'invoiceId')}
+                      group={g}
+                      deniedTxnIds={deniedTxnIds}
+                      onDeny={onDeny}
+                      onConfirm={onConfirm}
+                      onRemoveMatch={onRemoveMatch}
+                      matchBusy={matchBusy}
+                    />
+                  ))}
+                </Stack>
+              </Collapse>
+            </Box>
+          )}
+        </Collapse>
       </CardContent>
     </Card>
   )

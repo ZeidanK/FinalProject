@@ -26,7 +26,6 @@ CREATE TABLE dbo.FP26_companies
     country             VARCHAR(100)    NOT NULL DEFAULT 'USA',
     email               VARCHAR(255)        NULL,
     phone               VARCHAR(50)         NULL,
-    website             VARCHAR(500)        NULL,
     tax_id              VARCHAR(100)        NULL,
     vat_number          VARCHAR(100)        NULL,
     fiscal_year_start   DATE                NULL,

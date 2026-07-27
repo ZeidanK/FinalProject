@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUserById, updateUser, changePassword, uploadProfilePicture } from '../../services/users'
+import { getUserById, updateUser, changePassword, uploadProfilePicture, deleteUserAccount } from '../../services/users'
 import { getCompaniesByUser, createCompany, updateCompany, deleteCompany } from '../../services/companies'
 import { profileKeys } from '../../queries/queryKeys'
 
@@ -46,6 +46,26 @@ export function useUserCompaniesQuery({ userId, token, enabled = true }) {
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result for updating the user profile.
  */
 export function useUpdateProfileMutation({ userId, token }) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload) => updateUser(userId, payload, token),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: profileKeys.user(userId) })
+    },
+  })
+}
+
+/**
+ * Updates accountant-specific profile fields (bio, experience, rate, etc.)
+ * and invalidates the cached profile query.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string|number} params.userId - User identifier.
+ * @param {string} params.token - Authentication token.
+ * @returns {import('@tanstack/react-query').UseMutationResult}
+ */
+export function useAccountantProfileMutation({ userId, token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -143,5 +163,11 @@ export function useDeleteCompanyMutation({ userId, token }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: profileKeys.companies(userId) })
     },
+  })
+}
+
+export function useDeleteAccountMutation({ token }) {
+  return useMutation({
+    mutationFn: (userId) => deleteUserAccount(userId, token),
   })
 }

@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     {
         // ── Bank Accounts ─────────────────────────────────────────────────────
 
-        public List<BankAccountRow> GetBankAccountsByCompany(long companyId)
+        public virtual List<BankAccountRow> GetBankAccountsByCompany(long companyId)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -28,7 +28,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public BankAccountRow? GetBankAccountById(long id)
+        public virtual BankAccountRow? GetBankAccountById(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -45,7 +45,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public long CreateBankAccount(
+        public virtual long CreateBankAccount(
             long companyId, string bankName, string accountType,
             long? createdByUserId, string? accountName,
             string? accountNumberMasked, string currency, decimal balance)
@@ -74,7 +74,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool UpdateBankAccount(
+        public virtual bool UpdateBankAccount(
             long id, string? bankName, string? accountName,
             string? accountNumberMasked, string? accountType,
             string? currency, bool? isActive, decimal? balance,
@@ -104,7 +104,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { con?.Close(); }
         }
 
-        public bool SoftDeleteBankAccount(long id)
+        public virtual bool SoftDeleteBankAccount(long id)
         {
             SqlConnection? con = null;
             try

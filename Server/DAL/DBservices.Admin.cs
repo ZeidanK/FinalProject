@@ -11,7 +11,7 @@ namespace FinalProjectAuthAPI.DAL
         private const string COL_USER_NAME = "user_name";
         private const string COL_COMPANY_ID = "company_id";
 
-        public AdminStatsRow GetAdminStats()
+        public virtual AdminStatsRow GetAdminStats()
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -29,6 +29,7 @@ namespace FinalProjectAuthAPI.DAL
                 {
                     TotalUsers        = Convert.ToInt32(reader["total_users"]),
                     ActiveUsers       = Convert.ToInt32(reader["active_users"]),
+                    BannedUsers       = Convert.ToInt32(reader["banned_users"]),
                     TotalCompanies    = Convert.ToInt32(reader["total_companies"]),
                     ActiveCompanies   = Convert.ToInt32(reader["active_companies"]),
                     TotalInvoices     = Convert.ToInt32(reader["total_invoices"]),
@@ -40,7 +41,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PagedResult<AdminUserRow> GetAdminUsers(
+        public virtual PagedResult<AdminUserRow> GetAdminUsers(
             int page, int limit, string? role, string? search)
         {
             SqlConnection? con    = null;
@@ -76,6 +77,7 @@ namespace FinalProjectAuthAPI.DAL
                             Role          = reader["role"]?.ToString()!,
                             Phone         = reader["phone"] as string,
                             IsActive      = reader["is_active"]      != DBNull.Value && Convert.ToBoolean(reader["is_active"]),
+                            IsBanned      = reader["is_banned"]      != DBNull.Value && Convert.ToBoolean(reader["is_banned"]),
                             EmailVerified = reader["email_verified"]  != DBNull.Value && Convert.ToBoolean(reader["email_verified"]),
                             LastLoginAt   = reader["last_login_at"]  != DBNull.Value ? Convert.ToDateTime(reader["last_login_at"]) : null,
                             CreatedAt     = Convert.ToDateTime(reader["created_at"]),
@@ -86,7 +88,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public (long Id, bool IsActive) ToggleUserActive(long id)
+        public virtual (long Id, bool IsBanned) ToggleUserBan(long id)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -94,19 +96,19 @@ namespace FinalProjectAuthAPI.DAL
             {
                 con = Connect();
                 var cmd = CreateCommandWithStoredProcedure(
-                    "FP26_sp_Admin_ToggleUserActive", con,
+                    "FP26_sp_Admin_ToggleUserBan", con,
                     new Dictionary<string, object?> { { "@Id", id } });
 
                 reader = cmd.ExecuteReader();
                 if (reader.Read())
                     return (Convert.ToInt64(reader["id"]),
-                            Convert.ToBoolean(reader["is_active"]));
+                            Convert.ToBoolean(reader["is_banned"]));
                 return (id, false);
             }
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PagedResult<SystemLogRow> GetSystemLogs(
+        public virtual PagedResult<SystemLogRow> GetSystemLogs(
             int page, int limit, string? level, string? category)
         {
             SqlConnection? con    = null;
@@ -141,6 +143,7 @@ namespace FinalProjectAuthAPI.DAL
                             Details   = reader["details"]   as string,
                             UserId    = reader[COL_USER_ID]   != DBNull.Value ? Convert.ToInt64(reader[COL_USER_ID]) : null,
                             IpAddress = reader["ip_address"] as string,
+                            UserAgent = reader["user_agent"] as string,
                             CreatedAt = Convert.ToDateTime(reader["created_at"]),
                         });
 
@@ -149,7 +152,7 @@ namespace FinalProjectAuthAPI.DAL
             finally { reader?.Close(); con?.Close(); }
         }
 
-        public PagedResult<AuditLogRow> GetAuditLogs(
+        public virtual PagedResult<AuditLogRow> GetAuditLogs(
             int page, int limit, long? companyId)
         {
             SqlConnection? con    = null;
@@ -193,5 +196,6 @@ namespace FinalProjectAuthAPI.DAL
             }
             finally { reader?.Close(); con?.Close(); }
         }
+
     }
 }

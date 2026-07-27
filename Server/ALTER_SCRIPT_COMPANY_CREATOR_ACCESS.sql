@@ -18,7 +18,6 @@ CREATE PROCEDURE dbo.FP26_sp_Companies_Insert
     @Country            VARCHAR(100)  = 'USA',
     @Email              VARCHAR(255)  = NULL,
     @Phone              VARCHAR(50)   = NULL,
-    @Website            VARCHAR(500)  = NULL,
     @TaxId              VARCHAR(100)  = NULL,
     @VatNumber          VARCHAR(100)  = NULL,
     @FiscalYearStart    DATE          = NULL,
@@ -33,12 +32,12 @@ BEGIN
 
     INSERT INTO dbo.FP26_companies
         (name, registration_number, street, city, state, postal_code,
-         country, email, phone, website, tax_id, vat_number,
+         country, email, phone, tax_id, vat_number,
          fiscal_year_start, currency, is_active, created_by_user_id,
          created_at, updated_at)
     VALUES
         (@Name, @RegistrationNumber, @Street, @City, @State, @PostalCode,
-         @Country, @Email, @Phone, @Website, @TaxId, @VatNumber,
+         @Country, @Email, @Phone, @TaxId, @VatNumber,
          @FiscalYearStart, @Currency, 1, @CreatedByUserId,
          GETDATE(), GETDATE());
 

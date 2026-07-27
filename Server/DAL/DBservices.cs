@@ -8,7 +8,7 @@ namespace FinalProjectAuthAPI.DAL
     /// Data Access Layer – mirrors the NewsSitePro DBservices pattern.
     /// Reads the connection string from appsettings.json and calls stored procedures.
     /// </summary>
-    public partial class DBservices
+    public partial class DBservices : IDBservices
     {
         private readonly string connectionString;
 
@@ -47,7 +47,7 @@ namespace FinalProjectAuthAPI.DAL
         // ── User queries ─────────────────────────────────────────────────────
 
         /// <summary>Fetch a single user by email. Returns null if not found.</summary>
-        public User? GetUserByEmail(string email)
+        public virtual User? GetUserByEmail(string email)
         {
             SqlConnection? con    = null;
             SqlDataReader? reader = null;
@@ -68,7 +68,8 @@ namespace FinalProjectAuthAPI.DAL
                         PasswordHash = reader["password_hash"]?.ToString()!,
                         Name         = reader["name"]?.ToString()!,
                         Role         = reader["role"]?.ToString() ?? "business_owner",
-                        IsActive     = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"])
+                        IsActive     = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"]),
+                        IsBanned     = reader["is_banned"] != DBNull.Value && Convert.ToBoolean(reader["is_banned"])
                     };
                 }
                 return null;
@@ -84,7 +85,7 @@ namespace FinalProjectAuthAPI.DAL
         /// Insert a new user. Sets user.Id to the new identity value.
         /// Returns true when a row was created.
         /// </summary>
-        public bool CreateUser(User user)
+        public virtual bool CreateUser(User user)
         {
             SqlConnection? con = null;
             try
@@ -117,10 +118,9 @@ namespace FinalProjectAuthAPI.DAL
             try
             {
                 con = Connect();
-                var cmd = new SqlCommand(
-                    "UPDATE dbo.FP26_users SET last_login_at = GETDATE(), updated_at = GETDATE() WHERE id = @Id",
-                    con);
-                cmd.Parameters.AddWithValue("@Id", userId);
+                var cmd = CreateCommandWithStoredProcedure(
+                    "FP26_sp_Users_UpdateLastLogin", con,
+                    new Dictionary<string, object?> { { "@Id", userId } });
                 cmd.ExecuteNonQuery();
             }
             catch (Exception ex)

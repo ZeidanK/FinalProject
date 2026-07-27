@@ -6,10 +6,10 @@ namespace FinalProjectAuthAPI.BL
 {
     public class AuthService : IAuthService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IConfiguration _config;
 
-        public AuthService(DBservices db, IConfiguration config)
+        public AuthService(IDBservices db, IConfiguration config)
         {
             _db = db;
             _config = config;
@@ -19,16 +19,30 @@ namespace FinalProjectAuthAPI.BL
             string email, string password)
         {
             var user = _db.GetUserByEmail(email);
-            if (user == null || !user.IsActive)
+            if (user == null)
                 return (null, 0, string.Empty, string.Empty, string.Empty);
 
+            // Important: never reactivate before verifying password.
             if (user.PasswordHash != User.HashPassword(password))
                 return (null, 0, string.Empty, string.Empty, string.Empty);
+
+            // Banned users cannot log in regardless of active status
+            if (user.IsBanned)
+                return (null, 0, string.Empty, string.Empty, string.Empty);
+
+            // Reactivate self-deleted (inactive) accounts on login
+            if (!user.IsActive)
+            {
+                _db.ReactivateUserAccount(user.Id);
+                // Re-read to ensure token claims reflect latest data (optional but safe).
+                user = _db.GetUserById(user.Id) ?? user;
+            }
 
             _db.UpdateLastLogin(user.Id);
             var token = user.GenerateJwtToken(_config);
             return (token, user.Id, user.Name, user.Email, user.Role);
         }
+
 
         public (bool Success, long Id, string Error) Register(
             string name, string email, string password, string role = "business_owner")

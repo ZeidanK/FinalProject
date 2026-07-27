@@ -1,28 +1,15 @@
-import { Chip, Divider, Grid, Stack, Typography, Button } from '@mui/material'
+import { Chip, Divider, Grid, Stack, Typography, Button, Paper, Box, Skeleton } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import PropTypes from 'prop-types'
 import ModalShell from './ModalShell'
 
-/**
- * Format a value as a localized date/time string.
- *
- * @param {string|number|Date|null|undefined} value - The raw date input.
- * @returns {string} A localized date/time string or placeholder when invalid.
- */
 function formatDate(value) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString()
+  return date.toLocaleDateString('en-GB')
 }
 
-/**
- * Format a numeric value with a localized thousand separator and fixed decimals.
- *
- * @param {string|number|null|undefined} value - The raw numeric input.
- * @param {number} [digits=2] - The number of decimal places to display.
- * @returns {string} A formatted number string or placeholder when invalid.
- */
 function formatNumber(value, digits = 2) {
   const number = Number(value)
   if (Number.isNaN(number)) return '—'
@@ -32,12 +19,26 @@ function formatNumber(value, digits = 2) {
   })
 }
 
-/**
- * Choose a color theme for the status chip based on the transaction status.
- *
- * @param {string|null|undefined} status - The transaction status value.
- * @returns {'success'|'warning'|'error'|'default'} The MUI chip color.
- */
+function getCurrencySymbol(code) {
+  if (!code) return '$'
+  const map = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', CAD: 'CA$', AUD: 'A$', CHF: 'Fr', CNY: '¥' }
+  return map[code.toUpperCase()] || code
+}
+
+function formatCurrency(amount, currencyCode) {
+  const formatted = formatNumber(amount)
+  if (formatted === '—') return '—'
+  return `${getCurrencySymbol(currencyCode)}${formatted}`
+}
+
+function formatConfidence(value) {
+  if (value == null) return '—'
+  const num = Number(value)
+  if (Number.isNaN(num)) return '—'
+  if (num >= 0 && num <= 1) return `${(num * 100).toFixed(2)}%`
+  return `${num.toFixed(2)}%`
+}
+
 function chipColorForStatus(status) {
   const normalized = String(status || '').toLowerCase()
   if (normalized === 'confirmed' || normalized === 'matched') return 'success'
@@ -46,12 +47,6 @@ function chipColorForStatus(status) {
   return 'default'
 }
 
-/**
- * Normalize raw transaction payloads to a consistent display model.
- *
- * @param {object|null|undefined} tx - The incoming transaction object.
- * @returns {object|null} A normalized transaction object or null.
- */
 function normalizeTransaction(tx) {
   if (!tx) return null
 
@@ -83,58 +78,169 @@ function normalizeTransaction(tx) {
   }
 }
 
-/**
- * Render a single labeled detail row in the transaction details grid.
- *
- * @param {object} props
- * @param {React.ReactNode} props.label - The label shown above the detail value.
- * @param {React.ReactNode} props.value - The detail value content.
- * @returns {JSX.Element} A styled detail row block.
- */
-function DetailRow({ label, value }) {
+function InfoCard({ label, value }) {
   return (
-    <Stack spacing={0.5} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid', borderColor: 'divider', minHeight: 86 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 0.2, textTransform: 'uppercase' }}>
-        {label}
-      </Typography>
-      <Typography variant="body2" fontWeight={600} sx={{ wordBreak: 'break-word' }}>
-        {value}
-      </Typography>
-    </Stack>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 1.5,
+        borderRadius: 2,
+        bgcolor: 'rgba(255,255,255,0.02)',
+        borderColor: 'divider',
+        height: '100%',
+      }}
+    >
+      <Stack spacing={0.5}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ letterSpacing: 0.3, textTransform: 'uppercase', fontSize: '0.7rem' }}
+        >
+          {label}
+        </Typography>
+        <Typography variant="body2" fontWeight={600} sx={{ wordBreak: 'break-word' }}>
+          {value ?? '—'}
+        </Typography>
+      </Stack>
+    </Paper>
   )
 }
 
-DetailRow.propTypes = {
+InfoCard.propTypes = {
   label: PropTypes.node.isRequired,
   value: PropTypes.node,
 }
 
-/**
- * Render loading or error state information above transaction details.
- *
- * @param {object} props
- * @param {boolean} props.loading - Whether the detail payload is currently loading.
- * @param {string} [props.error] - Error message to display, if any.
- * @param {object|null} [props.data] - Existing transaction data to fallback on.
- * @returns {JSX.Element|null} Status feedback content.
- */
+function TransactionHero({ data }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        borderRadius: 3,
+        background: 'linear-gradient(135deg, rgba(129, 191, 255, 0.08) 0%, rgba(129, 191, 255, 0.02) 100%)',
+        borderColor: 'rgba(129, 191, 255, 0.15)',
+      }}
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" flexWrap="wrap" gap={1}>
+          <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.1 }}>
+            {formatCurrency(data.amount, data.chargeCurrency)}
+          </Typography>
+          <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+            <Chip
+              label={data.transactionType}
+              color={data.transactionType === 'credit' ? 'success' : 'error'}
+              size="small"
+            />
+            <Chip
+              label={data.isMatched ? 'Matched' : 'Unmatched'}
+              color={data.isMatched ? 'success' : 'default'}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={data.isAnomaly ? 'Anomaly' : 'Normal'}
+              color={data.isAnomaly ? 'error' : 'default'}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={data.isDuplicate ? 'Duplicate' : 'Unique'}
+              color={data.isDuplicate ? 'warning' : 'default'}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={data.status || 'confirmed'}
+              color={chipColorForStatus(data.status)}
+              size="small"
+            />
+          </Stack>
+        </Stack>
+        <Box>
+          <Typography variant="h6" fontWeight={500} sx={{ mb: 0.5 }}>
+            {data.description || '—'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {[data.vendorName, data.cardLast4 && `****${data.cardLast4}`].filter(Boolean).join('  •  ') || '—'}
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  )
+}
+
+TransactionHero.propTypes = {
+  data: PropTypes.object.isRequired,
+}
+
+function SectionDivider({ label }) {
+  return (
+    <Divider sx={{ '&::before, &::after': { borderColor: 'rgba(129, 191, 255, 0.08)' } }}>
+      <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 0.5, textTransform: 'uppercase' }}>
+        {label}
+      </Typography>
+    </Divider>
+  )
+}
+
+SectionDivider.propTypes = {
+  label: PropTypes.string.isRequired,
+}
+
+function TransactionSkeleton() {
+  return (
+    <Stack spacing={3} sx={{ mt: 2 }}>
+      <Paper
+        variant="outlined"
+        sx={{ p: 2.5, borderRadius: 3, borderColor: 'divider' }}
+      >
+        <Stack spacing={1.5}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Skeleton variant="rounded" width={160} height={40} />
+            <Stack direction="row" spacing={0.5}>
+              <Skeleton variant="rounded" width={55} height={24} />
+              <Skeleton variant="rounded" width={70} height={24} />
+            </Stack>
+          </Stack>
+          <Skeleton variant="rounded" width="65%" height={28} />
+          <Skeleton variant="rounded" width="40%" height={20} />
+        </Stack>
+      </Paper>
+      {[0, 1, 2].map((section) => (
+        <Grid container spacing={2} key={section}>
+          {[0, 1, 2].map((item) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item}>
+              <Skeleton variant="rounded" height={64} />
+            </Grid>
+          ))}
+        </Grid>
+      ))}
+    </Stack>
+  )
+}
+
 function TransactionStatusContent({ loading, error, data }) {
   if (loading) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        Loading transaction details…
-      </Typography>
-    )
+    return <TransactionSkeleton />
   }
 
   if (error) {
     return (
-      <Stack spacing={2}>
-        <Typography variant="body2" color="error.main">
-          {error}
-        </Typography>
+      <Stack spacing={2} sx={{ mt: 2 }}>
+        <Paper
+          variant="outlined"
+          sx={{ p: 2, borderRadius: 2, borderColor: 'error.dark', bgcolor: 'rgba(211, 47, 47, 0.06)' }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" color="error.main" sx={{ flex: 1 }}>
+              {error}
+            </Typography>
+          </Stack>
+        </Paper>
         {data ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" textAlign="center">
             Showing the row data that was already loaded in the list.
           </Typography>
         ) : null}
@@ -151,82 +257,77 @@ TransactionStatusContent.propTypes = {
   data: PropTypes.object,
 }
 
-/**
- * Render the main transaction detail display for a normalized transaction object.
- *
- * @param {object} props
- * @param {object} props.data - The normalized transaction data to display.
- * @returns {JSX.Element} The transaction details view.
- */
 function TransactionDetailsContent({ data }) {
+  const currencyPair =
+    data.chargeCurrency && data.originalCurrency
+      ? `${data.chargeCurrency}  →  ${data.originalCurrency}`
+      : data.chargeCurrency || data.originalCurrency || '—'
+
   return (
     <Stack spacing={3} sx={{ mt: 2 }}>
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        <Chip label={data.transactionType} color={data.transactionType === 'credit' ? 'success' : 'error'} variant="outlined" />
-        <Chip label={data.isMatched ? 'Matched' : 'Unmatched'} color={data.isMatched ? 'success' : 'default'} variant="outlined" />
-        <Chip label={data.isAnomaly ? 'Anomaly' : 'Normal'} color={data.isAnomaly ? 'error' : 'default'} variant="outlined" />
-        <Chip label={data.isDuplicate ? 'Duplicate' : 'Unique'} color={data.isDuplicate ? 'warning' : 'default'} variant="outlined" />
-        <Chip label={data.status || 'confirmed'} color={chipColorForStatus(data.status)} variant="outlined" />
-      </Stack>
+      <TransactionHero data={data} />
+
+      <SectionDivider label="Details" />
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Transaction Date" value={formatDate(data.transactionDate)} />
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Transaction Date" value={formatDate(data.transactionDate)} />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Charge Date" value={formatDate(data.postedDate)} />
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Posted Date" value={formatDate(data.postedDate)} />
         </Grid>
-        <Grid size={{ xs: 12 }}>
-          <DetailRow label="Description" value={data.description || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Vendor Name" value={data.vendorName || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Card Last 4" value={data.cardLast4 || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <DetailRow label="Amount" value={formatNumber(data.amount)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <DetailRow label="Charge Amount" value={data.chargeAmount == null ? '—' : formatNumber(data.chargeAmount)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <DetailRow label="Exchange Rate" value={data.exchangeRate == null ? '—' : formatNumber(data.exchangeRate, 4)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Category" value={data.category || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Category Confidence" value={data.categoryConfidence == null ? '—' : formatNumber(data.categoryConfidence, 4)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Reference Number" value={data.referenceNumber || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Charge Currency" value={data.chargeCurrency || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Original Currency" value={data.originalCurrency || '—'} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Created At" value={formatDate(data.createdAt)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Updated At" value={formatDate(data.updatedAt)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <DetailRow label="Created By User" value={data.createdByName || (data.createdByUserId == null ? '—' : String(data.createdByUserId))} />
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Card" value={data.cardLast4 ? `****${data.cardLast4}` : '—'} />
         </Grid>
       </Grid>
 
-      <Divider />
+      <SectionDivider label="Financial Breakdown" />
 
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        <Typography variant="body2" color="text.secondary">
-          This view is read-only and uses the saved transaction record for reference.
-        </Typography>
-      </Stack>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard
+            label="Charge Amount"
+            value={data.chargeAmount == null ? '—' : formatCurrency(data.chargeAmount, data.chargeCurrency)}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Exchange Rate" value={data.exchangeRate == null ? '—' : formatNumber(data.exchangeRate, 4)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Currencies" value={currencyPair} />
+        </Grid>
+      </Grid>
+
+      <SectionDivider label="Classification" />
+
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Category" value={data.category || '—'} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Confidence" value={formatConfidence(data.categoryConfidence)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Reference Number" value={data.referenceNumber || '—'} />
+        </Grid>
+      </Grid>
+
+      <SectionDivider label="Audit Trail" />
+
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Created" value={formatDate(data.createdAt)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard label="Updated" value={formatDate(data.updatedAt)} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <InfoCard
+            label="Created By"
+            value={data.createdByName || (data.createdByUserId == null ? '—' : `User #${data.createdByUserId}`)}
+          />
+        </Grid>
+      </Grid>
     </Stack>
   )
 }
@@ -235,17 +336,6 @@ TransactionDetailsContent.propTypes = {
   data: PropTypes.object.isRequired,
 }
 
-/**
- * Modal dialog rendering saved transaction details in a read-only display.
- *
- * @param {object} props
- * @param {boolean} props.open - Whether the dialog is visible.
- * @param {boolean} [props.loading] - Whether transaction detail data is loading.
- * @param {string} [props.error] - Optional error message for display.
- * @param {object|null} [props.transaction] - Raw transaction payload to normalize and render.
- * @param {() => void} props.onClose - Callback fired to close the dialog.
- * @returns {JSX.Element} The transaction details modal.
- */
 export default function TransactionDetailsModal({ open, loading, error, transaction, onClose }) {
   const data = normalizeTransaction(transaction)
 
@@ -267,14 +357,9 @@ export default function TransactionDetailsModal({ open, loading, error, transact
           Close
         </Button>
       )}
-      actions={(
-        <Button onClick={onClose} color="inherit">
-          Close
-        </Button>
-      )}
     >
-        <TransactionStatusContent loading={loading} error={error} data={data} />
-        {data && <TransactionDetailsContent data={data} />}
+      <TransactionStatusContent loading={loading} error={error} data={data} />
+      {data && !loading && <TransactionDetailsContent data={data} />}
     </ModalShell>
   )
 }

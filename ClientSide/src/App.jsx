@@ -1,4 +1,4 @@
-import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import PropTypes from 'prop-types'
 import LandingPage from './pages/LandingPage'
 import RegisterPage from './pages/Register'
@@ -12,6 +12,8 @@ import TransactionsPage from './pages/Transactions'
 import ProfilePage from './pages/ProfilePage'
 import AdminPortalPage from './pages/AdminPortal'
 import TechStackPage from './pages/TechStackPage'
+import AccountantWorkspacePage from './pages/AccountantWorkspace'
+import FindAccountantPage from './pages/FindAccountant'
 import AuthenticatedLayout from './components/AuthenticatedLayout'
 import { useAuth } from './context/useAuth'
 import { useCompany } from './context/useCompany'
@@ -81,7 +83,7 @@ RoleRoute.propTypes = {
  *
  * Ensures the user has an active company selected before rendering child routes.
  * While company resolution is in progress, it shows a loading placeholder.
- * If no company is available, it redirects the user to profile setup.
+ * If no company is available, it redirects the user to the landing page.
  *
  * @param {object} props
  * @param {React.ReactNode} props.children - Route content that requires an active company.
@@ -90,18 +92,26 @@ RoleRoute.propTypes = {
 function CompanyRoute({ children }) {
   const location = useLocation()
   const { activeCompanyId, loadingCompanies, hasResolvedCompanies } = useCompany()
+  const { user } = useAuth()
 
   if (loadingCompanies || !hasResolvedCompanies) {
     return <div>Resolving company access...</div>
   }
 
   if (!activeCompanyId) {
+    const isPureAccountant = user?.role === 'accountant'
+    const isAdmin = user?.role === 'admin'
+    // If companies haven't resolved (server error), redirect to landing page
+    // Otherwise, let user access profile to create company (except admins and pure accountants)
+    const destination = hasResolvedCompanies 
+      ? (isPureAccountant ? '/accountant-workspace' : isAdmin ? '/admin' : '/profile')
+      : '/'
     return (
       <Navigate
-        to="/profile"
+        to={destination}
         replace
         state={{
-          noCompany: true,
+          noCompany: !isAdmin && !isPureAccountant,
           from: location.pathname,
         }}
       />
@@ -124,7 +134,7 @@ CompanyRoute.propTypes = {
  * @returns {React.ReactElement} The top-level application router.
  */
 function App() {
-  const Router = import.meta.env.PROD ? HashRouter : BrowserRouter
+  const Router = HashRouter
 
   return (
     <Router>
@@ -149,6 +159,24 @@ function App() {
             }
           />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/accountant-workspace"
+            element={
+              <RoleRoute allowedRoles={ROLE_RULES.accountantOnly}>
+                <AccountantWorkspacePage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/find-accountant"
+            element={
+              <CompanyRoute>
+                <RoleRoute allowedRoles={ROLE_RULES.ownerOnly}>
+                  <FindAccountantPage />
+                </RoleRoute>
+              </CompanyRoute>
+            }
+          />
           <Route
             path="/admin"
             element={

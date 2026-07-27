@@ -1,8 +1,13 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
+using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
+using System.Text.Json;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -12,14 +17,35 @@ namespace FinalProjectAuthAPI.Controllers
     public class InvoicesController : ApiControllerBase
     {
         private readonly IInvoiceService _svc;
-        private readonly IInvoiceUploadService _uploadSvc;
+        private readonly IFileStorageService _fileSvc;
+        private readonly IUploadJobService _jobSvc;
+        private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IUploadQueueNameProvider _uploadQueueNameProvider;
+        private readonly IDBservices _db;
         private readonly IWebHostEnvironment _env;
+        private readonly IAnomalyService _anomalySvc;
+        private readonly IRealtimeNotificationService _realtime;
 
-        public InvoicesController(IInvoiceService svc, IInvoiceUploadService uploadSvc, IWebHostEnvironment env)
+        public InvoicesController(
+            IInvoiceService svc,
+            IFileStorageService fileSvc,
+            IUploadJobService jobSvc,
+            IBackgroundJobClient backgroundJobClient,
+            IUploadQueueNameProvider uploadQueueNameProvider,
+            IDBservices db,
+            IWebHostEnvironment env,
+            IAnomalyService anomalySvc,
+            IRealtimeNotificationService realtime)
         {
             _svc = svc;
-            _uploadSvc = uploadSvc;
+            _fileSvc = fileSvc;
+            _jobSvc = jobSvc;
+            _backgroundJobClient = backgroundJobClient;
+            _uploadQueueNameProvider = uploadQueueNameProvider;
+            _db = db;
             _env = env;
+            _anomalySvc = anomalySvc;
+            _realtime = realtime;
         }
 
         // GET api/invoices/company/{companyId}?status=&startDate=&endDate=&isMatched=
@@ -30,15 +56,23 @@ namespace FinalProjectAuthAPI.Controllers
             [FromQuery] string? status,
             [FromQuery] DateTime? startDate,
             [FromQuery] DateTime? endDate,
-            [FromQuery] bool? isMatched) =>
-            Ok(_svc.GetByCompany(companyId, status, startDate, endDate, isMatched));
+            [FromQuery] bool? isMatched)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetByCompany(companyId, status, startDate, endDate, isMatched));
+        }
 
         // GET api/invoices/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)
         {
             var invoice = _svc.GetById(id);
-            return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
+            if (invoice is null)
+                return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+            return Ok(invoice);
         }
 
         // POST api/invoices
@@ -58,14 +92,37 @@ namespace FinalProjectAuthAPI.Controllers
             if (!success)
                 return BadRequest(new { message = error });
 
+            if (!_svc.MarkVerified(id, userId))
+                return BadRequest(new { message = "Invoice was created but could not be marked as verified." });
+
             // Duplicate invoice — saved and flagged; skip auto-match for duplicates
             if (isDuplicate)
+            {
+                var anomaly = _anomalySvc
+                    .GetByCompany(request.CompanyId, status: "open", severity: null, type: "duplicate")
+                    .FirstOrDefault(row => row.RelatedInvoiceId == id
+                        || row.RelatedItems.Any(item => item.EntityId == id));
+                if (anomaly != null)
+                {
+                    await _realtime.CreateCompanyNotificationAsync(request.CompanyId, new NotificationMessage
+                    {
+                        EventType = NotificationEventTypes.AnomalyCreated,
+                        Title = "Duplicate invoice detected",
+                        Body = anomaly.Description ?? "A duplicate invoice requires review.",
+                        Severity = "warning",
+                        TargetType = NotificationTargetTypes.Anomaly,
+                        TargetId = anomaly.Id.ToString(),
+                        DedupeKey = $"anomaly:{anomaly.Id}:created",
+                    }, new { anomalyId = anomaly.Id, companyId = request.CompanyId, invoiceId = id });
+                }
+
                 return CreatedAtAction(nameof(GetById), new { id }, new
                 {
                     id,
                     message = "Invoice already exists and has been saved as a duplicate. It has been flagged in Anomalies.",
                     isDuplicate = true
                 });
+            }
 
             // Optionally attempt automatic matching
             if (autoMatch)
@@ -91,6 +148,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPut("{id:long}")]
         public IActionResult Update(long id, [FromBody] CreateInvoiceRequest request)
         {
+            var existing = _svc.GetById(id);
+            if (existing is null)
+                return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(existing.CompanyId, _db))
+                return Forbid();
+
             var userId = GetCurrentUserId();
             var (success, error, notFound) = _svc.Update(id, request, userId);
 
@@ -107,6 +170,12 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPatch("{id:long}/status")]
         public IActionResult UpdateStatus(long id, [FromBody] UpdateInvoiceStatusRequest request)
         {
+            var invoice = _svc.GetById(id);
+            if (invoice is null)
+                return BadRequest(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
             var ok = _svc.UpdateStatus(id, request.Status);
             return ok ? Ok(new { message = "Invoice status updated." }) : BadRequest(new { message = "Invalid status or invoice not found." });
         }
@@ -115,6 +184,25 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpDelete("{id:long}")]
         public IActionResult Delete(long id)
         {
+            var invoice = _svc.GetById(id);
+
+            if (invoice is null)
+                return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
+
+            if (!string.IsNullOrWhiteSpace(invoice.FilePath))
+            {
+                try
+                {
+                    _fileSvc.Delete(invoice.FilePath);
+                }
+                catch
+                {
+                    // Swallow file deletion errors so the DB operation can still complete.
+                }
+            }
+
             var ok = _svc.Delete(id);
             return ok
                 ? Ok(new { message = "Invoice deleted." })
@@ -123,10 +211,34 @@ namespace FinalProjectAuthAPI.Controllers
 
         // DELETE api/invoices/bulk
         [HttpDelete("bulk")]
-        public IActionResult BulkDelete([FromBody] BulkDeleteInvoicesRequest request)
+        public async Task<IActionResult> BulkDelete([FromBody] BulkDeleteInvoicesRequest request)
         {
             if (request?.Ids == null || request.Ids.Count == 0)
                 return BadRequest(new { message = "At least one invoice ID is required." });
+
+            var firstInvoice = _svc.GetById(request.Ids[0]);
+            if (firstInvoice != null && !CanAccessCompany(firstInvoice.CompanyId, _db))
+                return Forbid();
+
+            var filesToDelete = new List<string>();
+            foreach (var id in request.Ids)
+            {
+                var invoice = _svc.GetById(id);
+                if (invoice != null && !string.IsNullOrWhiteSpace(invoice.FilePath))
+                    filesToDelete.Add(invoice.FilePath);
+            }
+
+            foreach (var path in filesToDelete)
+            {
+                try
+                {
+                    await Task.Run(() => _fileSvc.Delete(path));
+                }
+                catch
+                {
+                    // Swallow file deletion errors so the DB operation can still complete.
+                }
+            }
 
             var (deletedIds, notFoundIds) = _svc.BulkDelete(request.Ids);
             var deletedCount = deletedIds.Count;
@@ -152,6 +264,8 @@ namespace FinalProjectAuthAPI.Controllers
             var invoice = _svc.GetById(id);
             if (invoice is null)
                 return NotFound(new { message = "Invoice not found." });
+            if (!CanAccessCompany(invoice.CompanyId, _db))
+                return Forbid();
 
             if (string.IsNullOrWhiteSpace(invoice.FilePath))
                 return NotFound(new { message = "No saved file was found for this invoice." });
@@ -167,8 +281,15 @@ namespace FinalProjectAuthAPI.Controllers
             if (!normalizedRelativePath.StartsWith(expectedCompanyPrefix, StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "Invoice file path does not match the invoice company." });
 
-            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
-            var fullPath = Path.Combine(webRoot, normalizedRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            string fullPath;
+            try
+            {
+                fullPath = _fileSvc.GetInvoiceFullPath(normalizedRelativePath);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound(new { message = "Invoice file could not be found on disk." });
+            }
 
             if (!System.IO.File.Exists(fullPath))
                 return NotFound(new { message = "Invoice file could not be found on disk." });
@@ -185,14 +306,65 @@ namespace FinalProjectAuthAPI.Controllers
         // Uploads a PDF, saves the file, extracts data, and returns extracted fields for review.
         [HttpPost("upload-pdf")]
         [RequestSizeLimit(10 * 1024 * 1024)]
-        public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] long companyId)
+        public async Task<IActionResult> UploadPdf(
+            IFormFile file,
+            [FromForm] long companyId,
+            [FromForm] bool autoVerify = false,
+            [FromForm] string? extractionProvider = null)
         {
             var userId = GetCurrentUserId();
-            var (success, response, error) = await _uploadSvc.UploadPdfAsync(file, companyId, userId);
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
 
-            return success
-                ? Ok(response)
-                : BadRequest(new { message = error });
+            try
+            {
+                var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
+
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
+                {
+                    JobType = UploadJobTypes.InvoiceUploadPdf,
+                    FilePath = relativePath,
+                    FileOriginalName = file.FileName,
+                    FileType = file.ContentType,
+                    FileSize = file.Length,
+                    CompanyId = companyId,
+                    UserId = userId,
+                    PayloadJson = JsonSerializer.Serialize(new UploadJobPayload
+                    {
+                        AutoVerify = autoVerify,
+                        ExtractionProvider = InvoiceExtractionProviders.NormalizeOrDefault(extractionProvider)
+                    }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                });
+
+                var hangfireJobId = _backgroundJobClient.Create(
+                    Job.FromExpression<IUploadJobWorker>(w => w.ProcessInvoiceJobAsync(
+                        jobId,
+                        relativePath,
+                        file.FileName,
+                        file.ContentType,
+                        file.Length,
+                        companyId,
+                        userId,
+                        UploadJobTypes.InvoiceUploadPdf)),
+                    new EnqueuedState(_uploadQueueNameProvider.UploadQueueName));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Invoice PDF accepted and queued for background processing."
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Failed to queue invoice upload: {ex.Message}" });
+            }
         }
 
         // POST api/invoices/upload-and-create
@@ -202,17 +374,54 @@ namespace FinalProjectAuthAPI.Controllers
         public async Task<IActionResult> UploadAndCreate(IFormFile file, [FromForm] long companyId)
         {
             var userId = GetCurrentUserId();
-            var (success, invoiceId, extractedData, error) = await _uploadSvc.UploadAndCreateAsync(file, companyId, userId);
+            if (!_db.UserHasActiveCompanyAccess(userId, companyId))
+                return Forbid();
 
-            if (!success)
-                return BadRequest(new { message = error });
-
-            return CreatedAtAction(nameof(GetById), new { id = invoiceId }, new
+            try
             {
-                id = invoiceId,
-                message = "Invoice created from PDF.",
-                extractedData = extractedData
-            });
+                var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
+
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
+                {
+                    JobType = UploadJobTypes.InvoiceUploadAndCreate,
+                    FilePath = relativePath,
+                    FileOriginalName = file.FileName,
+                    FileType = file.ContentType,
+                    FileSize = file.Length,
+                    CompanyId = companyId,
+                    UserId = userId,
+                    PayloadJson = null
+                });
+
+                var hangfireJobId = _backgroundJobClient.Create(
+                    Job.FromExpression<IUploadJobWorker>(w => w.ProcessInvoiceJobAsync(
+                        jobId,
+                        relativePath,
+                        file.FileName,
+                        file.ContentType,
+                        file.Length,
+                        companyId,
+                        userId,
+                        UploadJobTypes.InvoiceUploadAndCreate)),
+                    new EnqueuedState(_uploadQueueNameProvider.UploadQueueName));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Invoice upload accepted and queued for background creation."
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Failed to queue invoice upload: {ex.Message}" });
+            }
         }
 
     }

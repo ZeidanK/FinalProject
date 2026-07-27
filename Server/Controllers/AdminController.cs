@@ -10,10 +10,12 @@ namespace FinalProjectAuthAPI.Controllers
     public class AdminController : ApiControllerBase
     {
         private readonly IAdminService _svc;
+        private readonly IRealtimeNotificationService _realtime;
 
-        public AdminController(IAdminService svc)
+        public AdminController(IAdminService svc, IRealtimeNotificationService realtime)
         {
             _svc = svc;
+            _realtime = realtime;
         }
 
         // GET api/admin/stats
@@ -38,15 +40,46 @@ namespace FinalProjectAuthAPI.Controllers
 
         // PATCH api/admin/users/{id}/toggle
         [HttpPatch("users/{id:long}/toggle")]
-        public IActionResult ToggleUserActive(long id)
+        public async Task<IActionResult> ToggleUserBan(long id)
         {
-            var (userId, isActive) = _svc.ToggleUserActive(id);
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId > 0 && id == currentUserId)
+            {
+                return BadRequest(new { message = "Admins cannot ban their own account." });
+            }
+
+            var (userId, isBanned) = _svc.ToggleUserBan(id);
             var payload = new
             {
                 id = userId,
-                isActive,
-                message = isActive ? "User activated." : "User deactivated."
+                isBanned,
+                message = isBanned ? "User banned." : "User unbanned."
             };
+
+            var eventType = isBanned
+                ? FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserBanned
+                : FinalProjectAuthAPI.Models.NotificationEventTypes.AdminUserUnbanned;
+
+            await _realtime.CreateUserNotificationAsync(userId, new FinalProjectAuthAPI.Models.NotificationMessage
+            {
+                EventType = eventType,
+                Title = isBanned ? "Account banned" : "Account unbanned",
+                Body = isBanned
+                    ? "Your account has been banned by an administrator. You can no longer log in."
+                    : "Your account has been unbanned by an administrator.",
+                Severity = isBanned ? "error" : "success",
+                TargetType = FinalProjectAuthAPI.Models.NotificationTargetTypes.Profile,
+                TargetId = userId.ToString(),
+                DedupeKey = $"admin-user:{userId}:banned:{isBanned}:{DateTime.UtcNow.Ticks}",
+            }, payload);
+            await _realtime.NotifyAdminsEventAsync(eventType, new
+            {
+                targetUserId = userId,
+                isBanned,
+                changedByUserId = GetCurrentUserId()
+            });
+            if (isBanned)
+                await _realtime.RevokeUserAccessAsync(userId);
 
             return SuccessWithLegacy(payload, payload, payload.message);
         }
@@ -63,6 +96,34 @@ namespace FinalProjectAuthAPI.Controllers
             return SuccessWithLegacy(data, data, "System logs retrieved.");
         }
 
+        // DELETE api/admin/logs
+        [HttpDelete("logs")]
+        public IActionResult ClearLogs()
+        {
+            var deletedCount = _svc.ClearSystemLogs();
+            var payload = new
+            {
+                deletedCount,
+                message = deletedCount == 1
+                    ? "1 system log entry cleared."
+                    : $"{deletedCount} system log entries cleared."
+            };
+
+            return SuccessWithLegacy(payload, payload, payload.message);
+        }
+
+        // DELETE api/admin/logs/{id}
+        [HttpDelete("logs/{id:long}")]
+        public IActionResult DeleteLog(long id)
+        {
+            var deleted = _svc.DeleteSystemLog(id);
+            if (!deleted)
+                return NotFound(new { message = "System log entry was not found." });
+
+            var payload = new { id, message = "System log entry deleted." };
+            return SuccessWithLegacy(payload, payload, payload.message);
+        }
+
         // GET api/admin/audit-logs?page=&limit=&companyId=
         [HttpGet("audit-logs")]
         public IActionResult GetAuditLogs(
@@ -72,6 +133,34 @@ namespace FinalProjectAuthAPI.Controllers
         {
             var data = _svc.GetAuditLogs(page, limit, companyId);
             return SuccessWithLegacy(data, data, "Audit logs retrieved.");
+        }
+
+        // DELETE api/admin/audit-logs
+        [HttpDelete("audit-logs")]
+        public IActionResult ClearAuditLogs()
+        {
+            var deletedCount = _svc.ClearAuditLogs();
+            var payload = new
+            {
+                deletedCount,
+                message = deletedCount == 1
+                    ? "1 audit log entry cleared."
+                    : $"{deletedCount} audit log entries cleared."
+            };
+
+            return SuccessWithLegacy(payload, payload, payload.message);
+        }
+
+        // DELETE api/admin/audit-logs/{id}
+        [HttpDelete("audit-logs/{id:long}")]
+        public IActionResult DeleteAuditLog(long id)
+        {
+            var deleted = _svc.DeleteAuditLog(id);
+            if (!deleted)
+                return NotFound(new { message = "Audit log entry was not found." });
+
+            var payload = new { id, message = "Audit log entry deleted." };
+            return SuccessWithLegacy(payload, payload, payload.message);
         }
     }
 }

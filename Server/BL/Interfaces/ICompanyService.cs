@@ -15,13 +15,13 @@ namespace FinalProjectAuthAPI.BL.Interfaces
             string? state = null, string? postalCode = null,
             string country = "USA",
             string? email = null, string? phone = null,
-            string? website = null, string? taxId = null,
+            string? taxId = null,
             string? vatNumber = null, DateTime? fiscalYearStart = null,
             string currency = "USD");
         bool Update(
             long id, string? name, string? street, string? city,
             string? state, string? postalCode, string? country,
-            string? email, string? phone, string? website,
+            string? email, string? phone,
             string? taxId, string? vatNumber, bool? isActive);
         bool Delete(long id);
         bool EnsureUserHasFullCompanyAccess(long userId, long companyId);

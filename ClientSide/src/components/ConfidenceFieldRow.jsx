@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types'
-import { Chip, Stack, TextField, Typography } from '@mui/material'
-import { confidenceColor, confidenceLabel } from '../utils/invoiceExtraction'
+import { Box, Chip, Stack, TextField, Typography } from '@mui/material'
+import { confidenceColor, confidenceLabel, confidenceBorderColor } from '../utils/invoiceExtraction'
 
 /**
  * Renders a label, confidence badge, and numeric input for an invoice field.
@@ -16,6 +16,7 @@ import { confidenceColor, confidenceLabel } from '../utils/invoiceExtraction'
  * @param {string|number} [props.labelFontWeight] - Font weight for the label.
  * @param {object} [props.rowSx] - Style overrides for the row container.
  * @param {string|number} [props.inputWeight] - Font weight for the numeric input.
+ * @param {boolean} [props.disabled] - Whether the input is disabled.
  * @returns {JSX.Element} The rendered confidence field row.
  */
 export default function ConfidenceFieldRow({
@@ -29,22 +30,37 @@ export default function ConfidenceFieldRow({
   labelFontWeight,
   rowSx,
   inputWeight,
+  disabled,
 }) {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={rowSx}>
-      <Typography variant={labelVariant} color={labelColor} fontWeight={labelFontWeight}>
-        {label}
-      </Typography>
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Chip
-          label={confidenceLabel(confidence)}
-          size="small"
-          color={confidenceColor(confidence || 0)}
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <Box
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            bgcolor: confidence == null ? 'transparent' : confidenceBorderColor(confidence),
+            flexShrink: 0,
+          }}
         />
+        <Typography variant={labelVariant} color={labelColor} fontWeight={labelFontWeight}>
+          {label}
+        </Typography>
+      </Stack>
+      <Stack direction="row" spacing={1} alignItems="center">
+        {confidence != null && confidence < 0.9 ? (
+          <Chip
+            label={confidenceLabel(confidence)}
+            size="small"
+            color={confidenceColor(confidence || 0)}
+          />
+        ) : null}
         <TextField
           size="small"
           type="number"
           sx={{ ...fieldSx, width: 140 }}
+          disabled={disabled}
           value={value == null ? '' : value}
           onChange={(event) => onChange(event.target.value)}
           slotProps={{
@@ -71,6 +87,7 @@ ConfidenceFieldRow.propTypes = {
   labelFontWeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   rowSx: PropTypes.object,
   inputWeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  disabled: PropTypes.bool,
 }
 
 ConfidenceFieldRow.defaultProps = {
@@ -82,4 +99,5 @@ ConfidenceFieldRow.defaultProps = {
   labelFontWeight: 'normal',
   rowSx: {},
   inputWeight: 400,
+  disabled: false,
 }

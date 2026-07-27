@@ -1,4 +1,5 @@
 using FinalProjectAuthAPI.BL.Interfaces;
+using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +13,12 @@ namespace FinalProjectAuthAPI.Controllers
     public class CompaniesController : ApiControllerBase
     {
         private readonly ICompanyService _svc;
+        private readonly IDBservices _db;
 
-        public CompaniesController(ICompanyService svc)
+        public CompaniesController(ICompanyService svc, IDBservices db)
         {
             _svc = svc;
+            _db = db;
         }
 
         // GET api/companies
@@ -29,7 +32,14 @@ namespace FinalProjectAuthAPI.Controllers
         public IActionResult GetById(long id)
         {
             var company = _svc.GetById(id);
-            return company is null ? NotFound(new { message = "Company not found." }) : Ok(company);
+            if (company is null)
+                return NotFound(new { message = "Company not found." });
+
+            var role = GetCurrentUserRole();
+            if (!string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase) && !CanAccessCompany(id, _db))
+                return Forbid();
+
+            return Ok(company);
         }
 
         // GET api/companies/user/{userId}
@@ -47,7 +57,7 @@ namespace FinalProjectAuthAPI.Controllers
                 request.Name, currentUserId,
                 request.RegistrationNumber, request.Street, request.City,
                 request.State, request.PostalCode, request.Country,
-                request.Email, request.Phone, request.Website,
+                request.Email, request.Phone,
                 request.TaxId, request.VatNumber, request.FiscalYearStart,
                 request.Currency);
 
@@ -71,9 +81,13 @@ namespace FinalProjectAuthAPI.Controllers
         [HttpPut("{id:long}")]
         public IActionResult Update(long id, [FromBody] UpdateCompanyRequest request)
         {
+            var role = GetCurrentUserRole();
+            if (!string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase) && !CanAccessCompany(id, _db))
+                return Forbid();
+
             var ok = _svc.Update(id, request.Name, request.Street, request.City,
                 request.State, request.PostalCode, request.Country,
-                request.Email, request.Phone, request.Website,
+                request.Email, request.Phone,
                 request.TaxId, request.VatNumber, request.IsActive);
 
             return ok ? Ok(new { message = "Company updated." }) : NotFound(new { message = "Company not found." });

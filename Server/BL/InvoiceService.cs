@@ -10,12 +10,12 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class InvoiceService : IInvoiceService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
         private readonly IMatchService? _matchService;
         private readonly IAnomalyService? _anomalyService;
 
         // Constructor for DI (optional IMatchService to avoid circular dependency issues)
-        public InvoiceService(DBservices db, IMatchService? matchService = null, IAnomalyService? anomalyService = null)
+        public InvoiceService(IDBservices db, IMatchService? matchService = null, IAnomalyService? anomalyService = null)
         {
             _db = db;
             _matchService = matchService;
@@ -64,7 +64,8 @@ namespace FinalProjectAuthAPI.BL
                     req.PaymentPlanTotalInstallments,
                     req.PaymentPlanInstallmentAmount,
                     req.PaymentPlanFrequency,
-                    req.PaymentPlanDescription);
+                    req.PaymentPlanDescription,
+                    req.PaymentPlanCurrentInstallment);
             }
             catch (SqlException ex) when (ex.Number is 2627 or 2601)
             {
@@ -83,29 +84,20 @@ namespace FinalProjectAuthAPI.BL
                     req.PaymentPlanInstallmentAmount,
                     req.PaymentPlanFrequency,
                     req.PaymentPlanDescription,
+                    req.PaymentPlanCurrentInstallment,
                     isDuplicate: true);
 
                 if (invoiceId <= 0)
                     return (false, 0, "Invoice number already exists and the duplicate could not be saved.", false);
 
-                // Look up the original invoice to link the anomaly
-                var originalId = _db.GetInvoiceIdByNumber(req.CompanyId, req.InvoiceNumber.Trim());
-
-                _anomalyService?.Create(new CreateAnomalyRequest
-                {
-                    CompanyId         = req.CompanyId,
-                    AnomalyType       = "duplicate",
-                    Title             = $"Duplicate invoice: {req.InvoiceNumber.Trim()}",
-                    Description       = $"Invoice number '{req.InvoiceNumber.Trim()}' from vendor '{req.VendorName.Trim()}' " +
-                                        $"was uploaded again (total: {req.TotalAmount} {(string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency)}). " +
-                                        (originalId.HasValue ? $"Original invoice ID: {originalId.Value}." : string.Empty),
-                    Severity          = "high",
-                    SuggestedAction   = "Review both invoices and determine if this is a duplicate payment or a separate transaction.",
-                    RelatedInvoiceId  = invoiceId,
-                    Amount            = req.TotalAmount,
-                    DetectionMethod   = "manual",
-                    DetectionConfidence = 1m
-                });
+                _anomalyService?.EnsureDuplicateInvoiceAnomaly(
+                    req.CompanyId,
+                    invoiceId,
+                    req.InvoiceNumber.Trim(),
+                    req.VendorName.Trim(),
+                    req.TotalAmount,
+                    req.InvoiceDate,
+                    string.IsNullOrEmpty(req.Currency) ? "USD" : req.Currency);
 
                 // Insert line items then return early to skip the normal post-insert block below
                 if (req.LineItems != null)
@@ -144,6 +136,20 @@ namespace FinalProjectAuthAPI.BL
             if (string.IsNullOrWhiteSpace(req.VendorName))
                 return (false, "Vendor name is required.", false);
 
+            var verifiedLineItems = (req.LineItems ?? new List<CreateLineItemRequest>())
+                .Select(li => new CreateLineItemRequest
+                {
+                    Description = string.IsNullOrWhiteSpace(li.Description) ? "Item" : li.Description,
+                    UnitPrice = li.UnitPrice,
+                    TotalAmount = li.TotalAmount,
+                    LineNumber = li.LineNumber,
+                    Category = li.Category,
+                    Quantity = li.Quantity,
+                    VatRate = li.VatRate,
+                    AiConfidenceScore = 1m
+                })
+                .ToList();
+
             var ok = _db.UpdateInvoice(
                 id,
                 req.CompanyId,
@@ -162,15 +168,16 @@ namespace FinalProjectAuthAPI.BL
                 req.FilePath,
                 req.FileType,
                 req.FileSize,
-                req.AiExtractionConfidence,
+                1m,
                 req.LastFourDigitsCard,
                 req.ItemCount,
                 req.PaymentPlanTotalInstallments,
                 req.PaymentPlanInstallmentAmount,
                 req.PaymentPlanFrequency,
                 req.PaymentPlanDescription,
+                req.PaymentPlanCurrentInstallment,
                 verifiedByUserId,
-                req.LineItems ?? new List<CreateLineItemRequest>());
+                verifiedLineItems);
 
             if (!ok)
                 return (false, "Failed to update invoice.", false);
@@ -187,6 +194,14 @@ namespace FinalProjectAuthAPI.BL
                 return false;
 
             return _db.UpdateInvoiceStatus(id, status);
+        }
+
+        public bool MarkVerified(long id, long verifiedByUserId)
+        {
+            if (id <= 0 || verifiedByUserId <= 0)
+                return false;
+
+            return _db.MarkInvoiceVerified(id, verifiedByUserId);
         }
 
         public bool Delete(long id)

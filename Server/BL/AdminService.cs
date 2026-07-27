@@ -9,9 +9,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class AdminService : IAdminService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public AdminService(DBservices db)
+        public AdminService(IDBservices db)
         {
             _db = db;
         }
@@ -29,8 +29,8 @@ namespace FinalProjectAuthAPI.BL
             return _db.GetAdminUsers(page, limit, role, search);
         }
 
-        public (long Id, bool IsActive) ToggleUserActive(long id) =>
-            _db.ToggleUserActive(id);
+        public (long Id, bool IsBanned) ToggleUserBan(long id) =>
+            _db.ToggleUserBan(id);
 
         public PagedResult<SystemLogRow> GetLogs(
             int page = 1, int limit = 50,
@@ -52,5 +52,13 @@ namespace FinalProjectAuthAPI.BL
 
             return _db.GetAuditLogs(page, limit, companyId);
         }
+
+        public int ClearSystemLogs() => _db.ClearSystemLogs();
+
+        public int ClearAuditLogs() => _db.ClearAuditLogs();
+
+        public bool DeleteSystemLog(long id) => id > 0 && _db.DeleteSystemLog(id);
+
+        public bool DeleteAuditLog(long id) => id > 0 && _db.DeleteAuditLog(id);
     }
 }

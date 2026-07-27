@@ -9,6 +9,7 @@ import { CompanyContext } from './CompanyContextProvider'
  * @type {string}
  */
 const ACTIVE_COMPANY_STORAGE_KEY = 'activeCompanyId'
+const ACTIVE_COMPANY_NAME_STORAGE_KEY = 'activeCompanyName'
 
 /**
  * Parse an incoming value into a valid positive company ID.
@@ -46,6 +47,32 @@ const persistCompanyId = (companyId) => {
 }
 
 /**
+ * Read the persisted active company name from localStorage.
+ *
+ * @returns {string|null} The persisted company name, or null when unavailable.
+ */
+const readStoredCompanyName = () => {
+  if (globalThis.window === undefined) return null
+  const name = globalThis.localStorage.getItem(ACTIVE_COMPANY_NAME_STORAGE_KEY)
+  return typeof name === 'string' && name.trim() !== '' ? name : null
+}
+
+/**
+ * Persist or remove the active company name in localStorage.
+ *
+ * @param {string|null} companyName - The company name to persist, or null to clear.
+ */
+const persistCompanyName = (companyName) => {
+  if (globalThis.window === undefined) return
+  if (!companyName) {
+    globalThis.localStorage.removeItem(ACTIVE_COMPANY_NAME_STORAGE_KEY)
+    return
+  }
+  globalThis.localStorage.setItem(ACTIVE_COMPANY_NAME_STORAGE_KEY, companyName)
+}
+
+
+/**
  * Provides company selection and company list state for the authenticated user.
  *
  * @param {object} props
@@ -56,6 +83,7 @@ export function CompanyProvider({ children }) {
   const { isAuthenticated, user, token, updateUser } = useAuth()
   const [companies, setCompanies] = useState([])
   const [activeCompanyId, setActiveCompanyId] = useState(() => readStoredCompanyId())
+  const [activeCompanyName, setActiveCompanyName] = useState(() => readStoredCompanyName())
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [hasResolvedCompanies, setHasResolvedCompanies] = useState(false)
   const inFlightRequestKeyRef = useRef(null)
@@ -87,8 +115,9 @@ export function CompanyProvider({ children }) {
    * Update the active company selection and persist it to localStorage.
    *
    * @param {string|number|null|undefined} companyId - Candidate company ID to activate.
+   * @param {string|null|undefined} companyName - Company name supplied by a company picker.
    */
-  const changeActiveCompanyId = useCallback((companyId) => {
+  const changeActiveCompanyId = useCallback((companyId, companyName) => {
     const parsedId = parseCompanyId(companyId)
     if (!parsedId) return
 
@@ -102,8 +131,18 @@ export function CompanyProvider({ children }) {
       return
     }
 
+    const selectedCompany = companies.find(
+      (company) => parseCompanyId(company.id ?? company.companyId) === parsedId,
+    )
+    const resolvedCompanyName = companyName
+      || selectedCompany?.name
+      || selectedCompany?.companyName
+      || null
+
     setActiveCompanyId(parsedId)
+    setActiveCompanyName(resolvedCompanyName)
     persistCompanyId(parsedId)
+    persistCompanyName(resolvedCompanyName)
   }, [companies, user?.role])
 
   /**
@@ -116,7 +155,9 @@ export function CompanyProvider({ children }) {
       inFlightPromiseRef.current = null
       setCompanies([])
       setActiveCompanyId(null)
+      setActiveCompanyName(null)
       persistCompanyId(null)
+      persistCompanyName(null)
       setLoadingCompanies(false)
       setHasResolvedCompanies(false)
       return
@@ -140,8 +181,14 @@ export function CompanyProvider({ children }) {
         setCompanies(nextCompanies)
 
         const nextActiveCompanyId = resolveInitialCompanyId(nextCompanies, user?.companyId)
+        const nextActiveCompany = nextCompanies.find(
+          (company) => parseCompanyId(company.id ?? company.companyId) === nextActiveCompanyId,
+        )
+        const nextActiveCompanyName = nextActiveCompany?.name ?? nextActiveCompany?.companyName ?? null
         setActiveCompanyId(nextActiveCompanyId)
+        setActiveCompanyName(nextActiveCompanyName)
         persistCompanyId(nextActiveCompanyId)
+        persistCompanyName(nextActiveCompanyName)
 
         const currentUserCompanyId = parseCompanyId(user?.companyId)
         if (currentUserCompanyId !== nextActiveCompanyId) {
@@ -151,7 +198,9 @@ export function CompanyProvider({ children }) {
       } catch {
         setCompanies([])
         setActiveCompanyId(null)
+        setActiveCompanyName(null)
         persistCompanyId(null)
+        persistCompanyName(null)
 
         const currentUserCompanyId = parseCompanyId(user?.companyId)
         if (currentUserCompanyId !== null) {
@@ -182,11 +231,12 @@ export function CompanyProvider({ children }) {
   const value = useMemo(() => ({
     companies,
     activeCompanyId,
+    activeCompanyName,
     loadingCompanies,
     hasResolvedCompanies,
     refreshCompanies,
     setActiveCompanyId: changeActiveCompanyId,
-  }), [companies, activeCompanyId, loadingCompanies, hasResolvedCompanies, refreshCompanies, changeActiveCompanyId])
+  }), [companies, activeCompanyId, activeCompanyName, loadingCompanies, hasResolvedCompanies, refreshCompanies, changeActiveCompanyId])
 
   return <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>
 }

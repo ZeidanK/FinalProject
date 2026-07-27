@@ -1,11 +1,8 @@
 import {
   Alert,
-  Avatar,
   Box,
-  Button,
   Card,
   CardContent,
-  Chip,
   Container,
   Grid,
   Skeleton,
@@ -16,22 +13,23 @@ import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded'
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
 import HubRoundedIcon from '@mui/icons-material/HubRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
-import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded'
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded'
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded'
 import { motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import RecentActivityTimeline from '../components/RecentActivityTimeline'
+import MetricCard from '../components/MetricCard'
+import DashboardChart from '../components/DashboardChart'
+import GlassCard from '../components/GlassCard'
+import RevealOnScroll from '../components/RevealOnScroll'
+import AnimatedBackground from '../components/AnimatedBackground'
+import useAnimatedCounter from '../hooks/useAnimatedCounter'
 import { useAuth } from '../context/useAuth'
 import { useCompany } from '../context/useCompany'
 import { getDashboardStats, getRecentActivity, mapDashboardStatsToKpis } from '../services/dashboard'
 
-/**
- * Quick action cards shown on the dashboard.
- * Each entry includes a title, description, icon, and navigation path.
- * @type {{title: string, text: string, icon: React.ReactNode, path: string}[]}
- */
 const quickActions = [
   {
     title: 'Upload Invoices',
@@ -53,61 +51,41 @@ const quickActions = [
   },
 ]
 
-/**
- * Display labels for user roles shown in the dashboard welcome panel.
- * @type {{[key: string]: string}}
- */
-const roleLabels = {
-  accountant: 'Accountant',
-  business_owner: 'Business Owner',
-  accountant_business_owner: 'Accountant + Business Owner',
-}
-
-/**
- * Icon components mapped to each KPI title.
- * Used to visually distinguish dashboard statistic cards.
- * @type {{[key: string]: React.ReactNode}}
- */
 const kpiIcons = {
-  'Open Runs': <TimelineRoundedIcon sx={{ color: '#a9d5ff' }} />,
   'Pending Matches': <HubRoundedIcon sx={{ color: '#a9d5ff' }} />,
+  'Pending Invoice Matches': <UploadFileRoundedIcon sx={{ color: '#a9d5ff' }} />,
   Exceptions: <ErrorOutlineRoundedIcon sx={{ color: '#ffd0aa' }} />,
   'Total Matches': <TaskAltRoundedIcon sx={{ color: '#b7ffd2' }} />,
 }
 
-/**
- * Framer Motion variants for the dashboard page container animation.
- */
+const kpiColors = {
+  'Pending Matches': '#a9d5ff',
+  'Pending Invoice Matches': '#a9d5ff',
+  Exceptions: '#ffd0aa',
+  'Total Matches': '#b7ffd2',
+}
+
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   show: {
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.5,
-      ease: 'easeOut',
-      staggerChildren: 0.09,
-    },
+    transition: { duration: 0.5, ease: 'easeOut', staggerChildren: 0.09 },
   },
 }
 
-/**
- * Framer Motion variants applied to individual dashboard cards and rows.
- */
 const itemVariants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 }
 
-/**
- * Dashboard landing page for the authenticated user.
- * Shows KPI cards, recent activity, workspace status, and quick navigation actions.
- * Data is loaded from dashboard service endpoints for the active company.
- *
- * @returns {JSX.Element} The rendered dashboard page.
- */
+function AnimatedKPIValue({ value, color }) {
+  const animated = useAnimatedCounter({ end: Number(value) || 0, duration: 800, enabled: true })
+  return <Typography variant="h4" sx={{ color: color || 'text.primary', fontWeight: 700 }}>{animated}</Typography>
+}
+
 function DashboardPage() {
-  const { user, token } = useAuth()
+  const { token } = useAuth()
   const { activeCompanyId } = useCompany()
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
@@ -118,7 +96,6 @@ function DashboardPage() {
   const loadDashboard = useCallback(async () => {
     setLoading(true)
     setErrorMessage('')
-
     try {
       const [data, activityItems] = await Promise.all([
         getDashboardStats({ companyId: activeCompanyId, token }),
@@ -135,99 +112,30 @@ function DashboardPage() {
     }
   }, [activeCompanyId, token])
 
-  useEffect(() => {
-    loadDashboard()
-  }, [loadDashboard])
+  useEffect(() => { loadDashboard() }, [loadDashboard])
 
   const kpis = useMemo(() => mapDashboardStatsToKpis(stats), [stats])
 
   return (
     <Box
       sx={{
-        py: { xs: 4, md: 6 },
-        background:
-          'radial-gradient(circle at 0% 5%, rgba(88, 166, 255, 0.25), transparent 34%), radial-gradient(circle at 100% 0%, rgba(66, 130, 255, 0.16), transparent 28%), linear-gradient(180deg, #070b14 0%, #091021 62%, #0b1324 100%)',
+        pt: 0,
+        pb: { xs: 2, md: 3 },
+        position: 'relative',
+        overflow: 'hidden',
+        minHeight: '100%',
       }}
     >
+      <AnimatedBackground density="medium" />
       <Container
         maxWidth={false}
         disableGutters
-        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%' }}
+        sx={{ px: { xs: 2, sm: 3, md: 4, xl: 5 }, width: '100%', position: 'relative', zIndex: 1 }}
       >
-        <Stack
-          component={motion.div}
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          spacing={3}
-        >
-          <Card
-            component={motion.div}
-            variants={itemVariants}
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              background:
-                'linear-gradient(135deg, rgba(14, 25, 45, 0.98), rgba(9, 17, 33, 0.97))',
-              boxShadow: '0 24px 54px rgba(0, 0, 0, 0.42)',
-            }}
-          >
-            <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-                justifyContent="space-between"
-                spacing={2.5}
-              >
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main', color: '#041229', fontWeight: 800 }}>
-                    {(user?.name || 'U').slice(0, 1).toUpperCase()}
-                  </Avatar>
-                  <Stack spacing={0.3}>
-                    <Typography variant="h5" sx={{ fontSize: { xs: '1.4rem', md: '1.7rem' } }}>
-                      Welcome back, {user?.name || 'User'}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      Role: {roleLabels[user?.role] || user?.role || 'Unknown'}
-                    </Typography>
-                  </Stack>
-                </Stack>
-
-                <Stack direction="row" spacing={1.2} alignItems="center">
-                  <Chip
-                    label="Workspace Active"
-                    sx={{
-                      bgcolor: 'rgba(88, 166, 255, 0.16)',
-                      border: '1px solid',
-                      borderColor: 'rgba(129, 191, 255, 0.38)',
-                      color: '#cde7ff',
-                      fontWeight: 700,
-                    }}
-                  />
-                  <Button
-                    variant="outlined"
-                    startIcon={<RefreshRoundedIcon fontSize="small" />}
-                    onClick={loadDashboard}
-                    disabled={loading}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    {loading ? 'Refreshing...' : 'Refresh KPIs'}
-                  </Button>
-                </Stack>
-              </Stack>
-            </CardContent>
-          </Card>
-
+        <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="show" spacing={3}>
           {errorMessage && (
-            <Alert
-              severity="warning"
-              component={motion.div}
-              variants={itemVariants}
-              sx={{ borderRadius: 2.5 }}
-            >
-              {errorMessage} Showing fallback KPI values until data is available.
+            <Alert severity="warning" component={motion.div} variants={itemVariants} sx={{ borderRadius: 2.5 }}>
+              {errorMessage}
             </Alert>
           )}
 
@@ -240,153 +148,44 @@ function DashboardPage() {
             />
           )}
 
-          <Grid container spacing={2} component={motion.div} variants={itemVariants}>
-            {loading
-              ? [1, 2, 3, 4].map((index) => (
-                  <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card
-                      elevation={0}
-                      sx={{
-                        height: '100%',
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        background:
-                          'linear-gradient(155deg, rgba(12, 22, 40, 0.98), rgba(8, 15, 29, 0.98))',
-                      }}
-                    >
-                      <CardContent>
-                        <Stack spacing={1.1}>
-                          <Skeleton variant="rounded" width={32} height={32} />
-                          <Skeleton variant="text" width="42%" />
-                          <Skeleton variant="text" width="54%" height={44} />
-                          <Skeleton variant="text" width="76%" />
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))
-              : kpis.map((kpi) => (
-                  <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card
-                      elevation={0}
-                      sx={{
-                        height: '100%',
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        background:
-                          'linear-gradient(155deg, rgba(12, 22, 40, 0.98), rgba(8, 15, 29, 0.98))',
-                      }}
-                    >
-                      <CardContent>
-                        <Stack spacing={1}>
-                          {kpiIcons[kpi.title]}
-                          <Typography variant="body2" color="text.secondary">
-                            {kpi.title}
-                          </Typography>
-                          <Typography variant="h4">{kpi.value}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {kpi.subtitle}
-                          </Typography>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-          </Grid>
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  background:
-                    'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
-                }}
-              >
-                <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
-                  <Stack spacing={2}>
-                    <Typography variant="h6">Continue where you left off</Typography>
-                    {stats && (stats.processingInvoices > 0 || stats.unmatchedTransactions > 0 || stats.openAnomalies > 0) ? (
-                      <Card
-                        elevation={0}
-                        sx={{
-                          borderRadius: 2.5,
-                          border: '1px solid',
-                          borderColor: 'rgba(125, 211, 252, 0.38)',
-                          bgcolor: 'rgba(11, 20, 37, 0.7)',
-                        }}
-                      >
-                        <CardContent>
-                          <Stack spacing={1}>
-                            {stats.processingInvoices > 0 && (
-                              <Typography variant="body2" color="text.secondary">
-                                {stats.processingInvoices} invoice{stats.processingInvoices === 1 ? '' : 's'} currently processing
-                              </Typography>
-                            )}
-                            {stats.unmatchedTransactions > 0 && (
-                              <Typography variant="body2" color="text.secondary">
-                                {stats.unmatchedTransactions} transaction{stats.unmatchedTransactions === 1 ? '' : 's'} awaiting match review
-                              </Typography>
-                            )}
-                            {stats.openAnomalies > 0 && (
-                              <Typography variant="body2" color="text.secondary">
-                                {stats.openAnomalies} open anomal{stats.openAnomalies === 1 ? 'y' : 'ies'} to resolve
-                                {stats.criticalAnomalies > 0 && ` (${stats.criticalAnomalies} critical)`}
-                              </Typography>
-                            )}
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        All caught up — no pending items right now.
-                      </Typography>
-                    )}
-
-                    <Typography variant="h6">Recent activity</Typography>
-                    <Stack spacing={1.4}>
-                      {activity.length > 0 ? (
-                        activity.map((item) => {
-                          const activityKey = item.id || `${item.date || 'no-date'}-${item.text}`
-                          return (
-                            <Typography key={activityKey} variant="body2" color="text.secondary">
-                              {item.date ? new Date(item.date).toLocaleDateString() + ' — ' : ''}
-                              {item.text}
-                            </Typography>
-                          )
-                        })
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No recent activity to display.
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
+          <RevealOnScroll>
+            <Grid container spacing={2} component={motion.div} variants={itemVariants}>
+              {loading
+                ? [1, 2, 3, 4].map((i) => (
+                    <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <MetricCard
+                        icon={<Skeleton variant="rounded" width={32} height={32} />}
+                        value={<Skeleton variant="text" width="54%" height={44} />}
+                      />
+                    </Grid>
+                  ))
+                : kpis.filter((kpi) => kpi.title !== 'Open Runs').map((kpi) => (
+                    <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <MetricCard
+                        icon={kpiIcons[kpi.title]}
+                        title={kpi.title}
+                        value={<AnimatedKPIValue value={kpi.value} color={kpiColors[kpi.title]} />}
+                        subtitle={kpi.subtitle}
+                        color={kpiColors[kpi.title]}
+                      />
+                    </Grid>
+                  ))}
             </Grid>
+          </RevealOnScroll>
 
-            <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
-              <Card
-                elevation={0}
-                sx={{
-                  height: '100%',
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  background:
-                    'linear-gradient(155deg, rgba(13, 23, 42, 0.98), rgba(9, 16, 31, 0.98))',
-                }}
-              >
+          <RevealOnScroll delay={0.1}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
+                <DashboardChart />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+              <GlassCard variant="elevated" sx={{ height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
                   <Stack spacing={1.6}>
-                    <Typography variant="h6">Quick actions</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TrendingUpRoundedIcon color="primary" fontSize="small" />
+                      <Typography variant="h6">Quick actions</Typography>
+                    </Stack>
                     {quickActions.map((action) => (
                       <Card
                         key={action.title}
@@ -394,14 +193,16 @@ function DashboardPage() {
                         onClick={() => navigate(action.path)}
                         sx={{
                           borderRadius: 2.5,
-                          border: '1px solid',
-                          borderColor: 'rgba(129, 191, 255, 0.22)',
-                          background: 'rgba(10, 18, 34, 0.75)',
+                          border: '1px solid rgba(129, 191, 255, 0.15)',
+                          background: 'rgba(10, 18, 34, 0.5)',
+                          backdropFilter: 'blur(8px)',
                           cursor: 'pointer',
-                          transition: 'border-color 0.2s, background 0.2s',
+                          transition: 'all 0.25s',
                           '&:hover': {
-                            borderColor: 'rgba(129, 191, 255, 0.5)',
-                            background: 'rgba(14, 24, 44, 0.85)',
+                            borderColor: 'rgba(129, 191, 255, 0.4)',
+                            background: 'rgba(14, 24, 44, 0.7)',
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
                           },
                         }}
                       >
@@ -420,7 +221,73 @@ function DashboardPage() {
                     ))}
                   </Stack>
                 </CardContent>
-              </Card>
+              </GlassCard>
+            </Grid>
+          </Grid>
+          </RevealOnScroll>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
+              <GlassCard variant="elevated" sx={{ height: '100%' }}>
+                <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
+                  <Stack spacing={2}>
+                    <Typography variant="h6">Continue where you left off</Typography>
+                    {stats && (stats.processingInvoices > 0 || stats.unmatchedTransactions > 0 || stats.transactionsWithoutInvoice > 0 || stats.openAnomalies > 0) ? (
+                      <GlassCard variant="default" sx={{ borderRadius: 2.5, border: '1px solid rgba(125, 211, 252, 0.25)' }}>
+                        <CardContent>
+                          <Stack spacing={1}>
+                            {stats.processingInvoices > 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                {stats.processingInvoices} invoice{stats.processingInvoices === 1 ? '' : 's'} currently processing
+                              </Typography>
+                            )}
+                            {stats.unmatchedTransactions > 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                {stats.unmatchedTransactions} transaction{stats.unmatchedTransactions === 1 ? '' : 's'} awaiting match review
+                              </Typography>
+                            )}
+                            {stats.transactionsWithoutInvoice > 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                {stats.transactionsWithoutInvoice} transaction{stats.transactionsWithoutInvoice === 1 ? '' : 's'} without invoices
+                              </Typography>
+                            )}
+                            {stats.openAnomalies > 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                {stats.openAnomalies} open anomal{stats.openAnomalies === 1 ? 'y' : 'ies'} to resolve
+                                {stats.criticalAnomalies > 0 && ` (${stats.criticalAnomalies} critical)`}
+                              </Typography>
+                            )}
+                          </Stack>
+                        </CardContent>
+                      </GlassCard>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        All caught up — no pending items right now.
+                      </Typography>
+                    )}
+
+                    <Typography variant="h6">Recent activity</Typography>
+                    <RecentActivityTimeline items={activity} loading={loading} />
+                  </Stack>
+                </CardContent>
+              </GlassCard>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+              <GlassCard variant="glow" sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <CardContent>
+                  <Stack spacing={1} alignItems="center" textAlign="center">
+                    <TaskAltRoundedIcon sx={{ color: '#b7ffd2', fontSize: 48 }} />
+                    <Typography variant="h6">Match Rate</Typography>
+                    <Typography variant="h3" color="primary.main" fontWeight={700}>
+                      {stats ? `${Math.round(((stats.totalMatches || 0) / ((stats.totalMatches || 0) + (stats.unmatchedTransactions || 0) + (stats.unmatchedInvoices || 0) || 1)) * 100)}%` : '—'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Overall reconciliation match rate
+                    </Typography>
+                  </Stack>
+                </CardContent>
+              </GlassCard>
             </Grid>
           </Grid>
         </Stack>

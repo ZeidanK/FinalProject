@@ -15,6 +15,65 @@ export function confidenceColor(score) {
 }
 
 /**
+ * Return a CSS border-left color based on confidence score.
+ *
+ * @param {number|null|undefined} score - Confidence score between 0 and 1.
+ * @returns {string} CSS color value.
+ */
+export function confidenceBorderColor(score) {
+  if (score == null) return 'transparent'
+  if (score >= 0.9) return '#37d67a'
+  if (score >= 0.7) return '#f59e0b'
+  return '#f87171'
+}
+
+/**
+ * List of top-level form field keys whose confidence is tracked.
+ * @type {string[]}
+ */
+const TRACKED_FIELDS = [
+  'vendorName', 'invoiceNumber', 'invoiceDate', 'dueDate',
+  'totalAmount', 'subtotal', 'vatAmount', 'currency',
+  'vatRate', 'vendorTaxId', 'lastFourDigitsCard',
+]
+
+const FULL_CONFIDENCE_FIELDS = [
+  'vendorName',
+  'invoiceNumber',
+  'invoiceDate',
+  'totalAmount',
+  'subtotal',
+  'vatAmount',
+  'currency',
+  'vendorTaxId',
+  'lastFourDigitsCard',
+]
+
+/**
+ * Find fields in the form data whose confidence is below a threshold.
+ *
+ * @param {object} formData - The invoice form data with { value, confidence } shapes.
+ * @param {number} [threshold=0.9] - Confidence threshold below which a field is flagged.
+ * @returns {{ field: string, label: string, confidence: number }[]} Array of low-confidence fields.
+ */
+export function lowConfidenceFields(formData, threshold) {
+  if (threshold == null) threshold = 0.9
+  if (!formData) return []
+  const result = []
+  for (const key of TRACKED_FIELDS) {
+    const field = formData[key]
+    if (field && field.confidence != null && field.confidence < threshold) {
+      result.push({
+        field: key,
+        label: key.replace(/([A-Z])/g, ' $1').replace(/^./, function (s) { return s.toUpperCase() }),
+        confidence: field.confidence,
+      })
+    }
+  }
+  return result
+}
+
+/**
  * Format a confidence score as a percentage string.
  *
  * @param {number|null|undefined} score - Confidence score between 0 and 1.
@@ -23,6 +82,38 @@ export function confidenceColor(score) {
 export function confidenceLabel(score) {
   if (score == null) return '-'
   return Math.round(score * 100) + '%'
+}
+
+/**
+ * Calculate the full invoice confidence shown in the verification modal header.
+ *
+ * @param {object|null|undefined} formData - Invoice form data with { value, confidence } fields.
+ * @returns {number|null} Average confidence across the modal summary fields.
+ */
+export function invoiceFullConfidence(formData) {
+  if (!formData) return null
+
+  let total = 0
+  for (const key of FULL_CONFIDENCE_FIELDS) {
+    const confidence = Number(formData[key]?.confidence)
+    total += Number.isFinite(confidence) ? confidence : 0
+  }
+
+  return total / FULL_CONFIDENCE_FIELDS.length
+}
+
+/**
+ * Normalize a date value into an HTML date input string (YYYY-MM-DD).
+ *
+ * @param {*} value - Date string or date object to normalize.
+ * @returns {string} Date input value or empty string.
+ */
+export function toDateInput(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value.includes('T') ? value.split('T')[0] : value.slice(0, 10)
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
 }
 
 /**
@@ -133,4 +224,84 @@ export function mapExtractedToForm(ext, overallConfidence) {
       }
     }),
   }
+}
+
+/**
+ * Converts a saved invoice record from the API into invoice form values.
+ * Supports both snake_case and camelCase payload formats.
+ *
+ * @param {Object} invoice - Saved invoice payload.
+ * @returns {Object} Normalized form data for invoice verification and viewing.
+ */
+export function mapSavedInvoiceToForm(invoice) {
+  const rawConfidence = invoice?.ai_extraction_confidence ?? invoice?.aiExtractionConfidence ?? null
+  const parsedConfidence = rawConfidence == null ? null : Number(rawConfidence)
+  const confidence = Number.isFinite(parsedConfidence) ? parsedConfidence : null
+  const lineItems = invoice?.lineItems || invoice?.line_items || []
+
+  const form = mapExtractedToForm(
+    {
+      vendorName: invoice?.vendor_name ?? invoice?.vendorName ?? '',
+      invoiceNumber: invoice?.invoice_number ?? invoice?.invoiceNumber ?? '',
+      invoiceDate: toDateInput(invoice?.invoice_date ?? invoice?.invoiceDate),
+      dueDate: toDateInput(invoice?.due_date ?? invoice?.dueDate),
+      totalAmount: invoice?.total_amount ?? invoice?.totalAmount ?? 0,
+      subtotal: invoice?.subtotal ?? 0,
+      vatRate: invoice?.vat_rate ?? invoice?.vatRate ?? null,
+      vatAmount: invoice?.vat_amount ?? invoice?.vatAmount ?? null,
+      currency: invoice?.currency ?? 'USD',
+      vendorTaxId: invoice?.vendor_tax_id ?? invoice?.vendorTaxId ?? '',
+      lastFourDigitsCard: invoice?.last_four_digits_card ?? invoice?.lastFourDigitsCard ?? '',
+      paymentPlan: {
+        totalInstallments:
+          invoice?.paymentPlanTotalInstallments ?? invoice?.payment_plan_total_installments ?? null,
+        installmentAmount:
+          invoice?.paymentPlanInstallmentAmount ?? invoice?.payment_plan_installment_amount ?? null,
+        frequency: invoice?.paymentPlanFrequency ?? invoice?.payment_plan_frequency ?? null,
+        currentInstallment:
+          invoice?.paymentPlanCurrentInstallment ?? invoice?.payment_plan_current_installment ?? null,
+        description: invoice?.paymentPlanDescription ?? invoice?.payment_plan_description ?? null,
+      },
+      lineItems: lineItems.map((li, idx) => ({
+        description: li?.description || '',
+        quantity: li?.quantity ?? 1,
+        unitPrice: li?.unit_price ?? li?.unitPrice ?? 0,
+        totalAmount: li?.total_amount ?? li?.totalAmount ?? 0,
+        aiConfidenceScore: li?.ai_confidence_score ?? li?.aiConfidenceScore ?? null,
+        lineNumber: li?.line_number ?? li?.lineNumber ?? idx + 1,
+      })),
+      extractionConfidence: confidence,
+    },
+    confidence,
+  )
+
+  if (confidence != null) {
+    for (const key of TRACKED_FIELDS) {
+      if (form[key]) {
+        form[key] = { ...form[key], confidence }
+      }
+    }
+
+    if (form.paymentPlan) {
+      form.paymentPlan = Object.fromEntries(
+        Object.entries(form.paymentPlan).map(([key, field]) => [
+          key,
+          field ? { ...field, confidence } : field,
+        ]),
+      )
+    }
+  }
+
+  form.lineItems = form.lineItems.map((item, idx) => {
+    const rawLineConfidence =
+      lineItems[idx]?.ai_confidence_score ??
+      lineItems[idx]?.aiConfidenceScore ??
+      confidence
+    const parsedLineConfidence = rawLineConfidence == null ? null : Number(rawLineConfidence)
+    const lineConfidence = Number.isFinite(parsedLineConfidence) ? parsedLineConfidence : null
+
+    return { ...item, confidence: lineConfidence }
+  })
+
+  return form
 }

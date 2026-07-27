@@ -70,3 +70,37 @@ export async function uploadProfilePicture(userId, file, token) {
 
   return unwrapEnvelope(response)
 }
+
+/**
+ * Update the public/private visibility flag for an accountant.
+ *
+ * @param {string|number} userId - User identifier.
+ * @param {boolean} isPublic - True to make the accountant publicly discoverable.
+ * @param {string} token - JWT token used for authorization.
+ * @returns {Promise<any>} Unwrapped response payload.
+ */
+export async function updateUserVisibility(userId, isPublic, token) {
+  const response = await apiRequest(URLS.users.visibility(userId), {
+    method: 'PATCH',
+    body: { isPublic },
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
+export async function verifyPassword(password, token) {
+  const response = await apiRequest(URLS.users.verifyPassword, {
+    method: 'POST',
+    body: { password },
+    token,
+  })
+  return unwrapEnvelope(response)
+}
+
+export async function deleteUserAccount(userId, token) {
+  const response = await apiRequest(URLS.users.byId(userId), {
+    method: 'DELETE',
+    token,
+  })
+  return unwrapEnvelope(response)
+}

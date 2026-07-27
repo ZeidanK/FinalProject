@@ -12,7 +12,7 @@ import PropTypes from 'prop-types'
 import { motion } from 'framer-motion'
 import PageSectionLayout from '../components/PageSectionLayout'
 import { itemVariants } from '../utils/motionVariants'
-import { requirementCoverage, stackRationale, techStackSections } from './techStackData'
+import { stackRationale, systemCapabilities, techStackSections } from './techStackData'
 
 /**
  * Renders a single technology stack entry card.
@@ -35,10 +35,11 @@ function TechStackEntryCard({ entry }) {
       elevation={0}
       sx={{
         height: '100%',
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+        borderRadius: 3.5,
+        border: '1px solid rgba(129, 191, 255, 0.12)',
+        background: 'rgba(14, 24, 45, 0.65)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
       }}
     >
       <CardContent sx={{ p: { xs: 2.2, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -109,25 +110,96 @@ TechStackEntryCard.propTypes = {
 }
 
 /**
+ * Renders a product-readable capability with implementation evidence.
+ *
+ * @param {Object} props
+ * @param {Object} props.capability - System capability content.
+ * @param {string} props.capability.title - Capability title.
+ * @param {string} props.capability.audienceBenefit - User-facing benefit.
+ * @param {string} props.capability.implementationProof - Technical proof point.
+ * @param {string[]} props.capability.evidence - Short evidence chips.
+ * @returns {JSX.Element} The rendered capability card.
+ */
+function SystemCapabilityCard({ capability }) {
+  return (
+    <Card
+      component={motion.div}
+      variants={itemVariants}
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 3.5,
+        border: '1px solid rgba(129, 191, 255, 0.12)',
+        background: 'rgba(14, 24, 45, 0.65)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+      }}
+    >
+      <CardContent sx={{ p: { xs: 2.2, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 1.4 }}>
+        <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.08rem' } }}>
+          {capability.title}
+        </Typography>
+
+        <Typography color="text.secondary">
+          {capability.audienceBenefit}
+        </Typography>
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+
+        <Typography variant="body2" color="text.secondary">
+          <strong>Implementation evidence:</strong> {capability.implementationProof}
+        </Typography>
+
+        <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.8}>
+          {capability.evidence.map((item) => (
+            <Chip
+              key={item}
+              label={item}
+              size="small"
+              sx={{
+                bgcolor: 'rgba(93, 204, 126, 0.14)',
+                border: '1px solid',
+                borderColor: 'rgba(140, 230, 165, 0.32)',
+                color: '#d5f7dc',
+                fontWeight: 700,
+              }}
+            />
+          ))}
+        </Stack>
+      </CardContent>
+    </Card>
+  )
+}
+
+SystemCapabilityCard.propTypes = {
+  capability: PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    audienceBenefit: PropTypes.string.isRequired,
+    implementationProof: PropTypes.string.isRequired,
+    evidence: PropTypes.arrayOf(PropTypes.string).isRequired,
+  }).isRequired,
+}
+
+/**
  * Displays the project technology reference section with tech stack cards,
- * requirement coverage, and stack rationale.
+ * capabilities and stack rationale.
  *
  * @returns {JSX.Element} The rendered technology reference page.
  */
 export default function TechStackPage() {
   return (
     <PageSectionLayout>
-      <Card
-        component={motion.div}
-        variants={itemVariants}
-        elevation={0}
-        sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(135deg, rgba(14,25,45,0.98), rgba(9,17,33,0.97))',
-          boxShadow: '0 24px 54px rgba(0,0,0,0.42)',
-        }}
+        <Card
+          component={motion.div}
+          variants={itemVariants}
+          elevation={0}
+          sx={{
+            borderRadius: 3.5,
+            border: '1px solid rgba(129, 191, 255, 0.12)',
+            background: 'rgba(14, 24, 45, 0.65)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+          }}
       >
         <CardContent sx={{ p: { xs: 2.2, md: 3 } }}>
           <Stack spacing={1}>
@@ -173,78 +245,35 @@ export default function TechStackPage() {
         </Stack>
       ))}
 
-      <Card
-        component={motion.div}
-        variants={itemVariants}
-        elevation={0}
-        sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
-        }}
-      >
-        <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>
-          <Stack spacing={1.3}>
-            <Typography variant="h5" sx={{ fontSize: { xs: '1.2rem', md: '1.4rem' } }}>
-              Project Requirements Coverage
-            </Typography>
-            <Stack spacing={1}>
-              {requirementCoverage.map((item) => (
-                <Box
-                  key={item.requirement}
-                  sx={{
-                    p: 1.4,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'rgba(255,255,255,0.08)',
-                    backgroundColor: 'rgba(255,255,255,0.02)',
-                  }}
-                >
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    alignItems={{ xs: 'flex-start', sm: 'center' }}
-                    justifyContent="space-between"
-                    spacing={1}
-                  >
-                    <Typography sx={{ fontWeight: 700 }}>{item.requirement}</Typography>
-                    <Chip
-                      label={item.status}
-                      size="small"
-                      sx={{
-                        bgcolor:
-                          item.status === 'Covered'
-                            ? 'rgba(93, 204, 126, 0.18)'
-                            : 'rgba(255, 200, 120, 0.16)',
-                        border: '1px solid',
-                        borderColor:
-                          item.status === 'Covered'
-                            ? 'rgba(140, 230, 165, 0.45)'
-                            : 'rgba(255, 205, 140, 0.4)',
-                        color: item.status === 'Covered' ? '#cbf5d5' : '#ffe0b2',
-                        fontWeight: 700,
-                      }}
-                    />
-                  </Stack>
-                  <Typography color="text.secondary" sx={{ mt: 0.8 }}>
-                    {item.proof}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Stack spacing={1.4} component={motion.div} variants={itemVariants}>
+        <Box>
+          <Typography variant="h5" sx={{ fontSize: { xs: '1.2rem', md: '1.45rem' } }}>
+            System Capabilities
+          </Typography>
+          <Typography color="text.secondary">
+            What the reconciliation platform can do today, with the implementation proof behind each capability.
+          </Typography>
+        </Box>
+
+        <Grid container spacing={2}>
+          {systemCapabilities.map((capability) => (
+            <Grid key={capability.title} size={{ xs: 12, md: 6 }}>
+              <SystemCapabilityCard capability={capability} />
+            </Grid>
+          ))}
+        </Grid>
+      </Stack>
 
       <Card
         component={motion.div}
         variants={itemVariants}
         elevation={0}
         sx={{
-          borderRadius: 4,
-          border: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(145deg, rgba(14, 25, 45, 0.97), rgba(9, 17, 33, 0.95))',
+          borderRadius: 3.5,
+          border: '1px solid rgba(129, 191, 255, 0.12)',
+          background: 'rgba(14, 24, 45, 0.65)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
         }}
       >
         <CardContent sx={{ p: { xs: 2.2, md: 2.8 } }}>

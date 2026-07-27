@@ -16,7 +16,6 @@ CREATE PROCEDURE dbo.FP26_sp_Companies_Update
     @Country   VARCHAR(100)  = NULL,
     @Email     VARCHAR(255)  = NULL,
     @Phone     VARCHAR(50)   = NULL,
-    @Website   VARCHAR(500)  = NULL,
     @TaxId     VARCHAR(100)  = NULL,
     @VatNumber VARCHAR(100)  = NULL,
     @IsActive  BIT           = NULL
@@ -33,8 +32,7 @@ BEGIN
         postal_code = ISNULL(@PostalCode, postal_code),
         country     = ISNULL(@Country,    country),
         email       = ISNULL(@Email,      email),
-        phone       = ISNULL(@Phone,      phone),
-        website     = ISNULL(@Website,    website),
+        phone       = ISNULL(@Phone,       phone),
         tax_id      = ISNULL(@TaxId,      tax_id),
         vat_number  = ISNULL(@VatNumber,  vat_number),
         is_active   = ISNULL(@IsActive,   is_active),

@@ -1,8 +1,10 @@
 using FinalProjectAuthAPI.BL.Interfaces;
 using FinalProjectAuthAPI.DAL;
 using FinalProjectAuthAPI.Models;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace FinalProjectAuthAPI.Controllers
 {
@@ -14,36 +16,65 @@ namespace FinalProjectAuthAPI.Controllers
         private readonly ITransactionService _svc;
         private readonly IExcelExtractionService _excelSvc;
         private readonly IFileStorageService _fileSvc;
-        private readonly DBservices _db;
+        private readonly IUploadJobService _jobSvc;
+        private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IDBservices _db;
 
         public TransactionsController(
             ITransactionService svc,
             IExcelExtractionService excelSvc,
             IFileStorageService fileSvc,
-            DBservices db)
+            IUploadJobService jobSvc,
+            IBackgroundJobClient backgroundJobClient,
+            IDBservices db)
         {
             _svc = svc;
             _excelSvc = excelSvc;
             _fileSvc = fileSvc;
+            _jobSvc = jobSvc;
+            _backgroundJobClient = backgroundJobClient;
             _db = db;
         }
 
-        // GET api/transactions/company/{companyId}?type=&isMatched=&startDate=&endDate=
+        // GET api/transactions/company/{companyId}/filters
+        [HttpGet("company/{companyId:long}/filters")]
+        public IActionResult GetFilterOptions(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetFilterOptions(companyId));
+        }
+
+        // GET api/transactions/company/{companyId}?type=&isMatched=&startDate=&endDate=&pageNumber=&pageSize=&sortBy=&sortDirection=&searchTerm=&requiresInvoice=&category=
         [HttpGet("company/{companyId:long}")]
         public IActionResult GetByCompany(
             long companyId,
-            [FromQuery] string? type,
-            [FromQuery] bool? isMatched,
-            [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate) =>
-            Ok(_svc.GetByCompany(companyId, type, isMatched, startDate, endDate));
+            [FromQuery] TransactionFilterRequest filter)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetByCompany(companyId, filter ?? new TransactionFilterRequest()));
+        }
+
+        // GET api/transactions/company/{companyId}/summary
+        [HttpGet("company/{companyId:long}/summary")]
+        public IActionResult GetSummary(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+            return Ok(_svc.GetSummary(companyId));
+        }
 
         // GET api/transactions/{id}
         [HttpGet("{id:long}")]
         public IActionResult GetById(long id)
         {
             var txn = _svc.GetById(id);
-            return txn is null ? NotFound(new { message = "Transaction not found." }) : Ok(txn);
+            if (txn is null)
+                return NotFound(new { message = "Transaction not found." });
+            if (!CanAccessCompany(txn.CompanyId, _db))
+                return Forbid();
+            return Ok(txn);
         }
 
         // POST api/transactions
@@ -70,10 +101,32 @@ namespace FinalProjectAuthAPI.Controllers
                 : BadRequest(new { message = error });
         }
 
+        // PATCH api/transactions/{id}/requires-invoice
+        [HttpPatch("{id:long}/requires-invoice")]
+        public IActionResult SetRequiresInvoice(long id, [FromBody] SetRequiresInvoiceRequest request)
+        {
+            var txn = _svc.GetById(id);
+            if (txn is null)
+                return NotFound(new { message = "Transaction not found." });
+            if (!CanAccessCompany(txn.CompanyId, _db))
+                return Forbid();
+
+            var ok = _svc.SetRequiresInvoice(id, request.RequiresInvoice);
+            return ok
+                ? Ok(new { message = $"Transaction requires_invoice set to {request.RequiresInvoice}." })
+                : NotFound(new { message = "Transaction not found." });
+        }
+
         // DELETE api/transactions/{id}
         [HttpDelete("{id:long}")]
         public IActionResult Delete(long id)
         {
+            var txn = _svc.GetById(id);
+            if (txn is null)
+                return NotFound(new { message = "Transaction not found." });
+            if (!CanAccessCompany(txn.CompanyId, _db))
+                return Forbid();
+
             var ok = _svc.Delete(id);
             return ok
                 ? Ok(new { message = "Transaction deleted." })
@@ -86,6 +139,10 @@ namespace FinalProjectAuthAPI.Controllers
         {
             if (request?.Ids == null || request.Ids.Count == 0)
                 return BadRequest(new { message = "At least one transaction ID is required." });
+
+            var firstTxn = _svc.GetById(request.Ids[0]);
+            if (firstTxn != null && !CanAccessCompany(firstTxn.CompanyId, _db))
+                return Forbid();
 
             var (deletedIds, notFoundIds) = _svc.BulkDelete(request.Ids);
             var deletedCount = deletedIds.Count;
@@ -100,6 +157,22 @@ namespace FinalProjectAuthAPI.Controllers
                 message = notFoundCount == 0
                     ? "Transactions deleted."
                     : "Bulk delete completed with partial success."
+            });
+        }
+
+        // DELETE api/transactions/company/{companyId}
+        [HttpDelete("company/{companyId:long}")]
+        public IActionResult DeleteAllByCompany(long companyId)
+        {
+            if (!CanAccessCompany(companyId, _db))
+                return Forbid();
+
+            var deletedCount = _svc.DeleteAllByCompany(companyId);
+
+            return Ok(new
+            {
+                deletedCount,
+                message = $"Deleted {deletedCount} transaction(s)."
             });
         }
 
@@ -193,58 +266,43 @@ namespace FinalProjectAuthAPI.Controllers
             }
 
             var fileName = request.FileOriginalName ?? Path.GetFileName(request.SavedFilePath);
-
-            ExcelExtractionResult extractionResult;
             try
             {
-                using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                extractionResult = _excelSvc.Extract(stream, fileName);
+                var payload = JsonSerializer.Serialize(new UploadJobPayload
+                {
+                    BankAccountId = request.BankAccountId,
+                    Source = "import-excel"
+                });
+
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
+                {
+                    JobType = UploadJobTypes.TransactionImportExcel,
+                    FilePath = request.SavedFilePath,
+                    FileOriginalName = fileName,
+                    FileType = Path.GetExtension(fileName),
+                    FileSize = new FileInfo(fullPath).Length,
+                    CompanyId = request.CompanyId,
+                    UserId = userId,
+                    BankAccountId = request.BankAccountId,
+                    PayloadJson = payload
+                });
+
+                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
+                    w => w.ProcessTransactionJobAsync(jobId));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Transaction import accepted and queued for background processing."
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = $"Failed to process Excel file: {ex.Message}" });
+                return BadRequest(new { message = $"Failed to queue transaction import: {ex.Message}" });
             }
-
-            if (extractionResult.TotalExtracted == 0)
-                return BadRequest(new { message = "No transactions could be extracted from the file.", sheets = extractionResult.Sheets });
-
-            var bulkRequest = new BulkCreateTransactionsRequest
-            {
-                CompanyId = request.CompanyId,
-                CreatedByUserId = userId,
-                Transactions = extractionResult.Transactions.Select(t => new CreateTransactionRequest
-                {
-                    CompanyId        = request.CompanyId,
-                    TransactionDate  = t.TransactionDate,
-                    PostedDate       = t.PostedDate,
-                    Description      = t.Description,
-                    Amount           = t.Amount,
-                    BalanceAfter     = t.BalanceAfter,
-                    TransactionType  = t.TransactionType,
-                    Category         = t.Category,
-                    ReferenceNumber  = t.ReferenceNumber,
-                    VendorName       = t.VendorName,
-                    CardLast4        = t.CardLast4,
-                    ChargeAmount     = t.ChargeAmount,
-                    ChargeCurrency   = t.ChargeCurrency,
-                    OriginalCurrency = t.OriginalCurrency,
-                    ExchangeRate     = t.ExchangeRate,
-                    BankAccountId    = request.BankAccountId,
-                    CreatedByUserId  = userId
-                }).ToList()
-            };
-
-            var (success, ids, error) = _svc.BulkCreate(bulkRequest, userId);
-
-            if (!success)
-                return BadRequest(new { message = error });
-
-            return StatusCode(201, new
-            {
-                count = ids.Count,
-                ids,
-                message = $"Successfully imported {ids.Count} transaction(s)."
-            });
         }
 
         [HttpPost("upload-excel")]
@@ -263,49 +321,38 @@ namespace FinalProjectAuthAPI.Controllers
 
             try
             {
-                // 1. Save the file
+                // Save and enqueue so the upload continues even if the user leaves the page.
                 var (relativePath, _) = await _fileSvc.SaveExcelAsync(file, companyId);
 
-                // 2. Extract transactions from the Excel file
-                var (extractionResult, extractionError) = TryExtractExcel(file, relativePath);
-                if (extractionError != null)
-                    return extractionError;
-
-                // 3. Map extracted transactions to bulk create request
-                var bulkRequest = new BulkCreateTransactionsRequest
+                var payload = JsonSerializer.Serialize(new UploadJobPayload
                 {
-                    CompanyId = companyId,
-                    CreatedByUserId = userId,
-                    Transactions = extractionResult!.Transactions.Select(t => new CreateTransactionRequest
-                    {
-                        CompanyId = companyId,
-                        TransactionDate = t.TransactionDate,
-                        PostedDate = t.PostedDate,
-                        Description = t.Description,
-                        Amount = t.Amount,
-                        BalanceAfter = t.BalanceAfter,
-                        TransactionType = t.TransactionType,
-                        Category = t.Category,
-                        ReferenceNumber = t.ReferenceNumber,
-                        VendorName = t.VendorName,
-                        BankAccountId = bankAccountId,
-                        CreatedByUserId = userId
-                    }).ToList()
-                };
+                    BankAccountId = bankAccountId,
+                    Source = "upload-excel"
+                });
 
-                // 4. Bulk insert
-                var (success, ids, error) = _svc.BulkCreate(bulkRequest, userId);
-
-                if (!success)
-                    return BadRequest(new { message = error, filePath = relativePath });
-
-                return StatusCode(201, new UploadExcelResponse
+                var jobId = _jobSvc.Create(new CreateUploadJobRequest
                 {
-                    FileOriginalName = file.FileName,
-                    FileSize = file.Length,
+                    JobType = UploadJobTypes.TransactionUploadExcel,
                     FilePath = relativePath,
-                    ExtractionResult = extractionResult,
-                    CreatedTransactionIds = ids
+                    FileOriginalName = file.FileName,
+                    FileType = file.ContentType,
+                    FileSize = file.Length,
+                    CompanyId = companyId,
+                    UserId = userId,
+                    BankAccountId = bankAccountId,
+                    PayloadJson = payload
+                });
+
+                var hangfireJobId = _backgroundJobClient.Enqueue<IUploadJobWorker>(
+                    w => w.ProcessTransactionJobAsync(jobId));
+                _jobSvc.SetHangfireJobId(jobId, hangfireJobId);
+
+                return Accepted(new QueueUploadJobResponse
+                {
+                    JobId = jobId,
+                    Status = UploadJobStatuses.Queued,
+                    HangfireJobId = hangfireJobId,
+                    Message = "Excel upload accepted and queued for background processing."
                 });
             }
             catch (ArgumentException ex)
@@ -368,5 +415,6 @@ namespace FinalProjectAuthAPI.Controllers
                 sheets = extractionResult.Sheets
             });
         }
+
     }
 }

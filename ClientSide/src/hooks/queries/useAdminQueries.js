@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  clearAdminAuditLogs,
+  clearAdminLogs,
+  deleteAdminAuditLog,
+  deleteAdminLog,
   getAdminAuditLogs,
   getAdminLogs,
   getAdminStats,
   getAdminUsers,
-  toggleAdminUserActive,
+  toggleAdminUserBan,
 } from '../../services/admin'
 import { adminKeys } from '../../queries/queryKeys'
 
@@ -76,19 +80,91 @@ export function useAdminAuditQuery({ token, query, enabled = true }) {
 }
 
 /**
- * Toggles an admin user's active state and invalidates cached admin queries.
+ * Toggles an admin user's ban state and invalidates cached admin queries.
  *
  * @param {Object} params - Mutation parameters.
  * @param {string} params.token - Authentication token for admin requests.
  * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
  */
-export function useToggleAdminUserActiveMutation({ token }) {
+export function useToggleAdminUserBanMutation({ token }) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId }) => toggleAdminUserActive(userId, token),
+    mutationFn: ({ userId }) => toggleAdminUserBan(userId, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKeys.all })
+    },
+  })
+}
+
+/**
+ * Clears system logs and invalidates admin log caches.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
+ */
+export function useClearAdminLogsMutation({ token }) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => clearAdminLogs(token),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...adminKeys.all, 'logs'] })
+    },
+  })
+}
+
+/**
+ * Clears audit logs and invalidates admin audit caches.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
+ */
+export function useClearAdminAuditLogsMutation({ token }) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => clearAdminAuditLogs(token),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...adminKeys.all, 'audit'] })
+    },
+  })
+}
+
+/**
+ * Deletes a single system log and invalidates admin log caches.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
+ */
+export function useDeleteAdminLogMutation({ token }) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }) => deleteAdminLog(id, token),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...adminKeys.all, 'logs'] })
+    },
+  })
+}
+
+/**
+ * Deletes a single audit log and invalidates admin audit caches.
+ *
+ * @param {Object} params - Mutation parameters.
+ * @param {string} params.token - Authentication token for admin requests.
+ * @returns {import('@tanstack/react-query').UseMutationResult} React Query mutation result.
+ */
+export function useDeleteAdminAuditLogMutation({ token }) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }) => deleteAdminAuditLog(id, token),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...adminKeys.all, 'audit'] })
     },
   })
 }

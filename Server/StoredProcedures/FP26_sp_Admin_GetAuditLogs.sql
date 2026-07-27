@@ -17,7 +17,9 @@ BEGIN
 
     SELECT COUNT(*) AS total_count
     FROM dbo.FP26_audit_logs
-    WHERE (@CompanyId IS NULL OR company_id = @CompanyId);
+    WHERE (@CompanyId IS NULL OR company_id = @CompanyId)
+      AND action NOT LIKE '%/api/realtime/%'
+      AND action NOT LIKE '%/api/Notifications%';
 
     SELECT
         al.id,
@@ -34,6 +36,8 @@ BEGIN
     FROM dbo.FP26_audit_logs al
     LEFT JOIN dbo.FP26_users u ON u.id = al.user_id
     WHERE (@CompanyId IS NULL OR al.company_id = @CompanyId)
+      AND al.action NOT LIKE '%/api/realtime/%'
+      AND al.action NOT LIKE '%/api/Notifications%'
     ORDER BY al.created_at DESC
     OFFSET  (@Page - 1) * @Limit ROWS
     FETCH NEXT @Limit ROWS ONLY;

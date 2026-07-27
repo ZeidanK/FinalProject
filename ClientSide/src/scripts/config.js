@@ -27,6 +27,8 @@ const resolveApiBaseUrl = () => {
 
 const API_BASE_URL = normalizeBaseUrl(resolveApiBaseUrl())
 
+const APP_SERVER_BASE = API_BASE_URL.replace(/\/api\/?$/i, '') || '/'
+
 /**
  * Build a full API path using the configured base URL.
  *
@@ -42,6 +44,7 @@ const buildApiPath = (path = '') => `${API_BASE_URL}${path}`
  */
 export const APP_CONFIG = {
   apiBaseUrl: API_BASE_URL,
+  serverBaseUrl: APP_SERVER_BASE,
 }
 
 /**
@@ -61,6 +64,8 @@ export const URLS = {
     byId: (id) => buildApiPath(`/Users/${id}`),
     changePassword: (id) => buildApiPath(`/Users/${id}/password`),
     profilePicture: (id) => buildApiPath(`/Users/${id}/profile-picture`),
+    visibility: (id) => buildApiPath(`/Users/${id}/visibility`),
+    verifyPassword: buildApiPath('/Users/verify-password'),
   },
   companies: {
     base: buildApiPath('/Companies'),
@@ -82,14 +87,18 @@ export const URLS = {
     byId: (id) => buildApiPath(`/BankAccounts/${id}`),
     byCompany: (companyId) => buildApiPath(`/BankAccounts/company/${companyId}`),
   },
-  transactions: {
-    base: buildApiPath('/Transactions'),
-    byId: (id) => buildApiPath(`/Transactions/${id}`),
-    byCompany: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
+    transactions: {
+      base: buildApiPath('/Transactions'),
+      byId: (id) => buildApiPath(`/Transactions/${id}`),
+      byCompany: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
+      filterOptions: (companyId) => buildApiPath(`/Transactions/company/${companyId}/filters`),
+      summary: (companyId) => buildApiPath(`/Transactions/company/${companyId}/summary`),
+      deleteAll: (companyId) => buildApiPath(`/Transactions/company/${companyId}`),
     bulk: buildApiPath('/Transactions/bulk'),
     bulkDelete: buildApiPath('/Transactions/bulk'),
     previewExcel: buildApiPath('/Transactions/preview-excel'),
     importExcel: buildApiPath('/Transactions/import-excel'),
+    requiresInvoice: (id) => buildApiPath(`/Transactions/${id}/requires-invoice`),
   },
   matches: {
     base: buildApiPath('/Matches'),
@@ -108,12 +117,14 @@ export const URLS = {
     byCompany: (companyId) => buildApiPath(`/Anomalies/company/${companyId}`),
     stats: (companyId) => buildApiPath(`/Anomalies/stats/${companyId}`),
     resolve: (id) => buildApiPath(`/Anomalies/${id}/resolve`),
+    keepDuplicateInvoice: (id) => buildApiPath(`/Anomalies/${id}/duplicate-invoices/keep`),
+    transactionFileUpload: (id) => buildApiPath(`/Anomalies/transaction-file-uploads/${id}`),
   },
   reports: {
     base: buildApiPath('/Reports'),
     dashboard: (companyId) => buildApiPath(`/Reports/dashboard/${companyId}`),
-    vat: (companyId) => buildApiPath(`/Reports/vat/${companyId}`),
     reconciliation: (companyId) => buildApiPath(`/Reports/reconciliation/${companyId}`),
+    aging: (companyId) => buildApiPath(`/Reports/aging/${companyId}`),
   },
   admin: {
     base: buildApiPath('/Admin'),
@@ -122,5 +133,38 @@ export const URLS = {
     toggleUser: (id) => buildApiPath(`/Admin/users/${id}/toggle`),
     logs: buildApiPath('/Admin/logs'),
     auditLogs: buildApiPath('/Admin/audit-logs'),
+    clearLogs: buildApiPath('/Admin/logs'),
+    clearAuditLogs: buildApiPath('/Admin/audit-logs'),
+    deleteLog: (id) => buildApiPath(`/Admin/logs/${id}`),
+    deleteAuditLog: (id) => buildApiPath(`/Admin/audit-logs/${id}`),
+  },
+  uploadJobs: {
+    byId: (id) => buildApiPath(`/UploadJobs/${id}`),
+    mine: buildApiPath('/UploadJobs/mine'),
+    verified: (id) => buildApiPath(`/UploadJobs/${id}/verified`),
+    download: (id) => buildApiPath(`/UploadJobs/${id}/download`),
+    byCompany: (companyId) => buildApiPath(`/UploadJobs/company/${companyId}`),
+    verifyInvoice: (id) => buildApiPath(`/UploadJobs/${id}/verify-invoice`),
+    verifyInvoices: buildApiPath('/UploadJobs/verify-invoices'),
+  },
+  realtime: {
+    notificationsHub: buildApiPath('/realtime/notifications'),
+  },
+  notifications: {
+    mine: buildApiPath('/Notifications'),
+    inbox: buildApiPath('/Notifications/inbox'),
+    markRead: (id) => buildApiPath(`/Notifications/${id}/read`),
+    markAllRead: buildApiPath('/Notifications/read-all'),
+  },
+  accountants: {
+    base: buildApiPath('/Accountants'),
+    paginated: buildApiPath('/Accountants/paginated'),
+    sendRequest: (id) => buildApiPath(`/Accountants/${id}/request`),
+    requests: (id) => buildApiPath(`/Accountants/${id}/requests`),
+    companies: (id) => buildApiPath(`/Accountants/${id}/companies`),
+    respondToRequest: (requestId) => buildApiPath(`/Accountants/requests/${requestId}/respond`),
+    specialties: (id) => buildApiPath(`/Accountants/${id}/specialties`),
+    certifications: (id) => buildApiPath(`/Accountants/${id}/certifications`),
+    reviews: (id) => buildApiPath(`/Accountants/${id}/reviews`),
   },
 }

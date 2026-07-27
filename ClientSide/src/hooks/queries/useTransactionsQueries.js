@@ -5,6 +5,7 @@ import {
   deleteTransaction,
   getTransactionById,
   getTransactionsByCompany,
+  getTransactionSummary,
   previewExcel,
 } from '../../services/transactions'
 import { transactionKeys } from '../../queries/queryKeys'
@@ -22,6 +23,23 @@ export function useTransactionsByCompanyQuery({ companyId, token, filters }) {
   return useQuery({
     queryKey: transactionKeys.byCompany(companyId, filters),
     queryFn: () => getTransactionsByCompany(companyId, filters, token),
+    enabled: Boolean(companyId) && Boolean(token),
+    placeholderData: (prev) => prev,
+  })
+}
+
+/**
+ * Fetches transaction summary/aggregates for a company.
+ *
+ * @param {Object} params - Query parameters.
+ * @param {string|number} params.companyId - Company identifier.
+ * @param {string} params.token - Authentication token.
+ * @returns {import('@tanstack/react-query').UseQueryResult} React Query result for transaction summary.
+ */
+export function useTransactionSummaryQuery({ companyId, token }) {
+  return useQuery({
+    queryKey: transactionKeys.summary(companyId),
+    queryFn: () => getTransactionSummary(companyId, token),
     enabled: Boolean(companyId) && Boolean(token),
   })
 }

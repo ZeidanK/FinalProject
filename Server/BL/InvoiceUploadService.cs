@@ -13,13 +13,13 @@ namespace FinalProjectAuthAPI.BL
         private readonly IInvoiceService _invoiceSvc;
         private readonly IPdfExtractionService _pdfSvc;
         private readonly IFileStorageService _fileSvc;
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
         public InvoiceUploadService(
             IInvoiceService invoiceSvc,
             IPdfExtractionService pdfSvc,
             IFileStorageService fileSvc,
-            DBservices db)
+            IDBservices db)
         {
             _invoiceSvc = invoiceSvc;
             _pdfSvc = pdfSvc;
@@ -52,10 +52,10 @@ namespace FinalProjectAuthAPI.BL
                 var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
 
                 // Extract data from the PDF
-                PdfExtractionResult extractedData;
+                PdfExtractionOutcome outcome;
                 using (var stream = file.OpenReadStream())
                 {
-                    extractedData = await _pdfSvc.ExtractAsync(stream, file.FileName);
+                    outcome = await _pdfSvc.ExtractAsync(stream, file.FileName);
                 }
 
                 var response = new UploadInvoicePdfResponse
@@ -64,7 +64,7 @@ namespace FinalProjectAuthAPI.BL
                     FileSize = file.Length,
                     FilePath = relativePath,
                     FileType = file.ContentType,
-                    ExtractedData = extractedData
+                    ExtractedData = outcome.ExtractedData
                 };
 
                 return (true, response, string.Empty);
@@ -104,11 +104,12 @@ namespace FinalProjectAuthAPI.BL
                 var (relativePath, _) = await _fileSvc.SaveAsync(file, companyId);
 
                 // Extract data
-                PdfExtractionResult extracted;
+                PdfExtractionOutcome outcome;
                 using (var stream = file.OpenReadStream())
                 {
-                    extracted = await _pdfSvc.ExtractAsync(stream, file.FileName);
+                    outcome = await _pdfSvc.ExtractAsync(stream, file.FileName);
                 }
+                var extracted = outcome.ExtractedData;
 
                 // Build a CreateInvoiceRequest from extracted data
                 var request = new CreateInvoiceRequest
@@ -129,6 +130,7 @@ namespace FinalProjectAuthAPI.BL
                     PaymentPlanInstallmentAmount = extracted.PaymentPlan?.InstallmentAmount,
                     PaymentPlanFrequency = extracted.PaymentPlan?.Frequency,
                     PaymentPlanDescription = extracted.PaymentPlan?.Description,
+                    PaymentPlanCurrentInstallment = extracted.PaymentPlan?.CurrentInstallment,
                     LineItems = extracted.LineItems.Select((li, idx) => new CreateLineItemRequest
                     {
                         Description = li.Description,

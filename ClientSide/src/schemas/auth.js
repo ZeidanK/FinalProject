@@ -30,9 +30,9 @@ export const registerSchema = z
   .object({
     name: z.string().trim().min(1, 'Name is required.'),
     email: emailSchema,
-    password: z.string().min(6, 'Password must be at least 6 characters long.'),
+    password: z.string().min(8, 'Password must be at least 8 characters long.'),
     confirmPassword: z.string().min(1, 'Please confirm your password.'),
-    role: z.enum(['accountant', 'business_owner', 'accountant_business_owner']),
+    role: z.enum(['accountant', 'business_owner']),
   })
   .refine((value) => value.password === value.confirmPassword, {
     path: ['confirmPassword'],

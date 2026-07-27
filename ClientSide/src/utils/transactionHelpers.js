@@ -84,3 +84,53 @@ export function formatTransactionTypeLabel(type) {
 
   return type
 }
+
+export function exportTransactionsToCSV(transactions, filename = 'transactions.csv') {
+  if (!transactions.length) return
+
+  const escapeCsvValue = (value) => {
+    const str = value === null || value === undefined ? '' : String(value)
+    const safe = typeof str === 'string' && /^[=+\-@]/.test(str) ? `'${str}` : str
+    return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+  }
+
+  const headers = [
+    'ID', 'Date', 'Posted Date', 'Vendor', 'Description',
+    'Amount', 'Type', 'Category', 'Reference Number',
+    'Charge Amount', 'Charge Currency', 'Exchange Rate',
+    'Requires Invoice', 'Matched', 'Status',
+  ]
+
+  const rows = transactions.map((tx) => [
+    tx.id ?? tx.transactionId ?? '',
+    tx.transaction_date || tx.transactionDate || '',
+    tx.posted_date || tx.postedDate || '',
+    tx.vendor_name || tx.vendorName || '',
+    tx.description || '',
+    tx.chargeAmount ?? tx.charge_amount ?? tx.amount ?? 0,
+    normalizeTransactionType(tx),
+    tx.category || '',
+    tx.reference_number || tx.referenceNumber || '',
+    tx.charge_amount ?? tx.chargeAmount ?? '',
+    tx.charge_currency ?? tx.chargeCurrency ?? '',
+    tx.exchange_rate ?? tx.exchangeRate ?? '',
+    tx.requiresInvoice === false ? 'No' : 'Yes',
+    (tx.is_matched ?? tx.isMatched) ? 'Yes' : 'No',
+    tx.status || 'confirmed',
+  ])
+
+  const csvContent = [
+    headers.map(escapeCsvValue).join(','),
+    ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+  ].join('\r\n')
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}

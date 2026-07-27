@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, matching]
+  pull_request:
+    branches: [main, matching]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 6
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore & build backend
+        run: dotnet build Server/FinalProjectAuthAPI.csproj
+
+      - name: Run backend tests
+        run: dotnet test Tests/FinalProjectAuthAPI.Tests/FinalProjectAuthAPI.Tests.csproj --no-restore --verbosity normal
+
+      - name: Install frontend dependencies
+        working-directory: ClientSide
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: ClientSide
+        run: npm test

@@ -1,4 +1,19 @@
 /**
+ * Key factories for notification-related React Query caches.
+ */
+export const notificationKeys = {
+  all: ['notifications'],
+  user: (userId) => [...notificationKeys.all, 'user', userId],
+  mine: (userId, take) => [...notificationKeys.user(userId), 'mine', take],
+  inbox: (userId, view, companyId) => [
+    ...notificationKeys.user(userId),
+    'inbox',
+    view,
+    companyId || null,
+  ],
+}
+
+/**
  * Key factories for anomaly-related React Query caches.
  *
  * @type {{all: string[], byCompany: function(string|number): Array, list: function(string|number, any): Array, stats: function(string|number): Array, detail: function(string|number): Array}}
@@ -43,6 +58,7 @@ export const profileKeys = {
 export const transactionKeys = {
   all: ['transactions'],
   byCompany: (companyId, filters) => [...transactionKeys.all, 'company', companyId, filters],
+  summary: (companyId) => [...transactionKeys.all, 'summary', companyId],
   detail: (transactionId) => [...transactionKeys.all, 'detail', transactionId],
 }
 
@@ -55,6 +71,17 @@ export const invoiceKeys = {
   all: ['invoices'],
   byCompany: (companyId, filters) => [...invoiceKeys.all, 'company', companyId, filters],
   detail: (invoiceId) => [...invoiceKeys.all, 'detail', invoiceId],
+}
+
+/**
+ * Key factories for accountant directory React Query caches.
+ */
+export const accountantKeys = {
+  all: ['accountants'],
+  list: (query) => [...accountantKeys.all, 'list', query],
+  specialties: (userId) => [...accountantKeys.all, 'specialties', userId],
+  certifications: (userId) => [...accountantKeys.all, 'certifications', userId],
+  reviews: (userId) => [...accountantKeys.all, 'reviews', userId],
 }
 
 /**

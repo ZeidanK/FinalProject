@@ -33,6 +33,7 @@ BEGIN
         i.file_original_name,
         i.file_path,
         i.file_type,
+        i.file_size,
         i.status,
         i.ai_extraction_confidence,
         i.ai_processed,
@@ -43,6 +44,7 @@ BEGIN
         i.payment_plan_installment_amount,
         i.payment_plan_frequency,
         i.payment_plan_description,
+        i.payment_plan_current_installment,
         i.uploaded_by_user_id,
         u.name AS uploaded_by_name,
         i.is_duplicate,
@@ -51,6 +53,7 @@ BEGIN
     FROM dbo.FP26_invoices i
     LEFT JOIN dbo.FP26_users u ON u.id = i.uploaded_by_user_id
     WHERE i.company_id = @CompanyId
+      AND i.status <> 'deleted'
       AND (@Status    IS NULL OR i.status     = @Status)
       AND (@StartDate IS NULL OR i.invoice_date >= @StartDate)
       AND (@EndDate   IS NULL OR i.invoice_date <= @EndDate)

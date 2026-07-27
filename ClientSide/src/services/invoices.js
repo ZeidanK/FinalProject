@@ -29,6 +29,7 @@ const parseFileName = (contentDisposition) => {
  *
  * @param {string|number} companyId - Company identifier.
  * @param {object} filters - Optional query filters.
+ * @param {boolean} autoVerify - Whether this upload may be automatically verified.
  * @param {string} token - JWT token for authorization.
  * @returns {Promise<any>} Unwrapped response payload from the invoice list endpoint.
  */
@@ -148,18 +149,24 @@ export async function updateInvoiceStatus(invoiceId, status, token) {
  *
  * @param {File} file - PDF file to upload.
  * @param {string|number} companyId - Company identifier.
+ * @param {boolean} autoVerify - Whether this upload may be automatically verified.
+ * @param {'gemini'|'localmodel'} extractionProvider - AI provider to use for extraction.
  * @param {string} token - JWT token for authorization.
  * @returns {Promise<any>} Unwrapped response payload from the upload endpoint.
  */
-export async function uploadInvoicePdf(file, companyId, token) {
+export async function uploadInvoicePdf(file, companyId, autoVerify, extractionProvider, token) {
+  const selectedProvider = token == null ? 'gemini' : extractionProvider
+  const authToken = token == null ? extractionProvider : token
   const formData = new FormData()
   formData.append('file', file)
   formData.append('companyId', String(companyId))
+  formData.append('autoVerify', String(Boolean(autoVerify)))
+  formData.append('extractionProvider', selectedProvider || 'gemini')
 
   const response = await apiRequest(URLS.invoices.uploadPdf, {
     method: 'POST',
     body: formData,
-    token,
+    token: authToken,
   })
 
   return unwrapEnvelope(response)

@@ -10,9 +10,9 @@ namespace FinalProjectAuthAPI.BL
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly DBservices _db;
+        private readonly IDBservices _db;
 
-        public UserService(DBservices db)
+        public UserService(IDBservices db)
         {
             _db = db;
         }
@@ -21,12 +21,12 @@ namespace FinalProjectAuthAPI.BL
 
         public List<User> GetAll() => _db.GetAllUsers();
 
-        public bool Update(long id, string? name, string? phone, string? profilePicture)
+        public bool Update(long id, string? name, string? phone, string? profilePicture, string? bio = null, int? yearsOfExperience = null, decimal? hourlyRate = null, string? location = null)
         {
             if (name != null && string.IsNullOrWhiteSpace(name))
                 return false;
 
-            return _db.UpdateUser(id, name?.Trim(), phone?.Trim(), profilePicture);
+            return _db.UpdateUser(id, name?.Trim(), phone?.Trim(), profilePicture, bio, yearsOfExperience, hourlyRate, location);
         }
 
         public bool ChangePassword(long id, string currentPassword, string newPassword)
@@ -40,5 +40,20 @@ namespace FinalProjectAuthAPI.BL
 
             return _db.ChangePassword(id, User.HashPassword(newPassword));
         }
+
+        public bool UpdateVisibility(long id, bool isPublic) =>
+            _db.UpdateUserVisibility(id, isPublic);
+
+        public bool VerifyPassword(long userId, string password)
+        {
+            var storedHash = _db.GetPasswordHash(userId);
+            if (storedHash == null)
+                return false;
+
+            return storedHash == User.HashPassword(password);
+        }
+
+        public bool DeleteUserAccount(long userId) =>
+            _db.DeleteUserAccount(userId);
     }
 }

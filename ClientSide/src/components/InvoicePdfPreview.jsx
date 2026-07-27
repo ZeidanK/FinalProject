@@ -18,6 +18,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { downloadInvoicePdf } from '../services/invoices'
+import { downloadUploadJobPdf } from '../services/uploadJobs'
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -44,6 +45,7 @@ function isPdfDocument(fileType, fileName, localFile) {
  * @param {object} props
  * @param {boolean} props.open - Whether the preview panel is currently visible.
  * @param {number|null} props.invoiceId - Invoice identifier for remote PDF fetch.
+ * @param {number|null} props.uploadJobId - Upload job identifier for remote PDF fetch before invoice creation.
  * @param {string|null} props.token - Authentication token for downloading the PDF.
  * @param {string|null} props.fileType - File MIME type or type hint.
  * @param {string|null} props.fileName - File name to display above the preview.
@@ -53,6 +55,7 @@ function isPdfDocument(fileType, fileName, localFile) {
 export default function InvoicePdfPreview(props) {
   const open = props.open
   const invoiceId = props.invoiceId
+  const uploadJobId = props.uploadJobId
   const token = props.token
   const fileType = props.fileType
   const fileName = props.fileName
@@ -97,13 +100,17 @@ export default function InvoicePdfPreview(props) {
           return
         }
 
-        if (!invoiceId || !token) {
+        if (!token || (!invoiceId && !uploadJobId)) {
           setError('No invoice file is available to preview.')
           setSourceUrl(null)
           return
         }
 
-        const { blob } = await downloadInvoicePdf(invoiceId, token)
+        const downloadResult = invoiceId
+          ? await downloadInvoicePdf(invoiceId, token)
+          : await downloadUploadJobPdf(uploadJobId, token)
+
+        const { blob } = downloadResult
         const objectUrl = URL.createObjectURL(blob)
         if (canceled) {
           URL.revokeObjectURL(objectUrl)
@@ -131,7 +138,7 @@ export default function InvoicePdfPreview(props) {
       setSourceUrl(null)
       if (revokedUrl) URL.revokeObjectURL(revokedUrl)
     }
-  }, [open, invoiceId, token, localFile, canPreviewPdf])
+  }, [open, invoiceId, uploadJobId, token, localFile, canPreviewPdf])
 
   useEffect(() => {
     if (!open) return undefined
@@ -325,6 +332,7 @@ export default function InvoicePdfPreview(props) {
 InvoicePdfPreview.propTypes = {
   open: PropTypes.bool,
   invoiceId: PropTypes.number,
+  uploadJobId: PropTypes.number,
   token: PropTypes.string,
   fileType: PropTypes.string,
   fileName: PropTypes.string,

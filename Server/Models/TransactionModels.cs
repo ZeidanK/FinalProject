@@ -50,6 +50,10 @@ namespace FinalProjectAuthAPI.Models
         public long? BankAccountId { get; set; }
 
         public long? CreatedByUserId { get; set; }
+
+        public long? FileUploadId { get; set; }
+
+        public bool? RequiresInvoice { get; set; }
     }
 
     public class BulkCreateTransactionsRequest
@@ -62,6 +66,8 @@ namespace FinalProjectAuthAPI.Models
         [Required]
         [MinLength(1, ErrorMessage = "At least one transaction is required.")]
         public List<CreateTransactionRequest> Transactions { get; set; } = new();
+
+        public long? FileUploadId { get; set; }
     }
 
     public class BulkDeleteTransactionsRequest
@@ -89,6 +95,7 @@ namespace FinalProjectAuthAPI.Models
         public string?   OriginalCurrency  { get; set; }
         public decimal?  ExchangeRate      { get; set; }
         public decimal?  BalanceAfter      { get; set; }
+        public bool?     RequiresInvoice   { get; set; }
         public string    SheetName         { get; set; } = string.Empty;
         public int       RowNumber         { get; set; }
     }
@@ -117,6 +124,11 @@ namespace FinalProjectAuthAPI.Models
         public string FilePath { get; set; } = string.Empty;
         public ExcelExtractionResult ExtractionResult { get; set; } = new();
         public List<long>? CreatedTransactionIds { get; set; }
+    }
+
+    public class SetRequiresInvoiceRequest
+    {
+        public bool RequiresInvoice { get; set; }
     }
 
     public class ImportExcelRequest
@@ -151,6 +163,42 @@ namespace FinalProjectAuthAPI.Models
         public string?   ChargeCurrency   { get; init; }
         public string?   OriginalCurrency { get; init; }
         public decimal?  ExchangeRate     { get; init; }
+
+        public long? FileUploadId { get; init; }
+
+        public bool RequiresInvoice { get; init; } = true;
+    }
+
+    public class TransactionFilterOptionsResponse
+    {
+        public List<string> Types { get; set; } = new();
+        public List<string> Categories { get; set; } = new();
+    }
+
+    // ── Filter / Pagination Models ────────────────────────────────────────────
+
+    public class TransactionFilterRequest
+    {
+        public string? Type { get; set; }
+        public bool? IsMatched { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? SearchTerm { get; set; }
+        public bool? RequiresInvoice { get; set; }
+        public string? Category { get; set; }
+        public string? SortBy { get; set; } = "transaction_date";
+        public string? SortDirection { get; set; } = "DESC";
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10000;
+    }
+
+    public class PagedResponse<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalCount / Math.Max(PageSize, 1));
     }
 
     // ── Transaction row ───────────────────────────────────────────────────────
@@ -172,13 +220,74 @@ namespace FinalProjectAuthAPI.Models
         public string?   ChargeCurrency      { get; set; }   // currency of charge
         public string?   OriginalCurrency    { get; set; }
         public decimal?  ExchangeRate        { get; set; }
+        public bool      RequiresInvoice     { get; set; } = true;
         public bool      IsMatched           { get; set; }
         public bool      IsAnomaly           { get; set; }
         public bool      IsDuplicate         { get; set; }
         public string    Status              { get; set; } = "confirmed";
         public long?     CreatedByUserId     { get; set; }   // uploader user id
         public string?   CreatedByName       { get; set; }
+        public long?     FileUploadId        { get; set; }
         public DateTime  CreatedAt           { get; set; }
         public DateTime  UpdatedAt           { get; set; }
+    }
+
+    // ── Transaction Summary Models ─────────────────────────────────────────────
+
+    public class TransactionSummaryResponse
+    {
+        public OverallSummary Overall { get; set; } = new();
+        public List<TypeBreakdownItem> ByType { get; set; } = new();
+        public List<CategoryBreakdownItem> ByCategory { get; set; } = new();
+        public List<MonthlyBreakdownItem> Monthly { get; set; } = new();
+        public List<VendorSummaryItem> TopVendors { get; set; } = new();
+        public StatusSummaryItem Status { get; set; } = new();
+    }
+
+    public class OverallSummary
+    {
+        public int TotalCount { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal TotalDebits { get; set; }
+        public decimal TotalCredits { get; set; }
+        public decimal AvgAmount { get; set; }
+    }
+
+    public class TypeBreakdownItem
+    {
+        public string TransactionType { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class CategoryBreakdownItem
+    {
+        public string Category { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class MonthlyBreakdownItem
+    {
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class VendorSummaryItem
+    {
+        public string VendorName { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal SumAmount { get; set; }
+    }
+
+    public class StatusSummaryItem
+    {
+        public int MatchedCount { get; set; }
+        public int AnomalyCount { get; set; }
+        public int DuplicateCount { get; set; }
+        public int RequiresInvoiceCount { get; set; }
+        public int WithoutInvoiceCount { get; set; }
     }
 }
